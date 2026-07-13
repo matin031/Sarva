@@ -3,8 +3,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { JASOOS_LEVELS } from "@/lib/jasoos-data";
 import type { Suspect as SuspectType } from "@/lib/jasoos-data";
-import CorridorScene from "./CorridorScene";
-import RoomScene from "./RoomScene";
+import SchoolMap from "./SchoolMap";
+import ShootingScene from "./ShootingScene";
 
 type Screen = "intro" | "map" | "scene" | "gameover" | "win";
 
@@ -52,17 +52,12 @@ function JasoosGame() {
             <h1 className="text-2xl sm:text-4xl font-bold mb-4 text-primary">
               جاسوسِ نقش‌ها
             </h1>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-4">
-              وارد مدرسه شو و توی راهرو راه برو. پشتِ هر در، یک بیت و چهار نفر
-              منتظرت هستند؛ هرکدام مدعیِ یک نقشِ دستوری یا آرایه‌ی ادبی‌اند. سه
-              نفرشان راست می‌گویند، اما یکی‌شان جاسوس است: نقشی را ادعا می‌کند
-              که در آن بیت اصلاً وجود ندارد. با دقت به بیت نگاه کن، جاسوس را
-              نشانه بگیر و شلیک کن. یک اشتباه، یعنی باخت!
-            </p>
-            <p className="text-xs sm:text-sm text-muted-foreground/80 max-w-xl mx-auto leading-relaxed mb-8">
-              کنترل روی دسکتاپ: حرکت با W A S D، نگاه با موس (اول کلیک کن تا
-              فعال بشه)، شلیک با کلیک یا Space. روی موبایل: دو جوی‌استیک لمسی
-              برای حرکت و نگاه، و دکمه‌ی شلیک.
+            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
+              وارد مدرسه شو. پشتِ هر در، یک بیت و چهار نفر منتظرت هستند؛ هرکدام
+              مدعیِ یک نقشِ دستوری یا آرایه‌ی ادبی‌اند. سه نفرشان راست می‌گویند،
+              اما یکی‌شان جاسوس است: نقشی را ادعا می‌کند که در آن بیت اصلاً
+              وجود ندارد. با دقت به بیت نگاه کن، جاسوس را نشانه بگیر و شلیک
+              کن. یک اشتباه، یعنی باخت!
             </p>
             <button
               onClick={() => setScreen("map")}
@@ -81,11 +76,11 @@ function JasoosGame() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <CorridorScene
+            <SchoolMap
               levels={JASOOS_LEVELS}
               clearedCount={clearedCount}
-              onEnter={() => {
-                setLevelIndex(clearedCount);
+              onEnter={(i) => {
+                setLevelIndex(i);
                 setScreen("scene");
               }}
             />
@@ -100,7 +95,7 @@ function JasoosGame() {
             exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.5 }}
           >
-            <RoomScene level={level} onResult={handleResult} />
+            <ShootingScene level={level} onResult={handleResult} />
           </motion.div>
         )}
 

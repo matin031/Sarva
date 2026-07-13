@@ -1,7 +1,64 @@
 import Quiz from "@/components/UI/Quiz";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "آزمون وزن شعر",
+  robots: { index: false, follow: false },
+};
+
+async function page() {
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll() {},
+      },
+    },
+  );
+
+  const { data: questions } = await supabase.from("questions").select(`
+      id,
+      type,
+      poem,
+      audio_url,
+      question_options (
+        id,
+        label,
+        poem,
+        audio_url,
+        is_correct,
+        x
+      )
+    `);
+
+  const data = (questions ?? []).map((q) => ({
+    id: q.id,
+    type: q.type,
+    poem: q.poem,
+    audioSrc: q.audio_url,
+    options: q.question_options.map((o: any) => ({
+      id: o.id,
+      label: o.label,
+      poem: o.poem,
+      audioSrc: o.audio_url,
+      isCorrect: o.is_correct,
+      x: o.x,
+    })),
+  }));
+
+  return <Quiz data={data} />;
+}
 
 export type Question = {
-  id: number;
+  id: string;
   type:
     | "audio-to-poem"
     | "audio-to-pattern"
@@ -12,7 +69,7 @@ export type Question = {
   poem?: string[];
   audioSrc?: string;
   options: {
-    id: number;
+    id: string;
     poem?: string[];
     label?: string;
     audioSrc?: string;
@@ -20,117 +77,5 @@ export type Question = {
     x: number;
   }[];
 };
-
-function page() {
-  const data: Question[] = [
-    {
-      id: 1,
-      type: "poem-to-audio",
-      poem: [
-        "سرو چمان من چرا میل چمن نمی کند",
-        "همدم گل نمی‌شود یاد سمن نمی‌کند",
-      ],
-
-      options: [
-        {
-          id: 1,
-          audioSrc: "/Lab Labe Man.mp3",
-          isCorrect: false,
-          x: 30,
-        },
-        {
-          id: 2,
-          audioSrc: "/Ramesh - Delakam [320].mp3",
-          isCorrect: true,
-          x: -30,
-        },
-        {
-          id: 3,
-          audioSrc: "/Ramesh - Delakam [320].mp3",
-          isCorrect: false,
-          x: 30,
-        },
-        {
-          id: 4,
-          audioSrc: "/Lab Labe Man.mp3",
-          isCorrect: false,
-          x: -30,
-        },
-      ],
-    },
-    {
-      id: 2,
-      type: "audio-to-weight",
-      audioSrc: "/مفاعیلن.mp3",
-      options: [
-        { id: 1, label: "مستفعل مستفعل مستفعل فعلن", isCorrect: false, x: 30 },
-        {
-          id: 2,
-          label: "مفاعیلن مفاعیلن مفاعیلن فعولن",
-          isCorrect: true,
-          x: -30,
-        },
-        {
-          id: 3,
-          label: "فاعلاتن فاعلاتن فاعلاتن فاعلن",
-          isCorrect: false,
-          x: 30,
-        },
-        {
-          id: 4,
-          label: "متفعلن مفاعلن مفتلعن مفاعلن",
-          isCorrect: false,
-          x: -30,
-        },
-      ],
-    },
-    {
-      id: 3,
-      type: "audio-to-poem",
-      audioSrc: "/فاعلاتن.mp3",
-
-      options: [
-        {
-          id: 1,
-          poem: [
-            "حافظا تیکه بر ایام چو سهو است و خطا",
-            "من چرا عشرت امروز به فردا فکنم",
-          ],
-          isCorrect: false,
-          x: 30,
-        },
-        {
-          id: 2,
-          poem: [
-            "بر آسمان‌ها برده سر وز سرنبشت او بی‌خبر",
-            "همیان او پرسیم و زر گوشش پر از طال بقا",
-          ],
-          isCorrect: false,
-          x: -30,
-        },
-        {
-          id: 3,
-          poem: [
-            "پیشم آمد بامداد آن دلبر از راه شکوخ",
-            "با دو رخ از شرم لعل و با دو چشم از سحر شوخ",
-          ],
-          isCorrect: true,
-          x: 30,
-        },
-        {
-          id: 4,
-          poem: [
-            "مرده بدم زنده شدم گریه بدم خنده شدم",
-            "دولت عشق آمد و من دولت پاینده شدم",
-          ],
-          isCorrect: false,
-          x: -30,
-        },
-      ],
-    },
-  ];
-
-  return <Quiz data={data} />;
-}
 
 export default page;

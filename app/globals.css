@@ -14,7 +14,7 @@
   --secondary: oklch(0.92 0.02 85); /* Paper brown tone */
   --secondary-foreground: oklch(0.25 0.02 250);
   --muted: oklch(0.94 0.015 85);
-  --muted-foreground: oklch(0.45 0.02 250);
+  --muted-foreground: #4d5660;
   --accent: oklch(0.75 0.12 85); /* Soft gold */
   --accent-foreground: oklch(0.2 0.02 250);
   --destructive: oklch(0.55 0.2 25);
@@ -30,7 +30,7 @@
   --radius: 0.75rem;
 
   /* Custom Persian colors */
-  --turquoise: oklch(0.55 0.12 195);
+  --turquoise: #008687;
   --turquoise-light: oklch(0.75 0.08 195);
   --lapis: oklch(0.3 0.1 260);
   --lapis-light: oklch(0.45 0.08 260);
@@ -43,17 +43,17 @@
 .dark {
   /* Persian night aesthetics - Deep blues with gold and turquoise accents */
   --background: oklch(0.14 0.03 260); /* Deep night blue */
-  --foreground: oklch(0.95 0.01 85); /* Warm cream text */
+  --foreground: #f1eee7; /* Warm cream text */
   --card: oklch(0.18 0.025 260);
   --card-foreground: oklch(0.95 0.01 85);
   --popover: oklch(0.18 0.025 260);
   --popover-foreground: oklch(0.95 0.01 85);
-  --primary: oklch(0.65 0.12 195); /* Brighter turquoise for dark mode */
+  --primary: #00a5a6; /* Brighter turquoise for dark mode */
   --primary-foreground: oklch(0.14 0.03 260);
   --secondary: oklch(0.22 0.025 260);
   --secondary-foreground: oklch(0.95 0.01 85);
   --muted: oklch(0.25 0.02 260);
-  --muted-foreground: oklch(0.7 0.02 85);
+  --muted-foreground: #a49e91;
   --accent: oklch(0.75 0.12 85); /* Gold accent */
   --accent-foreground: oklch(0.14 0.03 260);
   --destructive: oklch(0.45 0.18 25);
@@ -76,6 +76,21 @@
   --gold-light: oklch(0.65 0.1 85);
   --cream: oklch(0.95 0.01 85);
   --paper: oklch(0.22 0.025 260);
+}
+#nprogress .bar {
+  background: var(--color-primary) !important;
+  height: 3px !important;
+  z-index: 9999 !important;
+}
+
+#nprogress .peg {
+  box-shadow:
+    0 0 10px var(--color-primary),
+    0 0 5px var(--color-primary) !important;
+}
+
+#nprogress .spinner {
+  display: none !important;
 }
 
 @theme inline {
@@ -156,14 +171,69 @@
 }
 
 .glass {
-  background: oklch(0.99 0.005 85 / 0.7);
+  background: #fdfcf8b3;
   backdrop-filter: blur(12px);
-  border: 1px solid oklch(0.88 0.02 85 / 0.5);
+  border: 1px solid #ded7c980;
 }
 
 .dark .glass {
-  background: oklch(0.18 0.025 260 / 0.7);
-  border: 1px solid oklch(0.28 0.025 260 / 0.5);
+  background: #0b121db3;
+  border: 1px solid #22293580;
+}
+
+.glass-toast {
+  background: oklch(0.99 0.005 85 / 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid oklch(0.88 0.02 85 / 0.5) !important;
+  color: #111 !important;
+}
+
+.dark .glass-toast {
+  background: oklch(0.18 0.025 260 / 0.7) !important;
+  border: 1px solid oklch(0.28 0.025 260 / 0.5) !important;
+  color: #f1f1f1 !important;
+}
+
+.custom-scrollbar {
+  direction: ltr;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
+}
+
+.custom-scrollbar > * {
+  direction: rtl;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 999px;
+  opacity: 0.6;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary);
+  opacity: 0.9;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 6s linear infinite;
 }
 
 * {
@@ -186,4 +256,9 @@ button {
 
 ::view-transition-image-pair(root) {
   isolation: isolate;
+}
+
+.recharts-wrapper,
+.recharts-surface {
+  outline: none !important;
 }

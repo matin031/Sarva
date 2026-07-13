@@ -1,30 +1,47 @@
 "use client";
 import Link from "next/link";
 import { motion } from "motion/react";
+import {
+  fadeUp,
+  springPop,
+  staggerContainer,
+  defaultViewport,
+} from "@/lib/motion";
+
 function HeroSection() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
+      variants={staggerContainer(0.18)}
+      initial="hidden"
+      whileInView="visible"
+      viewport={defaultViewport}
     >
-      <div className=" max-w-48 mx-auto mb-3 sm:mb-0 rounded-full text-xs sm:text-sm px-4 font-semibold py-1 bg-primary/10 text-primary">
-        پلتفرم آموزش عروض فارسی
-      </div>
+      <motion.div
+        variants={springPop}
+        className=" max-w-48 mx-auto mb-3 sm:mb-0 rounded-full text-xs sm:text-sm px-4 font-semibold py-1 bg-primary/10 text-primary"
+      >
+        پلتفرمِ آموزشِ عروضِ پارسی
+      </motion.div>
       <h1 className=" -space-y-6 sm:-space-y-8 md:-space-y-12 font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-foreground leading-tight mb-6 ">
-        <span className=" block ">هنر شعر فارسی را</span>
-        <span className="text-primary ">با عروض بیاموزید</span>
+        <motion.span variants={fadeUp} className=" block ">
+          آهنگِ شعر پارسی را
+        </motion.span>
+        <motion.span variants={fadeUp} className="text-primary block">
+          با عروضینو بیاموز
+        </motion.span>
       </h1>
-      <p
+      <motion.p
+        variants={fadeUp}
         className=" text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl
            mx-auto mb-8 text-pretty "
       >
-        با روشی تعاملی و نوین، اوزان عروضی شعر فارسی را بشناسید و ریتم زیبای
-        اشعار حافظ، سعدی و... را درک کنید
-      </p>
-      <div className=" flex items-center justify-center flex-col xs:flex-row-reverse gap-4 text-sm xs:text-base md:text-lg font-bold">
+        با روشی تعاملی و امروزی، اوزانِ عروضی را گام‌به‌گام بشناس و ریتمِ زیبای
+        شعرِ حافظ، سعدی و دیگر بزرگان را حس کن
+      </motion.p>
+      <motion.div
+        variants={fadeUp}
+        className=" flex items-center justify-center flex-col xs:flex-row-reverse gap-4 text-sm xs:text-base md:text-lg font-bold"
+      >
         <Link
           className="active:scale-95 hover:brightness-90 transition-all bg-primary
            px-4 py-1 text-white justify-center rounded-xl flex items-center gap-x-2 z-20 relative"
@@ -50,9 +67,8 @@ function HeroSection() {
         >
           راهنمای یادگیری
         </Link>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
-
 export default HeroSection;

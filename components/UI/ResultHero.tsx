@@ -1,8 +1,46 @@
 "use client";
 import { motion } from "framer-motion";
 
+function getResultMessage(result: number) {
+  if (result >= 100) {
+    return {
+      title: "!بی نقص",
+      subtitle: "تمام پاسخ‌ها درست بود؛ شما واقعاً استاد عروضید",
+    };
+  }
+  if (result > 80) {
+    return {
+      title: "!عالی",
+      subtitle: "تسلط چشمگیری بر وزن و عروض دارید",
+    };
+  }
+  if (result > 60) {
+    return {
+      title: "!آفرین",
+      subtitle: "دست‌مریزاد؛ فقط چند نکته‌ی ظریف باقی مانده",
+    };
+  }
+  if (result > 40) {
+    return {
+      title: "بد نبود",
+      subtitle: "پایه را دارید؛ مرور دوبارهٔ اوزان کمک زیادی می‌کند",
+    };
+  }
+  if (result > 20) {
+    return {
+      title: "راه داریم",
+      subtitle: "نگران نباشید؛ عروض با تکرار جا می‌افتد، دوباره تلاش کنید",
+    };
+  }
+  return {
+    title: "شروع تازه",
+    subtitle: "از همین‌جا شروع می‌کنیم؛ مبانی وزن را مرور کنید و باز بیایید",
+  };
+}
+
 function ResultHero({ total, correct }: { total: number; correct: number }) {
   const result = (Math.round(correct) / Math.round(total)) * 100;
+  const { title, subtitle } = getResultMessage(result);
 
   return (
     <>
@@ -36,12 +74,7 @@ function ResultHero({ total, correct }: { total: number; correct: number }) {
           transition={{ type: "spring" }}
           className="text-4xl md:text-5xl font-bold text-foreground"
         >
-          {result < 19 && "شروع تازه"}
-          {result > 21 && result < 41 && "راه داریم"}
-          {result > 39 && result < 59 && "بد نبود"}
-          {result > 59 && result < 79 && "!آفرین"}
-          {result > 79 && result < 99 && "!عالی"}
-          {result == 100 && "!بی نقص"}
+          {title}
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
@@ -49,19 +82,7 @@ function ResultHero({ total, correct }: { total: number; correct: number }) {
           transition={{ type: "spring" }}
           className="text-lg text-muted-foreground mb-8"
         >
-          {result < 19 &&
-            "از همین‌جا شروع می‌کنیم؛ مبانی وزن را مرور کنید و باز بیایید"}
-          {result > 19 &&
-            result < 39 &&
-            "نگران نباشید؛ عروض با تکرار جا می‌افتد، دوباره تلاش کنید"}
-          {result > 39 &&
-            result < 59 &&
-            "پایه را دارید؛ مرور دوبارهٔ اوزان کمک زیادی می‌کند"}
-          {result > 59 &&
-            result < 79 &&
-            "دست‌مریزاد؛ فقط چند نکته‌ی ظریف باقی مانده"}
-          {result > 79 && result < 99 && "تسلط چشمگیری بر وزن و عروض دارید"}
-          {result == 100 && "تمام پاسخ‌ها درست بود؛ شما واقعاً استاد عروضید"}
+          {subtitle}
         </motion.p>
       </motion.div>
     </>

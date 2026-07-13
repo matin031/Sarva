@@ -1,8 +1,15 @@
 import CircularProgress from "@/components/UI/CircularProgress";
+import RegisterPrompt from "@/components/UI/RegisterPrompt";
 import ResultHero from "@/components/UI/ResultHero";
 import ScoreStats from "@/components/UI/ScoreStats";
 import StarsIcon from "@/components/UI/StarsIcon";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "نتیجه آزمون",
+  robots: { index: false, follow: false },
+};
 
 async function page({
   searchParams,
@@ -12,7 +19,7 @@ async function page({
   const { score, total } = await searchParams;
 
   return (
-    <div className=" mb-80 flex max-w-2xl mx-auto container items-center justify-center flex-col mt-10 relative">
+    <div className=" mb-20  flex max-w-2xl mx-auto container items-center justify-center flex-col mt-10 relative">
       <div
         className="hidden dark:block bg-primary/8 blur-3xl size-100 rounded-full
        right-20 top-0 absolute"
@@ -115,9 +122,11 @@ async function page({
         </div>
         {/* wave */}
       </div>
-      <Link className=" mt-4" href={"/"}>
-        بازگشت
+      <Link className=" underline mt-4" href={"/"}>
+        بازگشت به صفحه اصلی
       </Link>
+
+      <RegisterPrompt />
     </div>
   );
 }

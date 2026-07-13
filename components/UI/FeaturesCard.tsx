@@ -1,32 +1,26 @@
 "use client";
 import React from "react";
 import { motion } from "motion/react";
+import type { Variants } from "motion/react";
 
-import FeaturesSectionIconFirst from "../svgs/FeaturesSectionIconFirst";
-
-interface FeaturesCardType {
+type FeaturesCardType = {
   title: string;
   desc: string;
-  bgColor: string;
   icon: React.ReactNode;
-  transition: {
-    duration: number;
-    delay: number;
-  };
-}
+  bgColor: string;
+  variants: Variants;
+};
+
 function FeaturesCard({
   title,
   desc,
   icon,
   bgColor,
-  transition,
+  variants,
 }: FeaturesCardType) {
   return (
     <motion.div
-      initial={{ y: 40 }}
-      whileInView={{ y: 0 }}
-      viewport={{ once: true }}
-      transition={transition}
+      variants={variants}
       className=" hover:scale-102 transition-all space-y-1 glass rounded-2xl z-20 relative text-right p-6"
     >
       <div

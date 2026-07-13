@@ -1,9 +1,16 @@
 "use client";
 import { useKeenSlider, KeenSliderPlugin } from "keen-slider/react";
 import { motion } from "motion/react";
-
 import "keen-slider/keen-slider.min.css";
 import { useEffect } from "react";
+import {
+  fadeUp,
+  scaleIn,
+  staggerContainer,
+  defaultViewport,
+} from "@/lib/motion";
+import "keen-slider/keen-slider.min.css";
+
 const WheelControls: KeenSliderPlugin = (slider) => {
   let touchTimeout: ReturnType<typeof setTimeout>;
   let position: {

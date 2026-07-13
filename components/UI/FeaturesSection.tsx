@@ -1,3 +1,4 @@
+// FeaturesSection.tsx
 "use client";
 import { motion } from "motion/react";
 import FeaturesSectionIconFirst from "../svgs/FeaturesSectionIconFirst";
@@ -5,72 +6,79 @@ import FeaturesCard from "./FeaturesCard";
 import FeaturesSectionIconSecond from "../svgs/FeaturesSectionIconSecond";
 import FeaturesSectionIconThird from "../svgs/FeaturesSectionIconThird";
 import FeaturesSectionIconFourth from "../svgs/FeaturesSectionIconFourth";
+import {
+  fadeUp,
+  cardPop,
+  cardFlip3D,
+  cardSlideSide,
+  staggerContainer,
+  defaultViewport,
+} from "@/lib/motion";
+
+// 👇 برای تست فقط همین خط رو عوض کن: cardPop | cardFlip3D | cardSlideSide
+const ACTIVE_VARIANT = cardPop;
 
 function FeaturesSection() {
   return (
-    <div className=" flex flex-col items-center justify-center cursor-default">
+    <div className="flex flex-col items-center justify-center cursor-default">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className=" text-center"
+        variants={staggerContainer(0.12)}
+        initial="hidden"
+        whileInView="visible"
+        viewport={defaultViewport}
+        className="text-center"
       >
-        <h2 className=" text-2xl sm:text-3xl md:text-4xl  font-bold">
-          چرا عروض آموز؟
-        </h2>
-        <p className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]">
+        <motion.h2
+          variants={fadeUp}
+          className="text-2xl sm:text-3xl md:text-4xl font-bold"
+        >
+          چرا عروضینو؟
+        </motion.h2>
+        <motion.p
+          variants={fadeUp}
+          className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]"
+        >
           با ترکیب زیبایی‌شناسی ایرانی و فناوری مدرن، تجربه‌ای متفاوت در یادگیری
           عروض
-        </p>
+        </motion.p>
       </motion.div>
-      <div className=" mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+      <motion.div
+        variants={staggerContainer(0.12, 0.1)}
+        initial="hidden"
+        whileInView="visible"
+        viewport={defaultViewport}
+        className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
         <FeaturesCard
-          title={"پیگیری پیشرفت"}
-          desc={" میزان یادگیری خود را ببینید و به سطوح بالاتر برسید"}
+          title="پیگیری پیشرفت"
+          desc="روندِ پیشرفتت را دنبال کن و پله‌پله به سطوح بالاتر برس"
           icon={<FeaturesSectionIconFirst />}
           bgColor="bg-lapis-light/20"
-          transition={{
-            duration: 0.5,
-            delay: 0.15,
-          }}
+          variants={ACTIVE_VARIANT}
         />
-
         <FeaturesCard
-          title={"گوش دادن به ریتم"}
-          desc={"با پخش صوتی، ریتم هر وزن را بشنوید و درک کنید"}
+          title="گوش دادن به ریتم"
+          desc="با پخشِ صوتی، ریتمِ هر وزن را بشنو و حس کن"
           icon={<FeaturesSectionIconThird />}
           bgColor="bg-gold/20"
-          transition={{
-            duration: 0.5,
-            delay: 0.3,
-          }}
+          variants={ACTIVE_VARIANT}
         />
-
         <FeaturesCard
-          title={"یادگیری تعاملی"}
-          desc={
-            "با پاسخ به سوالات چندگزینه‌ای، اوزان را به صورت عملی یاد بگیرید"
-          }
+          title="یادگیری تعاملی"
+          desc="با پاسخ به پرسش‌های چندگزینه‌ای، اوزان را عملی و ماندگار بیاموز"
           icon={<FeaturesSectionIconFourth />}
           bgColor="bg-primary/10"
-          transition={{
-            duration: 0.5,
-            delay: 0.45,
-          }}
+          variants={ACTIVE_VARIANT}
         />
-
         <FeaturesCard
-          title={"طراحی زیبا"}
-          desc={"رابط کاربری الهام‌گرفته از هنر و معماری ایرانی"}
+          title="طراحی زیبا"
+          desc="رابطی کاربری، الهام‌گرفته از هنر و معماریِ اصیلِ ایرانی"
           icon={<FeaturesSectionIconSecond />}
           bgColor="bg-turquoise-light/20"
-          transition={{
-            duration: 0.5,
-            delay: 0.6,
-          }}
+          variants={ACTIVE_VARIANT}
         />
-      </div>
+      </motion.div>
     </div>
   );
 }

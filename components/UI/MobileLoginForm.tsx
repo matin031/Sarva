@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 const mobileSchema = z.object({
   mobile: z
@@ -27,32 +29,29 @@ export default function LoginForm({
   onSuccess: (identifier: string) => void;
   setIsLogin: (value: boolean) => void;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<"email" | "mobile">("mobile");
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState(["", "", "", ""]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const {
     register: registerMobile,
     handleSubmit: handleMobileSubmit,
-    formState: { errors: mobileErrors, isSubmitting: isMobileSubmitting },
-  } = useForm<MobileFormData>({
-    resolver: zodResolver(mobileSchema),
-  });
+    formState: { errors: mobileErrors },
+  } = useForm<MobileFormData>({ resolver: zodResolver(mobileSchema) });
 
   const {
     register: registerEmail,
     handleSubmit: handleEmailSubmit,
-    formState: { errors: emailErrors, isSubmitting: isEmailSubmitting },
-  } = useForm<EmailFormData>({
-    resolver: zodResolver(emailSchema),
-  });
+    formState: { errors: emailErrors },
+  } = useForm<EmailFormData>({ resolver: zodResolver(emailSchema) });
 
   useEffect(() => {
     if (showOtp) {
-      const timer = setTimeout(() => {
-        inputRefs.current[0]?.focus();
-      }, 100);
+      const timer = setTimeout(() => inputRefs.current[0]?.focus(), 100);
       return () => clearTimeout(timer);
     }
   }, [showOtp]);
@@ -62,32 +61,62 @@ export default function LoginForm({
     const newOtp = [...otp];
     newOtp[index] = digit;
     setOtp(newOtp);
-
-    if (digit && index < 3) {
-      inputRefs.current[index + 1]?.focus();
-    }
+    if (digit && index < 3) inputRefs.current[index + 1]?.focus();
   };
 
   const handleOtpKeyDown = (
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>,
   ) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
+    if (e.key === "Backspace" && !otp[index] && index > 0)
       inputRefs.current[index - 1]?.focus();
-    }
   };
 
-  const onMobileSubmit = (data: MobileFormData) => {
+  const onMobileSubmit = async (data: MobileFormData) => {
+    setError(null);
     if (!showOtp) {
-      setShowOtp(true);
-    } else {
-      onSuccess(data.mobile);
+      setLoading(true);
+
+      setError("ورود با موبایل هنوز فعال نشده. از ایمیل استفاده کنید");
+      setLoading(false);
+      return;
     }
   };
 
-  const onEmailSubmit = (data: EmailFormData) => {
-    onSuccess(data.email);
+  const onEmailSubmit = async (data: EmailFormData) => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setError("ایمیل یا رمز عبور اشتباه است");
+        } else if (error.message.includes("Email not confirmed")) {
+          setError("لطفاً ایمیل خود را تأیید کنید");
+        } else {
+          setError("خطایی رخ داد. دوباره تلاش کنید");
+        }
+        setLoading(false);
+        return;
+      }
+
+      // success: keep the button in its loading state — we're about to
+      // navigate away, so there's nothing to reset, and resetting here
+      // would flash the button back before the route actually changes
+      onSuccess(data.email);
+      router.push("/panel");
+      router.refresh();
+    } catch {
+      setError("خطای اتصال. اینترنت خود را بررسی کنید");
+      setLoading(false);
+    }
   };
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form
@@ -96,7 +125,8 @@ export default function LoginForm({
           ? handleMobileSubmit(onMobileSubmit)
           : handleEmailSubmit(onEmailSubmit)
       }
-      className=" glass relative z-20 rounded-xl mt-10 px-8 pt-8 pb-4 w-[95%] text-sm sm:text-base  sm:max-w-115"
+      className=" glass relative z-20 rounded-xl mt-10 px-4 sm:px-8 pt-8 pb-4 w-[95%]
+       text-sm sm:text-base sm:max-w-115"
     >
       <div
         className=" relative border border-primary/40 gap-x-4 bg-primary/10
@@ -112,6 +142,7 @@ export default function LoginForm({
           onClick={() => {
             setTab("email");
             setShowOtp(false);
+            setError(null);
           }}
           className={`relative z-10 py-2 rounded-xl transition-colors duration-300 ${
             tab === "email"
@@ -126,6 +157,7 @@ export default function LoginForm({
           onClick={() => {
             setTab("mobile");
             setShowOtp(false);
+            setError(null);
           }}
           className={`relative z-10 py-2 rounded-xl transition-colors duration-300 ${
             tab === "mobile"
@@ -145,9 +177,7 @@ export default function LoginForm({
             </label>
             <input
               {...registerMobile("mobile")}
-              className=" text-left 
-                placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4
-                 py-3 border border-muted-foreground/10 rounded-xl w-full"
+              className=" text-left placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4 py-3 border border-muted-foreground/10 rounded-xl w-full"
               type="text"
               placeholder="0913 118 1234"
               disabled={showOtp}
@@ -161,42 +191,16 @@ export default function LoginForm({
           <p className=" text-sm mt-1 text-muted-foreground">
             .کد تأیید با پیامک برایت ارسال می‌شود
           </p>
-
-          {showOtp && (
-            <div className=" flex justify-center gap-3 mt-6" dir="ltr">
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => {
-                    inputRefs.current[i] = el;
-                  }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(i, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                  className=" w-13 h-14 text-center text-2xl font-bold rounded-xl border
-                        border-muted-foreground/10 bg-background outline-none
-                        focus:border-primary transition-colors duration-200
-                        otp-pop"
-                  style={{ animationDelay: `${i * 80}ms` }}
-                />
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       {tab === "email" && (
         <div>
-          <div className="  mt-5">
+          <div className=" mt-5">
             <label className=" text-sm text-muted-foreground">ایمیل</label>
             <input
               {...registerEmail("email")}
-              className=" text-left 
-                placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4
-                 py-3 border border-muted-foreground/10 rounded-xl w-full"
+              className=" text-left placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4 py-3 border border-muted-foreground/10 rounded-xl w-full"
               type="text"
               placeholder="you@example.com"
             />
@@ -213,14 +217,51 @@ export default function LoginForm({
               </span>
               <span className=" text-sm text-muted-foreground">رمز عبور</span>
             </div>
-            <input
-              {...registerEmail("password")}
-              className=" text-left 
-                placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4
-                 py-3 border border-muted-foreground/10 rounded-xl w-full"
-              type="password"
-              placeholder="********"
-            />
+            <div className="border  px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
+              <input
+                {...registerEmail("password")}
+                className=" pl-2 h-full text-left placeholder:text-right placeholder:text-muted-foreground/30 outline-none 
+                 w-full"
+                type={showPassword ? "text" : "password"}
+                placeholder="*************"
+              />
+              <div
+                onClick={() => {
+                  setShowPassword((prev) => !prev);
+                }}
+                className=" cursor-pointer text-muted-foreground"
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    className="size-5 cursor-pointer"
+                  >
+                    <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+                    <path
+                      fillRule="evenodd"
+                      d="M1.38 8.28a.87.87 0 0 1 0-.566 7.003 7.003 0 0 1 13.238.006.87.87 0 0 1 0 .566A7.003 7.003 0 0 1 1.379 8.28ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    className="size-5"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l10.5 10.5a.75.75 0 1 0 1.06-1.06l-1.322-1.323a7.012 7.012 0 0 0 2.16-3.11.87.87 0 0 0 0-.567A7.003 7.003 0 0 0 4.82 3.76l-1.54-1.54Zm3.196 3.195 1.135 1.136A1.502 1.502 0 0 1 9.45 8.389l1.136 1.135a3 3 0 0 0-4.109-4.109Z"
+                      clipRule="evenodd"
+                    />
+                    <path d="m7.812 10.994 1.816 1.816A7.003 7.003 0 0 1 1.38 8.28a.87.87 0 0 1 0-.566 6.985 6.985 0 0 1 1.113-2.039l2.513 2.513a3 3 0 0 0 2.806 2.806Z" />
+                  </svg>
+                )}
+              </div>
+            </div>
             {emailErrors.password && (
               <p className=" text-xs sm:text-sm text-red-500 mt-1">
                 {emailErrors.password.message}
@@ -230,19 +271,23 @@ export default function LoginForm({
         </div>
       )}
 
+      {error && (
+        <p className=" text-xs sm:text-sm text-red-500 mt-3 text-center">
+          {error}
+        </p>
+      )}
+
       <button
         type="submit"
-        disabled={isMobileSubmitting || isEmailSubmitting}
-        className=" bg-primary text-black rounded-xl p-2 w-full font-bold mt-5"
+        disabled={loading}
+        className=" bg-primary text-black rounded-xl p-2 w-full font-bold mt-5 disabled:opacity-60"
       >
-        {tab === "mobile" && showOtp ? "تأیید کد" : "ورود"}
+        {loading ? "...در حال ورود" : "ورود"}
       </button>
       <p className=" text-center mt-8">
         حساب کاربری نداری؟
         <span
-          onClick={() => {
-            setIsLogin(false);
-          }}
+          onClick={() => setIsLogin(false)}
           className=" text-primary cursor-pointer"
         >
           همین حالا بساز

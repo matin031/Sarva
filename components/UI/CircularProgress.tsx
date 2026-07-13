@@ -32,6 +32,7 @@ export interface CircularProgressProps {
   color?: string;
   /** متن جایگزین زیر درصد */
   label?: string;
+  isPanel?: boolean;
 }
 
 export default function CircularProgress({
@@ -42,6 +43,7 @@ export default function CircularProgress({
   duration = 1.2,
   showFraction = true,
   persian = true,
+  isPanel = false,
 
   label,
 }: CircularProgressProps) {
@@ -81,7 +83,7 @@ export default function CircularProgress({
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, rotate: 0, scale: 1, y: 0 }}
       transition={{ type: "spring" }}
-      className=" size-48 *:text-primary"
+      className={`${isPanel && " size-full flex items-center justify-center"} size-48 *:text-primary`}
     >
       {" "}
       <motion.div
@@ -122,20 +124,25 @@ export default function CircularProgress({
         </svg>
 
         <div className="absolute -space-y-7 inset-0 flex flex-col items-center justify-center">
-          <motion.span className="text-5xl font-bold text-black dark:text-white leading-none">
+          <motion.span
+            className={`${isPanel ? " text-2xl" : "text-5xl"}  font-bold text-black dark:text-white leading-none`}
+          >
             {display}
           </motion.span>
-          {label ? (
-            <span className="mt-1 text-sm text-muted-foreground">{label}</span>
-          ) : (
-            showFraction && (
-              <div className="mt-1 flex gap-x-1 items-center text-sm text-muted-foreground">
-                <span> {fmt(safeTotal)}</span>
-                <span>از</span>
-                <span>{fmt(safeCorrect)}</span>
-              </div>
-            )
-          )}
+          {!isPanel &&
+            (label ? (
+              <span className="mt-1 text-sm text-muted-foreground">
+                {label}
+              </span>
+            ) : (
+              showFraction && (
+                <div className="mt-1 flex gap-x-1 items-center text-sm text-muted-foreground">
+                  <span>{fmt(safeTotal)}</span>
+                  <span>از</span>
+                  <span>{fmt(safeCorrect)}</span>
+                </div>
+              )
+            ))}
         </div>
       </motion.div>
     </motion.div>

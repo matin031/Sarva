@@ -13,9 +13,9 @@ export function FakeWaveform({
   const rafRef = useRef<number | null>(null);
   const tRef = useRef(0);
 
-  // فاز اولیه‌ی هر بار، تا حرکت هر بار با بقیه کمی متفاوت باشه (نه یکنواخت)
-  const phasesRef = useRef(
-    Array.from({ length: barCount }, () => Math.random() * Math.PI * 2),
+  // فاز هر بار: مقدار اولیه فرقی نمی‌کند چون تا قبل از mount شدن استفاده نمی‌شود
+  const phasesRef = useRef<number[]>(
+    Array.from({ length: barCount }, (_, i) => (i * 2.399963) % (Math.PI * 2)),
   );
 
   function computeHeights(t: number) {
@@ -29,11 +29,27 @@ export function FakeWaveform({
     });
   }
 
-  // مقدار اولیه: یک snapshot ثابت از شکل موج (نه فلت)، تا حتی قبل از انیمیشن هم شبیه واقعی باشه
-  const [heights, setHeights] = useState<number[]>(() => computeHeights(0));
+  // حالت اولیه‌ی ثابت و بدون هیچ محاسبه‌ی اعشاری (Math.sin/Math.random)، تا سرور و کلاینت
+  // دقیقاً همان رشته را رندر کنند. Math.sin بین موتورهای جاوااسکریپت متفاوت (سرور/مرورگر)
+  // می‌تواند در ارقام اعشار آخر فرق کند و باعث hydration mismatch شود.
+  const [heights, setHeights] = useState<number[]>(() =>
+    Array.from({ length: barCount }, () => 45),
+  );
+  const [mounted, setMounted] = useState(false);
+
+  // بعد از mount شدن (فقط سمت کلاینت)، فازها واقعاً تصادفی می‌شوند و موج واقعی محاسبه می‌شود
+  useEffect(() => {
+    phasesRef.current = Array.from(
+      { length: barCount },
+      () => Math.random() * Math.PI * 2,
+    );
+    setHeights(computeHeights(tRef.current));
+    setMounted(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barCount]);
 
   useEffect(() => {
-    if (!active) {
+    if (!mounted || !active) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       return;
     }
@@ -48,7 +64,7 @@ export function FakeWaveform({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [active]);
+  }, [active, mounted]);
 
   return (
     <div className="flex items-center gap-x-2 w-full">

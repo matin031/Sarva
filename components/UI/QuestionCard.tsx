@@ -10,7 +10,7 @@ function QuestionCard({
 }) {
   return (
     <div
-      className="glass h-68.75 rounded-2xl py-3 xs:p-5 md:p-8 mb-6  overflow-hidden relative z-20
+      className="glass h-62.5 rounded-2xl py-3 xs:p-5 md:px-8 md:py-5 mb-6  overflow-hidden relative z-20
              mt-4 flex items-center justify-center flex-col text-base xs:text-lg sm:text-xl md:text-2xl"
     >
       {/* نمایش بیت شعر */}

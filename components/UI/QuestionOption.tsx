@@ -21,6 +21,8 @@ interface QuestionOptionType {
   answered: boolean;
   isCorrect: boolean;
   whileInView: number;
+  playingId: number | null;
+  setPlayingId: Dispatch<SetStateAction<number | null>>;
 }
 
 export default function QuestionOption({
@@ -34,6 +36,8 @@ export default function QuestionOption({
   title,
   poem,
   whileInView,
+  playingId,
+  setPlayingId,
 }: QuestionOptionType) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -74,8 +78,19 @@ export default function QuestionOption({
   }, [audioUrl, title]);
 
   const handlePlay = () => {
-    wavesurferRef.current?.playPause();
+    if (isPlaying) {
+      wavesurferRef.current?.pause();
+      setPlayingId(null);
+    } else {
+      wavesurferRef.current?.play();
+      setPlayingId(id);
+    }
   };
+  useEffect(() => {
+    if (playingId !== id && isPlaying) {
+      wavesurferRef.current?.pause();
+    }
+  }, [playingId]);
 
   return (
     <motion.div

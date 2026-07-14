@@ -57,7 +57,9 @@ function ShootingScene({
       ref={containerRef}
       onMouseMove={handleMove}
       onMouseLeave={() => setPointer((p) => ({ ...p, visible: false }))}
-      className="relative w-full aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden glass select-none sm:cursor-none"
+      className={`relative w-full aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden glass select-none ${
+        result ? "" : "sm:cursor-none"
+      }`}
     >
       {/* dim room backdrop */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,oklch(0.3_0.03_260),oklch(0.08_0.02_260))]" />

@@ -9,6 +9,9 @@ import Link from "next/link";
 import CompletedQuizzesSection, {
   type Attempt,
 } from "@/components/CompletedQuizzesSection";
+import JasoosHistorySection, {
+  type JasoosAnswer,
+} from "@/components/JasoosHistorySection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -142,6 +145,19 @@ async function page() {
     formattedDate: formatJalaliDate(a.created_at),
   })) as Attempt[];
 
+  const { data: jasoosAnswers } = await supabase
+    .from("jasoos_answers")
+    .select(
+      "id, level_id, category, verse_line_1, verse_line_2, chosen_role, correct_role, is_correct, answered_at",
+    )
+    .eq("user_id", user!.id)
+    .order("answered_at", { ascending: false });
+
+  const jasoosAnswersWithDate = (jasoosAnswers ?? []).map((a) => ({
+    ...a,
+    formattedDate: formatJalaliDate(a.answered_at),
+  })) as JasoosAnswer[];
+
   return (
     <main dir="rtl" className=" mt-10 container">
       <div className=" flex sm:flex-row flex-col items-center gap-y-5 sm:items-end justify-center sm:justify-between">
@@ -228,6 +244,26 @@ async function page() {
         آزمون‌های انجام‌شده
       </h5>
       <CompletedQuizzesSection attempts={attemptsWithDate} />
+
+      <h5 className="font-bold text-xl xs:text-2xl mt-10 mb-3 gap-x-2 flex items-center cursor-default">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className=" size-6 xs:size-8"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+          />
+        </svg>
+        پرونده‌های بازیِ جاسوسِ نقش‌ها
+      </h5>
+      <JasoosHistorySection answers={jasoosAnswersWithDate} />
+
       <h5 className="font-bold text-xl xs:text-2xl mt-10 mb-3 gap-x-2 flex items-center cursor-default">
         <svg
           xmlns="http://www.w3.org/2000/svg"

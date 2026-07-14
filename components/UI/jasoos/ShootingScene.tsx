@@ -11,20 +11,22 @@ function ShootingScene({
   onResult,
 }: {
   level: JasoosLevel;
-  onResult: (correct: boolean, spy: SuspectType) => void;
+  onResult: (correct: boolean, spy: SuspectType, chosen: SuspectType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pointer, setPointer] = useState({ x: 0, y: 0, visible: false });
   const [shots, setShots] = useState(0);
   const [shotRole, setShotRole] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
+  const dingRef = useRef<HTMLAudioElement | null>(null);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
+  const chosen = level.suspects.find((s) => s.role === shotRole) ?? spy;
 
   useEffect(() => {
     if (!result) return;
     const t = setTimeout(
-      () => onResult(result === "correct", spy),
+      () => onResult(result === "correct", spy, chosen),
       result === "correct" ? 1500 : 2600,
     );
     return () => clearTimeout(t);
@@ -46,6 +48,10 @@ function ShootingScene({
     setShots((s) => s + 1);
     setShotRole(suspect.role);
     setResult(suspect.isSpy ? "correct" : "wrong");
+    if (suspect.isSpy && dingRef.current) {
+      dingRef.current.currentTime = 0;
+      dingRef.current.play().catch(() => {});
+    }
   };
 
   const stateFor = (suspect: SuspectType): SuspectVisualState => {
@@ -132,6 +138,8 @@ function ShootingScene({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <audio ref={dingRef} src="/currectsound.mp3" preload="auto" />
     </div>
   );
 }

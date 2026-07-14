@@ -227,6 +227,132 @@ const rawLevels: JasoosLevel[] = [
       },
     ],
   },
+  {
+    id: 7,
+    title: "درِ هفتم",
+    category: "دستوری",
+    verseLines: ["دانش‌آموزانِ باهوش،", "در کلاس نشستند."],
+    suspects: [
+      { role: "نهاد", isSpy: false, evidence: "«دانش‌آموزان باهوش» نهادِ جمله است." },
+      { role: "صفت", isSpy: false, evidence: "«باهوش» صفتِ «دانش‌آموزان» است." },
+      { role: "متمم", isSpy: false, evidence: "«در کلاس» نقشِ متمم را دارد." },
+      {
+        role: "مفعول",
+        isSpy: true,
+        evidence: "فعل «نشستند» ناگذر است و مفعول نمی‌پذیرد؛ او جاسوس بود!",
+      },
+    ],
+  },
+  {
+    id: 8,
+    title: "درِ هشتم",
+    category: "آرایه",
+    verseLines: [
+      "قامتش همچون سرو بود و دستش هرگز به بدی نرفت،",
+      "همه‌ی شهر در جشنِ او بودند.",
+    ],
+    suspects: [
+      { role: "تشبیه", isSpy: false, evidence: "«قامتش همچون سرو»: قامت به سرو مانند شده است." },
+      { role: "کنایه", isSpy: false, evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است." },
+      {
+        role: "مجاز",
+        isSpy: false,
+        evidence: "«شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+      },
+      {
+        role: "تشخیص",
+        isSpy: true,
+        evidence: "در این بیت به هیچ چیز بی‌جانی رفتار انسانی نسبت داده نشده؛ او جاسوس بود!",
+      },
+    ],
+  },
+  {
+    id: 9,
+    title: "درِ نهم",
+    category: "دستوری",
+    verseLines: ["مرغِ سفید،", "دانه‌های ریز را خورد."],
+    suspects: [
+      { role: "نهاد", isSpy: false, evidence: "«مرغ سفید» نهادِ جمله است." },
+      { role: "مفعول", isSpy: false, evidence: "«دانه‌های ریز را» مفعولِ فعل «خورد» است." },
+      { role: "صفت", isSpy: false, evidence: "«سفید» صفتِ «مرغ» است." },
+      {
+        role: "متمم",
+        isSpy: true,
+        evidence: "در این بیت هیچ حرفِ اضافه و متممی به‌کار نرفته؛ او جاسوس بود!",
+      },
+    ],
+  },
+  {
+    id: 10,
+    title: "درِ دهم",
+    category: "آرایه",
+    verseLines: [
+      "سرو خرامان به باغ دل ما آمد؛",
+      "دستش هرگز به بدی نرفت و چشمِ شهر به او دوخته بود.",
+    ],
+    suspects: [
+      {
+        role: "استعاره",
+        isSpy: false,
+        evidence: "«سرو خرامان به باغ دل ما آمد»: مشبه (معشوق) حذف شده و فقط مشبه‌به «سرو» مانده است.",
+      },
+      { role: "کنایه", isSpy: false, evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است." },
+      {
+        role: "مجاز",
+        isSpy: false,
+        evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+      },
+      {
+        role: "تشبیه",
+        isSpy: true,
+        evidence:
+          "در این بیت مشبهی به‌همراهِ ادات یا مشبه‌به ذکر نشده که تشبیهِ صریح بسازد؛ او جاسوس بود!",
+      },
+    ],
+  },
+  {
+    id: 11,
+    title: "درِ یازدهم",
+    category: "دستوری",
+    verseLines: ["بچه‌ها دیروز،", "در پارک بازی کردند."],
+    suspects: [
+      { role: "نهاد", isSpy: false, evidence: "«بچه‌ها» نهادِ جمله است." },
+      { role: "قید", isSpy: false, evidence: "«دیروز» قیدِ زمان است." },
+      { role: "متمم", isSpy: false, evidence: "«در پارک» نقشِ متمم را دارد." },
+      {
+        role: "صفت",
+        isSpy: true,
+        evidence: "در این بیت هیچ صفتی به‌کار نرفته؛ او جاسوس بود!",
+      },
+    ],
+  },
+  {
+    id: 12,
+    title: "درِ دوازدهم",
+    category: "آرایه",
+    verseLines: [
+      "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد؛",
+      "قامت بلندش همچون صنوبر بود و چشمِ شهر بر او خیره مانده بود.",
+    ],
+    suspects: [
+      {
+        role: "تشخیص",
+        isSpy: false,
+        evidence: "«باد ... گفت‌وگو می‌کرد»: گفت‌وگو کاری انسانی است.",
+      },
+      { role: "تشبیه", isSpy: false, evidence: "«قامت بلندش همچون صنوبر»: قامت به صنوبر مانند شده است." },
+      {
+        role: "مجاز",
+        isSpy: false,
+        evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+      },
+      {
+        role: "کنایه",
+        isSpy: true,
+        evidence: "در این بیت هیچ عبارتِ کنایی به‌کار نرفته؛ او جاسوس بود!",
+      },
+    ],
+  },
 ];
 
 export const JASOOS_LEVELS: JasoosLevel[] = rawLevels.map((level) => ({
@@ -238,3 +364,15 @@ export const JASOOS_LEVELS: JasoosLevel[] = rawLevels.map((level) => ({
     Suspect,
   ],
 }));
+
+// picks `count` levels at random for a run; called client-side after the
+// player chooses a question count, so real randomness (not the deterministic
+// seed above) is fine here — no SSR/hydration mismatch risk.
+export function pickJasoosLevels(count: number): JasoosLevel[] {
+  const shuffled = [...JASOOS_LEVELS];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}

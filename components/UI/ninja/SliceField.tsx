@@ -120,7 +120,10 @@ function SliceField({
     if (!width || !height) return;
     const id = idCounter.current++;
     const x0 = 50 + Math.random() * Math.max(1, width - 100);
-    const speedUp = 620 + Math.random() * 260;
+    // pick the launch speed from the box's actual height so the apex
+    // reaches near the top of the play area before gravity pulls it back
+    const targetRise = height * (0.85 + Math.random() * 0.12) + 40;
+    const speedUp = Math.sqrt(2 * GRAVITY * targetRise);
     const vx = (Math.random() - 0.5) * 140;
     const word: WordObj = {
       id,

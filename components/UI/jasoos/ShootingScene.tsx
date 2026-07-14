@@ -97,6 +97,7 @@ function ShootingScene({
             key={s.role}
             role={s.role}
             state={stateFor(s)}
+            wordInVerse={s.wordInVerse}
             onShoot={() => handleShoot(s)}
           />
         ))}

@@ -188,3 +188,33 @@ export const NINJA_ROUNDS: NinjaRound[] = [
     decoyWords: makeDecoys(ZAMIR),
   },
 ];
+
+// only قید is selectable in the settings screen for now — the rest of
+// NINJA_ROUNDS stays defined for when more categories are wired up.
+export const SELECTABLE_NINJA_CATEGORIES = [
+  { label: "قید", enabled: true },
+  { label: "صفت", enabled: false },
+  { label: "حروف اضافه", enabled: false },
+  { label: "فعل", enabled: false },
+  { label: "کلماتِ استعاره‌پذیر", enabled: false },
+] as const;
+
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// builds the (currently only قید) round with a random subset of `count`
+// target words, used once the player picks a word count in settings.
+export function buildNinjaRound(count: number): NinjaRound {
+  const base = NINJA_ROUNDS[0];
+  const targetWords = shuffle(base.targetWords).slice(
+    0,
+    Math.min(count, base.targetWords.length),
+  );
+  return { ...base, targetWords };
+}

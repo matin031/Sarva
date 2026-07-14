@@ -1,40 +1,41 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { NINJA_ROUNDS } from "@/lib/ninja-data";
+import { buildNinjaRound } from "@/lib/ninja-data";
+import type { NinjaRound } from "@/lib/ninja-data";
 import StudyTable from "./StudyTable";
 import SliceField from "./SliceField";
+import NinjaSettingsModal, { NinjaSettings } from "./NinjaSettingsModal";
 
-type Screen = "intro" | "study" | "slicing" | "round-result" | "gameover" | "win";
+type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
-const START_LIVES = 5;
+const START_LIVES = 3;
 const ROUND_DURATION_MS = 46000;
+const MAX_WORDS = 15;
 
 function NinjaGame() {
   const [screen, setScreen] = useState<Screen>("intro");
-  const [roundIndex, setRoundIndex] = useState(0);
+  const [round, setRound] = useState<NinjaRound | null>(null);
   const [lives, setLives] = useState(START_LIVES);
   const [totalScore, setTotalScore] = useState(0);
-  const [roundScore, setRoundScore] = useState(0);
-  const [roundMistakes, setRoundMistakes] = useState(0);
   const [lastMistake, setLastMistake] = useState<string | null>(null);
 
-  const round = NINJA_ROUNDS[roundIndex];
-
-  const restart = () => {
-    setRoundIndex(0);
+  const beginRound = (settings: NinjaSettings) => {
+    setRound(buildNinjaRound(settings.wordCount));
     setLives(START_LIVES);
     setTotalScore(0);
-    setRoundScore(0);
-    setRoundMistakes(0);
     setLastMistake(null);
     setScreen("study");
   };
 
-  const startRound = () => {
-    setRoundScore(0);
-    setRoundMistakes(0);
-    setScreen("slicing");
+  const restart = () => {
+    if (round) {
+      setRound(buildNinjaRound(round.targetWords.length));
+    }
+    setLives(START_LIVES);
+    setTotalScore(0);
+    setLastMistake(null);
+    setScreen("study");
   };
 
   const loseLife = () => {
@@ -44,39 +45,28 @@ function NinjaGame() {
   };
 
   const handleSlice = (word: string, isTarget: boolean) => {
+    if (!round) return;
     if (isTarget) {
-      setRoundScore((s) => s + 1);
       setTotalScore((s) => s + 1);
     } else {
-      setRoundMistakes((m) => m + 1);
       setLastMistake(`«${word}» جزوِ «${round.category}» نبود، اما برشش زدی.`);
       loseLife();
     }
   };
 
   const handleMiss = (word: string) => {
-    setRoundMistakes((m) => m + 1);
+    if (!round) return;
     setLastMistake(`«${word}» یکی از کلمات «${round.category}» بود و از دستت در رفت.`);
     loseLife();
   };
 
   const handleRoundComplete = () => {
-    setScreen("round-result");
-  };
-
-  const nextRound = () => {
-    const next = roundIndex + 1;
-    if (next >= NINJA_ROUNDS.length) {
-      setScreen("win");
-    } else {
-      setRoundIndex(next);
-      setScreen("study");
-    }
+    setScreen("win");
   };
 
   return (
     <div className="container max-w-4xl mx-auto my-10 sm:my-16">
-      {screen !== "intro" && screen !== "gameover" && screen !== "win" && (
+      {(screen === "study" || screen === "slicing") && (
         <div className="flex items-center justify-between mb-4 px-1">
           <div className="flex items-center gap-x-1.5">
             {Array.from({ length: START_LIVES }).map((_, i) => (
@@ -107,35 +97,38 @@ function NinjaGame() {
               نینجای دستور زبان
             </h1>
             <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              هر مرحله یک دسته‌ی دستوری دارد (قید، صفت، حرف ربط، ضمیر). اول
-              کلماتِ آن دسته را در یک جدول می‌بینی و باید حفظشان کنی. بعد
-              کلمات، هم‌رنگ‌جماعت با صدها کلمه‌ی دیگر، توی هوا پرت می‌شوند و تو
-              باید با کشیدن موس یا انگشتت فقط همان کلماتِ هدف را برش بزنی.
-              برش‌زدنِ کلمه‌ی اشتباه یا از دست‌دادنِ یک کلمه‌ی هدف، یک جان
-              می‌گیرد. با {START_LIVES} جان شروع می‌کنی — تمومش نکن!
+              اول کلماتِ دسته‌ی انتخابی را در یک جدول می‌بینی و باید حفظشان
+              کنی. بعد کلمات، هم‌رنگ‌جماعت با صدها کلمه‌ی دیگر، توی هوا پرت
+              می‌شوند و تو باید با کشیدن موس یا انگشتت فقط همان کلماتِ هدف را
+              برش بزنی. برش‌زدنِ کلمه‌ی اشتباه یا از دست‌دادنِ یک کلمه‌ی هدف،
+              یک جان می‌گیرد. با {START_LIVES} جان شروع می‌کنی — تمومش نکن!
             </p>
             <button
-              onClick={restart}
+              onClick={() => setScreen("settings")}
               className="inline-flex items-center justify-center font-medium text-primary-foreground
                 bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
             >
-              شروع بازی
+              ادامه
             </button>
           </motion.div>
         )}
 
-        {screen === "study" && (
+        {screen === "settings" && (
+          <NinjaSettingsModal maxWords={MAX_WORDS} onStart={beginRound} />
+        )}
+
+        {screen === "study" && round && (
           <motion.div key={`study-${round.id}`}>
             <StudyTable
               round={round}
-              roundNumber={roundIndex + 1}
-              totalRounds={NINJA_ROUNDS.length}
-              onStart={startRound}
+              roundNumber={1}
+              totalRounds={1}
+              onStart={() => setScreen("slicing")}
             />
           </motion.div>
         )}
 
-        {screen === "slicing" && (
+        {screen === "slicing" && round && (
           <motion.div
             key={`slice-${round.id}`}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -150,35 +143,6 @@ function NinjaGame() {
               onMiss={handleMiss}
               onRoundComplete={handleRoundComplete}
             />
-          </motion.div>
-        )}
-
-        {screen === "round-result" && (
-          <motion.div
-            key="round-result"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
-          >
-            <h2 className="text-xl sm:text-3xl font-bold mb-3 text-primary">
-              مرحله‌ی «{round.category}» تمام شد!
-            </h2>
-            <p className="text-sm sm:text-lg text-muted-foreground mb-2">
-              {roundScore} کلمه‌ی درست را برش زدی.
-            </p>
-            {roundMistakes > 0 && (
-              <p className="text-xs sm:text-base text-muted-foreground mb-6">
-                {roundMistakes} اشتباه هم داشتی.
-              </p>
-            )}
-            <button
-              onClick={nextRound}
-              className="inline-flex items-center justify-center font-medium text-primary-foreground
-                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-            >
-              {roundIndex + 1 >= NINJA_ROUNDS.length ? "پایان بازی" : "مرحله‌ی بعد"}
-            </button>
           </motion.div>
         )}
 
@@ -201,13 +165,22 @@ function NinjaGame() {
             <p className="text-sm sm:text-base mb-6">
               امتیاز نهایی‌ات: {totalScore}
             </p>
-            <button
-              onClick={restart}
-              className="inline-flex items-center justify-center font-medium text-primary-foreground
-                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-            >
-              شروع دوباره
-            </button>
+            <div className="flex items-center justify-center gap-x-3">
+              <button
+                onClick={restart}
+                className="inline-flex items-center justify-center font-medium text-primary-foreground
+                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
+              >
+                شروع دوباره
+              </button>
+              <button
+                onClick={() => setScreen("settings")}
+                className="inline-flex items-center justify-center font-medium
+                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
+              >
+                تغییر تنظیمات
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -223,16 +196,24 @@ function NinjaGame() {
               آفرین، نینجای دستور زبان شدی!
             </h2>
             <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              هر {NINJA_ROUNDS.length} مرحله را رد کردی و {totalScore} کلمه
-              برش زدی.
+              {totalScore} کلمه‌ی درست را برش زدی.
             </p>
-            <button
-              onClick={restart}
-              className="inline-flex items-center justify-center font-medium text-primary-foreground
-                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-            >
-              بازی دوباره
-            </button>
+            <div className="flex items-center justify-center gap-x-3">
+              <button
+                onClick={restart}
+                className="inline-flex items-center justify-center font-medium text-primary-foreground
+                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
+              >
+                بازی دوباره
+              </button>
+              <button
+                onClick={() => setScreen("settings")}
+                className="inline-flex items-center justify-center font-medium
+                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
+              >
+                تغییر تنظیمات
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

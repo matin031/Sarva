@@ -17,6 +17,9 @@ export type Suspect = {
   role: SuspectRole;
   isSpy: boolean;
   evidence: string;
+  // the exact word/phrase from the verse that plays this role; absent for
+  // the spy, since that's exactly why they don't belong
+  wordInVerse?: string;
 };
 
 export type JasoosLevel = {
@@ -56,16 +59,23 @@ const rawLevels: JasoosLevel[] = [
     category: "دستوری",
     verseLines: ["باغ ما در بهار،", "سرسبز و خرم گشت."],
     suspects: [
-      { role: "نهاد", isSpy: false, evidence: "«باغ ما» نهادِ جمله است." },
+      {
+        role: "نهاد",
+        isSpy: false,
+        evidence: "«باغ ما» نهادِ جمله است.",
+        wordInVerse: "باغ ما",
+      },
       {
         role: "متمم",
         isSpy: false,
         evidence: "«در بهار» نقشِ متمم را دارد.",
+        wordInVerse: "در بهار",
       },
       {
         role: "مسند",
         isSpy: false,
         evidence: "«سرسبز و خرم» پس از فعل ربطیِ «گشت»، مسند است.",
+        wordInVerse: "سرسبز و خرم",
       },
       {
         role: "صفت",
@@ -87,16 +97,19 @@ const rawLevels: JasoosLevel[] = [
         role: "تشبیه",
         isSpy: false,
         evidence: "«قامت او همچون سرو»: قامت به سرو مانند شده است.",
+        wordInVerse: "قامت او همچون سرو",
       },
       {
         role: "کنایه",
         isSpy: false,
         evidence: "«دستش به بدی نرفت» کنایه از پاک‌دستی و درستکاری است.",
+        wordInVerse: "دستش هرگز به بدی نرفت",
       },
       {
         role: "تشخیص",
         isSpy: false,
         evidence: "«باد ... نجوا می‌کرد»: رفتاری انسانی به باد نسبت داده شده.",
+        wordInVerse: "باد صبحگاهان با گیسوی او نجوا می‌کرد",
       },
       {
         role: "استعاره",
@@ -116,16 +129,19 @@ const rawLevels: JasoosLevel[] = [
         role: "نهاد",
         isSpy: false,
         evidence: "«پدربزرگ» نهادِ جمله است.",
+        wordInVerse: "پدربزرگ",
       },
       {
         role: "مفعول",
         isSpy: false,
         evidence: "«نامه‌ای را» مفعولِ فعل «نوشت» است.",
+        wordInVerse: "نامه‌ای را",
       },
       {
         role: "متمم",
         isSpy: false,
         evidence: "«برای دخترش» نقشِ متمم را دارد.",
+        wordInVerse: "برای دخترش",
       },
       {
         role: "مسند",
@@ -148,16 +164,19 @@ const rawLevels: JasoosLevel[] = [
         isSpy: false,
         evidence:
           "«سرو خرامان به باغ دل ما آمد»: مشبه (معشوق) حذف شده و فقط مشبه‌به «سرو» مانده است.",
+        wordInVerse: "سرو خرامان به باغ دل ما آمد",
       },
       {
         role: "کنایه",
         isSpy: false,
         evidence: "«دستش به سوی بدی نرفت» کنایه از پاک‌دستی است.",
+        wordInVerse: "دستش به سوی بدی نرفت",
       },
       {
         role: "تشبیه",
         isSpy: false,
         evidence: "«دندانش چو مروارید بود»: دندان به مروارید مانند شده است.",
+        wordInVerse: "دندانش چو مروارید بود",
       },
       {
         role: "تشخیص",
@@ -177,16 +196,19 @@ const rawLevels: JasoosLevel[] = [
         role: "نهاد",
         isSpy: false,
         evidence: "«شاگرد باهوش» نهادِ جمله است.",
+        wordInVerse: "شاگرد باهوشِ کلاس",
       },
       {
         role: "صفت",
         isSpy: false,
         evidence: "«باهوش» صفتِ «شاگرد» است.",
+        wordInVerse: "باهوش",
       },
       {
         role: "مفعول",
         isSpy: false,
         evidence: "«پاسخ را» مفعولِ فعل «گفت» است.",
+        wordInVerse: "پاسخ را",
       },
       {
         role: "قید",
@@ -208,16 +230,19 @@ const rawLevels: JasoosLevel[] = [
         role: "تشخیص",
         isSpy: false,
         evidence: "«باد با شاخه‌ها گفت‌وگو می‌کرد»: گفت‌وگو کاری انسانی است.",
+        wordInVerse: "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد",
       },
       {
         role: "تشبیه",
         isSpy: false,
         evidence: "«قامت بلند او همچون صنوبر»: قامت به صنوبر مانند شده است.",
+        wordInVerse: "قامت بلند او همچون صنوبر",
       },
       {
         role: "کنایه",
         isSpy: false,
         evidence: "«دلش هرگز نلرزید» کنایه از نترسیدن و شجاعت است.",
+        wordInVerse: "دلش هرگز نلرزید",
       },
       {
         role: "مجاز",
@@ -233,9 +258,24 @@ const rawLevels: JasoosLevel[] = [
     category: "دستوری",
     verseLines: ["دانش‌آموزانِ باهوش،", "در کلاس نشستند."],
     suspects: [
-      { role: "نهاد", isSpy: false, evidence: "«دانش‌آموزان باهوش» نهادِ جمله است." },
-      { role: "صفت", isSpy: false, evidence: "«باهوش» صفتِ «دانش‌آموزان» است." },
-      { role: "متمم", isSpy: false, evidence: "«در کلاس» نقشِ متمم را دارد." },
+      {
+        role: "نهاد",
+        isSpy: false,
+        evidence: "«دانش‌آموزان باهوش» نهادِ جمله است.",
+        wordInVerse: "دانش‌آموزانِ باهوش",
+      },
+      {
+        role: "صفت",
+        isSpy: false,
+        evidence: "«باهوش» صفتِ «دانش‌آموزان» است.",
+        wordInVerse: "باهوش",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«در کلاس» نقشِ متمم را دارد.",
+        wordInVerse: "در کلاس",
+      },
       {
         role: "مفعول",
         isSpy: true,
@@ -252,12 +292,23 @@ const rawLevels: JasoosLevel[] = [
       "همه‌ی شهر در جشنِ او بودند.",
     ],
     suspects: [
-      { role: "تشبیه", isSpy: false, evidence: "«قامتش همچون سرو»: قامت به سرو مانند شده است." },
-      { role: "کنایه", isSpy: false, evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است." },
+      {
+        role: "تشبیه",
+        isSpy: false,
+        evidence: "«قامتش همچون سرو»: قامت به سرو مانند شده است.",
+        wordInVerse: "قامتش همچون سرو",
+      },
+      {
+        role: "کنایه",
+        isSpy: false,
+        evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است.",
+        wordInVerse: "دستش هرگز به بدی نرفت",
+      },
       {
         role: "مجاز",
         isSpy: false,
         evidence: "«شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+        wordInVerse: "شهر",
       },
       {
         role: "تشخیص",
@@ -272,9 +323,24 @@ const rawLevels: JasoosLevel[] = [
     category: "دستوری",
     verseLines: ["مرغِ سفید،", "دانه‌های ریز را خورد."],
     suspects: [
-      { role: "نهاد", isSpy: false, evidence: "«مرغ سفید» نهادِ جمله است." },
-      { role: "مفعول", isSpy: false, evidence: "«دانه‌های ریز را» مفعولِ فعل «خورد» است." },
-      { role: "صفت", isSpy: false, evidence: "«سفید» صفتِ «مرغ» است." },
+      {
+        role: "نهاد",
+        isSpy: false,
+        evidence: "«مرغ سفید» نهادِ جمله است.",
+        wordInVerse: "مرغِ سفید",
+      },
+      {
+        role: "مفعول",
+        isSpy: false,
+        evidence: "«دانه‌های ریز را» مفعولِ فعل «خورد» است.",
+        wordInVerse: "دانه‌های ریز را",
+      },
+      {
+        role: "صفت",
+        isSpy: false,
+        evidence: "«سفید» صفتِ «مرغ» است.",
+        wordInVerse: "سفید",
+      },
       {
         role: "متمم",
         isSpy: true,
@@ -295,12 +361,19 @@ const rawLevels: JasoosLevel[] = [
         role: "استعاره",
         isSpy: false,
         evidence: "«سرو خرامان به باغ دل ما آمد»: مشبه (معشوق) حذف شده و فقط مشبه‌به «سرو» مانده است.",
+        wordInVerse: "سرو خرامان به باغ دل ما آمد",
       },
-      { role: "کنایه", isSpy: false, evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است." },
+      {
+        role: "کنایه",
+        isSpy: false,
+        evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است.",
+        wordInVerse: "دستش هرگز به بدی نرفت",
+      },
       {
         role: "مجاز",
         isSpy: false,
         evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+        wordInVerse: "چشمِ شهر",
       },
       {
         role: "تشبیه",
@@ -316,9 +389,24 @@ const rawLevels: JasoosLevel[] = [
     category: "دستوری",
     verseLines: ["بچه‌ها دیروز،", "در پارک بازی کردند."],
     suspects: [
-      { role: "نهاد", isSpy: false, evidence: "«بچه‌ها» نهادِ جمله است." },
-      { role: "قید", isSpy: false, evidence: "«دیروز» قیدِ زمان است." },
-      { role: "متمم", isSpy: false, evidence: "«در پارک» نقشِ متمم را دارد." },
+      {
+        role: "نهاد",
+        isSpy: false,
+        evidence: "«بچه‌ها» نهادِ جمله است.",
+        wordInVerse: "بچه‌ها",
+      },
+      {
+        role: "قید",
+        isSpy: false,
+        evidence: "«دیروز» قیدِ زمان است.",
+        wordInVerse: "دیروز",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«در پارک» نقشِ متمم را دارد.",
+        wordInVerse: "در پارک",
+      },
       {
         role: "صفت",
         isSpy: true,
@@ -339,12 +427,19 @@ const rawLevels: JasoosLevel[] = [
         role: "تشخیص",
         isSpy: false,
         evidence: "«باد ... گفت‌وگو می‌کرد»: گفت‌وگو کاری انسانی است.",
+        wordInVerse: "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد",
       },
-      { role: "تشبیه", isSpy: false, evidence: "«قامت بلندش همچون صنوبر»: قامت به صنوبر مانند شده است." },
+      {
+        role: "تشبیه",
+        isSpy: false,
+        evidence: "«قامت بلندش همچون صنوبر»: قامت به صنوبر مانند شده است.",
+        wordInVerse: "قامت بلندش همچون صنوبر",
+      },
       {
         role: "مجاز",
         isSpy: false,
         evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
+        wordInVerse: "چشمِ شهر",
       },
       {
         role: "کنایه",

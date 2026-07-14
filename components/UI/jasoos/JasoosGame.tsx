@@ -106,9 +106,8 @@ function JasoosGame() {
     isCorrect: boolean,
   ) => {
     if (!user) return;
-    supabase
-      .from("jasoos_answers")
-      .insert({
+    Promise.resolve(
+      supabase.from("jasoos_answers").insert({
         user_id: user.id,
         level_id: lvl.id,
         category: lvl.category,
@@ -117,10 +116,20 @@ function JasoosGame() {
         chosen_role: chosenRole,
         correct_role: correctRole,
         is_correct: isCorrect,
-      })
+      }),
+    )
       .then(({ error }) => {
-        if (error) console.error("jasoos_answers insert failed:", error);
-      });
+        if (error) {
+          // most likely cause: the jasoos_answers table/migration hasn't
+          // been created yet in this Supabase project — see
+          // supabase/migrations/20260714_jasoos_answers.sql
+          console.error(
+            "jasoos_answers insert failed:",
+            error.message || error.code || error.details || error.hint || error,
+          );
+        }
+      })
+      .catch((err: unknown) => console.error("jasoos_answers insert threw:", err));
   };
 
   const handleResult = (correct: boolean, spy: SuspectType, chosen: SuspectType) => {

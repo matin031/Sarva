@@ -8,13 +8,16 @@ export type SuspectVisualState = "idle" | "shot-correct" | "shot-wrong" | "dimme
 function Suspect({
   role,
   state,
+  wordInVerse,
   onShoot,
 }: {
   role: SuspectRole;
   state: SuspectVisualState;
+  wordInVerse?: string;
   onShoot: () => void;
 }) {
   const disabled = state !== "idle";
+  const revealed = state !== "idle";
 
   return (
     <button
@@ -55,6 +58,18 @@ function Suspect({
       <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full glass whitespace-nowrap">
         {role}
       </span>
+
+      {revealed && (
+        <span
+          className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+            wordInVerse
+              ? "text-primary bg-primary/10"
+              : "text-destructive bg-destructive/10"
+          }`}
+        >
+          {wordInVerse ?? "در بیت نیست"}
+        </span>
+      )}
 
       {state === "shot-wrong" && (
         <span className="absolute -top-2 -right-1 text-destructive text-lg sm:text-xl font-black">

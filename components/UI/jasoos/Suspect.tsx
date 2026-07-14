@@ -1,9 +1,42 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import HandsUpFigure from "./HandsUpFigure";
 import type { SuspectRole } from "@/lib/jasoos-data";
 
 export type SuspectVisualState = "idle" | "shot-correct" | "shot-wrong" | "dimmed";
+
+// caps the revealed word/phrase to a fixed box width; if the text is longer
+// than that (roughly more than two words), it scrolls like a subtitle
+// ticker instead of wrapping or overflowing the suspect's card
+function RevealTag({ text, isSpy }: { text: string; isSpy: boolean }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isOverflow, setIsOverflow] = useState(false);
+
+  useEffect(() => {
+    if (textRef.current) {
+      const overflow =
+        textRef.current.scrollWidth >
+        textRef.current.parentElement!.clientWidth;
+      setIsOverflow(overflow);
+    }
+  }, [text]);
+
+  return (
+    <span
+      className={`block max-w-24 sm:max-w-32 overflow-hidden rounded-full px-2 py-0.5 text-[10px] sm:text-xs ${
+        isSpy ? "text-destructive bg-destructive/10" : "text-primary bg-primary/10"
+      }`}
+    >
+      <span
+        ref={textRef}
+        className={`inline-block whitespace-nowrap ${isOverflow ? "animate-marquee" : ""}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
 
 function Suspect({
   role,
@@ -60,15 +93,7 @@ function Suspect({
       </span>
 
       {revealed && (
-        <span
-          className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-            wordInVerse
-              ? "text-primary bg-primary/10"
-              : "text-destructive bg-destructive/10"
-          }`}
-        >
-          {wordInVerse ?? "در بیت نیست"}
-        </span>
+        <RevealTag text={wordInVerse ?? "در متن نیست"} isSpy={!wordInVerse} />
       )}
 
       {state === "shot-wrong" && (

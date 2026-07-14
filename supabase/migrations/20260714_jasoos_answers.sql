@@ -32,3 +32,10 @@ create policy "Users can insert their own jasoos answers"
   on public.jasoos_answers
   for insert
   with check (auth.uid() = user_id);
+
+-- RLS policies only decide *which rows* a role can touch — Postgres still
+-- requires an explicit table-level GRANT before the "authenticated" role
+-- (what signed-in Supabase users act as) can run select/insert at all.
+-- Without this you'll see "permission denied for table jasoos_answers"
+-- even though the policies above are correct.
+grant select, insert on public.jasoos_answers to authenticated;

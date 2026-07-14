@@ -72,14 +72,24 @@ function ShootingScene({
           <span className="inline-block mb-1 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
             {level.category === "دستوری" ? "نقش دستوری" : "آرایه‌ی ادبی"}
           </span>
-          <p className="text-sm sm:text-lg font-semibold leading-loose">
-            {level.verseLines[0]}
-          </p>
-          <p className="text-sm sm:text-lg font-semibold leading-loose">
-            {level.verseLines[1]}
-          </p>
+          {level.contentType === "بیت" ? (
+            <>
+              <p className="text-sm sm:text-lg font-semibold leading-loose">
+                {level.verseLines[0]}
+              </p>
+              <p className="text-sm sm:text-lg font-semibold leading-loose">
+                {level.verseLines[1]}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm sm:text-lg font-semibold leading-relaxed text-justify">
+              {level.verseLines.join(" ")}
+            </p>
+          )}
           <p className="text-[11px] sm:text-sm text-muted-foreground mt-1">
-            جاسوس کدام است؟ نقشی را که در این بیت وجود ندارد نشانه بگیر.
+            جاسوس کدام است؟ نقشی را که در این{" "}
+            {level.contentType === "بیت" ? "بیت" : "جمله"} وجود ندارد نشانه
+            بگیر.
           </p>
         </div>
       </div>

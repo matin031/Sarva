@@ -12,6 +12,7 @@ export type SuspectRole =
   | "مجاز";
 
 export type JasoosCategory = "دستوری" | "آرایه";
+export type JasoosContentType = "بیت" | "نثر";
 
 export type Suspect = {
   role: SuspectRole;
@@ -26,6 +27,9 @@ export type JasoosLevel = {
   id: number;
   title: string;
   category: JasoosCategory;
+  // دستوری examples are plain sentences (نثر); آرایه examples are styled as
+  // couplets (بیت) — each is displayed differently in the shooting scene
+  contentType: JasoosContentType;
   verseLines: [string, string];
   suspects: [Suspect, Suspect, Suspect, Suspect];
 };
@@ -52,7 +56,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return copy;
 }
 
-const rawLevels: JasoosLevel[] = [
+const rawLevels: Omit<JasoosLevel, "contentType">[] = [
   {
     id: 1,
     title: "درِ یکم",
@@ -452,6 +456,8 @@ const rawLevels: JasoosLevel[] = [
 
 export const JASOOS_LEVELS: JasoosLevel[] = rawLevels.map((level) => ({
   ...level,
+  // آرایه examples read as poetic couplets; دستوری examples are plain prose
+  contentType: level.category === "آرایه" ? "بیت" : "نثر",
   suspects: seededShuffle(level.suspects, level.id * 7919) as [
     Suspect,
     Suspect,

@@ -2,7 +2,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { NinjaRound } from "@/lib/ninja-data";
 
-const GRAVITY = 1500;
+// lower gravity = slower rise/fall and more hang time in the air, while the
+// height-aware launch speed below still aims for the same apex — this is
+// the single lever that controls how "fast" the whole game feels
+const GRAVITY = 800;
 const SLICE_RADIUS = 48;
 const CHIP_COLORS = [
   "bg-primary/85 text-primary-foreground",

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import Suspect, { SuspectVisualState } from "./Suspect";
@@ -18,20 +18,11 @@ function ShootingScene({
   const [shots, setShots] = useState(0);
   const [shotRole, setShotRole] = useState<string | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const dingRef = useRef<HTMLAudioElement | null>(null);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
   const chosen = level.suspects.find((s) => s.role === shotRole) ?? spy;
-
-  useEffect(() => {
-    if (!result) return;
-    const t = setTimeout(
-      () => onResult(result === "correct", spy, chosen),
-      result === "correct" ? 1500 : 2600,
-    );
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
 
   const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -48,6 +39,7 @@ function ShootingScene({
     setShots((s) => s + 1);
     setShotRole(suspect.role);
     setResult(suspect.isSpy ? "correct" : "wrong");
+    setModalOpen(true);
     if (suspect.isSpy && dingRef.current) {
       dingRef.current.currentTime = 0;
       dingRef.current.play().catch(() => {});
@@ -106,23 +98,42 @@ function ShootingScene({
       <GunHud shots={shots} />
       <Reticle x={pointer.x} y={pointer.y} visible={pointer.visible && !result} />
 
-      {/* feedback overlay */}
+      {/* feedback overlay — user must close it themselves */}
       <AnimatePresence>
-        {result && (
+        {result && modalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={() => setModalOpen(false)}
             className="absolute inset-0 z-30 flex items-end sm:items-center justify-center p-4 bg-black/40"
           >
             <motion.div
               initial={{ y: 20, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               transition={{ type: "spring", stiffness: 260, damping: 22 }}
-              className={`glass rounded-2xl px-5 py-4 sm:px-8 sm:py-6 max-w-md text-center border-2 ${
+              onClick={(e) => e.stopPropagation()}
+              className={`relative glass rounded-2xl px-5 py-4 sm:px-8 sm:py-6 max-w-md text-center border-2 ${
                 result === "correct" ? "border-primary" : "border-destructive"
               }`}
             >
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                aria-label="بستن"
+                className="absolute top-3 left-3 opacity-70 hover:opacity-100 transition-opacity"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
               <p
                 className={`text-lg sm:text-2xl font-bold mb-2 ${
                   result === "correct" ? "text-primary" : "text-destructive"
@@ -136,6 +147,27 @@ function ShootingScene({
                   : `این یکی بی‌گناه بود. جاسوسِ واقعی «${spy.role}» بود: ${spy.evidence}`}
               </p>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* only shown once the user has closed the feedback modal and can see everyone's role */}
+      <AnimatePresence>
+        {result && !modalOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-4 sm:bottom-6 inset-x-0 z-30 flex justify-center"
+          >
+            <button
+              type="button"
+              onClick={() => onResult(result === "correct", spy, chosen)}
+              className="inline-flex items-center justify-center font-medium text-primary-foreground
+                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-6 py-2.5 sm:px-8 sm:py-3 text-sm sm:text-base"
+            >
+              {result === "correct" ? "پرونده‌ی بعد" : "ادامه"}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

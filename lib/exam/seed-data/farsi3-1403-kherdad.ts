@@ -389,6 +389,7 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 15,
           pageRef: 110,
+          instruction: "مضاف‌الیهِ مضاف‌الیه را در شعر زیر بیابید و نمودار پیکانی گروه اسمی آن را رسم کنید.",
           parts: [
             {
               type: "diagram-builder",
@@ -845,6 +846,7 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 30,
           pageRef: 57,
+          instruction: "کلمات زیر را به ترتیب درست بچینید تا مصراع کامل شود.",
           parts: [
             {
               type: "word-reorder-dnd",

@@ -182,7 +182,10 @@ export const questionPartContentSchema = z.discriminatedUnion("type", [
   mcqSelectLineInPoem,
 ]);
 
-export type QuestionPartContent = z.infer<typeof questionPartContentSchema>;
+// z.input (not z.infer/z.output) — fields with `.default()` (inputVariant,
+// displayVariant, labels, ...) must stay optional here since this type is
+// for *authoring* content (seed data, forms) before Zod fills defaults in.
+export type QuestionPartContent = z.input<typeof questionPartContentSchema>;
 export type QuestionPartType = QuestionPartContent["type"];
 
 // ---------------------------------------------------------------------------

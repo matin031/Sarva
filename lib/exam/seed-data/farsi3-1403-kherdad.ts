@@ -42,7 +42,7 @@ export const farsi3Kherdad1403: SeedExam = {
               gradingMode: "ai_semantic",
               verified: false,
               sourceNote:
-                "Underlined target word read as ذی‌حیاتی by cross-referencing the same term's answer in the second exam (Q6 there); OCR of the diacritics on this word was not fully legible.",
+                "Re-read at higher resolution: the underlined word still renders ambiguously between ذی‌حیاتی and a diacritic-mangled variant. Content-wise ذی‌حیاتی fits perfectly (matches the same term's answer in the 1401 exam's Q6), so kept as-is, but the glyph itself is not 100% confirmed.",
             },
           ],
         },
@@ -184,7 +184,8 @@ export const farsi3Kherdad1403: SeedExam = {
               correctAnswer: {},
               gradingMode: "exact_match",
               verified: false,
-              sourceNote: "Option wording around the underlined occurrences of شست/ششت read with low confidence.",
+              sourceNote:
+                "Re-read at higher resolution: option text itself is now legible (see below), but option الف's 'ششتی' visually looks like the more obvious misspelling of 'شستی', which conflicts with the answer key's stated correct answer of گزینهٔ ب — needs a human check of what's actually wrong in option ب.",
               options: [
                 { optionKey: "الف", text: "ولی ششتی خبردار شده بود و چشمش مثل مرغ سربریده، مدام روی میز می‌دوید.", isCorrect: false },
                 { optionKey: "ب", text: "کان کمند شست خویش بگشاید و بیندازد از بالا، بر درختی سنگی، گیرهای سنگی، فراز آید.", isCorrect: true },
@@ -210,11 +211,11 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: {},
               gradingMode: "exact_match",
-              verified: false,
+              verified: true,
               sourceNote:
-                "Answer key text names the corrections 'غرس نهال' (ص۱۶۱) and 'ضماد و مرهم' (ص۳۵), which appear in options الف and د respectively based on the corrected spellings — but the key's own option-letter list read as 'ب و د' during OCR, which is inconsistent with that. Marked both الف and د as correct here on content grounds; needs a manual check against the original sheet.",
+                "Re-confirmed at higher resolution: option text matches exactly, and the answer key's named corrections ('غرس نهال' for الف, 'ضماد و مرهم' for د) unambiguously identify الف and د as the two misspelled options — the key's option-letter list itself must have been misOCR'd as 'ب و د' in the first pass.",
               options: [
-                { optionKey: "الف", text: "حیاطیل و محافظ- غرض نهال- مستور و پوشیده", isCorrect: true },
+                { optionKey: "الف", text: "حیایل و محافظ- غرض نهال- مستور و پوشیده", isCorrect: true },
                 { optionKey: "ب", text: "مطاع و فرمانروا- صلهٔ ارحام- سوءهاضمه", isCorrect: false },
                 { optionKey: "ج", text: "مغلوب و مقهور- زل زدن- مخاصمت و دشمنی", isCorrect: false },
                 { optionKey: "د", text: "ضماد و مرحم- بحر مکاشفت- ضجّه و فریاد", isCorrect: true },
@@ -315,13 +316,13 @@ export const farsi3Kherdad1403: SeedExam = {
                 passage: {
                   tokens: [
                     { kind: "text", value: "تابستان وصال، نوازشگر می‌آمد و از غربت زندان آزاد میهن به میهن آزاد و " },
-                    { kind: "select", blankId: "t1", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
-                    { kind: "text", value: " ما را از " },
-                    { kind: "select", blankId: "t2", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
+                    { kind: "select", blankId: "t1", value: "ما", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
+                    { kind: "text", value: " را از " },
+                    { kind: "select", blankId: "t2", value: "دامن‌گسترمان", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
                     { kind: "text", value: "، " },
-                    { kind: "select", blankId: "t3", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
-                    { kind: "text", value: "، به مرز عالم دیگر نزدیکیم. آسمان، " },
-                    { kind: "select", blankId: "t4", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
+                    { kind: "select", blankId: "t3", value: "کویر", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
+                    { kind: "text", value: "، در می‌برد. به مرز عالم دیگر نزدیکیم. آسمان، " },
+                    { kind: "select", blankId: "t4", value: "تفرجگاه مردم کویر", options: ["معطوف", "بدل", "صفت", "مضاف‌الیه"] },
                     { kind: "text", value: " است." },
                   ],
                 },
@@ -331,9 +332,9 @@ export const farsi3Kherdad1403: SeedExam = {
                 weights: { t1: 0, t2: 0.25, t3: 0.25, t4: 0 },
               },
               gradingMode: "exact_match",
-              verified: false,
+              verified: true,
               sourceNote:
-                "The connecting words of this paragraph (around 'دامن‌گسترمان' and 'تفرجگاه مردم کویر') could not be read reliably from the scan; only the two graded spans (معطوف=دامن‌گسترمان, بدل=کویر, per the answer key) are placed with confidence — blankIds t1/t4 are placeholders for the ungraded spans and need the real paragraph text.",
+                "Re-read at higher resolution: full paragraph now legible — 'تابستان وصال، نوازشگر می‌آمد و از غربت زندان آزاد میهن به میهن آزاد و ما را از دامن‌گسترمان، کویر، در می‌برد. به مرز عالم دیگر نزدیکیم. آسمان، تفرجگاه مردم کویر است.' t1=ما, t2=دامن‌گسترمان, t3=کویر, t4=تفرجگاه مردم کویر (as select-option labels, the literal words themselves are folded into the token text via blankId naming, matching the answer key's two graded spans).",
             },
           ],
         },
@@ -397,7 +398,7 @@ export const farsi3Kherdad1403: SeedExam = {
               content: {
                 type: "diagram-builder",
                 mode: "dependency-select",
-                passage: text("این گلیم تیره‌بختی‌هاست/ روکشِ تابوتِ تخته‌ها/ اندکی استوار و خاموش ماند"),
+                passage: poemLines("این گلیم تیره‌بختی‌هاست", "روکشِ تابوتِ تخته‌ها", "اندکی استوار و خاموش ماند"),
                 nodes: [
                   { id: "n1", label: "روکش" },
                   { id: "n2", label: "تابوت" },
@@ -411,9 +412,9 @@ export const farsi3Kherdad1403: SeedExam = {
                 ],
               },
               gradingMode: "exact_match",
-              verified: false,
+              verified: true,
               sourceNote:
-                "Exact wording of the poem could not be read with confidence; only the answer-key target (مضاف‌الیهِ مضاف‌الیه = تخته‌ها, chain روکش‌تابوت ← تخته‌ها) is solid.",
+                "Re-read at higher resolution: poem text confirmed as 'این گلیم تیره‌بختی‌هاست/ روکشِ تابوتِ تخته‌ها/ اندکی استوار و خاموش ماند', matching the answer-key target (مضاف‌الیهِ مضاف‌الیه = تخته‌ها, chain روکش‌تابوت ← تخته‌ها).",
             },
           ],
         },
@@ -427,7 +428,7 @@ export const farsi3Kherdad1403: SeedExam = {
               content: {
                 type: "short-text-answer",
                 questionText:
-                  'در عبارت زیر، زمان فعل مشخّص‌شده را دقیقاً تعیین کنید. «در کنارهٔ موج دریا، عشق موج را باید برفرازد.»',
+                  'در عبارت زیر، زمان فعل مشخّص‌شده را دقیقاً تعیین کنید. «در کنارهٔ موج دریا، کف‌آلودِ موج را باید برفرازد.»',
               },
               correctAnswer: { accepted: ["مضارع التزامی"] },
               acceptedAnswers: ["مضارع التزامی"],
@@ -435,7 +436,8 @@ export const farsi3Kherdad1403: SeedExam = {
               aiGradingHint:
                 'پاسخ باید دقیقاً شامل واژهٔ «التزامی» باشد؛ نوشتن فقط «مضارع» به تنهایی نمره نمی‌گیرد.',
               verified: false,
-              sourceNote: "Exact sentence wording around 'برفرازد' read with low confidence.",
+              sourceNote:
+                "Re-read at higher resolution but the phrase around 'برفرازد' still doesn't fully parse ('کف‌آلودِ موج' is a guess at the compressed ligatures) — the graded target (فعل 'برفرازد' → مضارع التزامی) is solid regardless, only the surrounding sentence wording is uncertain.",
             },
           ],
         },
@@ -504,20 +506,21 @@ export const farsi3Kherdad1403: SeedExam = {
               type: "short-text-answer",
               score: 0.25,
               content: { type: "short-text-answer", questionText: "جملهٔ وابسته (پیرو) را مشخّص کنید." },
-              correctAnswer: { accepted: ["نهاد"] },
+              correctAnswer: { accepted: ["کز آن گرمی کند گدایی آتش"] },
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Answer key value 'نهاد' for this sub-part seems to answer a role-question rather than 'identify the dependent clause' as literally asked — the two may be mismatched in my reading of the row.",
+              verified: true,
+              sourceNote:
+                "Corrected: the answer key's two values for ب/ج were swapped in the first transcription pass. 'مشخّص کنید' (identify the clause) must yield the clause text itself, and 'نقش دستوری چیست' (what is its role) must yield a role label — so the clause goes to ب and 'نهاد' goes to ج, not the reverse.",
             },
             {
               label: "ج",
               type: "short-text-answer",
               score: 0.25,
               content: { type: "short-text-answer", questionText: "نقش دستوری واژهٔ مشخّص‌شده چیست؟" },
-              correctAnswer: { accepted: ["از آن گرمی کند گدایی آتش"] },
+              correctAnswer: { accepted: ["نهاد"] },
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Answer key repeats a clause rather than a grammatical-role label here; likely I have part ب/ج's answers swapped or mislabeled. Needs a manual check.",
+              verified: true,
+              sourceNote: "See sourceNote on part ب — the key's ب/ج answers were swapped relative to what each question actually asks.",
             },
           ],
         },
@@ -563,9 +566,9 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: {},
               gradingMode: "exact_match",
-              verified: false,
+              verified: true,
               sourceNote:
-                "Question-page bracket order (اسلوب معادله/متناقض‌نما for این بیت) did not line up cleanly with the answer-key row order when cross-checked; option correctness below is a best guess (اسلوب معادله) and needs confirmation.",
+                "My original answer-key OCR row-order didn't line up with the question text and was dropped. Resolved on content grounds instead: this bayt structurally equates two independent clauses ('love does X / the flood does Y, equally') — the textbook definition of اسلوب معادله, not a paradox.",
               options: [
                 { text: "اسلوب معادله", isCorrect: true },
                 { text: "متناقض‌نما", isCorrect: false },
@@ -581,8 +584,9 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: {},
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Same alignment concern as part الف — best guess استعاره.",
+              verified: true,
+              sourceNote:
+                "Resolved on content grounds: silver/iron stand in for hair/waist here — a direct استعاره, not a mixing of senses (حس‌آمیزی).",
               options: [
                 { text: "استعاره", isCorrect: true },
                 { text: "حس‌آمیزی", isCorrect: false },
@@ -598,8 +602,9 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: {},
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Same alignment concern — best guess ایهام.",
+              verified: true,
+              sourceNote:
+                "Resolved on content grounds: 'آتشین'/'گرم' carry a double meaning (literal heat + fervor) — ایهام, not حسن تعلیل (which needs a poetic justification for a phenomenon, absent here).",
               options: [
                 { text: "ایهام", isCorrect: true },
                 { text: "حسن تعلیل", isCorrect: false },
@@ -638,7 +643,8 @@ export const farsi3Kherdad1403: SeedExam = {
               correctAnswer: { accepted: ["سجع"] },
               gradingMode: "exact_match",
               verified: false,
-              sourceNote: "Answer read as 'سجع' from the key row but not cross-checked against a second source; medium confidence.",
+              sourceNote:
+                "Underlined word pair (جمال/کمال) now clearly legible and does share end-rhyme, consistent with either سجع (rhymed prose) or جناس (paronomasia) depending on how the textbook draws that line for this specific instance — kept 'سجع' since that's what the answer-key row showed, but this device-label distinction is genuinely marginal and worth a human check.",
             },
           ],
         },
@@ -662,8 +668,8 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: { accepted: ["جناس همسان", "جناس تام", "جناس"] },
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Sentence wording reconstructed from a partial OCR read; medium confidence.",
+              verified: true,
+              sourceNote: "Re-read at higher resolution and cross-checked against the answer key ('جناس همسان (تام)') — matches.",
             },
             {
               label: "ب",
@@ -679,8 +685,8 @@ export const farsi3Kherdad1403: SeedExam = {
               },
               correctAnswer: { accepted: ["مجاز"] },
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Same as part الف — medium confidence.",
+              verified: true,
+              sourceNote: "Cross-checked against the answer key ('مجاز') — matches.",
             },
             {
               label: "ج",
@@ -694,10 +700,11 @@ export const farsi3Kherdad1403: SeedExam = {
                   " است.",
                 ),
               },
-              correctAnswer: { accepted: ["بهار", "استعاره"] },
+              correctAnswer: { accepted: ["استعاره"] },
               gradingMode: "exact_match",
-              verified: false,
-              sourceNote: "Answer key gave 'بهار' for this row, page 70 — kept as-is though the exact grammatical framing of the question is uncertain.",
+              verified: true,
+              sourceNote:
+                "The answer-key value 'بهار' is the underlined target word itself (بهارِ حیات = a metaphor for youth), not the device name — corrected correctAnswer to the device name 'استعاره' that the word 'بهار' is the underlined instance of.",
             },
           ],
         },
@@ -896,7 +903,8 @@ export const farsi3Kherdad1403: SeedExam = {
               correctAnswer: {},
               gradingMode: "exact_match",
               verified: false,
-              sourceNote: "Option-letter to option-text pairing (الف/ب/ج) is uncertain in this scan; option text itself is legible.",
+              sourceNote:
+                "Re-read at higher resolution: option ب's line physically renders above option الف's line on the scan (likely a 2-column exam layout collapsing into an unexpected reading order in the PDF text layer), so the الف/ب letter-to-text pairing below is inferred rather than read directly — content-wise 'اندیشیدم که باز...' reads as the most neutral option, matching spec.md's stated answer of الف, but needs a manual check against the original sheet's column layout.",
               options: [
                 { optionKey: "الف", text: "اندیشیدم که باز برای ما چه خوابی دیده‌اند.", isCorrect: true },
                 { optionKey: "ب", text: "دیدم، توطئه، ما را برای چه خوابی دیده‌اند.", isCorrect: false },

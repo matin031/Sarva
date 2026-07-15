@@ -21,10 +21,13 @@ const passageTokenSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), value: z.string() }),
   // free-text inline input slot (word-meaning-input, fill-blank-term, ...)
   z.object({ kind: z.literal("blank"), blankId: z.string() }),
-  // inline dropdown slot (multi-part-inline-tagging)
+  // inline dropdown slot (multi-part-inline-tagging): `value` is the visible
+  // underlined word/phrase being tagged, rendered immediately before its
+  // dropdown — unlike `blank`, the source word stays on screen.
   z.object({
     kind: z.literal("select"),
     blankId: z.string(),
+    value: z.string(),
     options: z.array(z.string()).min(2),
   }),
   // decorative emphasis only, no input (e.g. underlined vocab inside an option)

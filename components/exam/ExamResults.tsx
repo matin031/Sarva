@@ -1,10 +1,11 @@
 "use client";
 
-import type { SubmitExamResult, PartResult } from "@/app/exam/[examKey]/actions";
+import type { ClientExam } from "@/lib/exam/client-exam";
+import type { PartResult, QuestionResult } from "@/app/exam/[examKey]/actions";
 
 type Props = {
-  examTitle: string;
-  result: SubmitExamResult;
+  exam: ClientExam;
+  questionResults: Record<number, QuestionResult>;
   onRetry: () => void;
 };
 
@@ -15,9 +16,32 @@ const statusStyles: Record<PartResult["status"], { label: string; className: str
   needs_review: { label: "در انتظار بررسی", className: "bg-muted text-muted-foreground" },
 };
 
-export default function ExamResults({ examTitle, result, onRetry }: Props) {
-  const percent = result.maxScore > 0 ? Math.round((result.totalScore / result.maxScore) * 100) : 0;
-  const pendingCount = result.sections
+export default function ExamResults({ exam, questionResults, onRetry }: Props) {
+  const sections = exam.sections.map((section) => {
+    let sectionScore = 0;
+    let sectionMaxScore = 0;
+
+    const questions = section.questions.map((question) => {
+      const parts = questionResults[question.number]?.parts ?? [];
+      for (const part of parts) {
+        sectionScore += part.score;
+        sectionMaxScore += part.maxScore;
+      }
+      return { number: question.number, parts };
+    });
+
+    return { title: section.title, score: sectionScore, maxScore: sectionMaxScore, questions };
+  });
+
+  const totalScore = sections.reduce((s, sec) => s + sec.score, 0);
+  const maxScore = sections.reduce((s, sec) => s + sec.maxScore, 0);
+  const autoGradedMaxScore = sections
+    .flatMap((s) => s.questions)
+    .flatMap((q) => q.parts)
+    .filter((p) => p.status !== "needs_review")
+    .reduce((s, p) => s + p.maxScore, 0);
+  const percent = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+  const pendingCount = sections
     .flatMap((s) => s.questions)
     .flatMap((q) => q.parts)
     .filter((p) => p.status === "needs_review").length;
@@ -25,26 +49,26 @@ export default function ExamResults({ examTitle, result, onRetry }: Props) {
   return (
     <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-6 xs:px-5">
       <div className="text-center">
-        <h1 className="text-xl font-bold xs:text-2xl">{examTitle}</h1>
+        <h1 className="text-xl font-bold xs:text-2xl">{exam.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">نتیجهٔ آزمون</p>
       </div>
 
       <div className="glass flex flex-col items-center gap-2 rounded-2xl p-6 text-center">
         <span className="text-4xl font-bold text-primary">
-          {result.totalScore.toFixed(2)}
-          <span className="text-lg font-normal text-muted-foreground"> / {result.maxScore}</span>
+          {totalScore.toFixed(2)}
+          <span className="text-lg font-normal text-muted-foreground"> / {maxScore}</span>
         </span>
         <span className="text-sm text-muted-foreground">{percent}٪ (بر اساس نمرهٔ کل)</span>
         {pendingCount > 0 && (
           <p className="mt-2 rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
             {pendingCount} بخش نیاز به بررسی معلم یا هوش مصنوعی دارد و هنوز در این نمره لحاظ نشده است. از{" "}
-            {result.autoGradedMaxScore} نمرهٔ قابل‌بررسیِ خودکار، {result.totalScore.toFixed(2)} گرفته‌اید.
+            {autoGradedMaxScore} نمرهٔ قابل‌بررسیِ خودکار، {totalScore.toFixed(2)} گرفته‌اید.
           </p>
         )}
       </div>
 
       <div className="flex flex-col gap-4">
-        {result.sections.map((section) => (
+        {sections.map((section) => (
           <div key={section.title} className="flex flex-col gap-2">
             <h2 className="flex items-center justify-between rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">
               <span>{section.title}</span>
@@ -85,7 +109,7 @@ export default function ExamResults({ examTitle, result, onRetry }: Props) {
         className="min-h-11 rounded-xl border-2 border-primary bg-primary/10 px-5 text-base font-semibold text-primary
           transition-colors hover:bg-primary/15"
       >
-        بازگشت به آزمون
+        شروع دوباره
       </button>
     </div>
   );

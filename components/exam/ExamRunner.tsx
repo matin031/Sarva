@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
+import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
 import { submitQuestion, type QuestionResult } from "@/app/exam/[examKey]/actions";
 
@@ -49,6 +50,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const [progress, setProgress] = useState<Progress>(emptyProgress);
   const [restored, setRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Restoring persisted progress on mount is a one-time sync with an
@@ -141,8 +143,15 @@ export default function ExamRunner({ examKey, exam }: Props) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const goToIndex = (index: number) => {
+    setProgress((prev) => ({ ...prev, currentIndex: index }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleRetry = () => {
-    localStorage.removeItem(storageKey(examKey));
+    // no need to also localStorage.removeItem here: the save effect below
+    // re-persists `progress` on every change, so it'll write emptyProgress
+    // right back — functionally identical to no saved state on next load.
     setProgress(emptyProgress);
   };
 
@@ -152,11 +161,22 @@ export default function ExamRunner({ examKey, exam }: Props) {
 
   return (
     <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-6 pb-28 xs:px-5">
-      <div className="text-center">
-        <h1 className="text-lg font-bold xs:text-xl">{exam.title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {sectionTitle} · سؤال {currentIndex + 1} از {flatQuestions.length}
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          className="glass flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-foreground/80"
+        >
+          <span className="text-base">☰</span>
+          فهرست
+        </button>
+        <div className="text-center">
+          <h1 className="text-lg font-bold xs:text-xl">{exam.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {sectionTitle} · سؤال {currentIndex + 1} از {flatQuestions.length}
+          </p>
+        </div>
+        <span className="min-h-11 w-[4.5rem]" aria-hidden />
       </div>
 
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -165,6 +185,16 @@ export default function ExamRunner({ examKey, exam }: Props) {
           style={{ width: `${((currentIndex + 1) / flatQuestions.length) * 100}%` }}
         />
       </div>
+
+      {navOpen && (
+        <ExamQuestionNav
+          flatQuestions={flatQuestions}
+          currentIndex={currentIndex}
+          questionResults={questionResults}
+          onJump={goToIndex}
+          onClose={() => setNavOpen(false)}
+        />
+      )}
 
       <ExamQuestionCard
         key={question.number}

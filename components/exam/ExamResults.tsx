@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ClientExam } from "@/lib/exam/client-exam";
 import type { PartResult, QuestionResult } from "@/app/exam/[examKey]/actions";
 
@@ -17,6 +18,8 @@ const statusStyles: Record<PartResult["status"], { label: string; className: str
 };
 
 export default function ExamResults({ exam, questionResults, onRetry }: Props) {
+  const [confirmingRetry, setConfirmingRetry] = useState(false);
+
   const sections = exam.sections.map((section) => {
     let sectionScore = 0;
     let sectionMaxScore = 0;
@@ -103,14 +106,38 @@ export default function ExamResults({ exam, questionResults, onRetry }: Props) {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={onRetry}
-        className="min-h-11 rounded-xl border-2 border-primary bg-primary/10 px-5 text-base font-semibold text-primary
-          transition-colors hover:bg-primary/15"
-      >
-        شروع دوباره
-      </button>
+      {confirmingRetry ? (
+        <div className="flex flex-col gap-2 rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4 text-center">
+          <p className="text-sm text-foreground">
+            با شروع دوباره، همهٔ پاسخ‌ها و نتیجهٔ این آزمون پاک می‌شود. مطمئنید؟
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmingRetry(false)}
+              className="min-h-11 flex-1 rounded-xl border border-border bg-card text-sm font-medium"
+            >
+              انصراف
+            </button>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="min-h-11 flex-1 rounded-xl bg-destructive text-sm font-semibold text-destructive-foreground"
+            >
+              بله، پاک شود
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmingRetry(true)}
+          className="min-h-11 rounded-xl border-2 border-primary bg-primary/10 px-5 text-base font-semibold text-primary
+            transition-colors hover:bg-primary/15"
+        >
+          شروع دوباره
+        </button>
+      )}
     </div>
   );
 }

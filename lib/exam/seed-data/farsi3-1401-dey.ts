@@ -1,4 +1,4 @@
-import { blank1, poemLines, text } from "./helpers";
+import { blank1, text } from "./helpers";
 import type { SeedExam } from "./seed-types";
 
 /**

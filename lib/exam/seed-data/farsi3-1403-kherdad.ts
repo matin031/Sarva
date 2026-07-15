@@ -1,4 +1,4 @@
-import { blank1, poemLines, text } from "./helpers";
+import { blank1, highlight1, poemLines } from "./helpers";
 import type { SeedExam } from "./seed-types";
 
 /**
@@ -49,7 +49,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 2,
           pageRef: 34,
-          instruction: "کدام واژه جزء معانی کلمهٔ مشخّص‌شده نیست؟",
           parts: [
             {
               type: "mcq-inline",
@@ -57,7 +56,7 @@ export const farsi3Kherdad1403: SeedExam = {
               content: {
                 type: "mcq-inline",
                 questionText: "کدام واژه جزء معانی کلمهٔ مشخّص‌شده نیست؟",
-                stimulus: blank1("بنشین به یکی کبود ", "w2", "."),
+                stimulus: highlight1("بنشین به یکی کبود ", "اورند", "."),
               },
               correctAnswer: {},
               gradingMode: "exact_match",
@@ -267,7 +266,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 10,
           pageRef: 46,
-          instruction: "نوع «ان» مشخّص‌شده در کدام گزینه یکسان نیست؟",
           parts: [
             {
               type: "mcq-inline",
@@ -444,7 +442,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 17,
           pageRef: 120,
-          instruction: 'واژهٔ «چون»، از لحاظ دستوری در کدام گزینه متفاوت است؟',
           parts: [
             {
               type: "mcq-inline",
@@ -464,7 +461,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 18,
           pageRef: 137,
-          instruction: "کدام گزینه واژهٔ هم‌آوا در زبان فارسی ندارد؟",
           parts: [
             {
               type: "mcq-inline",
@@ -792,7 +788,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 27,
           pageRef: 162,
-          instruction: "کدام اثر مربوط به بخش ادبیّات جهان است؟",
           parts: [
             {
               type: "mcq-inline",
@@ -894,7 +889,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 32,
           pageRef: 138,
-          instruction: "کدام گزینه بار معنایی منفی ندارد؟",
           parts: [
             {
               type: "mcq-inline",

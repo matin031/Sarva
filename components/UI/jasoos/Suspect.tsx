@@ -93,7 +93,7 @@ function Suspect({
       </span>
 
       {revealed && (
-        <RevealTag text={wordInVerse ?? "در متن نیست"} isSpy={!wordInVerse} />
+        <RevealTag text={wordInVerse ?? "نادرست"} isSpy={!wordInVerse} />
       )}
 
       {state === "shot-wrong" && (

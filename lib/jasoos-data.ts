@@ -9,10 +9,14 @@ export type SuspectRole =
   | "استعاره"
   | "کنایه"
   | "تشخیص"
-  | "مجاز";
+  | "مجاز"
+  | "واو عطف"
+  | "مضاف‌الیه"
+  | "معطوف"
+  | "منادا";
 
 export type JasoosCategory = "دستوری" | "آرایه";
-export type JasoosContentType = "بیت" | "نثر";
+export type JasoosContentType = "poem" | "prose";
 
 export type Suspect = {
   role: SuspectRole;
@@ -27,8 +31,8 @@ export type JasoosLevel = {
   id: number;
   title: string;
   category: JasoosCategory;
-  // دستوری examples are plain sentences (نثر); آرایه examples are styled as
-  // couplets (بیت) — each is displayed differently in the shooting scene
+  // "poem" renders as a two-line couplet; "prose" renders as a single
+  // justified paragraph — independent of `category`
   contentType: JasoosContentType;
   verseLines: [string, string];
   suspects: [Suspect, Suspect, Suspect, Suspect];
@@ -56,70 +60,74 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return copy;
 }
 
-const rawLevels: Omit<JasoosLevel, "contentType">[] = [
+const rawLevels: JasoosLevel[] = [
   {
     id: 1,
     title: "درِ یکم",
     category: "دستوری",
-    verseLines: ["باغ ما در بهار،", "سرسبز و خرم گشت."],
+    contentType: "poem",
+    verseLines: [
+      "عافیت خواهی نظر در منظر خوبان مکن،",
+      "ور کنی بدرود کن خواب و قرار خویش را.",
+    ],
     suspects: [
       {
-        role: "نهاد",
+        role: "مفعول",
         isSpy: false,
-        evidence: "«باغ ما» نهادِ جمله است.",
-        wordInVerse: "باغ ما",
-      },
-      {
-        role: "متمم",
-        isSpy: false,
-        evidence: "«در بهار» نقشِ متمم را دارد.",
-        wordInVerse: "در بهار",
-      },
-      {
-        role: "مسند",
-        isSpy: false,
-        evidence: "«سرسبز و خرم» پس از فعل ربطیِ «گشت»، مسند است.",
-        wordInVerse: "سرسبز و خرم",
+        evidence: "«عافیت» مفعولِ فعلِ «خواهی» است؛ یعنی «عافیت را می‌خواهی».",
+        wordInVerse: "عافیت",
       },
       {
         role: "صفت",
         isSpy: true,
         evidence: "در این بیت هیچ صفتی به‌کار نرفته؛ او جاسوس بود!",
       },
+      {
+        role: "واو عطف",
+        isSpy: false,
+        evidence: "«و» در «خواب و قرار» دو واژه را به هم پیوند می‌دهد؛ واو عطف است.",
+        wordInVerse: "و",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«در منظر خوبان» با حرفِ اضافه‌ی «در» متممِ فعلِ «نظر ... مکن» است.",
+        wordInVerse: "منظر",
+      },
     ],
   },
   {
     id: 2,
     title: "درِ دوم",
-    category: "آرایه",
+    category: "دستوری",
+    contentType: "poem",
     verseLines: [
-      "قامت او همچون سرو بود و دستش هرگز به بدی نرفت،",
-      "باد صبحگاهان با گیسوی او نجوا می‌کرد.",
+      "چه خوش فرمود آن پیر خردمند،",
+      "وزین خوش‌تر نباشد در جهان پند.",
     ],
     suspects: [
       {
-        role: "تشبیه",
+        role: "قید",
         isSpy: false,
-        evidence: "«قامت او همچون سرو»: قامت به سرو مانند شده است.",
-        wordInVerse: "قامت او همچون سرو",
+        evidence: "«خوش» در «چه خوش فرمود» قیدِ حالت برای فعلِ «فرمود» است.",
+        wordInVerse: "خوش",
       },
       {
-        role: "کنایه",
+        role: "نهاد",
         isSpy: false,
-        evidence: "«دستش به بدی نرفت» کنایه از پاک‌دستی و درستکاری است.",
-        wordInVerse: "دستش هرگز به بدی نرفت",
+        evidence: "«آن پیر خردمند» نهادِ جمله و انجام‌دهنده‌ی «فرمود» است.",
+        wordInVerse: "پیر خردمند",
       },
       {
-        role: "تشخیص",
+        role: "صفت",
         isSpy: false,
-        evidence: "«باد ... نجوا می‌کرد»: رفتاری انسانی به باد نسبت داده شده.",
-        wordInVerse: "باد صبحگاهان با گیسوی او نجوا می‌کرد",
+        evidence: "«خردمند» صفتِ «پیر» است.",
+        wordInVerse: "خردمند",
       },
       {
-        role: "استعاره",
+        role: "متمم",
         isSpy: true,
-        evidence:
-          "در این بیت هیچ مشبه‌بهِ تنهایی جای مشبه ننشسته؛ استعاره‌ای در کار نیست. او جاسوس بود!",
+        evidence: "«جهان» در این بیت نقشِ متمم را ندارد؛ او جاسوس بود!",
       },
     ],
   },
@@ -127,66 +135,66 @@ const rawLevels: Omit<JasoosLevel, "contentType">[] = [
     id: 3,
     title: "درِ سوم",
     category: "دستوری",
-    verseLines: ["پدربزرگ نامه‌ای را،", "برای دخترش نوشت."],
+    contentType: "poem",
+    verseLines: ["گر خونین دلی از جور ایام،", "لب خندان بیاور چون لب جام."],
     suspects: [
       {
-        role: "نهاد",
+        role: "صفت",
         isSpy: false,
-        evidence: "«پدربزرگ» نهادِ جمله است.",
-        wordInVerse: "پدربزرگ",
+        evidence: "«خونین» صفتِ «دل» است.",
+        wordInVerse: "خونین",
       },
       {
-        role: "مفعول",
-        isSpy: false,
-        evidence: "«نامه‌ای را» مفعولِ فعل «نوشت» است.",
-        wordInVerse: "نامه‌ای را",
+        role: "نهاد",
+        isSpy: true,
+        evidence: "«دل» در این بیت نقشِ نهاد را ندارد؛ او جاسوس بود!",
       },
       {
         role: "متمم",
         isSpy: false,
-        evidence: "«برای دخترش» نقشِ متمم را دارد.",
-        wordInVerse: "برای دخترش",
+        evidence: "«از جور ایام» با حرفِ اضافه‌ی «از» متمم است.",
+        wordInVerse: "جور",
       },
       {
-        role: "مسند",
-        isSpy: true,
-        evidence: "فعل «نوشت» ربطی نیست، پس مسندی وجود ندارد؛ او جاسوس بود!",
+        role: "مفعول",
+        isSpy: false,
+        evidence: "«لب خندان» مفعولِ فعلِ «بیاور» است.",
+        wordInVerse: "لب",
       },
     ],
   },
   {
     id: 4,
     title: "درِ چهارم",
-    category: "آرایه",
+    category: "دستوری",
+    contentType: "poem",
     verseLines: [
-      "سرو خرامان به باغ دل ما آمد،",
-      "دستش به سوی بدی نرفت و دندانش چو مروارید بود.",
+      "مکن ما ناقصان را یا رب از سنگ محک رسوا،",
+      "که این به بوته را کامل عیاری نیست غیر از تو.",
     ],
     suspects: [
       {
-        role: "استعاره",
-        isSpy: false,
-        evidence:
-          "«سرو خرامان به باغ دل ما آمد»: مشبه (معشوق) حذف شده و فقط مشبه‌به «سرو» مانده است.",
-        wordInVerse: "سرو خرامان به باغ دل ما آمد",
-      },
-      {
-        role: "کنایه",
-        isSpy: false,
-        evidence: "«دستش به سوی بدی نرفت» کنایه از پاک‌دستی است.",
-        wordInVerse: "دستش به سوی بدی نرفت",
-      },
-      {
-        role: "تشبیه",
-        isSpy: false,
-        evidence: "«دندانش چو مروارید بود»: دندان به مروارید مانند شده است.",
-        wordInVerse: "دندانش چو مروارید بود",
-      },
-      {
-        role: "تشخیص",
+        role: "مضاف‌الیه",
         isSpy: true,
-        evidence:
-          "در این بیت به هیچ چیز بی‌جانی رفتار انسانی نسبت داده نشده؛ او جاسوس بود!",
+        evidence: "«ناقصان» در این بیت نقشِ مضاف‌الیه را ندارد؛ او جاسوس بود!",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«از سنگ محک» با حرفِ اضافه‌ی «از» متمم است.",
+        wordInVerse: "سنگ محک",
+      },
+      {
+        role: "مسند",
+        isSpy: false,
+        evidence: "«کامل» پس از فعلِ ربطیِ «نیست»، مسند است.",
+        wordInVerse: "کامل",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«غیر از تو» با حرفِ اضافه‌ی «از» متمم است.",
+        wordInVerse: "تو",
       },
     ],
   },
@@ -194,65 +202,66 @@ const rawLevels: Omit<JasoosLevel, "contentType">[] = [
     id: 5,
     title: "درِ پنجم",
     category: "دستوری",
-    verseLines: ["شاگرد باهوشِ کلاس،", "پاسخ را گفت."],
+    contentType: "poem",
+    verseLines: [
+      "دل اگر خداشناسی همه در رخ علی بین،",
+      "به علی شناختم من به خدا قسم خدا را.",
+    ],
     suspects: [
+      {
+        role: "مسند",
+        isSpy: true,
+        evidence: "«خداشناسی» در این بیت نقشِ مسند را ندارد؛ او جاسوس بود!",
+      },
+      {
+        role: "متمم",
+        isSpy: false,
+        evidence: "«در رخ علی» با حرفِ اضافه‌ی «در» متمم است.",
+        wordInVerse: "رخ",
+      },
       {
         role: "نهاد",
         isSpy: false,
-        evidence: "«شاگرد باهوش» نهادِ جمله است.",
-        wordInVerse: "شاگرد باهوشِ کلاس",
-      },
-      {
-        role: "صفت",
-        isSpy: false,
-        evidence: "«باهوش» صفتِ «شاگرد» است.",
-        wordInVerse: "باهوش",
+        evidence: "«من» نهادِ فعلِ «شناختم» است.",
+        wordInVerse: "من",
       },
       {
         role: "مفعول",
         isSpy: false,
-        evidence: "«پاسخ را» مفعولِ فعل «گفت» است.",
-        wordInVerse: "پاسخ را",
-      },
-      {
-        role: "قید",
-        isSpy: true,
-        evidence: "در این بیت هیچ قیدی به‌کار نرفته؛ او جاسوس بود!",
+        evidence: "«خدا را» مفعولِ فعلِ «قسم» است.",
+        wordInVerse: "خدا را",
       },
     ],
   },
   {
     id: 6,
     title: "درِ ششم",
-    category: "آرایه",
-    verseLines: [
-      "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد،",
-      "قامت بلند او همچون صنوبر بود و دلش هرگز نلرزید.",
-    ],
+    category: "دستوری",
+    contentType: "poem",
+    verseLines: ["چو صبرش نماند از ضعیفی و هوش،", "ز دیوار محرابش آمد به گوش."],
     suspects: [
       {
-        role: "تشخیص",
+        role: "نهاد",
         isSpy: false,
-        evidence: "«باد با شاخه‌ها گفت‌وگو می‌کرد»: گفت‌وگو کاری انسانی است.",
-        wordInVerse: "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد",
+        evidence: "«صبرش» نهادِ فعلِ «نماند» است.",
+        wordInVerse: "صبرش",
       },
       {
-        role: "تشبیه",
+        role: "متمم",
         isSpy: false,
-        evidence: "«قامت بلند او همچون صنوبر»: قامت به صنوبر مانند شده است.",
-        wordInVerse: "قامت بلند او همچون صنوبر",
+        evidence: "«از ضعیفی» با حرفِ اضافه‌ی «از» متمم است.",
+        wordInVerse: "ضعیفی",
       },
       {
-        role: "کنایه",
+        role: "معطوف",
         isSpy: false,
-        evidence: "«دلش هرگز نلرزید» کنایه از نترسیدن و شجاعت است.",
-        wordInVerse: "دلش هرگز نلرزید",
+        evidence: "«هوش» با واوِ عطف به «ضعیفی» پیوند خورده و معطوف است.",
+        wordInVerse: "هوش",
       },
       {
-        role: "مجاز",
+        role: "مفعول",
         isSpy: true,
-        evidence:
-          "در این بیت واژه‌ای در معنای غیرِ حقیقیِ خود با رابطه‌ی غیرِ شباهت به‌کار نرفته؛ او جاسوس بود!",
+        evidence: "«گوش» در این بیت نقشِ مفعول را ندارد؛ او جاسوس بود!",
       },
     ],
   },
@@ -260,195 +269,66 @@ const rawLevels: Omit<JasoosLevel, "contentType">[] = [
     id: 7,
     title: "درِ هفتم",
     category: "دستوری",
-    verseLines: ["دانش‌آموزانِ باهوش،", "در کلاس نشستند."],
+    contentType: "poem",
+    verseLines: ["فلک در شگفتی ز عزم شماست،", "ملک آفرین‌گوی رزم شماست."],
     suspects: [
-      {
-        role: "نهاد",
-        isSpy: false,
-        evidence: "«دانش‌آموزان باهوش» نهادِ جمله است.",
-        wordInVerse: "دانش‌آموزانِ باهوش",
-      },
-      {
-        role: "صفت",
-        isSpy: false,
-        evidence: "«باهوش» صفتِ «دانش‌آموزان» است.",
-        wordInVerse: "باهوش",
-      },
       {
         role: "متمم",
         isSpy: false,
-        evidence: "«در کلاس» نقشِ متمم را دارد.",
-        wordInVerse: "در کلاس",
+        evidence: "«در شگفتی» با حرفِ اضافه‌ی «در» متمم است.",
+        wordInVerse: "شگفتی",
+      },
+      {
+        role: "مضاف‌الیه",
+        isSpy: true,
+        evidence: "«عزم» در این بیت نقشِ مضاف‌الیه را ندارد؛ او جاسوس بود!",
+      },
+      {
+        role: "نهاد",
+        isSpy: false,
+        evidence: "«ملک» نهادِ جمله‌ی دوم است.",
+        wordInVerse: "ملک",
       },
       {
         role: "مفعول",
-        isSpy: true,
-        evidence: "فعل «نشستند» ناگذر است و مفعول نمی‌پذیرد؛ او جاسوس بود!",
+        isSpy: false,
+        evidence: "«آفرین‌گوی» ترکیبی است که در آن «گوی» مفعولِ «آفرین» به‌شمار می‌آید.",
+        wordInVerse: "گوی",
       },
     ],
   },
   {
     id: 8,
     title: "درِ هشتم",
-    category: "آرایه",
-    verseLines: [
-      "قامتش همچون سرو بود و دستش هرگز به بدی نرفت،",
-      "همه‌ی شهر در جشنِ او بودند.",
-    ],
-    suspects: [
-      {
-        role: "تشبیه",
-        isSpy: false,
-        evidence: "«قامتش همچون سرو»: قامت به سرو مانند شده است.",
-        wordInVerse: "قامتش همچون سرو",
-      },
-      {
-        role: "کنایه",
-        isSpy: false,
-        evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است.",
-        wordInVerse: "دستش هرگز به بدی نرفت",
-      },
-      {
-        role: "مجاز",
-        isSpy: false,
-        evidence: "«شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
-        wordInVerse: "شهر",
-      },
-      {
-        role: "تشخیص",
-        isSpy: true,
-        evidence: "در این بیت به هیچ چیز بی‌جانی رفتار انسانی نسبت داده نشده؛ او جاسوس بود!",
-      },
-    ],
-  },
-  {
-    id: 9,
-    title: "درِ نهم",
     category: "دستوری",
-    verseLines: ["مرغِ سفید،", "دانه‌های ریز را خورد."],
+    contentType: "poem",
+    verseLines: [
+      "ای روی تو آرام دل خلق جهانی،",
+      "بی روی تو شاید که نبیند جهان را.",
+    ],
     suspects: [
       {
-        role: "نهاد",
+        role: "منادا",
         isSpy: false,
-        evidence: "«مرغ سفید» نهادِ جمله است.",
-        wordInVerse: "مرغِ سفید",
+        evidence: "«ای روی» ندا است؛ «روی» منادا و موردِ خطاب است.",
+        wordInVerse: "روی",
+      },
+      {
+        role: "مسند",
+        isSpy: true,
+        evidence: "«آرام» در این بیت نقشِ مسند را ندارد؛ او جاسوس بود!",
+      },
+      {
+        role: "مضاف‌الیه",
+        isSpy: false,
+        evidence: "«خلق» در «آرامِ دلِ خلقِ جهان» مضاف‌الیه است.",
+        wordInVerse: "خلق",
       },
       {
         role: "مفعول",
         isSpy: false,
-        evidence: "«دانه‌های ریز را» مفعولِ فعل «خورد» است.",
-        wordInVerse: "دانه‌های ریز را",
-      },
-      {
-        role: "صفت",
-        isSpy: false,
-        evidence: "«سفید» صفتِ «مرغ» است.",
-        wordInVerse: "سفید",
-      },
-      {
-        role: "متمم",
-        isSpy: true,
-        evidence: "در این بیت هیچ حرفِ اضافه و متممی به‌کار نرفته؛ او جاسوس بود!",
-      },
-    ],
-  },
-  {
-    id: 10,
-    title: "درِ دهم",
-    category: "آرایه",
-    verseLines: [
-      "سرو خرامان به باغ دل ما آمد؛",
-      "دستش هرگز به بدی نرفت و چشمِ شهر به او دوخته بود.",
-    ],
-    suspects: [
-      {
-        role: "استعاره",
-        isSpy: false,
-        evidence: "«سرو خرامان به باغ دل ما آمد»: مشبه (معشوق) حذف شده و فقط مشبه‌به «سرو» مانده است.",
-        wordInVerse: "سرو خرامان به باغ دل ما آمد",
-      },
-      {
-        role: "کنایه",
-        isSpy: false,
-        evidence: "«دستش هرگز به بدی نرفت» کنایه از پاک‌دستی است.",
-        wordInVerse: "دستش هرگز به بدی نرفت",
-      },
-      {
-        role: "مجاز",
-        isSpy: false,
-        evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
-        wordInVerse: "چشمِ شهر",
-      },
-      {
-        role: "تشبیه",
-        isSpy: true,
-        evidence:
-          "در این بیت مشبهی به‌همراهِ ادات یا مشبه‌به ذکر نشده که تشبیهِ صریح بسازد؛ او جاسوس بود!",
-      },
-    ],
-  },
-  {
-    id: 11,
-    title: "درِ یازدهم",
-    category: "دستوری",
-    verseLines: ["بچه‌ها دیروز،", "در پارک بازی کردند."],
-    suspects: [
-      {
-        role: "نهاد",
-        isSpy: false,
-        evidence: "«بچه‌ها» نهادِ جمله است.",
-        wordInVerse: "بچه‌ها",
-      },
-      {
-        role: "قید",
-        isSpy: false,
-        evidence: "«دیروز» قیدِ زمان است.",
-        wordInVerse: "دیروز",
-      },
-      {
-        role: "متمم",
-        isSpy: false,
-        evidence: "«در پارک» نقشِ متمم را دارد.",
-        wordInVerse: "در پارک",
-      },
-      {
-        role: "صفت",
-        isSpy: true,
-        evidence: "در این بیت هیچ صفتی به‌کار نرفته؛ او جاسوس بود!",
-      },
-    ],
-  },
-  {
-    id: 12,
-    title: "درِ دوازدهم",
-    category: "آرایه",
-    verseLines: [
-      "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد؛",
-      "قامت بلندش همچون صنوبر بود و چشمِ شهر بر او خیره مانده بود.",
-    ],
-    suspects: [
-      {
-        role: "تشخیص",
-        isSpy: false,
-        evidence: "«باد ... گفت‌وگو می‌کرد»: گفت‌وگو کاری انسانی است.",
-        wordInVerse: "باد سحرگاه با شاخه‌های بید گفت‌وگو می‌کرد",
-      },
-      {
-        role: "تشبیه",
-        isSpy: false,
-        evidence: "«قامت بلندش همچون صنوبر»: قامت به صنوبر مانند شده است.",
-        wordInVerse: "قامت بلندش همچون صنوبر",
-      },
-      {
-        role: "مجاز",
-        isSpy: false,
-        evidence: "«چشمِ شهر» به‌جای «مردمِ شهر» به‌کار رفته؛ این مجاز به علاقه‌ی محلیت است.",
-        wordInVerse: "چشمِ شهر",
-      },
-      {
-        role: "کنایه",
-        isSpy: true,
-        evidence: "در این بیت هیچ عبارتِ کنایی به‌کار نرفته؛ او جاسوس بود!",
+        evidence: "«جهان را» مفعولِ فعلِ «نبیند» است.",
+        wordInVerse: "جهان را",
       },
     ],
   },
@@ -456,8 +336,6 @@ const rawLevels: Omit<JasoosLevel, "contentType">[] = [
 
 export const JASOOS_LEVELS: JasoosLevel[] = rawLevels.map((level) => ({
   ...level,
-  // آرایه examples read as poetic couplets; دستوری examples are plain prose
-  contentType: level.category === "آرایه" ? "بیت" : "نثر",
   suspects: seededShuffle(level.suspects, level.id * 7919) as [
     Suspect,
     Suspect,

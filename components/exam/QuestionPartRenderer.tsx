@@ -6,6 +6,14 @@ import TrueFalsePart from "@/components/exam/parts/TrueFalsePart";
 import CountAnswerPart from "@/components/exam/parts/CountAnswerPart";
 import McqInlinePart, { type McqOption } from "@/components/exam/parts/McqInlinePart";
 import WordMeaningInputPart from "@/components/exam/parts/WordMeaningInputPart";
+import McqMultiSelectPart from "@/components/exam/parts/McqMultiSelectPart";
+import McqPlusCorrectionPart, {
+  type McqPlusCorrectionValue,
+} from "@/components/exam/parts/McqPlusCorrectionPart";
+import FillBlankTermPart from "@/components/exam/parts/FillBlankTermPart";
+import TwoAnswerTextPart from "@/components/exam/parts/TwoAnswerTextPart";
+import VerseCompletionPart from "@/components/exam/parts/VerseCompletionPart";
+import McqSelectLineInPoemPart from "@/components/exam/parts/McqSelectLineInPoemPart";
 
 type Props = {
   content: QuestionPartContent;
@@ -63,6 +71,62 @@ export default function QuestionPartRenderer({ content, options, value, onChange
           content={content}
           value={(value as Record<string, string>) ?? {}}
           onChange={(blankId, v) => onChange({ ...(value as Record<string, string>), [blankId]: v })}
+          disabled={disabled}
+        />
+      );
+    case "mcq-multi-select":
+      return (
+        <McqMultiSelectPart
+          content={content}
+          options={options ?? []}
+          value={(value as string[]) ?? []}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
+    case "mcq-plus-correction":
+      return (
+        <McqPlusCorrectionPart
+          content={content}
+          options={options ?? []}
+          value={(value as McqPlusCorrectionValue) ?? { optionId: null, correctionText: "" }}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
+    case "fill-blank-term":
+      return (
+        <FillBlankTermPart
+          content={content}
+          value={(value as Record<string, string>) ?? {}}
+          onChange={(blankId, v) => onChange({ ...(value as Record<string, string>), [blankId]: v })}
+          disabled={disabled}
+        />
+      );
+    case "two-answer-text":
+      return (
+        <TwoAnswerTextPart
+          content={content}
+          value={(value as Record<string, string>) ?? {}}
+          onChange={(fieldId, v) => onChange({ ...(value as Record<string, string>), [fieldId]: v })}
+          disabled={disabled}
+        />
+      );
+    case "verse-completion":
+      return (
+        <VerseCompletionPart
+          content={content}
+          value={(value as string) ?? ""}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
+    case "mcq-select-line-in-poem":
+      return (
+        <McqSelectLineInPoemPart
+          content={content}
+          value={(value as number | null) ?? null}
+          onChange={onChange}
           disabled={disabled}
         />
       );

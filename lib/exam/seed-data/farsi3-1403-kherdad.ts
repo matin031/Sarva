@@ -1,4 +1,4 @@
-import { blank1, highlight1, poemLines } from "./helpers";
+import { highlight1, highlightThenBlank, poemLines, text } from "./helpers";
 import type { SeedExam } from "./seed-types";
 
 /**
@@ -36,7 +36,7 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "word-meaning-input",
-                passage: blank1("در آن دیگر، ", "w1", " نفس نمی‌کشد."),
+                passage: highlightThenBlank("در آن دیگر، ", "ذی‌حیاتی", "w1", " نفس نمی‌کشد."),
               },
               correctAnswer: { w1: ["دارای حیات", "زنده", "جاندار", "موجود زنده"] },
               gradingMode: "ai_semantic",
@@ -80,8 +80,8 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "mcq-inline",
-                questionText:
-                  'معادل معنایی واژهٔ مشخّص‌شده در بیت «چه نیکو گفت با جمشید دستور/ که با نادان نه شیون باد و نه سور» در کدام گزینه نیامده است؟',
+                questionText: "معادل معنایی واژهٔ مشخّص‌شده در کدام گزینه نیامده است؟",
+                stimulus: highlight1("چه نیکو گفت با جمشید دستور/ که با نادان نه ", "شیون", " باد و نه سور"),
               },
               correctAnswer: {},
               gradingMode: "exact_match",
@@ -103,10 +103,14 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "word-meaning-input",
-                passage: blank1(
-                  "یکی از مردان معمّر دهکده کتاب را بر روی زانو گشوده بود و از پس عینک ستبر خویش در آن می‌نگریست؛ هرکه مرا ببیند به حقیقت داند که از شما ",
+                stimulus: text(
+                  "یکی از مردان معمّر دهکده کتاب را بر روی زانو گشوده بود و از پس عینک ستبر خویش در آن می‌نگریست.",
+                ),
+                passage: highlightThenBlank(
+                  "هرکه مرا ببیند، به حقیقت داند که از شما ",
+                  "کلان‌تر",
                   "w4",
-                  "‌ترم و از جهان بزرگ‌تر دیده‌ام.",
+                  " و از جهان بزرگ‌تر دیده‌ام.",
                 ),
               },
               correctAnswer: { w4: ["معمّر"] },
@@ -186,10 +190,10 @@ export const farsi3Kherdad1403: SeedExam = {
               sourceNote:
                 "Re-read at higher resolution: option text itself is now legible (see below), but option الف's 'ششتی' visually looks like the more obvious misspelling of 'شستی', which conflicts with the answer key's stated correct answer of گزینهٔ ب — needs a human check of what's actually wrong in option ب.",
               options: [
-                { optionKey: "الف", text: "ولی ششتی خبردار شده بود و چشمش مثل مرغ سربریده، مدام روی میز می‌دوید.", isCorrect: false },
-                { optionKey: "ب", text: "کان کمند شست خویش بگشاید و بیندازد از بالا، بر درختی سنگی، گیرهای سنگی، فراز آید.", isCorrect: true },
-                { optionKey: "ج", text: "چون تیری که از شست رفته، بار دیگر گردد، باز نمی‌گردد.", isCorrect: false },
-                { optionKey: "د", text: "آنگاه باز شکاری که شاهان او را روی شست خویش نشاندند و با خویشتن به شکار می‌بردند.", isCorrect: false },
+                { optionKey: "الف", text: "ولی {{ششتی}} خبردار شده بود و چشمش مثل مرغ سربریده، مدام روی میز می‌دوید.", isCorrect: false },
+                { optionKey: "ب", text: "کان کمند {{شست}} خویش بگشاید و بیندازد از بالا، بر درختی سنگی، گیرهای سنگی، فراز آید.", isCorrect: true },
+                { optionKey: "ج", text: "چون تیری که از {{شست}} رفته، بار دیگر گردد، باز نمی‌گردد.", isCorrect: false },
+                { optionKey: "د", text: "آنگاه باز شکاری که شاهان او را روی {{شست}} خویش نشاندند و با خویشتن به شکار می‌بردند.", isCorrect: false },
               ],
             },
           ],
@@ -225,7 +229,6 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 8,
           pageRef: 13,
-          instruction: "در کدام یک از گزینه‌های زیر غلط املایی وجود دارد؟ آن را درست بنویسید.",
           parts: [
             {
               type: "mcq-plus-correction",
@@ -248,16 +251,16 @@ export const farsi3Kherdad1403: SeedExam = {
         {
           number: 9,
           pageRef: 27,
+          instruction: 'ساختار کدام مصراع، طبق الگوی «نهاد+ مفعول+ مسند+ فعل» است؟',
           parts: [
             {
-              type: "short-text-answer",
+              type: "mcq-select-line-in-poem",
               score: 0.25,
               content: {
-                type: "short-text-answer",
-                questionText:
-                  'ساختار کدام مصراع، طبق الگوی «نهاد+ مفعول+ مسند+ فعل» است؟ «در پیشگاه اهل خرد نیست محترم/ هرکس که فکر جامعه را محترم نداشت»',
+                type: "mcq-select-line-in-poem",
+                lines: ["در پیشگاه اهل خرد نیست محترم", "هرکس که فکر جامعه را محترم نداشت"],
               },
-              correctAnswer: { accepted: ["مصراع دوم", "هرکس که فکر جامعه را محترم نداشت"] },
+              correctAnswer: { correctLineIndex: 1 },
               gradingMode: "exact_match",
               verified: true,
             },
@@ -273,10 +276,20 @@ export const farsi3Kherdad1403: SeedExam = {
               content: { type: "mcq-inline", questionText: "نوع «ان» مشخّص‌شده در کدام گزینه یکسان نیست؟" },
               correctAnswer: {},
               gradingMode: "exact_match",
-              verified: true,
+              verified: false,
+              sourceNote:
+                "Marked all plausible -ان content words in both options so the grammar contrast is visible; which exact word(s) the original PDF bolded isn't re-confirmed.",
               options: [
-                { optionKey: "الف", text: "سراسر همه دشت بریان شدند/ بر آن چهر خندانش گریان شدند", isCorrect: false },
-                { optionKey: "ب", text: "من به هر جمعیّتی نالان شدم/ جفت بدحالان و خوش‌حالان شدم", isCorrect: true },
+                {
+                  optionKey: "الف",
+                  text: "سراسر همه دشت {{بریان}} شدند/ بر آن چهر خندانش {{گریان}} شدند",
+                  isCorrect: false,
+                },
+                {
+                  optionKey: "ب",
+                  text: "من به هر جمعیّتی {{نالان}} شدم/ جفت {{بدحالان}} و {{خوش‌حالان}} شدم",
+                  isCorrect: true,
+                },
               ],
             },
           ],
@@ -290,12 +303,21 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'با توجه به بیت «اگر لطف تو نبود، پرتوافراز/ کجا فکر و کجا گنجینهٔ راز» کدام واژهٔ بیت زیر، نقش دستوری یکسانی با واژهٔ مشخّص‌شده دارد؟ «زاهد ظاهرپرست از حال ما آگاه نیست/ در حقّ ما هرچه گوید، جای هیچ اکراه نیست»',
+                questionText: "کدام واژهٔ دو مصراع پایینی، نقش دستوری یکسانی با واژهٔ مشخّص‌شده در دو مصراع بالا دارد؟",
+                stimulus: {
+                  lines: [
+                    [{ kind: "text", value: "اگر لطف تو نبود، " }, { kind: "highlight", value: "پرتوافراز" }],
+                    [{ kind: "text", value: "کجا فکر و کجا گنجینهٔ راز" }],
+                    [{ kind: "text", value: "زاهد ظاهرپرست از حال ما آگاه نیست" }],
+                    [{ kind: "text", value: "در حقّ ما هرچه گوید، جای هیچ اکراه نیست" }],
+                  ],
+                },
               },
               correctAnswer: { accepted: ["آگاه"] },
               gradingMode: "exact_match",
-              verified: true,
+              verified: false,
+              sourceNote:
+                "Highlighted 'پرتوافراز' as the marked word in the first bayt on content grounds (a مسند-role adjective, same role as the answer 'آگاه') — the original PDF's exact highlighted word in this bayt isn't re-confirmed.",
             },
           ],
         },
@@ -377,8 +399,8 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'نوع وابستهٔ وابسته را در بیت زیر بنویسید. «ای مرغ سحر، عشق ز پروانه بیاموز/ کان سوخته را جان شد و آواز نیامد»',
+                questionText: "نوع وابستهٔ وابسته را در بیت زیر بنویسید.",
+                stimulus: poemLines("ای مرغ سحر، عشق ز پروانه بیاموز", "کان سوخته را جان شد و آواز نیامد"),
               },
               correctAnswer: { accepted: ["صفت مضاف‌الیه"] },
               gradingMode: "exact_match",
@@ -426,8 +448,8 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'در عبارت زیر، زمان فعل مشخّص‌شده را دقیقاً تعیین کنید. «در کنارهٔ موج دریا، کف‌آلودِ موج را باید برفرازد.»',
+                questionText: "در عبارت زیر، زمان فعل مشخّص‌شده را دقیقاً تعیین کنید.",
+                stimulus: highlight1("در کنارهٔ موج دریا، کف‌آلودِ موج را باید ", "برفرازد", "."),
               },
               correctAnswer: { accepted: ["مضارع التزامی"] },
               acceptedAnswers: ["مضارع التزامی"],
@@ -634,14 +656,26 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'واژه‌های مشخّص‌شده در دو جملهٔ زیر، کدام آرایهٔ ادبی مشترک را خلق کرده‌اند؟ الف) بدان که هرکه از جمله نام‌های حُسن یکی «جمال» است و یکی «کمال». ب) بی آتش قرار، و در آتش وجود ندارد.',
+                questionText: "واژه‌های مشخّص‌شده در دو جملهٔ زیر، کدام آرایهٔ ادبی مشترک را خلق کرده‌اند؟",
+                stimulus: {
+                  tokens: [
+                    { kind: "text", value: "الف) بدان که هرکه از جمله نام‌های حُسن یکی " },
+                    { kind: "highlight", value: "جمال" },
+                    { kind: "text", value: " است و یکی " },
+                    { kind: "highlight", value: "کمال" },
+                    { kind: "text", value: ". ب) بی آتش " },
+                    { kind: "highlight", value: "قرار" },
+                    { kind: "text", value: "، و در آتش " },
+                    { kind: "highlight", value: "وجود" },
+                    { kind: "text", value: " ندارد." },
+                  ],
+                },
               },
               correctAnswer: { accepted: ["سجع"] },
               gradingMode: "exact_match",
               verified: false,
               sourceNote:
-                "Underlined word pair (جمال/کمال) now clearly legible and does share end-rhyme, consistent with either سجع (rhymed prose) or جناس (paronomasia) depending on how the textbook draws that line for this specific instance — kept 'سجع' since that's what the answer-key row showed, but this device-label distinction is genuinely marginal and worth a human check.",
+                "Underlined word pair (جمال/کمال) now clearly legible and does share end-rhyme, consistent with either سجع (rhymed prose) or جناس (paronomasia) depending on how the textbook draws that line for this specific instance — kept 'سجع' since that's what the answer-key row showed, but this device-label distinction is genuinely marginal and worth a human check. The second pair's exact marked words (قرار/وجود guessed) are also not re-confirmed.",
             },
           ],
         },
@@ -657,16 +691,23 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "fill-blank-term",
-                passage: blank1(
-                  'واژه‌های مشخّص‌شده در بیت «که از نی حریف هرکه یاری برید؛ پرده‌هایش پرده‌های ما دَرید»، آرایهٔ ادبی ',
-                  "f1",
-                  " دارند.",
-                ),
+                passage: {
+                  tokens: [
+                    { kind: "text", value: "واژه‌های مشخّص‌شده در بیت «که از نی " },
+                    { kind: "highlight", value: "حریف" },
+                    { kind: "text", value: " هرکه یاری " },
+                    { kind: "highlight", value: "برید" },
+                    { kind: "text", value: "؛ پرده‌هایش پرده‌های ما دَرید»، آرایهٔ ادبی " },
+                    { kind: "blank", blankId: "f1" },
+                    { kind: "text", value: " دارند." },
+                  ],
+                },
               },
               correctAnswer: { accepted: ["جناس همسان", "جناس تام", "جناس"] },
               gradingMode: "exact_match",
-              verified: true,
-              sourceNote: "Re-read at higher resolution and cross-checked against the answer key ('جناس همسان (تام)') — matches.",
+              verified: false,
+              sourceNote:
+                "Re-read at higher resolution and cross-checked against the answer key ('جناس همسان (تام)') — matches. The exact marked word pair (حریف/برید guessed as the جناس-forming pair) is not re-confirmed.",
             },
             {
               label: "ب",
@@ -674,16 +715,20 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "fill-blank-term",
-                passage: blank1(
-                  "در جملهٔ «با راه‌آهن به بروکسل، پایتخت بلژیک، می‌رفتم» واژهٔ مشخّص‌شده آرایهٔ ",
-                  "f2",
-                  " دارد.",
-                ),
+                passage: {
+                  tokens: [
+                    { kind: "text", value: "در جملهٔ «با " },
+                    { kind: "highlight", value: "راه‌آهن" },
+                    { kind: "text", value: " به بروکسل، پایتخت بلژیک، می‌رفتم» واژهٔ مشخّص‌شده آرایهٔ " },
+                    { kind: "blank", blankId: "f2" },
+                    { kind: "text", value: " دارد." },
+                  ],
+                },
               },
               correctAnswer: { accepted: ["مجاز"] },
               gradingMode: "exact_match",
               verified: true,
-              sourceNote: "Cross-checked against the answer key ('مجاز') — matches.",
+              sourceNote: "Cross-checked against the answer key ('مجاز') — matches. Marked word: راه‌آهن (metonymy for train).",
             },
             {
               label: "ج",
@@ -691,11 +736,15 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "fill-blank-term",
-                passage: blank1(
-                  "در عبارتی که «در آن هنگام که در بهار حیات علمی و اجتماعی‌اش فرارسیده بود، ناگهان منقلب شد»، واژهٔ مشخّص‌شده آرایهٔ ",
-                  "f3",
-                  " است.",
-                ),
+                passage: {
+                  tokens: [
+                    { kind: "text", value: "در عبارتی که «در آن هنگام که در " },
+                    { kind: "highlight", value: "بهار" },
+                    { kind: "text", value: " حیات علمی و اجتماعی‌اش فرارسیده بود، ناگهان منقلب شد»، واژهٔ مشخّص‌شده آرایهٔ " },
+                    { kind: "blank", blankId: "f3" },
+                    { kind: "text", value: " است." },
+                  ],
+                },
               },
               correctAnswer: { accepted: ["استعاره"] },
               gradingMode: "exact_match",
@@ -715,8 +764,8 @@ export const farsi3Kherdad1403: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'شاعر برای آفرینش آرایهٔ ادبی «حسن تعلیل» در بیت زیر چه دلیلی بیان کرده است؟ «تا چشم بشر نبیندت روی/ بنهفته به ابر چهر دلبند»',
+                questionText: 'شاعر برای آفرینش آرایهٔ ادبی «حسن تعلیل» در بیت زیر چه دلیلی بیان کرده است؟',
+                stimulus: poemLines("تا چشم بشر نبیندت روی", "بنهفته به ابر چهر دلبند"),
               },
               correctAnswer: {
                 accepted: [
@@ -946,8 +995,10 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.5,
               content: {
                 type: "two-answer-text",
-                questionText:
-                  'دو ویژگی عشق جاودانی را در عبارت زیر بنویسید. «عشق جاودانی همواره معشوق را جوان می‌بیند/ و نه توجّهی به گرد و غبار و جراحات پیری دارد/ و نه اهمّیتی به چین و شکن ناگزیر سالخوردگی می‌دهد.»',
+                questionText: "دو ویژگی عشق جاودانی را در عبارت زیر بنویسید.",
+                stimulus: text(
+                  "عشق جاودانی همواره معشوق را جوان می‌بیند/ و نه توجّهی به گرد و غبار و جراحات پیری دارد/ و نه اهمّیتی به چین و شکن ناگزیر سالخوردگی می‌دهد.",
+                ),
                 fields: [
                   { id: "f1", label: "ویژگی ۱" },
                   { id: "f2", label: "ویژگی ۲" },
@@ -1000,8 +1051,8 @@ export const farsi3Kherdad1403: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'مفهوم بیت زیر چیست؟ «بندهٔ حلقه‌به‌گوش از نوازش برود/ لطف کن، لطف که یگانه شود حلقه‌به‌گوش»',
+                questionText: "مفهوم بیت زیر چیست؟",
+                stimulus: poemLines("بندهٔ حلقه‌به‌گوش از نوازش برود", "لطف کن، لطف که یگانه شود حلقه‌به‌گوش"),
               },
               correctAnswer: { accepted: ["رعیّت‌پروری", "مردم‌نوازی", "توجّه به زیردستان", "مدارا"] },
               gradingMode: "ai_semantic",
@@ -1018,8 +1069,8 @@ export const farsi3Kherdad1403: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'بیت «چنان آمد اسب و قبای سوار/ که گفتی سمن‌داشت اندر کنار» در توصیف کدام شخصیّت است؟',
+                questionText: "بیت زیر در توصیف کدام شخصیّت است؟",
+                stimulus: poemLines("چنان آمد اسب و قبای سوار", "که گفتی سمن‌داشت اندر کنار"),
               },
               correctAnswer: { accepted: ["سیاوش"] },
               gradingMode: "exact_match",

@@ -1,4 +1,4 @@
-import { blank1, text } from "./helpers";
+import { blank1, highlight1, highlightThenBlank, poemLines, text } from "./helpers";
 import type { SeedExam } from "./seed-types";
 
 /**
@@ -39,11 +39,13 @@ export const farsi3Dey1401: SeedExam = {
               pageRef: 134,
               content: {
                 type: "word-meaning-input",
-                passage: blank1("این حرف در ", "w1a", " امر، زیاد بی‌پا و بی‌معنی به نظر می‌آمد."),
+                passage: highlightThenBlank("این حرف در ", "بدو", "w1a", " امر، زیاد بی‌پا و بی‌معنی به نظر می‌آمد."),
               },
               correctAnswer: { w1a: ["آغاز"] },
               gradingMode: "ai_semantic",
-              verified: true,
+              verified: false,
+              sourceNote:
+                "blank1() previously deleted the target word entirely instead of showing it — the seed data never recorded which word it was, only the accepted meaning. 'بدو' (as in the common idiom 'در بدو امر') is inferred from the accepted answer 'آغاز' and needs a check against the source PDF.",
             },
             {
               label: "ب",
@@ -52,11 +54,13 @@ export const farsi3Dey1401: SeedExam = {
               pageRef: 47,
               content: {
                 type: "word-meaning-input",
-                passage: blank1("نی ", "w1b", " هرکه از یاری برید/ پرده‌هایش پرده‌های ما درید"),
+                passage: highlightThenBlank("نی ", "حریف", "w1b", " هرکه از یاری برید/ پرده‌هایش پرده‌های ما درید"),
               },
               correctAnswer: { w1b: ["دوست", "همدم", "همراه"] },
               gradingMode: "ai_semantic",
-              verified: true,
+              verified: false,
+              sourceNote:
+                "Same blank1() bug as part الف. 'حریف' (from the well-known Masnavi verse 'نی حریف هر که از یاری برید...') is inferred from the accepted meaning 'دوست/همدم/همراه' and needs a check against the source PDF.",
             },
           ],
         },
@@ -93,8 +97,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'کدام‌یک از واژه‌های بیت زیر، مترادف واژهٔ «سریر» است؟ «بدو گفت: بی تو نخواهم زمان/ نه اورنگ و تاج و نه گرز و کمان»',
+                stimulus: poemLines("بدو گفت: بی تو نخواهم زمان", "نه اورنگ و تاج و نه گرز و کمان"),
+                questionText: 'کدام‌یک از واژه‌های بیت بالا، مترادف واژهٔ «سریر» است؟',
               },
               correctAnswer: { accepted: ["اورنگ"] },
               gradingMode: "exact_match",
@@ -224,7 +228,11 @@ export const farsi3Dey1401: SeedExam = {
               type: "short-text-answer",
               score: 0.25,
               pageRef: 104,
-              content: { type: "short-text-answer", questionText: "ز کردار او پوزش اندر گرفت" },
+              content: {
+                type: "short-text-answer",
+                stimulus: highlight1("ز کردار او پوزش اندر ", "گرفت", ""),
+                questionText: "معنای فعل «گرفت» را در مصراع بالا بنویسید.",
+              },
               correctAnswer: { accepted: ["آغاز کرد"] },
               gradingMode: "exact_match",
               verified: false,
@@ -235,7 +243,11 @@ export const farsi3Dey1401: SeedExam = {
               type: "short-text-answer",
               score: 0.25,
               pageRef: 19,
-              content: { type: "short-text-answer", questionText: "محتسب مستی به دید و گریبانش گرفت" },
+              content: {
+                type: "short-text-answer",
+                stimulus: highlight1("محتسب مستی به دید و گریبانش ", "گرفت", ""),
+                questionText: "معنای فعل «گرفت» را در مصراع بالا بنویسید.",
+              },
               correctAnswer: { accepted: ["اخذ کرد"] },
               gradingMode: "exact_match",
               verified: false,
@@ -316,8 +328,7 @@ export const farsi3Dey1401: SeedExam = {
         },
         {
           number: 10,
-          instruction:
-            'در متنِ «چون حق تعالی بندهٔ خود را از گزند مستغرق گردانید، هرکه دام او را بگیرد و از او حاجت طلبد، بی آنکه او را یاد کند و عرضه دهد، حق، آن را برآرد»، به پرسش‌ها پاسخ دهید.',
+          instruction: "با توجّه به متن زیر، به پرسش‌ها پاسخ دهید.",
           layoutPattern: "multi-subquestion",
           parts: [
             {
@@ -325,7 +336,15 @@ export const farsi3Dey1401: SeedExam = {
               type: "short-text-answer",
               score: 0.25,
               pageRef: 51,
-              content: { type: "short-text-answer", questionText: 'فعل «بگیرد» ماضی التزامی است یا مضارع التزامی؟' },
+              content: {
+                type: "short-text-answer",
+                stimulus: highlight1(
+                  "چون حق تعالی بندهٔ خود را از گزند مستغرق گردانید، هرکه دام او را ",
+                  "بگیرد",
+                  " و از او حاجت طلبد، بی آنکه او را یاد کند و عرضه دهد، حق، آن را برآرد.",
+                ),
+                questionText: 'فعل «بگیرد» در متن بالا، ماضی التزامی است یا مضارع التزامی؟',
+              },
               correctAnswer: { accepted: ["مضارع التزامی"] },
               gradingMode: "exact_match",
               verified: true,
@@ -337,6 +356,18 @@ export const farsi3Dey1401: SeedExam = {
               pageRef: 51,
               content: {
                 type: "two-answer-text",
+                stimulus: {
+                  tokens: [
+                    { kind: "text", value: "چون حق تعالی " },
+                    { kind: "highlight", value: "بندهٔ خود" },
+                    { kind: "text", value: " را از گزند " },
+                    { kind: "highlight", value: "مستغرق" },
+                    {
+                      kind: "text",
+                      value: " گردانید، هرکه دام او را بگیرد و از او حاجت طلبد، بی آنکه او را یاد کند و عرضه دهد، حق، آن را برآرد.",
+                    },
+                  ],
+                },
                 questionText: "نقش دستوری واژه‌های مشخّص‌شده را، به ترتیب، بنویسید.",
                 fields: [
                   { id: "f1", label: "نقش واژهٔ اول" },
@@ -345,7 +376,9 @@ export const farsi3Dey1401: SeedExam = {
               },
               correctAnswer: { f1: ["نهاد"], f2: ["مسند"] },
               gradingMode: "exact_match",
-              verified: true,
+              verified: false,
+              sourceNote:
+                "The two 'مشخّص‌شده' target words were never captured in the seed data (no highlight tokens existed at all). 'بندهٔ خود' (نهاد) and 'مستغرق' (مسند) are inferred from Persian grammar of the گردانیدن + مسند construction and need a check against the source PDF's actual markup.",
             },
           ],
         },
@@ -358,8 +391,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'نوع حذف در مصراع نخست بیت زیر، به قرینهٔ لفظی است یا معنایی؟ «آیینهٔ نگاهت، پیوند صبح و ساحل/ لبخند گاه‌گاهت، صبح ستاره‌باران»',
+                stimulus: poemLines("آیینهٔ نگاهت، پیوند صبح و ساحل", "لبخند گاه‌گاهت، صبح ستاره‌باران"),
+                questionText: "نوع حذف در مصراع نخست بیت بالا، به قرینهٔ لفظی است یا معنایی؟",
               },
               correctAnswer: { accepted: ["معنایی"] },
               gradingMode: "exact_match",
@@ -545,8 +578,17 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'مفهوم نمادین «گل سرخ» را در سرودهٔ زیر بنویسید. «نان را از من بگیر، اگر می‌خواهی/ هوا را از من بگیر، امّا خنده‌ات را از من مگیر/ گل سرخ را از من مگیر»',
+                stimulus: {
+                  lines: [
+                    [{ kind: "text", value: "نان را از من بگیر، اگر می‌خواهی" }],
+                    [{ kind: "text", value: "هوا را از من بگیر، امّا خنده‌ات را از من مگیر" }],
+                    [
+                      { kind: "highlight", value: "گل سرخ" },
+                      { kind: "text", value: " را از من مگیر" },
+                    ],
+                  ],
+                },
+                questionText: "مفهوم نمادین واژهٔ مشخّص‌شده در سرودهٔ بالا چیست؟",
               },
               correctAnswer: { accepted: ["عشق"] },
               gradingMode: "ai_semantic",
@@ -563,8 +605,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'بیت «بدان‌گاه سوگند پُرمایه شاه/ چنین بود آیین و این بود راه» نمایانگر کدام‌یک از زمینه‌های حماسه است؟',
+                stimulus: poemLines("بدان‌گاه سوگند پُرمایه شاه", "چنین بود آیین و این بود راه"),
+                questionText: "بیت بالا نمایانگر کدام‌یک از زمینه‌های حماسه است؟",
               },
               correctAnswer: { accepted: ["ملّی"] },
               gradingMode: "exact_match",
@@ -582,8 +624,18 @@ export const farsi3Dey1401: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'دربارهٔ تلمیح به‌کار رفته در بیت زیر توضیح دهید. «دلت خالی است از فریب آز خاقانی/ ز نیرنگ هوا و از طاووس و شیطانش»',
+                stimulus: {
+                  lines: [
+                    [{ kind: "text", value: "دلت خالی است از فریب آز خاقانی" }],
+                    [
+                      { kind: "text", value: "ز نیرنگ هوا و از " },
+                      { kind: "highlight", value: "طاووس" },
+                      { kind: "text", value: " و " },
+                      { kind: "highlight", value: "شیطانش" },
+                    ],
+                  ],
+                },
+                questionText: "دربارهٔ تلمیح به‌کار رفته در بیت بالا توضیح دهید.",
               },
               correctAnswer: {
                 accepted: ["بنا بر روایات، طاووس بهشتی بود و در فریفتن آدم و حوا، با شیطان همکاری کرد"],
@@ -637,8 +689,16 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'در بیت زیر، معنای مجازی واژهٔ «خاک» چیست؟ «بگفتا: دل ز مهرش کی کنی پاک/ بگفت: آنگه که باشم خفته در خاک»',
+                stimulus: {
+                  lines: [
+                    [{ kind: "text", value: "بگفتا: دل ز مهرش کی کنی پاک" }],
+                    [
+                      { kind: "text", value: "بگفت: آنگه که باشم خفته در " },
+                      { kind: "highlight", value: "خاک" },
+                    ],
+                  ],
+                },
+                questionText: "در بیت بالا، معنای مجازی واژهٔ مشخّص‌شده چیست؟",
               },
               correctAnswer: { accepted: ["قبر"] },
               gradingMode: "exact_match",
@@ -655,8 +715,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  '«مشبّه‌به» را در عبارت زیر مشخّص کنید. «تو ای کشتی تندرو خیال من، همین جا لنگر انداز؛ زیرا برای تو بیش از این اجازهٔ سفر نیست.»',
+                stimulus: text("تو ای کشتی تندرو خیال من، همین جا لنگر انداز؛ زیرا برای تو بیش از این اجازهٔ سفر نیست."),
+                questionText: '«مشبّه‌به» را در عبارت بالا مشخّص کنید.',
               },
               correctAnswer: { accepted: ["کشتی"] },
               gradingMode: "exact_match",
@@ -766,8 +826,17 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
+                stimulus: {
+                  lines: [
+                    [
+                      { kind: "text", value: "بیامد " },
+                      { kind: "highlight", value: "دوصد مرد آتش‌فروز" },
+                    ],
+                    [{ kind: "text", value: "دمیدند گفتی شب آمد به روز" }],
+                  ],
+                },
                 questionText:
-                  'در بیت زیر، پس از آنکه «دوصد مرد آتش‌فروز» در آتش می‌دمند، چه اتّفاقی می‌افتد؟ «بیامد دوصد مرد آتش‌فروز/ دمیدند گفتی شب آمد به روز»',
+                  'پس از آنکه «دوصد مرد آتش‌فروز» در آتش می‌دمند، طبق بیت بالا چه اتّفاقی می‌افتد؟',
               },
               correctAnswer: { accepted: ["روز مانند شب تاریک شد"] },
               gradingMode: "ai_semantic",
@@ -825,8 +894,9 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
+                stimulus: highlight1("", "کرانه‌های فرات", "، خط از کرانهٔ رود تیبر می‌خوانده‌اند."),
                 questionText:
-                  'نویسنده در عبارت زیر، به فرمانبرداری ساکنان «کرانه‌های فرات» از کدام حکومت اشاره می‌کند؟ «کرانه‌های فرات، خط از کرانهٔ رود تیبر می‌خوانده‌اند.»',
+                  'نویسنده در عبارت بالا، به فرمانبرداری ساکنان «کرانه‌های فرات» از کدام حکومت اشاره می‌کند؟',
               },
               correctAnswer: { accepted: ["روم"] },
               gradingMode: "exact_match",
@@ -843,8 +913,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'شاعر در بیت «در دفتر زمانه فتد نامش از قلم/ هر ملّتی که مردم صاحب‌قلم نداشت» ادامهٔ حیات ملّت‌ها را در گروِ چه موضوعی می‌داند؟',
+                stimulus: poemLines("در دفتر زمانه فتد نامش از قلم", "هر ملّتی که مردم صاحب‌قلم نداشت"),
+                questionText: "شاعر در بیت بالا، ادامهٔ حیات ملّت‌ها را در گروِ چه موضوعی می‌داند؟",
               },
               correctAnswer: { accepted: ["داشتن مردم صاحب‌قلم"] },
               gradingMode: "ai_semantic",
@@ -861,8 +931,16 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.5,
               content: {
                 type: "two-answer-text",
-                questionText:
-                  'در نوشتهٔ زیر، مفهوم کنایی قسمت‌های مشخّص‌شده را، به ترتیب، بنویسید. «بعد از حکیم اسرار، همهٔ چشمها به او بود که حوزهٔ حکمت را او گرم نگاه دارد.»',
+                stimulus: {
+                  tokens: [
+                    { kind: "text", value: "بعد از حکیم اسرار، " },
+                    { kind: "highlight", value: "همهٔ چشمها به او بود" },
+                    { kind: "text", value: " که " },
+                    { kind: "highlight", value: "حوزهٔ حکمت را او گرم نگاه دارد" },
+                    { kind: "text", value: "." },
+                  ],
+                },
+                questionText: "در نوشتهٔ بالا، مفهوم کنایی قسمت‌های مشخّص‌شده را، به ترتیب، بنویسید.",
                 fields: [
                   { id: "f1", label: "همهٔ چشم‌ها به او بود" },
                   { id: "f2", label: "حوزه را گرم نگاه دارد" },
@@ -883,8 +961,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'با توجّه به سرودهٔ «پهلوان هفت خوان، اکنون طعمهٔ دام و دهان خوان هشتم بود» مقصود از «خوان هشتم» چیست؟',
+                stimulus: text("پهلوان هفت خوان، اکنون طعمهٔ دام و دهان خوان هشتم بود."),
+                questionText: 'با توجّه به سرودهٔ بالا، مقصود از «خوان هشتم» چیست؟',
               },
               correctAnswer: { accepted: ["چاه", "مرگ"] },
               gradingMode: "ai_semantic",
@@ -901,8 +979,8 @@ export const farsi3Dey1401: SeedExam = {
               score: 0.25,
               content: {
                 type: "short-text-answer",
-                questionText:
-                  'مقصود از «سرای پاک و پلید» در بیت زیر چیست؟ «که جای نیک و بد است این سرای پاک و پلید/ طرب بی‌غم تو این جهان تعب نخواهد دید»',
+                stimulus: poemLines("که جای نیک و بد است این سرای پاک و پلید", "طرب بی‌غم تو این جهان تعب نخواهد دید"),
+                questionText: 'مقصود از «سرای پاک و پلید» در بیت بالا چیست؟',
               },
               correctAnswer: { accepted: ["دنیا"] },
               gradingMode: "exact_match",
@@ -943,8 +1021,10 @@ export const farsi3Dey1401: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'عبارت «ناله‌های گریه‌آلود آن روح دردمند و تنها را می‌شنوم، ناله‌های آن امام راستین و بزرگم را، همچون این شیعهٔ گمنام و غریبش، در کنار آن مدینهٔ پلید و در قلب آن کویر بی‌فریاد، سر در حلقوم چاه می‌برد و می‌گریست» یادآور کدام موضوع مشهور است؟',
+                stimulus: text(
+                  "ناله‌های گریه‌آلود آن روح دردمند و تنها را می‌شنوم، ناله‌های آن امام راستین و بزرگم را، همچون این شیعهٔ گمنام و غریبش، در کنار آن مدینهٔ پلید و در قلب آن کویر بی‌فریاد، سر در حلقوم چاه می‌برد و می‌گریست.",
+                ),
+                questionText: "عبارت بالا یادآور کدام موضوع مشهور است؟",
               },
               correctAnswer: {
                 accepted: ["اشاره به گریستن حضرت علی (ع) در حالی که سر درون چاه می‌برد"],
@@ -964,8 +1044,13 @@ export const farsi3Dey1401: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'مفهوم مشترک بیت «یک قصّه بیش نیست غم عشق وین عجب/ کز هر زبان که می‌شنوم نامکرّر است» و سرودهٔ «هر روز باید ذکری واحد عشق بخوانم/ و آنچه را قدیمی است، قدیمی ندانم: که تو از آن منی، و من از آن تو» چیست؟',
+                stimulus: poemLines(
+                  "یک قصّه بیش نیست غم عشق وین عجب",
+                  "کز هر زبان که می‌شنوم نامکرّر است",
+                  "هر روز باید ذکری واحد عشق بخوانم",
+                  "و آنچه را قدیمی است، قدیمی ندانم: که تو از آن منی، و من از آن تو",
+                ),
+                questionText: "مفهوم مشترک بیت و سرودهٔ بالا چیست؟",
               },
               correctAnswer: { accepted: ["ناممکّن بودن و تازگی عشق"] },
               gradingMode: "ai_semantic",
@@ -983,8 +1068,10 @@ export const farsi3Dey1401: SeedExam = {
               content: {
                 type: "short-text-answer",
                 inputVariant: "textarea",
-                questionText:
-                  'با توجّه به متن زیر، چرا عین‌القضات همدانی، عشق‌ورزی را در عرفان واجب دانسته‌است؟ «ای عزیز، هرچه فرض است، از خدا رسیدن است و لابدّ هرچه بدان واسطه به خدا رسند، فرض باشد؛ نزدیک طالبان، عشق، بنده را نزدیک‌ترین راه است به خدا رساند.»',
+                stimulus: text(
+                  "ای عزیز، هرچه فرض است، از خدا رسیدن است و لابدّ هرچه بدان واسطه به خدا رسند، فرض باشد؛ نزدیک طالبان، عشق، بنده را نزدیک‌ترین راه است به خدا رساند.",
+                ),
+                questionText: "با توجّه به متن بالا، چرا عین‌القضات همدانی، عشق‌ورزی را در عرفان واجب دانسته‌است؟",
               },
               correctAnswer: { accepted: ["زیرا عشق واسطهٔ رسیدن به خدا می‌داند"] },
               gradingMode: "ai_semantic",

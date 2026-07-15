@@ -79,12 +79,9 @@ export function validateSeedExam(exam: SeedExam): string[] {
           errors.push(`${label}: invalid correctAnswer — ${answerResult.error.message}`);
         }
 
-        const needsOptions = [
-          "mcq-inline",
-          "mcq-multi-select",
-          "mcq-plus-correction",
-          "mcq-select-line-in-poem",
-        ].includes(part.type);
+        // mcq-select-line-in-poem is excluded: its content.lines ARE the
+        // options (no الف/ب/ج labels), so it never has question_options rows.
+        const needsOptions = ["mcq-inline", "mcq-multi-select", "mcq-plus-correction"].includes(part.type);
         if (needsOptions && (!part.options || part.options.length < 2)) {
           errors.push(`${label}: type "${part.type}" needs >= 2 question_options rows`);
         }

@@ -48,6 +48,10 @@ export type RichPassage = z.infer<typeof richPassageSchema>;
 
 const wordMeaningInput = z.object({
   type: z.literal("word-meaning-input"),
+  // separate reference text shown above `passage`, e.g. the sentence that
+  // actually contains the synonym the student has to find and write into
+  // the blank in `passage` — not every question needs this.
+  stimulus: richPassageSchema.optional(),
   passage: richPassageSchema, // exactly one `blank` token
 });
 
@@ -108,6 +112,7 @@ const diagramBuilder = z.object({
 
 const fillBlankTerm = z.object({
   type: z.literal("fill-blank-term"),
+  stimulus: richPassageSchema.optional(),
   passage: richPassageSchema, // exactly one `blank` token, mid-sentence
 });
 

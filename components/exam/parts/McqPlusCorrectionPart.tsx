@@ -1,6 +1,7 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
+import HighlightedText from "@/components/exam/HighlightedText";
 
 type McqPlusCorrectionContent = {
   type: "mcq-plus-correction";
@@ -28,7 +29,13 @@ type Props = {
   disabled?: boolean;
 };
 
+/** Dropdown for the option pick, then a text input for the correction —
+ *  the two-step "which option, then fix it" flow this type asks for reads
+ *  more naturally as one compact form than as a full button list plus a
+ *  separate input. */
 export default function McqPlusCorrectionPart({ content, options, value, onChange, disabled }: Props) {
+  const selected = options.find((o) => o.id === value.optionId);
+
   return (
     <div dir="rtl" className="flex flex-col gap-3 text-right">
       {content.stimulus && (
@@ -37,25 +44,32 @@ export default function McqPlusCorrectionPart({ content, options, value, onChang
         </div>
       )}
       <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
-      <div className="flex flex-col gap-2">
+
+      <select
+        dir="rtl"
+        disabled={disabled}
+        value={value.optionId ?? ""}
+        onChange={(e) => onChange({ ...value, optionId: e.target.value })}
+        className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-base text-foreground outline-none
+          focus:border-primary disabled:opacity-60"
+      >
+        <option value="" disabled>
+          یک گزینه را انتخاب کنید
+        </option>
         {options.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange({ ...value, optionId: opt.id })}
-            className={`flex min-h-11 items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-right text-base
-              transition-colors disabled:opacity-60 ${
-                value.optionId === opt.id
-                  ? "border-primary bg-primary/15 text-primary"
-                  : "border-border bg-card text-foreground hover:border-primary/50"
-              }`}
-          >
-            {opt.optionKey && <span className="shrink-0 text-sm text-muted-foreground">({opt.optionKey})</span>}
-            <span>{opt.text}</span>
-          </button>
+          <option key={opt.id} value={opt.id}>
+            {opt.optionKey ? `${opt.optionKey}) ` : ""}
+            {opt.text.replace(/\{\{([^}]+)\}\}/g, "$1")}
+          </option>
         ))}
-      </div>
+      </select>
+
+      {selected && (
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-base leading-relaxed">
+          <HighlightedText text={selected.text} />
+        </p>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm text-muted-foreground">{content.correctionPrompt}</label>
         <input

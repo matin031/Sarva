@@ -1,6 +1,7 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
+import HighlightedText from "@/components/exam/HighlightedText";
 
 type McqMultiSelectContent = {
   type: "mcq-multi-select";
@@ -72,7 +73,9 @@ export default function McqMultiSelectPart({ content, options, value, onChange, 
                 {selected && "✓"}
               </span>
               {opt.optionKey && <span className="shrink-0 text-sm text-muted-foreground">({opt.optionKey})</span>}
-              <span>{opt.text}</span>
+              <span>
+                <HighlightedText text={opt.text} />
+              </span>
             </button>
           );
         })}

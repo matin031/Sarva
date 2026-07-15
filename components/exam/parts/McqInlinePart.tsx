@@ -1,6 +1,7 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
+import HighlightedText from "@/components/exam/HighlightedText";
 
 type McqInlineContent = {
   type: "mcq-inline";
@@ -48,7 +49,9 @@ export default function McqInlinePart({ content, options, value, onChange, disab
             {opt.optionKey && (
               <span className="shrink-0 text-sm text-muted-foreground">({opt.optionKey})</span>
             )}
-            <span>{opt.text}</span>
+            <span>
+              <HighlightedText text={opt.text} />
+            </span>
           </button>
         ))}
       </div>

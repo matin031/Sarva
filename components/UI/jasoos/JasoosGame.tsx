@@ -327,7 +327,7 @@ function JasoosGame() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center"
+            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center"
           >
             <h1 className="text-2xl sm:text-4xl font-bold mb-4 text-primary">
               جاسوسِ نقش‌ها

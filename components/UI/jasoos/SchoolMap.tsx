@@ -45,8 +45,8 @@ function SchoolMap({
   onEnter: (index: number) => void;
 }) {
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden glass p-5 sm:p-10">
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,oklch(0.22_0.03_260)_0%,transparent_55%)]" />
+    <div className="relative z-20 w-full rounded-2xl overflow-hidden glass p-5 sm:p-10">
+      {/* <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,oklch(0.22_0.03_260)_0%,transparent_55%)]" /> */}
       <h2 className="text-lg sm:text-2xl font-bold text-center mb-2">
         مدرسه‌ی جاسوس‌یاب
       </h2>

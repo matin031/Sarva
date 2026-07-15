@@ -30,7 +30,7 @@ function JasoosSettingsModal({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="glass rounded-2xl p-6 sm:p-10 text-center"
+      className="glass relative z-20 rounded-2xl p-6 sm:p-10 text-center"
     >
       <h2 className="text-xl sm:text-3xl font-bold mb-8">تنظیمات بازی</h2>
 

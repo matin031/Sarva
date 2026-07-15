@@ -59,7 +59,7 @@ function Suspect({
       disabled={disabled}
       aria-label={`نشانه‌گیری به سمت مظنونِ ${role}`}
       className={`group relative flex flex-col items-center gap-y-2 shrink-0 ${
-        state === "dimmed" ? "opacity-25" : ""
+        state === "dimmed" ? "opacity-75" : ""
       } ${disabled ? "cursor-default" : "cursor-crosshair"}`}
     >
       <motion.div

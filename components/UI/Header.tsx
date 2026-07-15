@@ -128,9 +128,9 @@ function Header() {
           آغاز یادگیری
         </Link>
         |
-        <Link className=" hover:text-primary transition-all" href={"/bazi"}>
+        {/* <Link className=" hover:text-primary transition-all" href={"/bazi"}>
           بازی
-        </Link>
+        </Link> */}
         <Link className=" hover:text-primary transition-all" href={"/guide"}>
           راهنما
         </Link>

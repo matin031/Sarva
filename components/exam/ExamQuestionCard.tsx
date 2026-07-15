@@ -1,10 +1,10 @@
 "use client";
 
-import type { SeedQuestion } from "@/lib/exam/seed-data/seed-types";
+import type { ClientQuestion } from "@/lib/exam/client-exam";
 import QuestionPartRenderer from "@/components/exam/QuestionPartRenderer";
 
 type Props = {
-  question: SeedQuestion;
+  question: ClientQuestion;
   answers: Record<number, unknown>;
   onAnswerChange: (partIndex: number, value: unknown) => void;
   disabled?: boolean;
@@ -49,11 +49,7 @@ export default function ExamQuestionCard({ question, answers, onAnswerChange, di
             )}
             <QuestionPartRenderer
               content={part.content}
-              options={part.options?.map((o, i) => ({
-                id: `${partIndex}-${i}`,
-                optionKey: o.optionKey,
-                text: o.text,
-              }))}
+              options={part.options}
               value={answers[partIndex]}
               onChange={(v) => onAnswerChange(partIndex, v)}
               disabled={disabled}

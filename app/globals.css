@@ -44,7 +44,7 @@
   /* Persian night aesthetics - Deep blues with gold and turquoise accents */
   --background: oklch(0.14 0.03 260); /* Deep night blue */
   --foreground: #f1eee7; /* Warm cream text */
-  --card: oklch(0.18 0.025 260);
+  --card: #0b121d;
   --card-foreground: oklch(0.95 0.01 85);
   --popover: oklch(0.18 0.025 260);
   --popover-foreground: oklch(0.95 0.01 85);

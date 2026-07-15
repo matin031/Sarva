@@ -16,13 +16,22 @@ export default function ExamPreview({ exam }: Props) {
   const { getQuestionAnswers, setAnswer } = useExamAnswers();
 
   return (
-    <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-6 xs:px-5">
+    <div
+      dir="rtl"
+      className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-6 xs:px-5"
+    >
       <div className="text-center">
         <h1 className="text-xl font-bold xs:text-2xl">{exam.title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">نمرهٔ کل: {exam.totalScore}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          نمرهٔ کل: {exam.totalScore}
+        </p>
       </div>
 
-      <ExamQuestionList exam={exam} getQuestionAnswers={getQuestionAnswers} onAnswerChange={setAnswer} />
+      <ExamQuestionList
+        exam={exam}
+        getQuestionAnswers={getQuestionAnswers}
+        onAnswerChange={setAnswer}
+      />
     </div>
   );
 }

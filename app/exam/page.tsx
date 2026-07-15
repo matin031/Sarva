@@ -15,15 +15,23 @@ const exams: { key: string; exam: SeedExam }[] = [
 
 export default function Page() {
   return (
-    <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-10 xs:px-5">
+    <div
+      dir="rtl"
+      className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-10 xs:px-5"
+    >
       <div className="text-center">
         <h1 className="text-2xl font-bold">آزمون‌های آنلاین</h1>
-        <p className="mt-1 text-sm text-muted-foreground">یکی از آزمون‌های نهایی زیر را انتخاب کنید.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          یکی از آزمون‌های نهایی زیر را انتخاب کنید.
+        </p>
       </div>
 
       <div className="flex flex-col gap-4">
         {exams.map(({ key, exam }) => {
-          const questionCount = exam.sections.reduce((s, sec) => s + sec.questions.length, 0);
+          const questionCount = exam.sections.reduce(
+            (s, sec) => s + sec.questions.length,
+            0,
+          );
           return (
             <Link
               key={key}
@@ -39,7 +47,10 @@ export default function Page() {
                   {exam.totalScore} نمره
                 </span>
                 {exam.sections.map((section) => (
-                  <span key={section.title} className="rounded-full bg-muted px-2.5 py-1">
+                  <span
+                    key={section.title}
+                    className="rounded-full bg-muted px-2.5 py-1"
+                  >
                     {section.title} ({section.sectionScore})
                   </span>
                 ))}

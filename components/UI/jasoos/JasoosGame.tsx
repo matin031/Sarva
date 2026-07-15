@@ -13,6 +13,7 @@ type Screen = "intro" | "settings" | "map" | "scene" | "gameover" | "win";
 type GameOverReason = "lives" | "time";
 
 const START_LIVES = 3;
+const STORAGE_KEY = "jasoos-progress";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -20,6 +21,20 @@ function formatTime(ms: number) {
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
+
+type StoredState = {
+  ownerId: string;
+  screen: Screen;
+  settings: JasoosSettings | null;
+  runLevelIds: number[];
+  levelIndex: number;
+  clearedCount: number;
+  lives: number;
+  attemptId: number;
+  missedSpy: SuspectType | null;
+  gameOverReason: GameOverReason;
+  timerEndsAt: number | null;
+};
 
 function JasoosGame() {
   const [screen, setScreen] = useState<Screen>("intro");
@@ -31,12 +46,56 @@ function JasoosGame() {
   const [attemptId, setAttemptId] = useState(0);
   const [missedSpy, setMissedSpy] = useState<SuspectType | null>(null);
   const [gameOverReason, setGameOverReason] = useState<GameOverReason>("lives");
+  const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
   const [timeLeftDisplay, setTimeLeftDisplay] = useState<number | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  // undefined = still checking auth, null = guest, object = logged in
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
-  const timeLeftRef = useRef<number | null>(null);
+  // who the restored (localStorage) session belongs to: "guest" | user id | null
+  const restoredOwnerRef = useRef<string | null>(null);
 
   const level = runLevels[levelIndex];
+
+  // try to resume a saved session first, before we even know the user
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed: StoredState = JSON.parse(saved);
+        if (
+          parsed.screen &&
+          parsed.screen !== "intro" &&
+          typeof parsed.ownerId === "string"
+        ) {
+          const levels = parsed.runLevelIds
+            .map((id) => JASOOS_LEVELS.find((l) => l.id === id))
+            .filter((l): l is JasoosLevel => !!l);
+          if (levels.length) {
+            restoredOwnerRef.current = parsed.ownerId;
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setScreen(parsed.screen);
+            setSettings(parsed.settings);
+            setRunLevels(levels);
+            setLevelIndex(parsed.levelIndex ?? 0);
+            setClearedCount(parsed.clearedCount ?? 0);
+            setLives(parsed.lives ?? START_LIVES);
+            setAttemptId(parsed.attemptId ?? 0);
+            setMissedSpy(parsed.missedSpy ?? null);
+            setGameOverReason(parsed.gameOverReason ?? "lives");
+            setTimerEndsAt(parsed.timerEndsAt ?? null);
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    setRestoredFromStorage(true);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
@@ -46,33 +105,105 @@ function JasoosGame() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // if the restored session belongs to a different user than the one now
+  // signed in, don't trust it — reset to a clean intro screen
+  useEffect(() => {
+    if (!restoredFromStorage || user === undefined) return;
+    if (restoredOwnerRef.current === null) return;
+
+    const currentOwner = user ? user.id : "guest";
+    if (currentOwner !== restoredOwnerRef.current) {
+      restoredOwnerRef.current = null;
+      localStorage.removeItem(STORAGE_KEY);
+      setScreen("intro");
+      setSettings(null);
+      setRunLevels([]);
+      setLevelIndex(0);
+      setClearedCount(0);
+      setLives(START_LIVES);
+      setAttemptId(0);
+      setMissedSpy(null);
+      setTimerEndsAt(null);
+    }
+  }, [user, restoredFromStorage]);
+
+  // persist on every relevant change so a refresh mid-game resumes exactly
+  // where the player left off (including the timer, via an absolute
+  // end-timestamp rather than a countdown that would reset to nothing)
+  useEffect(() => {
+    if (!restoredFromStorage) return;
+    if (screen === "intro" || screen === "settings") {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const ownerId = restoredOwnerRef.current ?? (user ? user.id : "guest");
+    const data: StoredState = {
+      ownerId,
+      screen,
+      settings,
+      runLevelIds: runLevels.map((l) => l.id),
+      levelIndex,
+      clearedCount,
+      lives,
+      attemptId,
+      missedSpy,
+      gameOverReason,
+      timerEndsAt,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [
+    restoredFromStorage,
+    screen,
+    settings,
+    runLevels,
+    levelIndex,
+    clearedCount,
+    lives,
+    attemptId,
+    missedSpy,
+    gameOverReason,
+    timerEndsAt,
+    user,
+  ]);
+
   const goToGameOver = (reason: GameOverReason, spy: SuspectType | null) => {
     setGameOverReason(reason);
     setMissedSpy(spy);
-    timeLeftRef.current = null;
+    setTimerEndsAt(null);
     setScreen("gameover");
   };
 
-  // countdown timer: only active while a run is actually being played
+  // countdown timer — computed from an absolute end-timestamp (not a
+  // decrementing counter) so it survives a page refresh with the correct
+  // remaining time instead of resetting
   useEffect(() => {
-    if (!settings?.timeLimitMinutes) return;
+    if (!timerEndsAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTimeLeftDisplay(null);
+      return;
+    }
     if (screen !== "map" && screen !== "scene") return;
 
-    const id = window.setInterval(() => {
-      if (timeLeftRef.current === null) return;
-      const next = Math.max(0, timeLeftRef.current - 1000);
-      timeLeftRef.current = next;
-      setTimeLeftDisplay(next);
-      if (next <= 0) {
-        window.clearInterval(id);
+    const tick = () => {
+      const remaining = timerEndsAt - Date.now();
+      if (remaining <= 0) {
+        setTimeLeftDisplay(0);
         goToGameOver("time", null);
+        return true;
       }
-    }, 1000);
+      setTimeLeftDisplay(remaining);
+      return false;
+    };
 
+    if (tick()) return;
+    const id = window.setInterval(() => {
+      if (tick()) window.clearInterval(id);
+    }, 1000);
     return () => window.clearInterval(id);
-  }, [screen, settings]);
+  }, [screen, timerEndsAt]);
 
   const beginRun = (chosen: JasoosSettings) => {
+    restoredOwnerRef.current = user ? user.id : "guest";
     setSettings(chosen);
     setRunLevels(pickJasoosLevels(chosen.questionCount));
     setLevelIndex(0);
@@ -80,14 +211,9 @@ function JasoosGame() {
     setLives(START_LIVES);
     setAttemptId(0);
     setMissedSpy(null);
-    if (chosen.timeLimitMinutes) {
-      const ms = chosen.timeLimitMinutes * 60000;
-      timeLeftRef.current = ms;
-      setTimeLeftDisplay(ms);
-    } else {
-      timeLeftRef.current = null;
-      setTimeLeftDisplay(null);
-    }
+    setTimerEndsAt(
+      chosen.timeLimitMinutes ? Date.now() + chosen.timeLimitMinutes * 60000 : null,
+    );
     setScreen("map");
   };
 
@@ -139,7 +265,7 @@ function JasoosGame() {
       const nextCleared = clearedCount + 1;
       setClearedCount(nextCleared);
       if (nextCleared >= runLevels.length) {
-        timeLeftRef.current = null;
+        setTimerEndsAt(null);
         setScreen("win");
       } else {
         setScreen("map");
@@ -156,6 +282,14 @@ function JasoosGame() {
       setAttemptId((a) => a + 1);
     }
   };
+
+  if (!restoredFromStorage) {
+    return (
+      <div className="container max-w-4xl mx-auto my-10 sm:my-16 text-center text-muted-foreground">
+        در حال بارگذاری...
+      </div>
+    );
+  }
 
   return (
     <div className="container max-w-4xl mx-auto my-10 sm:my-16">

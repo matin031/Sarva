@@ -24,7 +24,7 @@ function RevealTag({ text, isSpy }: { text: string; isSpy: boolean }) {
 
   return (
     <span
-      className={`block max-w-24 sm:max-w-32 overflow-hidden rounded-full px-2 py-0.5 text-[10px] sm:text-xs ${
+      className={`block max-w-[80px] overflow-hidden rounded-full px-2 py-0.5 text-[10px] sm:text-xs ${
         isSpy ? "text-destructive bg-destructive/10" : "text-primary bg-primary/10"
       }`}
     >

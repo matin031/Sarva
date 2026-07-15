@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { buildNinjaRound } from "@/lib/ninja-data";
 import type { NinjaRound } from "@/lib/ninja-data";
@@ -12,6 +12,15 @@ type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 const START_LIVES = 3;
 const ROUND_DURATION_MS = 46000;
 const MAX_WORDS = 15;
+const STORAGE_KEY = "ninja-progress";
+
+type StoredState = {
+  screen: Screen;
+  round: NinjaRound | null;
+  lives: number;
+  totalScore: number;
+  lastMistake: string | null;
+};
 
 function NinjaGame() {
   const [screen, setScreen] = useState<Screen>("intro");
@@ -19,6 +28,45 @@ function NinjaGame() {
   const [lives, setLives] = useState(START_LIVES);
   const [totalScore, setTotalScore] = useState(0);
   const [lastMistake, setLastMistake] = useState<string | null>(null);
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+
+  // resume a saved run so a mid-game refresh doesn't lose progress
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed: StoredState = JSON.parse(saved);
+        if (
+          parsed.screen &&
+          parsed.screen !== "intro" &&
+          parsed.screen !== "settings" &&
+          parsed.round
+        ) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setScreen(parsed.screen);
+          setRound(parsed.round);
+          setLives(parsed.lives ?? START_LIVES);
+          setTotalScore(parsed.totalScore ?? 0);
+          setLastMistake(parsed.lastMistake ?? null);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    setRestoredFromStorage(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restoredFromStorage) return;
+    if (screen === "intro" || screen === "settings") {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const data: StoredState = { screen, round, lives, totalScore, lastMistake };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [restoredFromStorage, screen, round, lives, totalScore, lastMistake]);
 
   const beginRound = (settings: NinjaSettings) => {
     setRound(buildNinjaRound(settings.wordCount));
@@ -63,6 +111,14 @@ function NinjaGame() {
   const handleRoundComplete = () => {
     setScreen("win");
   };
+
+  if (!restoredFromStorage) {
+    return (
+      <div className="container max-w-4xl mx-auto my-10 sm:my-16 text-center text-muted-foreground">
+        در حال بارگذاری...
+      </div>
+    );
+  }
 
   return (
     <div className="container max-w-4xl mx-auto my-10 sm:my-16">

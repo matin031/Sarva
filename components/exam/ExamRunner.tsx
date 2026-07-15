@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamResults from "@/components/exam/ExamResults";
-import { useExamAnswers } from "@/components/exam/useExamAnswers";
 import { submitQuestion, type QuestionResult } from "@/app/exam/[examKey]/actions";
 
 type Props = {
@@ -14,11 +13,30 @@ type Props = {
 
 type FlatQuestion = { sectionTitle: string; question: ClientQuestion };
 
+type Progress = {
+  currentIndex: number;
+  // keyed by "questionNumber:partIndex"
+  answers: Record<string, unknown>;
+  questionResults: Record<number, QuestionResult>;
+  showResults: boolean;
+};
+
+const emptyProgress: Progress = { currentIndex: 0, answers: {}, questionResults: {}, showResults: false };
+
+function storageKey(examKey: string) {
+  return `exam-progress:${examKey}`;
+}
+
 /** One question at a time: submit -> see the correct answer inline for
  *  every part -> move to the next question. Same pattern the poetry-meter
  *  quiz (components/UI/Quiz.tsx) already uses, generalized to exam
  *  questions with multiple parts and 18 different answer types instead of
- *  a single multiple-choice pick. */
+ *  a single multiple-choice pick.
+ *
+ *  All progress lives in one `Progress` object mirrored to localStorage,
+ *  so a refresh or accidental tab close mid-exam doesn't throw away
+ *  everything the student already answered — same idea as the poetry
+ *  quiz's own "quiz-progress" pattern, restored once on mount. */
 export default function ExamRunner({ examKey, exam }: Props) {
   const flatQuestions = useMemo<FlatQuestion[]>(
     () =>
@@ -28,27 +46,79 @@ export default function ExamRunner({ examKey, exam }: Props) {
     [exam],
   );
 
-  const { getQuestionAnswers, setAnswer } = useExamAnswers();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [questionResults, setQuestionResults] = useState<Record<number, QuestionResult>>({});
-  const [showResults, setShowResults] = useState(false);
+  const [progress, setProgress] = useState<Progress>(emptyProgress);
+  const [restored, setRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Restoring persisted progress on mount is a one-time sync with an
+  // external system (localStorage), not a derived-state update — the
+  // sanctioned exception to "don't setState in effects".
+  useEffect(() => {
+    let restoredProgress = emptyProgress;
+    try {
+      const saved = localStorage.getItem(storageKey(examKey));
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<Progress>;
+        restoredProgress = {
+          currentIndex:
+            typeof parsed.currentIndex === "number"
+              ? Math.min(Math.max(parsed.currentIndex, 0), flatQuestions.length - 1)
+              : 0,
+          answers: parsed.answers ?? {},
+          questionResults: parsed.questionResults ?? {},
+          showResults: parsed.showResults ?? false,
+        };
+      }
+    } catch {
+      restoredProgress = emptyProgress;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from localStorage on mount, not derived state
+    setProgress(restoredProgress);
+    setRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examKey]);
+
+  useEffect(() => {
+    if (!restored) return;
+    localStorage.setItem(storageKey(examKey), JSON.stringify(progress));
+  }, [restored, examKey, progress]);
+
+  if (!restored) {
+    return (
+      <div dir="rtl" className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-muted-foreground">
+        ...در حال بارگذاری
+      </div>
+    );
+  }
+
+  const { currentIndex, answers, questionResults, showResults } = progress;
   const { sectionTitle, question } = flatQuestions[currentIndex];
   const isLast = currentIndex === flatQuestions.length - 1;
   const isRevealed = question.number in questionResults;
-  const currentAnswers = getQuestionAnswers(question.number, question.parts.length);
+  const currentAnswers: Record<number, unknown> = Object.fromEntries(
+    question.parts.map((_, i) => [i, answers[`${question.number}:${i}`]]),
+  );
   const hasAnyAnswer = Object.values(currentAnswers).some(
     (v) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0),
   );
+
+  const setAnswer = (partIndex: number, value: unknown) => {
+    setProgress((prev) => ({
+      ...prev,
+      answers: { ...prev.answers, [`${question.number}:${partIndex}`]: value },
+    }));
+  };
 
   const handleSubmitQuestion = () => {
     setError(null);
     startTransition(async () => {
       try {
         const result = await submitQuestion(examKey, question.number, currentAnswers);
-        setQuestionResults((prev) => ({ ...prev, [question.number]: result }));
+        setProgress((prev) => ({
+          ...prev,
+          questionResults: { ...prev.questionResults, [question.number]: result },
+        }));
       } catch {
         setError("مشکلی در ثبت پاسخ پیش آمد. دوباره تلاش کنید.");
       }
@@ -57,31 +127,27 @@ export default function ExamRunner({ examKey, exam }: Props) {
 
   const goNext = () => {
     if (isLast) {
-      setShowResults(true);
+      setProgress((prev) => ({ ...prev, showResults: true }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    setCurrentIndex((i) => i + 1);
+    setProgress((prev) => ({ ...prev, currentIndex: prev.currentIndex + 1 }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goPrevious = () => {
     if (currentIndex === 0) return;
-    setCurrentIndex((i) => i - 1);
+    setProgress((prev) => ({ ...prev, currentIndex: prev.currentIndex - 1 }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleRetry = () => {
+    localStorage.removeItem(storageKey(examKey));
+    setProgress(emptyProgress);
+  };
+
   if (showResults) {
-    return (
-      <ExamResults
-        exam={exam}
-        questionResults={questionResults}
-        onRetry={() => {
-          setShowResults(false);
-          setCurrentIndex(0);
-        }}
-      />
-    );
+    return <ExamResults exam={exam} questionResults={questionResults} onRetry={handleRetry} />;
   }
 
   return (
@@ -104,7 +170,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
         key={question.number}
         question={question}
         answers={currentAnswers}
-        onAnswerChange={(partIndex, value) => setAnswer(question.number, partIndex, value)}
+        onAnswerChange={setAnswer}
         disabled={isRevealed || isPending}
         partResults={questionResults[question.number]?.parts}
       />

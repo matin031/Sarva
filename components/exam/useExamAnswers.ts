@@ -2,9 +2,11 @@
 
 import { useCallback, useState } from "react";
 
-/** Answer state keyed by "questionNumber:partIndex", shared between the
- *  dev preview harness and the real exam runner so both stay in sync with
- *  how ExamQuestionCard expects its `answers` prop shaped. */
+/** Answer state keyed by "questionNumber:partIndex", shaped exactly how
+ *  ExamQuestionCard expects its `answers` prop. Used by the dev preview
+ *  harness (ExamPreview), which doesn't persist progress — the real exam
+ *  runner (ExamRunner) manages its own progress object instead, since it
+ *  also needs to save/restore that state to localStorage. */
 export function useExamAnswers() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
 

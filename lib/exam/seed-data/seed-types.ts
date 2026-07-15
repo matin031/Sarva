@@ -14,6 +14,9 @@ export type SeedOption = {
 
 export type SeedPart = {
   label?: string;
+  /** Overrides the parent question's pageRef when a multi-subquestion's
+   *  parts each cite a different textbook page. */
+  pageRef?: number;
   type: QuestionPartType;
   score: number;
   content: QuestionPartContent;

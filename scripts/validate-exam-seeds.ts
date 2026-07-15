@@ -1,7 +1,8 @@
+import { farsi3Dey1401 } from "../lib/exam/seed-data/farsi3-1401-dey";
 import { farsi3Kherdad1403 } from "../lib/exam/seed-data/farsi3-1403-kherdad";
 import { unverifiedParts, validateSeedExam } from "../lib/exam/seed-data/seed-types";
 
-const exams = [farsi3Kherdad1403];
+const exams = [farsi3Kherdad1403, farsi3Dey1401];
 
 let hadErrors = false;
 

@@ -8,6 +8,13 @@ interface PanelAudioPlayerProps {
   isPanel?: boolean;
 }
 
+type LoadState = "loading" | "ready" | "error";
+
+// اگه بارگذاری بیش از این طول بکشه (مثلا به‌خاطر اینترنتِ ضعیف و ناقص‌ماندنِ
+// دانلود)، به‌جای معطلیِ همیشگی، وضعیت را خطا در نظر می‌گیریم و دکمهٔ تلاشِ
+// دوباره نشان می‌دهیم.
+const LOAD_TIMEOUT_MS = 15000;
+
 export function PanelAudioPlayer({
   audioSrc,
   color = "green",
@@ -18,6 +25,8 @@ export function PanelAudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState<string>("0:00");
   const [currentTime, setCurrentTime] = useState<string>("0:00");
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [retryKey, setRetryKey] = useState(0);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -55,7 +64,11 @@ export function PanelAudioPlayer({
   useEffect(() => {
     if (!containerRef.current || !audioSrc) return;
 
-    wavesurferRef.current = WaveSurfer.create({
+    setLoadState("loading");
+    setIsPlaying(false);
+    setCurrentTime("0:00");
+
+    const ws = WaveSurfer.create({
       container: containerRef.current,
       url: audioSrc,
       waveColor,
@@ -66,48 +79,93 @@ export function PanelAudioPlayer({
       barRadius: 999,
       cursorWidth: 0,
     });
+    wavesurferRef.current = ws;
 
-    wavesurferRef.current.on("ready", (dur) => {
+    const timeoutId = window.setTimeout(() => {
+      setLoadState((s) => (s === "loading" ? "error" : s));
+    }, LOAD_TIMEOUT_MS);
+
+    ws.on("ready", (dur) => {
+      window.clearTimeout(timeoutId);
       setDuration(formatTime(dur));
+      setLoadState("ready");
     });
 
-    wavesurferRef.current.on("timeupdate", (time) => {
+    ws.on("error", () => {
+      window.clearTimeout(timeoutId);
+      setLoadState("error");
+    });
+
+    ws.on("timeupdate", (time) => {
       setCurrentTime(formatTime(time));
     });
 
-    wavesurferRef.current.on("play", () => setIsPlaying(true));
-    wavesurferRef.current.on("pause", () => setIsPlaying(false));
-    wavesurferRef.current.on("finish", () => {
+    ws.on("play", () => setIsPlaying(true));
+    ws.on("pause", () => setIsPlaying(false));
+    ws.on("finish", () => {
       setIsPlaying(false);
       setCurrentTime("0:00");
     });
 
-    return () => wavesurferRef.current?.destroy();
-  }, [audioSrc]);
+    return () => {
+      window.clearTimeout(timeoutId);
+      ws.destroy();
+    };
+  }, [audioSrc, retryKey, isPanel, progressColor, waveColor]);
 
   const handlePlay = () => {
+    if (loadState !== "ready") return;
     wavesurferRef.current?.playPause();
   };
+
+  const handleRetry = () => setRetryKey((k) => k + 1);
+
+  const colorClasses =
+    color === "red"
+      ? "bg-red-500/20 text-red-500 hover:bg-red-500/30"
+      : color === "main"
+        ? "bg-[#00a5a6]/20 text-[#00a5a6] hover:bg-[#00a5a6]/30"
+        : "bg-green-500/20 text-green-500 hover:bg-green-500/30"; // default = green
+
+  if (loadState === "error") {
+    return (
+      <div
+        dir="rtl"
+        className={`flex items-center justify-between gap-x-3 ${isPanel && "bg-card py-3"} border border-border
+        rounded-xl px-4 w-full ${color == "main" ? "border-none w-full md:max-w-sm " : "max-w-sm"}`}
+      >
+        <span className="text-xs text-muted-foreground">
+          پخشِ فایلِ صوتی با مشکل مواجه شد (احتمالا اینترنت)
+        </span>
+        <button
+          type="button"
+          onClick={handleRetry}
+          className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${colorClasses}`}
+        >
+          تلاشِ دوباره
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
       dir="ltr"
-      className={`flex items-center gap-x-3 ${isPanel && "bg-card py-3"} border border-border 
+      className={`flex items-center gap-x-3 ${isPanel && "bg-card py-3"} border border-border
       rounded-xl px-4  w-full  ${color == "main" ? "border-none w-full md:max-w-sm " : "max-w-sm"}`}
     >
       <button
         onClick={handlePlay}
+        disabled={loadState !== "ready"}
+        aria-busy={loadState === "loading"}
         className={`shrink-0 size-8 rounded-full flex items-center justify-center transition-colors
-    ${
-      color === "red"
-        ? "bg-red-500/20 text-red-500 hover:bg-red-500/30"
-        : color === "main"
-          ? "bg-[#00a5a6]/20 text-[#00a5a6] hover:bg-[#00a5a6]/30"
-          : "bg-green-500/20 text-green-500 hover:bg-green-500/30" // default = green
-    }
+    ${loadState !== "ready" ? "opacity-60 cursor-wait" : ""}
+    ${colorClasses}
   `}
       >
-        {isPlaying ? (
+        {loadState === "loading" ? (
+          <span className="size-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        ) : isPlaying ? (
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -140,10 +198,13 @@ export function PanelAudioPlayer({
         )}
       </button>
 
-      <div ref={containerRef} className="flex-1 overflow-hidden " />
+      <div
+        ref={containerRef}
+        className={`flex-1 overflow-hidden transition-opacity ${loadState === "loading" ? "opacity-40" : ""}`}
+      />
 
       <span className="shrink-0 text-xs text-muted-foreground font-mono">
-        {isPlaying ? currentTime : duration}
+        {loadState === "loading" ? "…" : isPlaying ? currentTime : duration}
       </span>
     </div>
   );

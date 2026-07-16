@@ -1,8 +1,15 @@
 import VaznYabSection from "@/components/UI/guide/VaznYabSection";
 import HeroSectionVaznYab from "@/components/UI/HeroSectionVaznYab";
+import { findMeterLocally } from "@/lib/aruz";
 
-const submitPoemSearch = async (searchTerm: string) => {
+
+// ⚠️ نسخهٔ قدیمی: جست‌وجوی عینِ متن در گنجور. فقط برای شعرهایی که از قبل
+// توی گنجور برچسب-خورده‌اند کار می‌کند (شعرِ تازه/دست‌نویس را پیدا نمی‌کند).
+// نگه داشته شده برای برگشتِ احتمالی — الان استفاده نمی‌شود.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const submitPoemSearchGanjoor = async (mesra1: string, mesra2?: string) => {
   "use server";
+  const searchTerm = mesra2 ? `${mesra1} ${mesra2}` : mesra1;
   const normalize = (str: string) =>
     str
       .replace(/[\u200c\u200f\u200e]/g, " ")
@@ -38,6 +45,14 @@ const submitPoemSearch = async (searchTerm: string) => {
     console.log(";;");
   }
 };
+// موتورِ محلیِ عروض (arpy): مصراع‌ها را مستقیماً تقطیع و وزن‌یابی می‌کند —
+// نیازی به اینترنت/گنجور ندارد و برای شعرِ تازه هم کار می‌کند.
+const submitPoemSearch = async (mesra1: string, mesra2?: string) => {
+  "use server";
+  const guess = findMeterLocally(mesra1, mesra2);
+  return guess?.rhythm;
+};
+
 function page() {
   return (
     <div dir="rtl" className="container">

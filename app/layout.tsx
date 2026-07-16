@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/UI/Header";
-import { GeometricPattern } from "@/components/persian-patterns";
-
-import { ToastContainer } from "react-toastify";
-import Footer from "@/components/UI/Footer";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
+import SiteChrome from "@/components/SiteChrome";
+
+import { ToastContainer } from "react-toastify";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -129,13 +127,7 @@ export default function RootLayout({
         <Suspense>
           <NavigationProgress />
         </Suspense>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <GeometricPattern
-          className="z-10 fixed text-gold h-screen"
-          opacity={0.06}
-        />
+        <SiteChrome>{children}</SiteChrome>
         <ToastContainer
           position="top-center"
           autoClose={5000}

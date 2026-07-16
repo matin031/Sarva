@@ -35,7 +35,7 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
   }
 
   return (
-    <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 xs:px-5">
+    <div dir="rtl" className="flex max-w-2xl flex-col gap-6 p-4 xs:p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">مدیریت امتحانات نهایی</h1>
         <button
@@ -48,7 +48,7 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
       </div>
 
       {creating && (
-        <div className="glass flex flex-col gap-3 rounded-2xl p-4">
+        <div className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">
           <input
             dir="rtl"
             value={title}
@@ -114,7 +114,7 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
             <Link
               key={exam.id}
               href={`/admin/exams/${exam.id}`}
-              className="glass flex flex-col gap-1 rounded-2xl p-4 transition-colors hover:border-primary/50"
+              className="bg-card border border-border flex flex-col gap-1 rounded-2xl p-4 transition-colors hover:border-primary/50"
             >
               <span className="text-sm font-semibold">{exam.title}</span>
               <span className="text-xs text-muted-foreground">

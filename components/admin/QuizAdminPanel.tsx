@@ -51,7 +51,7 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
 
   if (creating || editing) {
     return (
-      <div dir="rtl" className="mx-auto max-w-xl px-4 py-8 xs:px-5">
+      <div dir="rtl" className="max-w-2xl p-4 xs:p-6">
         <QuizQuestionForm
           initial={editing ?? undefined}
           onCancel={() => {
@@ -73,7 +73,7 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
   );
 
   return (
-    <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 xs:px-5">
+    <div dir="rtl" className="flex max-w-2xl flex-col gap-6 p-4 xs:p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">مدیریت عروض سماعی</h1>
         <button
@@ -104,7 +104,7 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
 
       <div className="flex flex-col gap-3">
         {filtered.map((q) => (
-          <div key={q.id} className="glass flex items-center justify-between gap-3 rounded-2xl p-4">
+          <div key={q.id} className="bg-card border border-border flex items-center justify-between gap-3 rounded-2xl p-4">
             <div className="flex flex-col gap-1">
               <span className="text-sm font-semibold">{TYPE_LABELS[q.type]}</span>
               <span className="text-xs text-muted-foreground">

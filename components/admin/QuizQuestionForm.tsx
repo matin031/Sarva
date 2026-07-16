@@ -74,7 +74,7 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
   }
 
   return (
-    <div dir="rtl" className="glass flex flex-col gap-4 rounded-2xl p-4 xs:p-5">
+    <div dir="rtl" className="bg-card border border-border flex flex-col gap-4 rounded-2xl p-4 xs:p-5">
       <h2 className="text-lg font-semibold">{initial ? "ویرایش سؤال" : "سؤال جدید"}</h2>
 
       <div className="flex flex-col gap-1.5">

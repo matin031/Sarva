@@ -62,7 +62,7 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
 
   if (editing) {
     return (
-      <div dir="rtl" className="mx-auto max-w-2xl px-4 py-8 xs:px-5">
+      <div dir="rtl" className="max-w-3xl p-4 xs:p-6">
         <ExamQuestionForm
           sectionId={editing.sectionId}
           initial={editing.question}
@@ -77,7 +77,7 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
   }
 
   return (
-    <div dir="rtl" className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 xs:px-5">
+    <div dir="rtl" className="flex max-w-3xl flex-col gap-6 p-4 xs:p-6">
       <div>
         <h1 className="text-xl font-bold">{exam.title}</h1>
         <p className="text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
       </div>
 
       {exam.sections.map((section) => (
-        <div key={section.id} className="glass flex flex-col gap-3 rounded-2xl p-4">
+        <div key={section.id} className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">
               {section.title} <span className="text-muted-foreground">({section.sectionScore} نمره)</span>
@@ -137,7 +137,7 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
       ))}
 
       {addingSection ? (
-        <div className="glass flex flex-col gap-3 rounded-2xl p-4">
+        <div className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">
           <input
             dir="rtl"
             value={sectionTitle}

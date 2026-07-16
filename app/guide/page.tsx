@@ -3,6 +3,7 @@
 import { motion, type Variants } from "framer-motion";
 import FakeCircularVisualizer from "@/components/UI/guide/FakeCircularVisualizer";
 import { FakeWaveform } from "@/components/UI/guide/FakeWaveform";
+import SiteHighlightsSection from "@/components/UI/SiteHighlightsSection";
 
 // همه‌چیز روی فنر حرکت می‌کند، نه ease خطی؛ حس ضرب و زنده‌بودن می‌دهد
 const springPunchy = {
@@ -127,6 +128,17 @@ function Page() {
           کنی
         </motion.p>
       </motion.div>
+
+      <section className="mt-16">
+        <SiteHighlightsSection />
+      </section>
+
+      <div className="mt-16 max-w-2xl mx-auto text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold">حالا برویم سراغِ عروض سماعی</h2>
+        <p className="mt-2 text-muted-foreground text-base sm:text-lg">
+          سه نوع سوال وجود دارد؛ هرکدام را در نمونه‌های زیر ببین.
+        </p>
+      </div>
 
       {/* سوال ۱ */}
       <motion.div

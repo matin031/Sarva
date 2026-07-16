@@ -1,6 +1,7 @@
 import FeaturesSection from "@/components/UI/FeaturesSection";
 import HeroSection from "@/components/UI/HeroSection";
 import LearningProcessSection from "@/components/UI/LearningProcessSection";
+import SiteHighlightsSection from "@/components/UI/SiteHighlightsSection";
 import StartLearningSection from "@/components/UI/StartLearningSection";
 import VerseCard from "@/components/UI/WaveDivider";
 
@@ -20,6 +21,9 @@ export default function Home() {
         </section>
         <section className="container">
           <FeaturesSection />
+        </section>
+        <section className="container pt-20">
+          <SiteHighlightsSection />
         </section>
         <section>
           <LearningProcessSection />

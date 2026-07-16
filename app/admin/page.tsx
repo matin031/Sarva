@@ -3,6 +3,8 @@ import Link from "next/link";
 import { adminListExams } from "@/lib/exam/admin-actions";
 import { quizAdminList } from "@/lib/quiz/admin-actions";
 import { adminListUsers } from "@/lib/admin/user-actions";
+import { adminQuizStatsOverview } from "@/lib/admin/quiz-stats-actions";
+import { adminExamStatsOverview } from "@/lib/admin/exam-stats-actions";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 
 export const metadata: Metadata = {
@@ -11,12 +13,20 @@ export const metadata: Metadata = {
 };
 
 async function loadStats() {
-  const [exams, quizQuestions, users] = await Promise.all([adminListExams(), quizAdminList(), adminListUsers()]);
+  const [exams, quizQuestions, users, quizActivity, examActivity] = await Promise.all([
+    adminListExams(),
+    quizAdminList(),
+    adminListUsers(),
+    adminQuizStatsOverview(),
+    adminExamStatsOverview(),
+  ]);
   return {
     examCount: exams.length,
     quizQuestionCount: quizQuestions.length,
     userCount: users.length,
     adminCount: users.filter((u) => u.role === "admin").length,
+    quizActivity,
+    examActivity,
   };
 }
 
@@ -25,9 +35,10 @@ const STAT_ICON_PATH: Record<string, string> = {
   quiz: "M9 18V6l11-2v12",
   user: "M3.5 19.5c.7-3.4 3-5.25 5.5-5.25s4.8 1.85 5.5 5.25",
   admin: "M16.7 14.3c2.1.5 3.6 2.2 4.1 5.2",
+  activity: "M3 12h4l2.5-7 4 14 2.5-7H21",
 };
 
-function StatIcon({ kind }: { kind: "exam" | "quiz" | "user" | "admin" }) {
+function StatIcon({ kind }: { kind: "exam" | "quiz" | "user" | "admin" | "activity" }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
       <path strokeLinecap="round" strokeLinejoin="round" d={STAT_ICON_PATH[kind]} />
@@ -84,6 +95,48 @@ export default async function Page() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">فعالیت کاربران</h2>
+        <div className="grid grid-cols-2 gap-3 xs:grid-cols-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <StatIcon kind="activity" />
+            </span>
+            <div>
+              <span className="block text-2xl font-bold">{stats.quizActivity.attemptCount}</span>
+              <span className="text-xs text-muted-foreground">بازی عروض سماعی انجام‌شده</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <StatIcon kind="activity" />
+            </span>
+            <div>
+              <span className="block text-2xl font-bold">{stats.quizActivity.avgAccuracy}٪</span>
+              <span className="text-xs text-muted-foreground">میانگین دقت عروض سماعی</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <StatIcon kind="activity" />
+            </span>
+            <div>
+              <span className="block text-2xl font-bold">{stats.examActivity.attemptCount}</span>
+              <span className="text-xs text-muted-foreground">امتحان نهایی تکمیل‌شده</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <StatIcon kind="activity" />
+            </span>
+            <div>
+              <span className="block text-2xl font-bold">{stats.examActivity.avgPercent}٪</span>
+              <span className="text-xs text-muted-foreground">میانگین نمرهٔ امتحانات</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">

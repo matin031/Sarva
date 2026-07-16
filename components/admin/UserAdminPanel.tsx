@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { adminDeleteUser, adminSetUserBanned, adminSetUserRole, type AdminUserRow } from "@/lib/admin/user-actions";
 import { useAdminToast } from "./AdminToast";
 
@@ -95,12 +96,12 @@ export default function UserAdminPanel({ initialUsers }: { initialUsers: AdminUs
               {filtered.map((u) => (
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-3">
-                    <div className="flex flex-col gap-0.5">
+                    <Link href={`/admin/users/${u.id}`} className="flex flex-col gap-0.5 hover:text-primary">
                       <span className="font-medium">{u.fullName || u.email || u.id}</span>
                       <span className="text-xs text-muted-foreground" dir="ltr">
                         {u.email}
                       </span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     <select

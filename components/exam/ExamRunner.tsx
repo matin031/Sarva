@@ -5,7 +5,7 @@ import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
-import { submitQuestion, type QuestionResult } from "@/app/exam/[examKey]/actions";
+import { submitExamAttempt, submitQuestion, type QuestionResult } from "@/app/exam/[examKey]/actions";
 
 type Props = {
   examKey: string;
@@ -130,6 +130,10 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const goNext = () => {
     if (isLast) {
       setProgress((prev) => ({ ...prev, showResults: true }));
+      // Fire-and-forget: a signed-in-only stats record, not part of the
+      // grading/results the student sees (that's already final at this
+      // point). Guests are silently skipped server-side.
+      void submitExamAttempt(examKey, questionResults);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }

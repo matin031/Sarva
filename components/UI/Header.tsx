@@ -173,7 +173,7 @@ function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMoreOpen(false)}
-                  className="rounded-lg px-3 py-2 text-sm font-normal hover:bg-accent/70 transition-all"
+                  className={`rounded-lg ${link.href == "/about" && "sm:hidden"} px-3 py-2 text-sm font-normal hover:bg-accent/70 transition-all`}
                 >
                   {link.label}
                 </Link>
@@ -184,7 +184,10 @@ function Header() {
         <Link className=" hover:text-primary transition-all" href={"/guide"}>
           راهنما
         </Link>
-        <Link className=" hover:text-primary transition-all" href={"/about"}>
+        <Link
+          className=" sm:block hidden hover:text-primary transition-all"
+          href={"/about"}
+        >
           درباره
         </Link>
       </motion.div>

@@ -1,12 +1,22 @@
 "use client";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { fadeUp, cardPop, staggerContainer, defaultViewport } from "@/lib/motion";
+import {
+  fadeUp,
+  cardPop,
+  staggerContainer,
+  defaultViewport,
+} from "@/lib/motion";
 import { MORE_NAV_LINKS } from "@/lib/site-nav";
 
 const ICONS: Record<string, React.ReactNode> = {
   "/exam": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -15,7 +25,12 @@ const ICONS: Record<string, React.ReactNode> = {
     </svg>
   ),
   "/vazn-yab": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -24,7 +39,12 @@ const ICONS: Record<string, React.ReactNode> = {
     </svg>
   ),
   "/game": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -35,9 +55,12 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 const DESCRIPTIONS: Record<string, string> = {
-  "/exam": "بانک کامل سؤالات امتحان نهایی فارسی را حل کن و همان لحظه نمره و پاسخ‌ها را ببین.",
-  "/vazn-yab": "هر بیتی بنویسی، وزن عروضی‌اش را پیدا می‌کند و ریتمش را با صدا برایت اجرا می‌کند.",
-  "/game": "با بازی‌های جاسوس‌یابی نقش‌های دستوری و برش‌زدن کلمات، دستور زبان را بازی‌وار یاد بگیر.",
+  "/exam":
+    "بانک کامل سؤالات امتحان نهایی فارسی را حل کن و همان لحظه نمره و پاسخ‌ها را ببین.",
+  "/vazn-yab":
+    "هر بیتی بنویسی، وزن عروضی‌اش را پیدا می‌کند و ریتمش را با صدا برایت اجرا می‌کند.",
+  "/game":
+    "با بازی‌های جاسوس‌یابی نقش‌های دستوری و برش‌زدن کلمات، دستور زبان را بازی‌وار یاد بگیر.",
 };
 
 const BG_COLORS: Record<string, string> = {
@@ -48,7 +71,10 @@ const BG_COLORS: Record<string, string> = {
 
 function SiteHighlightsSection() {
   return (
-    <div className="flex flex-col items-center justify-center cursor-default">
+    <div
+      dir="rtl"
+      className="flex flex-col items-center justify-center cursor-default"
+    >
       <motion.div
         variants={staggerContainer(0.12)}
         initial="hidden"
@@ -56,7 +82,10 @@ function SiteHighlightsSection() {
         viewport={defaultViewport}
         className="text-center"
       >
-        <motion.h2 variants={fadeUp} className="text-2xl sm:text-3xl md:text-4xl font-bold">
+        <motion.h2
+          variants={fadeUp}
+          className="text-2xl sm:text-3xl md:text-4xl font-bold"
+        >
           بیشتر از یک آزمون
         </motion.h2>
         <motion.p
@@ -72,28 +101,42 @@ function SiteHighlightsSection() {
         initial="hidden"
         whileInView="visible"
         viewport={defaultViewport}
-        className="mt-10 grid w-full grid-cols-1 sm:grid-cols-3 gap-6"
+        className="mt-10 grid w-full grid-cols-1 md:grid-cols-3 gap-6"
       >
         {MORE_NAV_LINKS.map((link) => (
           <motion.div key={link.href} variants={cardPop} className="h-full">
-            <Link
-              href={link.href}
-              className="group hover:scale-102 transition-all space-y-1 glass rounded-2xl z-20 relative text-right p-6 block h-full"
-            >
-              <div
-                className={`${BG_COLORS[link.href]} rounded-xl size-12 flex items-center justify-center ml-auto`}
+            {link.href !== "/about" && (
+              <Link
+                href={link.href}
+                className="group hover:scale-102 transition-all space-y-1 glass rounded-2xl z-20 relative text-right p-6 block h-full"
               >
-                <div className="w-6 h-6">{ICONS[link.href]}</div>
-              </div>
-              <h3 className="font-semibold text-lg">{link.label}</h3>
-              <p className="leading-relaxed text-sm text-muted-foreground">{DESCRIPTIONS[link.href]}</p>
-              <span className="inline-flex items-center gap-x-1 text-xs text-primary mt-2 transition-all group-hover:gap-x-2">
-                برو ببین
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
-                </svg>
-              </span>
-            </Link>
+                <div
+                  className={`${BG_COLORS[link.href]} rounded-xl size-12 flex items-center justify-center ml-auto`}
+                >
+                  <div className="w-6 h-6">{ICONS[link.href]}</div>
+                </div>
+                <h3 className="font-semibold text-lg">{link.label}</h3>
+                <p className="leading-relaxed text-sm text-muted-foreground">
+                  {DESCRIPTIONS[link.href]}
+                </p>
+                <span className="inline-flex items-center gap-x-1 text-xs text-primary mt-2 transition-all group-hover:gap-x-2">
+                  برو ببین
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    className="size-3.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 6 3 12l6 6M21 12H4"
+                    />
+                  </svg>
+                </span>
+              </Link>
+            )}
           </motion.div>
         ))}
       </motion.div>

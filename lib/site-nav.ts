@@ -7,4 +7,5 @@ export const MORE_NAV_LINKS: NavLink[] = [
   { href: "/exam", label: "امتحانات نهایی" },
   { href: "/vazn-yab", label: "وزن‌یاب" },
   { href: "/game", label: "بازی" },
+  { href: "/about", label: "درباره" },
 ];

@@ -8,6 +8,7 @@ type ExamListItem = Awaited<ReturnType<typeof adminListExams>>[number];
 
 export default function ExamListPanel({ initialExams }: { initialExams: ExamListItem[] }) {
   const [exams, setExams] = useState(initialExams);
+  const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
 
   const subject = "farsi3"; // only subject in the bank today; add a field here once a second one ships
@@ -96,19 +97,32 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
         </div>
       )}
 
+      {exams.length > 1 && (
+        <input
+          dir="rtl"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="جست‌وجو با عنوان..."
+          className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+      )}
+
       <div className="flex flex-col gap-3">
-        {exams.map((exam) => (
-          <Link
-            key={exam.id}
-            href={`/admin/exams/${exam.id}`}
-            className="glass flex flex-col gap-1 rounded-2xl p-4 transition-colors hover:border-primary/50"
-          >
-            <span className="text-sm font-semibold">{exam.title}</span>
-            <span className="text-xs text-muted-foreground">
-              {exam.examKey} · پایهٔ {exam.grade} · {exam.totalScore} نمره
-            </span>
-          </Link>
-        ))}
+        {exams
+          .filter((exam) => !query || exam.title.includes(query) || exam.examKey.includes(query))
+          .map((exam) => (
+            <Link
+              key={exam.id}
+              href={`/admin/exams/${exam.id}`}
+              className="glass flex flex-col gap-1 rounded-2xl p-4 transition-colors hover:border-primary/50"
+            >
+              <span className="text-sm font-semibold">{exam.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {exam.examKey} · پایهٔ {exam.grade} · {exam.totalScore} نمره · ساخته‌شده در{" "}
+                {new Date(exam.createdAt).toLocaleDateString("fa-IR")}
+              </span>
+            </Link>
+          ))}
       </div>
     </div>
   );

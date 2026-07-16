@@ -10,12 +10,14 @@ import {
   type AdminQuestionDetail,
 } from "@/lib/exam/admin-actions";
 import ExamQuestionForm from "./ExamQuestionForm";
+import { useAdminToast } from "./AdminToast";
 
 type Props = {
   exam: AdminExamDetail;
 };
 
 export default function ExamDetailPanel({ exam: initialExam }: Props) {
+  const toast = useAdminToast();
   const [exam, setExam] = useState(initialExam);
   const [addingSection, setAddingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState("");
@@ -40,7 +42,7 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
       setAddingSection(false);
       await refresh();
     } else {
-      alert(result.errors.join("\n"));
+      toast(result.errors.join("\n"));
     }
   }
 
@@ -48,14 +50,14 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
     if (!confirm("این بخش و همهٔ سؤالاتش حذف شود؟")) return;
     const result = await adminDeleteSection(sectionId);
     if (result.ok) await refresh();
-    else alert(result.errors.join("\n"));
+    else toast(result.errors.join("\n"));
   }
 
   async function handleDeleteQuestion(questionId: string) {
     if (!confirm("این سؤال حذف شود؟")) return;
     const result = await adminDeleteQuestion(questionId);
     if (result.ok) await refresh();
-    else alert(result.errors.join("\n"));
+    else toast(result.errors.join("\n"));
   }
 
   if (editing) {

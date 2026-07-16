@@ -110,7 +110,7 @@ export async function adminListExams() {
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("exams")
-    .select("id, subject, grade, title, exam_session, total_score")
+    .select("id, subject, grade, title, exam_session, total_score, created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`adminListExams: ${error.message}`);
   return (data ?? []).map((e) => ({
@@ -120,6 +120,7 @@ export async function adminListExams() {
     title: e.title,
     examKey: e.exam_session ?? "",
     totalScore: Number(e.total_score),
+    createdAt: e.created_at as string,
   }));
 }
 

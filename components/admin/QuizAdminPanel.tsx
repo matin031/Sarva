@@ -9,6 +9,7 @@ import {
   type QuizType,
 } from "@/lib/quiz/admin-actions";
 import QuizQuestionForm from "./QuizQuestionForm";
+import { useAdminToast } from "./AdminToast";
 
 type ListItem = Awaited<ReturnType<typeof quizAdminList>>[number];
 
@@ -23,7 +24,9 @@ type Props = {
 };
 
 export default function QuizAdminPanel({ initialQuestions }: Props) {
+  const toast = useAdminToast();
   const [questions, setQuestions] = useState(initialQuestions);
+  const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<QuizQuestionDetail | null>(null);
   const [creating, setCreating] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
     if (!confirm("این سؤال حذف شود؟")) return;
     const result = await quizAdminDeleteQuestion(id);
     if (result.ok) await refresh();
-    else alert(result.errors.join("\n"));
+    else toast(result.errors.join("\n"));
   }
 
   if (creating || editing) {
@@ -65,6 +68,10 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
     );
   }
 
+  const filtered = questions.filter(
+    (q) => !query || TYPE_LABELS[q.type].includes(query) || q.poem?.[0]?.includes(query),
+  );
+
   return (
     <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 xs:px-5">
       <div className="flex items-center justify-between">
@@ -78,12 +85,25 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
         </button>
       </div>
 
+      {questions.length > 0 && (
+        <input
+          dir="rtl"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="جست‌وجو با نوع یا متن بیت..."
+          className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+      )}
+
       {questions.length === 0 && (
         <p className="text-center text-sm text-muted-foreground">هنوز سؤالی اضافه نشده.</p>
       )}
+      {questions.length > 0 && filtered.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground">سؤالی یافت نشد.</p>
+      )}
 
       <div className="flex flex-col gap-3">
-        {questions.map((q) => (
+        {filtered.map((q) => (
           <div key={q.id} className="glass flex items-center justify-between gap-3 rounded-2xl p-4">
             <div className="flex flex-col gap-1">
               <span className="text-sm font-semibold">{TYPE_LABELS[q.type]}</span>

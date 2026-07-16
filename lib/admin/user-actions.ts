@@ -9,6 +9,8 @@ export type AdminUserRow = {
   fullName: string | undefined;
   role: "student" | "admin";
   createdAt: string;
+  lastSignInAt: string | undefined;
+  emailConfirmed: boolean;
   isBanned: boolean;
 };
 
@@ -39,6 +41,8 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
       fullName: nameById.get(u.id) ?? (u.user_metadata?.full_name as string | undefined),
       role: roleById.get(u.id) ?? "student",
       createdAt: u.created_at,
+      lastSignInAt: u.last_sign_in_at ?? undefined,
+      emailConfirmed: !!u.email_confirmed_at,
       isBanned: !!u.banned_until && new Date(u.banned_until) > new Date(),
     }))
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

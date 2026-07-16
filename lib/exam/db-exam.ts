@@ -109,3 +109,21 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
     })),
   };
 }
+
+/** For the exam landing page's list of cards — every exam in the bank,
+ *  newest first. Reuses getExamByKey per exam rather than a separate
+ *  lighter-weight query: the exam count is small (a handful, not
+ *  hundreds), and this way the landing page automatically picks up any
+ *  exam an admin adds later with zero code changes. */
+export async function listExams(): Promise<{ examKey: string; exam: SeedExam }[]> {
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("exams")
+    .select("exam_session")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`listExams: ${error.message}`);
+
+  const keys = (data ?? []).map((e) => e.exam_session).filter((k): k is string => !!k);
+  const exams = await Promise.all(keys.map(async (examKey) => ({ examKey, exam: await getExamByKey(examKey) })));
+  return exams.filter((e): e is { examKey: string; exam: SeedExam } => e.exam !== null);
+}

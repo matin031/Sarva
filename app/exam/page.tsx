@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { farsi3Dey1401 } from "@/lib/exam/seed-data/farsi3-1401-dey";
-import { farsi3Kherdad1403 } from "@/lib/exam/seed-data/farsi3-1403-kherdad";
-import type { SeedExam } from "@/lib/exam/seed-data/seed-types";
+import { listExams } from "@/lib/exam/db-exam";
 
 export const metadata: Metadata = {
   title: "آزمون‌های آنلاین",
 };
 
-const exams: { key: string; exam: SeedExam }[] = [
-  { key: "1403-kherdad", exam: farsi3Kherdad1403 },
-  { key: "1401-dey", exam: farsi3Dey1401 },
-];
+export default async function Page() {
+  const examList = await listExams();
+  const exams = examList.map(({ examKey, exam }) => ({ key: examKey, exam }));
 
-export default function Page() {
   return (
     <div
       dir="rtl"

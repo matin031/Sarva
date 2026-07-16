@@ -2,18 +2,13 @@
 
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { gradePart } from "@/lib/exam/grading";
-import { farsi3Dey1401 } from "@/lib/exam/seed-data/farsi3-1401-dey";
-import { farsi3Kherdad1403 } from "@/lib/exam/seed-data/farsi3-1403-kherdad";
-import type { SeedExam } from "@/lib/exam/seed-data/seed-types";
+import { getExamByKey } from "@/lib/exam/db-exam";
 
-// Server-only: these seed modules carry the answer key, so this map must
-// never be imported from a "use client" file. The page component imports
-// the seed modules separately and sanitizes them via toClientExam before
-// they reach the browser.
-const exams: Record<string, SeedExam> = {
-  "1403-kherdad": farsi3Kherdad1403,
-  "1401-dey": farsi3Dey1401,
-};
+// Server-only: getExamByKey uses the service-role client and returns the
+// full SeedExam (with the answer key), so this action must never be
+// imported from a "use client" file. The page component fetches its own
+// copy separately and sanitizes it via toClientExam before it reaches the
+// browser.
 
 export type PartResult = {
   label?: string;
@@ -36,7 +31,7 @@ export async function submitQuestion(
   questionNumber: number,
   answers: Record<number, unknown>,
 ): Promise<QuestionResult> {
-  const exam = exams[examKey];
+  const exam = await getExamByKey(examKey);
   if (!exam) throw new Error(`Unknown exam: ${examKey}`);
 
   const question = exam.sections.flatMap((s) => s.questions).find((q) => q.number === questionNumber);

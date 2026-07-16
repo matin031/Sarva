@@ -7,7 +7,10 @@ import z from "zod";
 function VaznYabSection({
   submitPoemSearch,
 }: {
-  submitPoemSearch: (searchTerm: string) => Promise<string | undefined>;
+  submitPoemSearch: (
+    mesra1: string,
+    mesra2?: string,
+  ) => Promise<string | undefined>;
 }) {
   const rhythmToAudioUrl = (rhythm: string) => {
     const clean = rhythm.trim().replace(/\s+/g, "-");
@@ -57,9 +60,11 @@ function VaznYabSection({
   });
   const onsubmit = async (data: SerachPoem) => {
     setLoadingFetch(true);
-    const fullBeyt = data.poem2 ? `${data.poem1} ${data.poem2}` : data.poem1;
 
-    const result = await submitPoemSearch(fullBeyt);
+    const result = await submitPoemSearch(
+      data.poem1,
+      data.poem2 || undefined,
+    );
     if (!result) setShowModal(true);
     setAruzFeet(getPureRhythm(result ?? ""));
     setAruzBahr(getRhythmDescription(result ?? ""));

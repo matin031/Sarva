@@ -307,7 +307,9 @@ export function matchCost(scan: string, pat: string): number {
 }
 
 export const LAMBDA = 0.34;
-export const MU = 0.9;
+// تنظیم‌شده با جاروبِ تجربی روی ۳۵ بیتِ محک: ۰.۹۰ سوگیریِ افراطی به‌سمتِ چند
+// وزنِ فوق‌رایج (رمل مسدس محذوف، رباعی) می‌داد؛ ۰.۳۵ در این محک بهترین بود.
+export const MU = 0.35;
 
 // ═══ دوازده وزنِ تقطیعیِ رباعی (شجرهٔ اخرب و اخرم) ═══
 const RUBAI = [

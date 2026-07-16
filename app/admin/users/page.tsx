@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { quizAdminList } from "@/lib/quiz/admin-actions";
-import QuizAdminPanel from "@/components/admin/QuizAdminPanel";
+import { adminListUsers } from "@/lib/admin/user-actions";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 import AdminNav from "@/components/admin/AdminNav";
+import UserAdminPanel from "@/components/admin/UserAdminPanel";
 
 export const metadata: Metadata = {
-  title: "مدیریت عروض سماعی",
+  title: "مدیریت کاربران",
   robots: { index: false, follow: false },
 };
 
 export default async function Page() {
-  const result = await loadAdminData(() => quizAdminList());
+  const result = await loadAdminData(() => adminListUsers());
   if (!result.ok) return <AdminAccessDenied message={result.message} />;
   return (
     <>
       <AdminNav />
-      <QuizAdminPanel initialQuestions={result.data} />
+      <UserAdminPanel initialUsers={result.data} />
     </>
   );
 }

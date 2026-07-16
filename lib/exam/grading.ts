@@ -23,7 +23,7 @@ export type PartGradeResult = {
   status: PartGradeStatus;
 };
 
-function normalizeFa(s: string): string {
+export function normalizeFa(s: string): string {
   return s
     .trim()
     .replace(/\s+/g, " ")
@@ -34,12 +34,12 @@ function normalizeFa(s: string): string {
     .toLowerCase();
 }
 
-function matchesAny(value: string, accepted: string[]): boolean {
+export function matchesAny(value: string, accepted: string[]): boolean {
   const n = normalizeFa(value);
   return n.length > 0 && accepted.some((a) => normalizeFa(a) === n);
 }
 
-function statusFromRatio(ratio: number): PartGradeStatus {
+export function statusFromRatio(ratio: number): PartGradeStatus {
   if (ratio >= 1) return "correct";
   if (ratio <= 0) return "incorrect";
   return "partial";

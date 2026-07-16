@@ -2,6 +2,7 @@
 
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { gradePart } from "@/lib/exam/grading";
+import { gradePartWithAI } from "@/lib/exam/ai-grading";
 import { getExamByKey } from "@/lib/exam/db-exam";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -39,10 +40,15 @@ export async function submitQuestion(
   const question = exam.sections.flatMap((s) => s.questions).find((q) => q.number === questionNumber);
   if (!question) throw new Error(`Unknown question: ${questionNumber}`);
 
-  return {
-    number: question.number,
-    parts: question.parts.map((part, partIndex) => {
-      const graded = gradePart(part, partIndex, answers[partIndex]);
+  // Parts are graded in parallel: exact_match ones resolve synchronously,
+  // AI ones (ai_semantic / ai_partial_credit) await Gemini. Most questions
+  // have a single part, so this is usually one await at most.
+  const parts = await Promise.all(
+    question.parts.map(async (part, partIndex) => {
+      const graded =
+        part.gradingMode === "exact_match"
+          ? gradePart(part, partIndex, answers[partIndex])
+          : await gradePartWithAI(part, answers[partIndex]);
       return {
         label: part.label,
         score: graded.score,
@@ -51,7 +57,9 @@ export async function submitQuestion(
         correctAnswerText: formatCorrectAnswer(part),
       };
     }),
-  };
+  );
+
+  return { number: question.number, parts };
 }
 
 /** Called once when a signed-in student reaches the results screen

@@ -51,6 +51,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const [restored, setRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Restoring persisted progress on mount is a one-time sync with an
@@ -159,6 +160,28 @@ export default function ExamRunner({ examKey, exam }: Props) {
     setProgress(emptyProgress);
   };
 
+  const handleReset = () => {
+    setMenuOpen(false);
+    if (!confirm("آزمون از اول شروع شود؟ همهٔ پاسخ‌ها و نتیجه‌های فعلی پاک می‌شود.")) return;
+    handleRetry();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const finishEarly = () => {
+    setMenuOpen(false);
+    const answered = Object.keys(questionResults).length;
+    if (
+      !confirm(
+        `همین حالا امتحان تمام شود؟ فقط ${answered.toLocaleString("fa-IR")} سؤالی که ثبت کرده‌اید نمره داده می‌شود و بقیه بی‌پاسخ می‌ماند.`,
+      )
+    )
+      return;
+    setProgress((prev) => ({ ...prev, showResults: true }));
+    // same fire-and-forget stats record as the normal finish in goNext()
+    void submitExamAttempt(examKey, questionResults);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (showResults) {
     return <ExamResults exam={exam} questionResults={questionResults} onRetry={handleRetry} />;
   }
@@ -180,7 +203,37 @@ export default function ExamRunner({ examKey, exam }: Props) {
             {sectionTitle} · سؤال {currentIndex + 1} از {flatQuestions.length}
           </p>
         </div>
-        <span className="min-h-11 w-[4.5rem]" aria-hidden />
+        <div className="relative w-[4.5rem] flex justify-end">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="گزینه‌های بیشتر"
+            className="glass flex min-h-11 min-w-11 items-center justify-center rounded-xl text-lg font-bold text-foreground/80"
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+              <div className="absolute left-0 top-full z-40 mt-2 flex min-w-44 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={finishEarly}
+                  className="rounded-lg px-3 py-2 text-right text-sm hover:bg-accent/70 transition-all"
+                >
+                  پایان زودهنگام
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="rounded-lg px-3 py-2 text-right text-sm text-destructive hover:bg-destructive/10 transition-all"
+                >
+                  شروع از اول
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">

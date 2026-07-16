@@ -3,11 +3,20 @@
 import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
+export type QuizAnswerDetail = {
+  questionId: string;
+  type: string;
+  poem?: string[];
+  difficulty?: string;
+  isCorrect: boolean;
+};
+
 export type QuizAttemptRow = {
   id: string;
   total: number;
   correct: number;
   createdAt: string;
+  answers: QuizAnswerDetail[];
 };
 
 export async function adminQuizStatsOverview() {
@@ -38,5 +47,41 @@ export async function adminQuizAttemptsForUser(userId: string): Promise<QuizAtte
     .order("created_at", { ascending: false });
   if (error) throw new Error(`adminQuizAttemptsForUser: ${error.message}`);
 
-  return (data ?? []).map((a) => ({ id: a.id, total: a.total, correct: a.correct, createdAt: a.created_at }));
+  const attempts = data ?? [];
+  if (attempts.length === 0) return [];
+
+  const { data: answers, error: answersError } = await supabase
+    .from("quiz_attempt_answers")
+    .select("attempt_id, question_id, is_correct, questions(type, poem, difficulty)")
+    .in(
+      "attempt_id",
+      attempts.map((a) => a.id),
+    );
+  if (answersError) throw new Error(`adminQuizAttemptsForUser answers: ${answersError.message}`);
+
+  const byAttempt = new Map<string, QuizAnswerDetail[]>();
+  for (const row of answers ?? []) {
+    const question = row.questions as unknown as {
+      type: string;
+      poem: string[] | null;
+      difficulty: string | null;
+    } | null;
+    const list = byAttempt.get(row.attempt_id) ?? [];
+    list.push({
+      questionId: row.question_id,
+      type: question?.type ?? "—",
+      poem: question?.poem ?? undefined,
+      difficulty: question?.difficulty ?? undefined,
+      isCorrect: row.is_correct,
+    });
+    byAttempt.set(row.attempt_id, list);
+  }
+
+  return attempts.map((a) => ({
+    id: a.id,
+    total: a.total,
+    correct: a.correct,
+    createdAt: a.created_at,
+    answers: byAttempt.get(a.id) ?? [],
+  }));
 }

@@ -1,5 +1,6 @@
 "use client";
 import { PanelAudioPlayer } from "@/components/UI/PanelAudioPlayer";
+import { hasAudioFor } from "@/lib/audioManifest";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -31,7 +32,7 @@ function VaznYabSection({
           .string()
           .min(10, "مصراع را به‌طور کامل وارد نمایید")
           .max(40, "تعداد حروف نمی‌تواند بیشتر از 40 باشد")
-          .regex(/^[\u0600-\u06FF\s]+$/, "فقط حروف فارسی پذیرفته هستند"),
+          .regex(/^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/, "فقط حروف فارسی پذیرفته هستند"),
       ),
     poem2: z
       .string()
@@ -41,7 +42,7 @@ function VaznYabSection({
           !val ||
           (val.length >= 10 &&
             val.length <= 40 &&
-            /^[\u0600-\u06FF\s]+$/.test(val)),
+            /^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/.test(val)),
         {
           message: "مصراع را به‌طور کامل وارد نمایید",
         },
@@ -152,8 +153,9 @@ function VaznYabSection({
 
       <div className=" mx-auto md:max-w-4xl grid md:grid-cols-2 gap-6">
         <div
-          className={`${loadingFetch && "blur-xs animate-pulse "} rounded-3xl relative z-20 glass p-4 sm:p-8`}
+          className={`${loadingFetch && "pointer-events-none opacity-50"} transition-opacity rounded-3xl relative z-20 glass p-4 sm:p-8`}
         >
+          {loadingFetch && <ResultLoadingOverlay />}
           <div className=" flex items-center font-bold text-lg gap-x-3 sm:text-xl">
             <span className=" flex text-primary items-center size-10 justify-center rounded-full bg-primary/20">
               <svg
@@ -193,8 +195,9 @@ function VaznYabSection({
           </div>
         </div>
         <div
-          className={`${loadingFetch && "blur-xs animate-pulse "} flex justify-between flex-col rounded-3xl relative z-20 glass p-4 sm:p-8`}
+          className={`${loadingFetch && "pointer-events-none opacity-50"} transition-opacity flex justify-between flex-col rounded-3xl relative z-20 glass p-4 sm:p-8`}
         >
+          {loadingFetch && <ResultLoadingOverlay />}
           <div className=" flex items-center font-bold text-lg gap-x-3 sm:text-xl">
             <span className=" flex text-primary items-center size-10 justify-center rounded-full bg-primary/20">
               <svg
@@ -223,12 +226,16 @@ function VaznYabSection({
               className=" w-full bg-primary/10 text-center
              text-primary font-bold rounded-3xl"
             >
-              {aruzFeet ? (
+              {aruzFeet && hasAudioFor(aruzFeet) ? (
                 <PanelAudioPlayer
                   audioSrc={rhythmToAudioUrl(aruzFeet)}
                   color="main"
                   isPanel={false}
                 />
+              ) : aruzFeet ? (
+                <div className=" py-6 text-sm text-muted-foreground">
+                  فایلِ صوتی برای این وزن هنوز آماده نشده
+                </div>
               ) : (
                 <div className=" py-6">- - - -</div>
               )}
@@ -359,6 +366,22 @@ function VaznYabSection({
         </div>
       )}
     </>
+  );
+}
+
+function ResultLoadingOverlay() {
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl">
+      <div className="flex flex-col items-center gap-y-3">
+        <span className="relative flex size-9">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
+          <span className="relative inline-flex size-9 items-center justify-center rounded-full bg-primary/20">
+            <span className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </span>
+        </span>
+        <span className="text-xs text-muted-foreground">در حال تحلیل وزن…</span>
+      </div>
+    </div>
   );
 }
 

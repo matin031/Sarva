@@ -16,9 +16,22 @@ type Props = {
   exam: AdminExamDetail;
 };
 
+function questionMatches(q: AdminQuestionDetail, query: string) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  if (String(q.number).includes(needle)) return true;
+  if (q.instruction?.toLowerCase().includes(needle)) return true;
+  return q.parts.some(
+    (p) =>
+      p.label?.toLowerCase().includes(needle) ||
+      JSON.stringify(p.content).toLowerCase().includes(needle),
+  );
+}
+
 export default function ExamDetailPanel({ exam: initialExam }: Props) {
   const toast = useAdminToast();
   const [exam, setExam] = useState(initialExam);
+  const [query, setQuery] = useState("");
   const [addingSection, setAddingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState("");
   const [sectionScore, setSectionScore] = useState("");
@@ -85,56 +98,71 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
         </p>
       </div>
 
-      {exam.sections.map((section) => (
-        <div key={section.id} className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">
-              {section.title} <span className="text-muted-foreground">({section.sectionScore} نمره)</span>
-            </h2>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing({ sectionId: section.id })}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
-              >
-                + سؤال
-              </button>
-              <button type="button" onClick={() => handleDeleteSection(section.id)} className="text-xs text-destructive">
-                حذف بخش
-              </button>
+      {exam.sections.some((s) => s.questions.length > 0) && (
+        <input
+          dir="rtl"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="جست‌وجو با شمارهٔ سؤال یا متن..."
+          className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+      )}
+
+      {exam.sections.map((section) => {
+        const matchedQuestions = section.questions.filter((q) => questionMatches(q, query));
+        if (query && matchedQuestions.length === 0) return null;
+
+        return (
+          <div key={section.id} className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">
+                {section.title} <span className="text-muted-foreground">({section.sectionScore} نمره)</span>
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing({ sectionId: section.id })}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+                >
+                  + سؤال
+                </button>
+                <button type="button" onClick={() => handleDeleteSection(section.id)} className="text-xs text-destructive">
+                  حذف بخش
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {matchedQuestions.map((q) => (
+                <div key={q.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-2.5">
+                  <span className="text-sm">
+                    سؤال {q.number} · {q.parts.length} بخش
+                  </span>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ sectionId: section.id, question: q })}
+                      className="rounded-lg bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
+                    >
+                      ویرایش
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteQuestion(q.id)}
+                      className="rounded-lg bg-destructive/10 px-2.5 py-1 text-xs text-destructive"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {section.questions.length === 0 && (
+                <p className="text-center text-xs text-muted-foreground">هنوز سؤالی در این بخش نیست.</p>
+              )}
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            {section.questions.map((q) => (
-              <div key={q.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-2.5">
-                <span className="text-sm">
-                  سؤال {q.number} · {q.parts.length} بخش
-                </span>
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditing({ sectionId: section.id, question: q })}
-                    className="rounded-lg bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
-                  >
-                    ویرایش
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteQuestion(q.id)}
-                    className="rounded-lg bg-destructive/10 px-2.5 py-1 text-xs text-destructive"
-                  >
-                    حذف
-                  </button>
-                </div>
-              </div>
-            ))}
-            {section.questions.length === 0 && (
-              <p className="text-center text-xs text-muted-foreground">هنوز سؤالی در این بخش نیست.</p>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       {addingSection ? (
         <div className="bg-card border border-border flex flex-col gap-3 rounded-2xl p-4">

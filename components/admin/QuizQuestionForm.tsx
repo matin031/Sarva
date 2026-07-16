@@ -7,6 +7,7 @@ import {
   type QuizQuestionDetail,
   type QuizType,
 } from "@/lib/quiz/admin-actions";
+import AudioUploadField from "./AudioUploadField";
 
 const TYPE_LABELS: Record<QuizType, string> = {
   "poem-to-audio": "صورت سؤال: بیت — گزینه‌ها: صوت",
@@ -74,7 +75,7 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
   }
 
   return (
-    <div dir="rtl" className="bg-card border border-border flex flex-col gap-4 rounded-2xl p-4 xs:p-5">
+    <div dir="rtl" className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 xs:p-5">
       <h2 className="text-lg font-semibold">{initial ? "ویرایش سؤال" : "سؤال جدید"}</h2>
 
       <div className="flex flex-col gap-1.5">
@@ -124,19 +125,7 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
         </div>
       )}
 
-      {needsStemAudio && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm text-muted-foreground">لینک فایل صوتی سؤال</label>
-          <input
-            dir="ltr"
-            value={audioUrl}
-            onChange={(e) => setAudioUrl(e.target.value)}
-            placeholder="https://..."
-            className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
-        </div>
-      )}
+      {needsStemAudio && <AudioUploadField label="فایل صوتی سؤال" value={audioUrl} onChange={setAudioUrl} />}
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm text-muted-foreground">سطح دشواری</label>
@@ -172,7 +161,9 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
                 onChange={() => setCorrectOption(i)}
                 className="size-4 accent-primary"
               />
-              <span className="text-xs text-muted-foreground">گزینهٔ {i + 1} {opt.isCorrect && "(پاسخ صحیح)"}</span>
+              <span className="text-xs text-muted-foreground">
+                گزینهٔ {i + 1} {opt.isCorrect && "(پاسخ صحیح)"}
+              </span>
               {options.length > 2 && (
                 <button
                   type="button"
@@ -185,16 +176,11 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
             </div>
 
             {optionsAreAudio ? (
-              <>
-                <input
-                  dir="ltr"
-                  value={opt.audioUrl ?? ""}
-                  onChange={(e) => updateOption(i, { audioUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-                {opt.audioUrl && <audio controls src={opt.audioUrl} className="w-full" />}
-              </>
+              <AudioUploadField
+                label={`فایل صوتی گزینهٔ ${i + 1}`}
+                value={opt.audioUrl ?? ""}
+                onChange={(url) => updateOption(i, { audioUrl: url })}
+              />
             ) : (
               <>
                 <input
@@ -219,8 +205,8 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
 
       {errors.length > 0 && (
         <div className="flex flex-col gap-1 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          {errors.map((err, i) => (
-            <p key={i}>{err}</p>
+          {errors.map((e, i) => (
+            <p key={i}>{e}</p>
           ))}
         </div>
       )}
@@ -234,11 +220,7 @@ export default function QuizQuestionForm({ initial, onSaved, onCancel }: Props) 
         >
           {saving ? "در حال ذخیره..." : "ذخیره"}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="min-h-11 rounded-xl border border-border px-5 text-sm"
-        >
+        <button type="button" onClick={onCancel} className="min-h-11 rounded-xl border border-border px-5 text-sm">
           انصراف
         </button>
       </div>

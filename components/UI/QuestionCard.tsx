@@ -183,7 +183,7 @@ function QuestionCard({
         <>
           <p>ریتم مناسب این وزن کدام است؟</p>
           <p className=" text-muted-foreground">
-            مفاعیلن مفاعیلن مفاعیلن مفاعیلن
+            {questions[currentIndex].poem?.[0]}
           </p>
         </>
       )}

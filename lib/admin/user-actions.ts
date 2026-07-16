@@ -9,6 +9,7 @@ export type AdminUserRow = {
   fullName: string | undefined;
   role: "student" | "admin";
   createdAt: string;
+  isBanned: boolean;
 };
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
@@ -38,6 +39,7 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
       fullName: nameById.get(u.id) ?? (u.user_metadata?.full_name as string | undefined),
       role: roleById.get(u.id) ?? "student",
       createdAt: u.created_at,
+      isBanned: !!u.banned_until && new Date(u.banned_until) > new Date(),
     }))
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
@@ -49,6 +51,33 @@ export async function adminSetUserRole(userId: string, role: "student" | "admin"
   const supabase = createSupabaseAdmin();
 
   const { error } = await supabase.from("profiles").upsert({ id: userId, role }, { onConflict: "id" });
+  if (error) return { ok: false, errors: [error.message] };
+  return { ok: true, data: null };
+}
+
+/** GoTrue has no permanent-ban flag, only a duration — "876000h" (~100
+ *  years) is the standard way every Supabase project represents "banned
+ *  indefinitely"; "none" lifts it. A banned user's existing sessions stay
+ *  valid until they expire, but they can't sign in again. */
+export async function adminSetUserBanned(userId: string, banned: boolean): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
+
+  const supabase = createSupabaseAdmin();
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: banned ? "876000h" : "none",
+  });
+  if (error) return { ok: false, errors: [error.message] };
+  return { ok: true, data: null };
+}
+
+/** Permanently deletes the auth user; profiles row cascades with it. */
+export async function adminDeleteUser(userId: string): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را حذف کنید."] };
+
+  const supabase = createSupabaseAdmin();
+  const { error } = await supabase.auth.admin.deleteUser(userId);
   if (error) return { ok: false, errors: [error.message] };
   return { ok: true, data: null };
 }

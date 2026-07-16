@@ -125,6 +125,14 @@ export default function ExamQuestionCard({
                     <span className="text-muted-foreground">پاسخ صحیح: </span>
                     {result.correctAnswerText}
                   </p>
+                  {result.feedback && (
+                    <p className="mt-1 flex gap-1.5 border-t border-current/15 pt-1.5 leading-relaxed whitespace-pre-line">
+                      <span className="shrink-0" aria-hidden>
+                        ✦
+                      </span>
+                      <span>{result.feedback}</span>
+                    </p>
+                  )}
                 </div>
               )}
             </div>

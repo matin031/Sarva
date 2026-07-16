@@ -21,6 +21,9 @@ export type PartGradeResult = {
   score: number;
   maxScore: number;
   status: PartGradeStatus;
+  /** Short Persian feedback from the AI grader, when a part was AI-graded.
+   *  Absent for exact_match parts and for AI parts that couldn't be reached. */
+  feedback?: string;
 };
 
 export function normalizeFa(s: string): string {

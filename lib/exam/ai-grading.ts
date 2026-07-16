@@ -81,9 +81,9 @@ function extractGradable(part: SeedPart, submitted: unknown): AIGradable | null 
   }
 }
 
-type GeminiScore = { score: number };
+type GeminiResult = { score: number; feedback: string };
 
-async function callGemini(prompt: string, itemCount: number): Promise<number[] | null> {
+async function callGemini(prompt: string, itemCount: number): Promise<GeminiResult[] | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -109,8 +109,8 @@ async function callGemini(prompt: string, itemCount: number): Promise<number[] |
                   type: "array",
                   items: {
                     type: "object",
-                    properties: { score: { type: "number" } },
-                    required: ["score"],
+                    properties: { score: { type: "number" }, feedback: { type: "string" } },
+                    required: ["score", "feedback"],
                   },
                 },
               },
@@ -130,11 +130,14 @@ async function callGemini(prompt: string, itemCount: number): Promise<number[] |
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== "string") return null;
 
-    const parsed = JSON.parse(text) as { results?: GeminiScore[] };
+    const parsed = JSON.parse(text) as { results?: GeminiResult[] };
     const results = parsed.results;
     if (!Array.isArray(results) || results.length !== itemCount) return null;
 
-    return results.map((r) => Math.max(0, Math.min(1, Number(r.score) || 0)));
+    return results.map((r) => ({
+      score: Math.max(0, Math.min(1, Number(r.score) || 0)),
+      feedback: String(r.feedback ?? "").trim(),
+    }));
   } catch (err) {
     console.error("Gemini grading failed:", err);
     return null;
@@ -160,13 +163,14 @@ function buildPrompt(g: AIGradable, hint: string | undefined, items: SubItem[]):
     "معیار، درستیِ «معنایی» است نه لفظیِ کلمه‌به‌کلمه: مترادف‌ها، بازنویسیِ روان، و پاسخ‌هایی که مفهوم اصلی را درست رسانده‌اند نمرهٔ کامل (۱) می‌گیرند.",
     "اگر مفهوم اصلی ناقص است نمرهٔ جزئی (مثلاً ۰٫۵) و اگر غلط یا نامرتبط یا خالی است نمرهٔ ۰ بده.",
     "سخت‌گیریِ بی‌مورد روی نگارش، نیم‌فاصله و علائم نکن.",
+    "برای هر مورد یک «feedback» بنویس: یک جملهٔ کوتاهِ فارسی و دوستانه، خطاب به خودِ دانش‌آموز (با «تو»)، که بگوید چرا این نمره را گرفت — اگر درست بود تأیید کن و اگر ناقص یا غلط بود کوتاه بگو چه چیزی کم داشت. از توضیح اضافه و طولانی پرهیز کن.",
     hint ? `راهنمای تصحیحِ این سؤال: ${hint}` : "",
     "",
     `سؤال: ${g.questionText}`,
     "",
     itemBlocks,
     "",
-    'خروجی را فقط به‌صورت JSON با کلید "results" بده که آرایه‌ای هم‌ترتیب با موردهای بالاست و هر عضو یک "score" دارد.',
+    'خروجی را فقط به‌صورت JSON با کلید "results" بده که آرایه‌ای هم‌ترتیب با موردهای بالاست و هر عضو یک "score" و یک "feedback" دارد.',
   ]
     .filter(Boolean)
     .join("\n");
@@ -187,20 +191,30 @@ export async function gradePartWithAI(part: SeedPart, submitted: unknown): Promi
   const ratios: (number | null)[] = gradable.items.map((it) =>
     matchesAny(it.studentAnswer, it.accepted) ? 1 : normalizeFa(it.studentAnswer).length === 0 ? 0 : null,
   );
+  const feedbacks: (string | null)[] = ratios.map(() => null);
 
   const needsAI = gradable.items.filter((_, i) => ratios[i] === null);
   if (needsAI.length > 0) {
     const prompt = buildPrompt(gradable, part.aiGradingHint, needsAI);
-    const aiScores = await callGemini(prompt, needsAI.length);
-    if (!aiScores) {
+    const aiResults = await callGemini(prompt, needsAI.length);
+    if (!aiResults) {
       return { score: 0, maxScore, status: "needs_review" };
     }
     let ai = 0;
+    const multi = gradable.items.length > 1;
     for (let i = 0; i < ratios.length; i++) {
-      if (ratios[i] === null) ratios[i] = aiScores[ai++];
+      if (ratios[i] === null) {
+        ratios[i] = aiResults[ai].score;
+        const fb = aiResults[ai].feedback;
+        // Prefix multi-item feedback with its field label so the student can
+        // tell which sub-answer each note is about.
+        feedbacks[i] = fb ? (multi && gradable.items[i].label ? `${gradable.items[i].label}) ${fb}` : fb) : null;
+        ai++;
+      }
     }
   }
 
   const avg = (ratios as number[]).reduce((s, r) => s + r, 0) / ratios.length;
-  return { score: avg * maxScore, maxScore, status: statusFromRatio(avg) };
+  const feedback = feedbacks.filter((f): f is string => !!f).join("\n") || undefined;
+  return { score: avg * maxScore, maxScore, status: statusFromRatio(avg), feedback };
 }

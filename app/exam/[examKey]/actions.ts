@@ -19,6 +19,8 @@ export type PartResult = {
   maxScore: number;
   status: "correct" | "incorrect" | "partial" | "needs_review";
   correctAnswerText: string;
+  /** Short AI feedback shown to the student, present only for AI-graded parts. */
+  feedback?: string;
 };
 
 export type QuestionResult = {
@@ -55,6 +57,7 @@ export async function submitQuestion(
         maxScore: graded.maxScore,
         status: graded.status,
         correctAnswerText: formatCorrectAnswer(part),
+        feedback: graded.feedback,
       };
     }),
   );

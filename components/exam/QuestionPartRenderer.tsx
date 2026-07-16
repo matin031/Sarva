@@ -25,6 +25,7 @@ import PairedListErrorCorrectionPart, {
 import MatchingPairsWithDistractorPart from "@/components/exam/parts/MatchingPairsWithDistractorPart";
 import WordReorderDndPart from "@/components/exam/parts/WordReorderDndPart";
 import DiagramBuilderPart from "@/components/exam/parts/DiagramBuilderPart";
+import AroozSamaeiPart from "@/components/exam/parts/AroozSamaeiPart";
 
 type Props = {
   content: QuestionPartContent;
@@ -201,6 +202,16 @@ export default function QuestionPartRenderer({ content, options, value, onChange
           content={content}
           value={(value as Record<string, string>) ?? {}}
           onChange={(childId, parentId) => onChange({ ...(value as Record<string, string>), [childId]: parentId })}
+          disabled={disabled}
+        />
+      );
+    case "aroozi-samaei":
+      return (
+        <AroozSamaeiPart
+          content={content}
+          options={options ?? []}
+          value={(value as string | null) ?? null}
+          onChange={onChange}
           disabled={disabled}
         />
       );

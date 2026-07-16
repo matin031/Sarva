@@ -65,7 +65,7 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: strin
 // show errors before the exam-wide score totals are even relevant.
 // ---------------------------------------------------------------------------
 
-const NEEDS_OPTIONS: QuestionPartType[] = ["mcq-inline", "mcq-multi-select", "mcq-plus-correction", "aroozi-samaei"];
+const NEEDS_OPTIONS: QuestionPartType[] = ["mcq-inline", "mcq-multi-select", "mcq-plus-correction"];
 
 function validateQuestionInput(input: AdminQuestionInput): string[] {
   const errors: string[] = [];

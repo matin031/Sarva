@@ -169,22 +169,6 @@ const mcqSelectLineInPoem = z.object({
   lines: z.array(z.string()).min(2), // no الف/ب/ج labels — line itself is the option
 });
 
-// عروض سماعی: match rhythm by ear. The stem is exactly one of audio /
-// verse / a written meter pattern (فاعلاتن فاعلاتن...); the options are
-// always the *other* modality — audio stem -> verse options, verse or
-// meter-pattern stem -> audio options — so option "kind" is derived from
-// stemKind, never stored separately. Options themselves live in
-// question_options like every other MCQ type: `text` holds either the
-// verse's plain text or the audio URL, depending on the derived kind.
-const aroozSamaei = z.object({
-  type: z.literal("aroozi-samaei"),
-  questionText: z.string(),
-  stemKind: z.enum(["audio", "verse", "meter-pattern"]),
-  stemAudioUrl: z.string().optional(), // required iff stemKind === "audio"
-  stemVerse: richPassageSchema.optional(), // required iff stemKind === "verse"
-  stemMeterPattern: z.string().optional(), // required iff stemKind === "meter-pattern", e.g. "فاعلاتن فاعلاتن فاعلاتن فاعلن"
-});
-
 export const questionPartContentSchema = z.discriminatedUnion("type", [
   wordMeaningInput,
   mcqInline,
@@ -204,7 +188,6 @@ export const questionPartContentSchema = z.discriminatedUnion("type", [
   findNErrorsInList,
   openErrorCorrectionInPassage,
   mcqSelectLineInPoem,
-  aroozSamaei,
 ]);
 
 // z.input (not z.infer/z.output) — fields with `.default()` (inputVariant,
@@ -256,7 +239,6 @@ export const correctAnswerSchemaByType = {
     correctWord: z.string(),
   }),
   "mcq-select-line-in-poem": z.object({ correctLineIndex: z.number().int() }),
-  "aroozi-samaei": z.object({}), // correctness lives on question_options.is_correct, same as mcq-inline
 } as const satisfies Record<QuestionPartType, z.ZodTypeAny>;
 
 /** The 5 catalogue types that are pure arrangements of the 18 atomic types

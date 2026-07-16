@@ -67,8 +67,7 @@ export function gradePart(part: SeedPart, partIndex: number, submitted: unknown)
   });
 
   switch (content.type) {
-    case "mcq-inline":
-    case "aroozi-samaei": {
+    case "mcq-inline": {
       const correctIndex = (part.options ?? []).findIndex((o) => o.isCorrect);
       const correctId = correctIndex >= 0 ? optionId(partIndex, correctIndex) : null;
       return scored(submitted === correctId ? 1 : 0);

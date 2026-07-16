@@ -81,9 +81,7 @@ export function validateSeedExam(exam: SeedExam): string[] {
 
         // mcq-select-line-in-poem is excluded: its content.lines ARE the
         // options (no الف/ب/ج labels), so it never has question_options rows.
-        const needsOptions = ["mcq-inline", "mcq-multi-select", "mcq-plus-correction", "aroozi-samaei"].includes(
-          part.type,
-        );
+        const needsOptions = ["mcq-inline", "mcq-multi-select", "mcq-plus-correction"].includes(part.type);
         if (needsOptions && (!part.options || part.options.length < 2)) {
           errors.push(`${label}: type "${part.type}" needs >= 2 question_options rows`);
         }

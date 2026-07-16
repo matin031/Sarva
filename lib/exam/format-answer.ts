@@ -24,16 +24,6 @@ export function formatCorrectAnswer(part: SeedPart): string {
       return opt?.text ?? "-";
     }
 
-    case "aroozi-samaei": {
-      const index = options.findIndex((o) => o.isCorrect);
-      // an audio-option's `text` is a URL, not useful to print as-is —
-      // point at it by position instead ("گزینهٔ ۲") the same way a
-      // verse-option's own text would be printed for a verse stem.
-      const opt = options[index];
-      if (content.stemKind === "audio") return opt?.text ?? "-";
-      return index >= 0 ? `گزینهٔ ${index + 1}` : "-";
-    }
-
     case "mcq-multi-select": {
       return joinFa(options.filter((o) => o.isCorrect).map((o) => o.text));
     }

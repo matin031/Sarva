@@ -32,7 +32,7 @@ export default async function Page() {
             <Link
               key={key}
               href={`/exam/${key}`}
-              className="glass flex flex-col gap-3 rounded-2xl p-5 transition-colors hover:border-primary/50"
+              className="glass relative z-20 flex flex-col gap-3 rounded-2xl p-5 transition-colors hover:border-primary/50"
             >
               <h2 className="text-lg font-semibold">{exam.title}</h2>
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">

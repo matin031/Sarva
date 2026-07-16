@@ -20,8 +20,7 @@ function ShootingScene({
   const dingRef = useRef<HTMLAudioElement | null>(null);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
-  const chosen =
-    shotIndex !== null ? level.suspects[shotIndex] : spy;
+  const chosen = shotIndex !== null ? level.suspects[shotIndex] : spy;
 
   const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -53,6 +52,7 @@ function ShootingScene({
   return (
     <div className="flex flex-col items-center">
       <div
+        dir="rtl"
         ref={containerRef}
         onMouseMove={handleMove}
         onMouseLeave={() => setPointer((p) => ({ ...p, visible: false }))}
@@ -155,7 +155,9 @@ function ShootingScene({
                     result === "correct" ? "text-primary" : "text-destructive"
                   }`}
                 >
-                  {result === "correct" ? "زدیش! جاسوس همین بود" : "!اشتباه زدی"}
+                  {result === "correct"
+                    ? "زدیش! جاسوس همین بود"
+                    : "!اشتباه زدی"}
                 </p>
                 <p
                   dir="rtl"

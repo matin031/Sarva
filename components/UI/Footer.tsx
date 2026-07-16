@@ -1,5 +1,14 @@
 import Link from "next/link";
 import MainLogo from "../svgs/mainLogo";
+import { MORE_NAV_LINKS } from "@/lib/site-nav";
+
+const QUICK_ACCESS_LINKS = [
+  { href: "/", label: "صفحه اصلی" },
+  { href: "/guide", label: "راهنمای یادگیری" },
+  { href: "/quiz", label: "عروض سماعی" },
+  { href: "/panel", label: "پنل کاربری" },
+  ...MORE_NAV_LINKS,
+];
 
 function Footer() {
   return (
@@ -28,21 +37,14 @@ function Footer() {
         <div className=" hidden md:block">
           <h3 className=" cursor-default">دسترسی سریع</h3>
           <ul
-            className="text-muted-foreground text-sm 
+            className="text-muted-foreground text-sm
             space-y-2 *:hover:text-primary *:transition-all"
           >
-            <li>
-              <Link href={"/"}>صفحه اصلی</Link>
-            </li>
-            <li>
-              <Link href={"/guide"}>راهنمای یادگیری</Link>
-            </li>
-            <li>
-              <Link href={"/quiz"}>آزمون</Link>
-            </li>
-            <li>
-              <Link href={"/panel"}>پنل کاربری</Link>
-            </li>
+            {QUICK_ACCESS_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href}>{link.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div className=" hidden md:block">
@@ -139,21 +141,14 @@ function Footer() {
           <div>
             <h3 className=" cursor-default">دسترسی سریع</h3>
             <ul
-              className="text-muted-foreground text-sm 
+              className="text-muted-foreground text-sm
             space-y-2 *:hover:text-primary *:transition-all"
             >
-              <li>
-                <Link href={"/"}>صفحه اصلی</Link>
-              </li>
-              <li>
-                <Link href={"/guide"}>راهنمای یادگیری</Link>
-              </li>
-              <li>
-                <Link href={"/quiz"}>آزمون</Link>
-              </li>
-              <li>
-                <Link href={"/panel"}>پنل کاربری</Link>
-              </li>
+              {QUICK_ACCESS_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href}>{link.label}</Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>

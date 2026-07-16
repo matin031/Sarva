@@ -1,16 +1,14 @@
-// نقطهٔ ورودِ عمومیِ موتورِ عروض — برای استفادهٔ اکشن‌های سرور
 import { detect, type Confidence } from "./detect";
 import { normalize } from "./engine";
 
 export interface MeterGuess {
-  rhythm: string; // "ارکان (نام)" — همان شکلِ خروجیِ گنجور
+  rhythm: string;
   ark: string;
   name: string;
   pattern: string;
   confidence: Confidence;
 }
 
-/** تشخیصِ وزنِ یک یا دو مصراع با موتورِ محلی (بدونِ نیاز به اینترنت/گنجور). */
 export function findMeterLocally(
   mesra1: string,
   mesra2?: string,

@@ -104,7 +104,9 @@ function NinjaGame() {
 
   const handleMiss = (word: string) => {
     if (!round) return;
-    setLastMistake(`«${word}» یکی از کلمات «${round.category}» بود و از دستت در رفت.`);
+    setLastMistake(
+      `«${word}» یکی از کلمات «${round.category}» بود و از دستت در رفت.`,
+    );
     loseLife();
   };
 
@@ -147,17 +149,17 @@ function NinjaGame() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center"
+            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center"
           >
             <h1 className="text-2xl sm:text-4xl font-bold mb-4 text-primary">
               نینجای دستور زبان
             </h1>
             <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              اول کلماتِ دسته‌ی انتخابی را در یک جدول می‌بینی و باید حفظشان
-              کنی. بعد کلمات، هم‌رنگ‌جماعت با صدها کلمه‌ی دیگر، توی هوا پرت
-              می‌شوند و تو باید با کشیدن موس یا انگشتت فقط همان کلماتِ هدف را
-              برش بزنی. برش‌زدنِ کلمه‌ی اشتباه یا از دست‌دادنِ یک کلمه‌ی هدف،
-              یک جان می‌گیرد. با {START_LIVES} جان شروع می‌کنی — تمومش نکن!
+              اول کلماتِ دسته‌ی انتخابی را در یک جدول می‌بینی و باید حفظشان کنی.
+              بعد کلمات، هم‌رنگ‌جماعت با صدها کلمه‌ی دیگر، توی هوا پرت می‌شوند و
+              تو باید با کشیدن موس یا انگشتت فقط همان کلماتِ هدف را برش بزنی.
+              برش‌زدنِ کلمه‌ی اشتباه یا از دست‌دادنِ یک کلمه‌ی هدف، یک جان
+              می‌گیرد. با {START_LIVES} جان شروع می‌کنی — تمومش نکن!
             </p>
             <button
               onClick={() => setScreen("settings")}
@@ -208,7 +210,7 @@ function NinjaGame() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center border-2 border-destructive"
+            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-destructive"
           >
             <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-destructive">
               جان‌هایت تمام شد!
@@ -246,7 +248,7 @@ function NinjaGame() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
+            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
           >
             <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-primary">
               آفرین، نینجای دستور زبان شدی!

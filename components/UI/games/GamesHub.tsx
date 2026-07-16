@@ -178,7 +178,7 @@ function GamesHub() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               onClick={() => setActive(g.id)}
-              className="glass rounded-2xl p-6 sm:p-8 text-right hover:brightness-105 active:scale-[0.98] transition-all flex flex-col"
+              className="glass relative z-20 rounded-2xl p-6 sm:p-8 text-right hover:brightness-105 active:scale-[0.98] transition-all flex flex-col"
             >
               <h2 className="text-lg sm:text-2xl font-bold mb-2 text-primary">
                 {g.title}

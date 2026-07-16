@@ -19,7 +19,7 @@ function StudyTable({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="glass rounded-2xl p-6 sm:p-10 text-center"
+      className="glass relative z-20 rounded-2xl p-6 sm:p-10 text-center"
     >
       <span className="inline-block mb-3 text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-primary/20 text-primary">
         مرحله {roundNumber} از {totalRounds}
@@ -28,8 +28,8 @@ function StudyTable({
         این‌ها را بشناس: «{round.category}»
       </h2>
       <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-6">
-        {round.hint} این کلمات را خوب نگاه کن، چون الان بین صدها کلمه‌ی دیگر
-        پرت می‌شوند و باید فقط همین‌ها را با کشیدن انگشت یا موس برش بزنی.
+        {round.hint} این کلمات را خوب نگاه کن، چون الان بین صدها کلمه‌ی دیگر پرت
+        می‌شوند و باید فقط همین‌ها را با کشیدن انگشت یا موس برش بزنی.
       </p>
 
       <motion.div

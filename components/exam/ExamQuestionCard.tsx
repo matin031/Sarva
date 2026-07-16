@@ -51,7 +51,10 @@ export default function ExamQuestionCard({
   const totalScore = question.parts.reduce((sum, p) => sum + p.score, 0);
 
   return (
-    <div dir="rtl" className=" glass bg-card! rounded-2xl p-4 xs:p-5 md:p-6">
+    <div
+      dir="rtl"
+      className=" glass relative z-20 dark:shadow-none shadow bg-card! rounded-2xl p-4 xs:p-5 md:p-6"
+    >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">

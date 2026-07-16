@@ -68,22 +68,58 @@ function validateQuizQuestion(input: QuizQuestionInput): string[] {
 // Reads
 // ---------------------------------------------------------------------------
 
-export async function quizAdminList() {
+export type QuizListItem = {
+  id: string;
+  type: QuizType;
+  poem?: string[];
+  audioUrl?: string;
+  difficulty: "easy" | "medium" | "hard";
+  optionCount: number;
+};
+
+export type QuizListParams = {
+  type?: QuizType;
+  difficulty?: "easy" | "medium" | "hard";
+  /** Omit to fetch every matching row (used by the dashboard count and by
+   *  search mode, which needs the full filtered set to search text across). */
+  limit?: number;
+  offset?: number;
+};
+
+/** Paginated + filterable by category (type/difficulty) so the admin panel
+ *  never has to render every question at once — pass `limit` to fetch one
+ *  page; `total` (from Postgrest's exact count) reflects the whole filtered
+ *  set regardless of the page size, so callers can drive a "load more". */
+export async function quizAdminList(params: QuizListParams = {}): Promise<{ items: QuizListItem[]; total: number }> {
   await requireAdmin();
   const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("questions")
-    .select("id, type, poem, audio_url, difficulty, question_options(id)")
+    .select("id, type, poem, audio_url, difficulty, question_options(id)", { count: "exact" })
     .order("created_at", { ascending: false });
+
+  if (params.type) query = query.eq("type", params.type);
+  if (params.difficulty) query = query.eq("difficulty", params.difficulty);
+  if (params.limit !== undefined) {
+    const offset = params.offset ?? 0;
+    query = query.range(offset, offset + params.limit - 1);
+  }
+
+  const { data, error, count } = await query;
   if (error) throw new Error(`quizAdminList: ${error.message}`);
-  return (data ?? []).map((q) => ({
-    id: q.id,
-    type: q.type as QuizType,
-    poem: q.poem ?? undefined,
-    audioUrl: q.audio_url ?? undefined,
-    difficulty: (q.difficulty ?? "medium") as "easy" | "medium" | "hard",
-    optionCount: q.question_options?.length ?? 0,
-  }));
+
+  return {
+    items: (data ?? []).map((q) => ({
+      id: q.id,
+      type: q.type as QuizType,
+      poem: q.poem ?? undefined,
+      audioUrl: q.audio_url ?? undefined,
+      difficulty: (q.difficulty ?? "medium") as "easy" | "medium" | "hard",
+      optionCount: q.question_options?.length ?? 0,
+    })),
+    total: count ?? 0,
+  };
 }
 
 export async function quizAdminGet(questionId: string): Promise<QuizQuestionDetail | null> {

@@ -13,16 +13,16 @@ export const metadata: Metadata = {
 };
 
 async function loadStats() {
-  const [exams, quizQuestions, users, quizActivity, examActivity] = await Promise.all([
+  const [exams, quizList, users, quizActivity, examActivity] = await Promise.all([
     adminListExams(),
-    quizAdminList(),
+    quizAdminList({ limit: 1 }),
     adminListUsers(),
     adminQuizStatsOverview(),
     adminExamStatsOverview(),
   ]);
   return {
     examCount: exams.length,
-    quizQuestionCount: quizQuestions.length,
+    quizQuestionCount: quizList.total,
     userCount: users.length,
     adminCount: users.filter((u) => u.role === "admin").length,
     quizActivity,

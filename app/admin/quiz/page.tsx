@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { quizAdminList } from "@/lib/quiz/admin-actions";
+import { QUIZ_PAGE_SIZE } from "@/lib/quiz/constants";
 import QuizAdminPanel from "@/components/admin/QuizAdminPanel";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const result = await loadAdminData(() => quizAdminList());
+  const result = await loadAdminData(() => quizAdminList({ limit: QUIZ_PAGE_SIZE }));
   if (!result.ok) return <AdminAccessDenied message={result.message} />;
-  return <QuizAdminPanel initialQuestions={result.data} />;
+  return <QuizAdminPanel initialItems={result.data.items} initialTotal={result.data.total} />;
 }

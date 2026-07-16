@@ -5,13 +5,13 @@ import {
   quizAdminDeleteQuestion,
   quizAdminGet,
   quizAdminList,
+  type QuizListItem,
   type QuizQuestionDetail,
   type QuizType,
 } from "@/lib/quiz/admin-actions";
+import { QUIZ_PAGE_SIZE } from "@/lib/quiz/constants";
 import QuizQuestionForm from "./QuizQuestionForm";
 import { useAdminToast } from "./AdminToast";
-
-type ListItem = Awaited<ReturnType<typeof quizAdminList>>[number];
 
 const TYPE_LABELS: Record<QuizType, string> = {
   "poem-to-audio": "بیت → صوت",
@@ -19,20 +19,86 @@ const TYPE_LABELS: Record<QuizType, string> = {
   "weight-to-audio": "وزن → صوت",
 };
 
-type Props = {
-  initialQuestions: ListItem[];
+const DIFFICULTY_LABELS: Record<"easy" | "medium" | "hard", string> = {
+  easy: "آسان",
+  medium: "متوسط",
+  hard: "دشوار",
 };
 
-export default function QuizAdminPanel({ initialQuestions }: Props) {
+type Props = {
+  initialItems: QuizListItem[];
+  initialTotal: number;
+};
+
+export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
   const toast = useAdminToast();
-  const [questions, setQuestions] = useState(initialQuestions);
+  const [items, setItems] = useState(initialItems);
+  const [total, setTotal] = useState(initialTotal);
+  const [type, setType] = useState<QuizType | null>(null);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(null);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<QuizQuestionDetail | null>(null);
   const [creating, setCreating] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingPage, setLoadingPage] = useState(false);
+
+  const searching = query.trim().length > 0;
+
+  // Category filters and search re-fetch from the server (search needs the
+  // full filtered set to look across, not just the loaded page) so both
+  // reset back to page one of the same filters.
+  async function applyFilters(nextType: QuizType | null, nextDifficulty: "easy" | "medium" | "hard" | null) {
+    setLoadingPage(true);
+    const result = await quizAdminList({
+      type: nextType ?? undefined,
+      difficulty: nextDifficulty ?? undefined,
+      limit: QUIZ_PAGE_SIZE,
+    });
+    setLoadingPage(false);
+    setItems(result.items);
+    setTotal(result.total);
+  }
+
+  async function handleTypeChange(nextType: QuizType | null) {
+    setType(nextType);
+    await applyFilters(nextType, difficulty);
+  }
+
+  async function handleDifficultyChange(nextDifficulty: "easy" | "medium" | "hard" | null) {
+    setDifficulty(nextDifficulty);
+    await applyFilters(type, nextDifficulty);
+  }
+
+  async function handleQueryChange(nextQuery: string) {
+    setQuery(nextQuery);
+    if (!nextQuery.trim()) {
+      await applyFilters(type, difficulty);
+      return;
+    }
+    // Search needs to look across every question matching the current
+    // category filters, not just the loaded page — fetch the whole set.
+    setLoadingPage(true);
+    const result = await quizAdminList({ type: type ?? undefined, difficulty: difficulty ?? undefined });
+    setLoadingPage(false);
+    setItems(result.items);
+    setTotal(result.total);
+  }
+
+  async function handleLoadMore() {
+    setLoadingPage(true);
+    const result = await quizAdminList({
+      type: type ?? undefined,
+      difficulty: difficulty ?? undefined,
+      limit: QUIZ_PAGE_SIZE,
+      offset: items.length,
+    });
+    setLoadingPage(false);
+    setItems((prev) => [...prev, ...result.items]);
+    setTotal(result.total);
+  }
 
   async function refresh() {
-    setQuestions(await quizAdminList());
+    await applyFilters(type, difficulty);
   }
 
   async function handleEdit(id: string) {
@@ -68,9 +134,9 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
     );
   }
 
-  const filtered = questions.filter(
-    (q) => !query || TYPE_LABELS[q.type].includes(query) || q.poem?.[0]?.includes(query),
-  );
+  const filtered = searching
+    ? items.filter((q) => TYPE_LABELS[q.type].includes(query) || q.poem?.[0]?.includes(query))
+    : items;
 
   return (
     <div dir="rtl" className="flex max-w-2xl flex-col gap-6 p-4 xs:p-6">
@@ -85,20 +151,59 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
         </button>
       </div>
 
-      {questions.length > 0 && (
-        <input
-          dir="rtl"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="جست‌وجو با نوع یا متن بیت..."
-          className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
-        />
-      )}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => handleTypeChange(null)}
+            className={`min-h-9 rounded-full border px-3 text-xs ${
+              type === null ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            همه دسته‌ها
+          </button>
+          {(Object.keys(TYPE_LABELS) as QuizType[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => handleTypeChange(t)}
+              className={`min-h-9 rounded-full border px-3 text-xs ${
+                type === t ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"
+              }`}
+            >
+              {TYPE_LABELS[t]}
+            </button>
+          ))}
+        </div>
 
-      {questions.length === 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            dir="rtl"
+            value={difficulty ?? ""}
+            onChange={(e) => handleDifficultyChange((e.target.value || null) as "easy" | "medium" | "hard" | null)}
+            className="min-h-10 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+          >
+            <option value="">همهٔ سختی‌ها</option>
+            {(Object.keys(DIFFICULTY_LABELS) as Array<"easy" | "medium" | "hard">).map((d) => (
+              <option key={d} value={d}>
+                {DIFFICULTY_LABELS[d]}
+              </option>
+            ))}
+          </select>
+          <input
+            dir="rtl"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="جست‌وجو با نوع یا متن بیت..."
+            className="min-h-10 flex-1 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      {!loadingPage && total === 0 && (
         <p className="text-center text-sm text-muted-foreground">هنوز سؤالی اضافه نشده.</p>
       )}
-      {questions.length > 0 && filtered.length === 0 && (
+      {!loadingPage && total > 0 && filtered.length === 0 && (
         <p className="text-center text-sm text-muted-foreground">سؤالی یافت نشد.</p>
       )}
 
@@ -108,7 +213,7 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
             <div className="flex flex-col gap-1">
               <span className="text-sm font-semibold">{TYPE_LABELS[q.type]}</span>
               <span className="text-xs text-muted-foreground">
-                {q.poem?.[0] || (q.audioUrl ? "صوت" : "-")} · {q.optionCount} گزینه
+                {q.poem?.[0] || (q.audioUrl ? "صوت" : "-")} · {DIFFICULTY_LABELS[q.difficulty]} · {q.optionCount} گزینه
               </span>
             </div>
             <div className="flex shrink-0 gap-2">
@@ -131,6 +236,17 @@ export default function QuizAdminPanel({ initialQuestions }: Props) {
           </div>
         ))}
       </div>
+
+      {!searching && items.length < total && (
+        <button
+          type="button"
+          disabled={loadingPage}
+          onClick={handleLoadMore}
+          className="min-h-11 rounded-xl border border-border bg-card text-sm text-muted-foreground disabled:opacity-60"
+        >
+          {loadingPage ? "در حال بارگذاری..." : `نمایش بیشتر (${items.length} از ${total})`}
+        </button>
+      )}
     </div>
   );
 }

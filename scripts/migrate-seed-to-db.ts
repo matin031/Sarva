@@ -106,6 +106,10 @@ async function importExam(examKey: string, exam: SeedExam) {
   console.log(`✓ imported ${examKey} (${exam.title})`);
 }
 
-for (const { examKey, exam } of exams) {
-  await importExam(examKey, exam);
+async function main() {
+  for (const { examKey, exam } of exams) {
+    await importExam(examKey, exam);
+  }
 }
+
+main();

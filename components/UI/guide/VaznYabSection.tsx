@@ -1,7 +1,9 @@
 "use client";
 import { PanelAudioPlayer } from "@/components/UI/PanelAudioPlayer";
 import { hasAudioFor } from "@/lib/audioManifest";
+import { cardPop, fadeUp, staggerContainer } from "@/lib/motion";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
@@ -36,16 +38,13 @@ function VaznYabSection({
       ),
     poem2: z
       .string()
-      .optional()
-      .refine(
-        (val) =>
-          !val ||
-          (val.length >= 10 &&
-            val.length <= 40 &&
-            /^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/.test(val)),
-        {
-          message: "مصراع را به‌طور کامل وارد نمایید",
-        },
+      .transform((val) => val.trim())
+      .pipe(
+        z
+          .string()
+          .min(10, "مصراع را به‌طور کامل وارد نمایید")
+          .max(40, "تعداد حروف نمی‌تواند بیشتر از 40 باشد")
+          .regex(/^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/, "فقط حروف فارسی پذیرفته هستند"),
       ),
   });
 
@@ -62,10 +61,7 @@ function VaznYabSection({
   const onsubmit = async (data: SerachPoem) => {
     setLoadingFetch(true);
 
-    const result = await submitPoemSearch(
-      data.poem1,
-      data.poem2 || undefined,
-    );
+    const result = await submitPoemSearch(data.poem1, data.poem2);
     if (!result) setShowModal(true);
     setAruzFeet(getPureRhythm(result ?? ""));
     setAruzBahr(getRhythmDescription(result ?? ""));
@@ -83,8 +79,11 @@ function VaznYabSection({
 
   return (
     <>
-      <form
+      <motion.form
         onSubmit={searchPoemForm.handleSubmit(onsubmit)}
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
         className=" mx-auto my-12 sm:my-16 md:max-w-4xl p-4 sm:p-8 relative z-50 rounded-3xl glass"
       >
         <label className=" text-xs sm:text-sm text-muted-foreground">
@@ -116,7 +115,7 @@ function VaznYabSection({
           <input
             disabled={loadingFetch}
             {...searchPoemForm.register("poem2")}
-            placeholder="مثلا: مهربانی کی سر آمد؟ شهریاران را چه شد؟ (اختیاری)"
+            placeholder="مثلا: مهربانی کی سر آمد؟ شهریاران را چه شد؟"
             className=" text-sm sm:text-base placeholder:text-muted-foreground/30 text-right w-full relative z-20 glass py-2 px-4 border-border! border-2! rounded-3xl bg-secondary! outline-none focus:border-primary!"
             type="text"
           />
@@ -149,10 +148,16 @@ function VaznYabSection({
           </svg>
           {loadingFetch ? "درحال جستجو" : "پیدا کن"}
         </button>
-      </form>
+      </motion.form>
 
-      <div className=" mx-auto md:max-w-4xl grid md:grid-cols-2 gap-6">
-        <div
+      <motion.div
+        variants={staggerContainer(0.12, 0.15)}
+        initial="hidden"
+        animate="visible"
+        className=" mx-auto md:max-w-4xl grid md:grid-cols-2 gap-6"
+      >
+        <motion.div
+          variants={cardPop}
           className={`${loadingFetch && "pointer-events-none opacity-50"} transition-opacity rounded-3xl relative z-20 glass p-4 sm:p-8`}
         >
           {loadingFetch && <ResultLoadingOverlay />}
@@ -193,8 +198,9 @@ function VaznYabSection({
               {!aruzBahr && aruzFeet && "یافت نشد"}
             </div>
           </div>
-        </div>
-        <div
+        </motion.div>
+        <motion.div
+          variants={cardPop}
           className={`${loadingFetch && "pointer-events-none opacity-50"} transition-opacity flex justify-between flex-col rounded-3xl relative z-20 glass p-4 sm:p-8`}
         >
           {loadingFetch && <ResultLoadingOverlay />}
@@ -241,7 +247,7 @@ function VaznYabSection({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* <div className=" glass relative z-20 p-4 sm:p-8 rounded-3xl md:col-span-2">
           <div className=" flex items-center font-bold text-lg gap-x-3 sm:text-xl">
@@ -256,7 +262,7 @@ function VaznYabSection({
           </div>
           <h4>به‌زودی....</h4>
         </div> */}
-      </div>
+      </motion.div>
       {showModal && (
         <div
           className=" flex items-center justify-center fixed backdrop-blur-xs

@@ -1,6 +1,14 @@
 // وزن‌یابی نهایی — پورتِ TypeScript از arooz.py (detect / scan_report)
 import { scanLine } from "./engine";
-import { METERS, meterCost, bestScan, altArkan, MU } from "./meters";
+import {
+  METERS,
+  meterCost,
+  bestScan,
+  altArkan,
+  MU,
+  RARE_TAIL_PENALTY,
+  RARE_TAIL_FREQ,
+} from "./meters";
 import { LEXICON, LEX_MIN, LEX_TOPK, lexScore } from "./lexicon";
 
 export interface MeterRow {
@@ -32,6 +40,7 @@ export function detect(mesra1: string, mesra2?: string): DetectResult {
     const c1 = meterCost(s1, m.pat, m.name);
     const c2 = s2 !== null ? meterCost(s2, m.pat, m.name) : c1;
     const prior = -MU * Math.log10(m.freq + 0.05);
+    const rare = m.freq < RARE_TAIL_FREQ ? RARE_TAIL_PENALTY : 0;
     return {
       name: m.name,
       ark: m.ark,
@@ -40,7 +49,7 @@ export function detect(mesra1: string, mesra2?: string): DetectResult {
       c1,
       c2,
       summ: c1 + c2,
-      score: c1 + c2 + prior,
+      score: c1 + c2 + prior + rare,
     };
   });
 

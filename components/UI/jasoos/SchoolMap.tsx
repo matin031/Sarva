@@ -5,13 +5,7 @@ import PlayerFigure from "./PlayerFigure";
 
 function LockIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth={1.6}
-      stroke="currentColor"
-      className="size-6 sm:size-8"
-    >
+    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor" className="size-6 sm:size-8">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -23,31 +17,15 @@ function LockIcon() {
 
 function CheckIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth={2}
-      stroke="currentColor"
-      className="size-6 sm:size-8"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m4.5 12.75 6 6 9-13.5"
-      />
+    <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="size-6 sm:size-8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
     </svg>
   );
 }
 
 function DoorIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth={1.6}
-      stroke="currentColor"
-      className="size-6 sm:size-8"
-    >
+    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor" className="size-6 sm:size-8">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -70,10 +48,10 @@ function SchoolMap({
     <div className="relative z-20 w-full rounded-2xl overflow-hidden glass p-5 sm:p-10">
       {/* <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,oklch(0.22_0.03_260)_0%,transparent_55%)]" /> */}
       <h2 className="text-lg sm:text-2xl font-bold text-center mb-2">
-        مدرسۀ جاسوس‌یاب
+        مدرسه‌ی جاسوس‌یاب
       </h2>
       <p className="text-center text-muted-foreground mb-8 sm:mb-12 text-xs sm:text-base">
-        در راهرو جلو برو و وارد درِ روشن شو تا جاسوس را پیدا کنی
+        در راهرو جلو برو و وارد درِ روشن شو تا جاسوس را پیدا کنی.
       </p>
 
       <div className="flex items-end justify-center gap-x-2 xs:gap-x-4 sm:gap-x-8 flex-wrap gap-y-10">
@@ -86,11 +64,7 @@ function SchoolMap({
                 {active && (
                   <motion.div
                     animate={{ y: [0, -5, 0] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 1.3,
-                      ease: "easeInOut",
-                    }}
+                    transition={{ repeat: Infinity, duration: 1.3, ease: "easeInOut" }}
                     className="w-8 sm:w-10 text-gold"
                   >
                     <PlayerFigure />

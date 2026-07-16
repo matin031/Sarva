@@ -14,13 +14,14 @@ function ShootingScene({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pointer, setPointer] = useState({ x: 0, y: 0, visible: false });
-  const [shotRole, setShotRole] = useState<string | null>(null);
+  const [shotIndex, setShotIndex] = useState<number | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const dingRef = useRef<HTMLAudioElement | null>(null);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
-  const chosen = level.suspects.find((s) => s.role === shotRole) ?? spy;
+  const chosen =
+    shotIndex !== null ? level.suspects[shotIndex] : spy;
 
   const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -32,9 +33,9 @@ function ShootingScene({
     });
   };
 
-  const handleShoot = (suspect: SuspectType) => {
+  const handleShoot = (suspect: SuspectType, index: number) => {
     if (result) return;
-    setShotRole(suspect.role);
+    setShotIndex(index);
     setResult(suspect.isSpy ? "correct" : "wrong");
     setModalOpen(true);
     if (suspect.isSpy && dingRef.current) {
@@ -43,9 +44,9 @@ function ShootingScene({
     }
   };
 
-  const stateFor = (suspect: SuspectType): SuspectVisualState => {
+  const stateFor = (index: number): SuspectVisualState => {
     if (!result) return "idle";
-    if (suspect.role !== shotRole) return "dimmed";
+    if (index !== shotIndex) return "dimmed";
     return result === "correct" ? "shot-correct" : "shot-wrong";
   };
 
@@ -65,12 +66,12 @@ function ShootingScene({
             <span className="inline-block mb-1 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
               {level.category === "دستوری" ? "نقش دستوری" : "آرایه‌ی ادبی"}
             </span>
-            {level.contentType === "بیت" ? (
+            {level.contentType === "poem" ? (
               <>
-                <p className="text-sm w-full text-right sm:text-lg font-semibold leading-loose">
+                <p className="text-sm w-full sm:text-lg font-semibold leading-loose">
                   {level.verseLines[0]}
                 </p>
-                <p className="text-sm w-full text-left sm:text-lg font-semibold leading-loose">
+                <p className="text-sm w-full sm:text-lg font-semibold leading-loose">
                   {level.verseLines[1]}
                 </p>
               </>
@@ -81,7 +82,7 @@ function ShootingScene({
             )}
             <p className="text-[11px] sm:text-sm text-muted-foreground mt-1">
               جاسوس کدام است؟ نقشی را که در این{" "}
-              {level.contentType === "بیت" ? "بیت" : "جمله"} وجود ندارد نشانه
+              {level.contentType === "poem" ? "بیت" : "جمله"} وجود ندارد نشانه
               بگیر
             </p>
           </div>
@@ -92,13 +93,13 @@ function ShootingScene({
           className="mt-6 py-12 inset-x-0 z-30
        flex items-end justify-center gap-x-3 xs:gap-x-6 sm:gap-x-12 px-2"
         >
-          {level.suspects.map((s) => (
+          {level.suspects.map((s, i) => (
             <Suspect
-              key={s.role}
+              key={i}
               role={s.role}
-              state={stateFor(s)}
+              state={stateFor(i)}
               wordInVerse={s.wordInVerse}
-              onShoot={() => handleShoot(s)}
+              onShoot={() => handleShoot(s, i)}
             />
           ))}
         </div>
@@ -154,9 +155,7 @@ function ShootingScene({
                     result === "correct" ? "text-primary" : "text-destructive"
                   }`}
                 >
-                  {result === "correct"
-                    ? "زدیش! جاسوس همین بود"
-                    : "!اشتباه زدی"}
+                  {result === "correct" ? "زدیش! جاسوس همین بود" : "!اشتباه زدی"}
                 </p>
                 <p
                   dir="rtl"

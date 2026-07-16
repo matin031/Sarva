@@ -17,6 +17,13 @@ type Props = {
  * stream puts them — inline with the text flow, not in a separate form
  * below. Because it's plain inline elements, it wraps naturally on narrow
  * screens instead of needing manual breakpoints.
+ *
+ * Exception: a `blank` token that comes immediately after a `highlight`
+ * token (the highlightThenBlank() authoring pattern — "write the meaning of
+ * the underlined word") is NOT rendered inline. Sitting an input between
+ * two words of the same sentence breaks the reading flow, so instead the
+ * word stays underlined in place and its input is pulled into a labeled
+ * "word: answer" row below the whole passage.
  */
 export default function RichPassageView({
   passage,
@@ -26,6 +33,17 @@ export default function RichPassageView({
   onSelectChange,
   disabled,
 }: Props) {
+  const tokenLists = passage.lines ?? (passage.tokens ? [passage.tokens] : []);
+  const belowBlanks = tokenLists.flatMap((tokens) =>
+    tokens.flatMap((token, i) => {
+      const next = tokens[i + 1];
+      return token.kind === "highlight" && next?.kind === "blank"
+        ? [{ blankId: next.blankId, word: token.value }]
+        : [];
+    }),
+  );
+  const belowBlankIds = new Set(belowBlanks.map((b) => b.blankId));
+
   const renderTokens = (tokens: RichPassage["tokens"] & {}) =>
     tokens.map((token, i) => {
       switch (token.kind) {
@@ -38,6 +56,7 @@ export default function RichPassageView({
             </span>
           );
         case "blank":
+          if (belowBlankIds.has(token.blankId)) return null;
           return (
             <input
               key={i}
@@ -77,21 +96,47 @@ export default function RichPassageView({
       }
     });
 
+  const belowBlanksRow = belowBlanks.length > 0 && (
+    <div dir="rtl" className="mt-3 flex flex-col gap-2 text-right">
+      {belowBlanks.map(({ blankId, word }) => (
+        <div key={blankId} className="flex items-center gap-2">
+          <span className="shrink-0 text-sm font-semibold text-primary">{word}:</span>
+          <input
+            type="text"
+            inputMode="text"
+            disabled={disabled}
+            value={blankValues[blankId] ?? ""}
+            onChange={(e) => onBlankChange?.(blankId, e.target.value)}
+            placeholder="پاسخ"
+            className="min-h-11 flex-1 rounded-xl border border-border bg-card px-3 py-2 text-base outline-none
+              placeholder:text-muted-foreground focus:border-primary disabled:opacity-60"
+          />
+        </div>
+      ))}
+    </div>
+  );
+
   if (passage.lines) {
     return (
-      <div dir="rtl" className="flex flex-col items-center gap-2 text-center">
-        {passage.lines.map((line, i) => (
-          <div key={i} className="flex flex-wrap items-center justify-center gap-x-1 gap-y-2">
-            {renderTokens(line)}
-          </div>
-        ))}
+      <div>
+        <div dir="rtl" className="flex flex-col items-center gap-2 text-center">
+          {passage.lines.map((line, i) => (
+            <div key={i} className="flex flex-wrap items-center justify-center gap-x-1 gap-y-2">
+              {renderTokens(line)}
+            </div>
+          ))}
+        </div>
+        {belowBlanksRow}
       </div>
     );
   }
 
   return (
-    <div dir="rtl" className="flex flex-wrap items-center gap-x-1 gap-y-2 leading-loose text-right">
-      {renderTokens(passage.tokens ?? [])}
+    <div>
+      <div dir="rtl" className="flex flex-wrap items-center gap-x-1 gap-y-2 leading-loose text-right">
+        {renderTokens(passage.tokens ?? [])}
+      </div>
+      {belowBlanksRow}
     </div>
   );
 }

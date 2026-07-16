@@ -8,10 +8,23 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import { MORE_NAV_LINKS } from "@/lib/site-nav";
 
 function Header() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -128,9 +141,42 @@ function Header() {
           آغاز یادگیری
         </Link>
         |
-        {/* <Link className=" hover:text-primary transition-all" href={"/bazi"}>
-          بازی
-        </Link> */}
+        <div className="relative" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            className="flex items-center gap-x-1 hover:text-primary transition-all"
+          >
+            بیشتر
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className={`size-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {moreOpen && (
+            <div
+              dir="rtl"
+              className="absolute top-full right-0 z-50 mt-2 flex min-w-40 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-lg"
+            >
+              {MORE_NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMoreOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-normal hover:bg-accent/70 transition-all"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
         <Link className=" hover:text-primary transition-all" href={"/guide"}>
           راهنما
         </Link>

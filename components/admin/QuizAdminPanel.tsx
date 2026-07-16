@@ -93,7 +93,10 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
       offset: items.length,
     });
     setLoadingPage(false);
-    setItems((prev) => [...prev, ...result.items]);
+    setItems((prev) => {
+      const seen = new Set(prev.map((q) => q.id));
+      return [...prev, ...result.items.filter((q) => !seen.has(q.id))];
+    });
     setTotal(result.total);
   }
 

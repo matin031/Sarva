@@ -97,7 +97,12 @@ export async function quizAdminList(params: QuizListParams = {}): Promise<{ item
   let query = supabase
     .from("questions")
     .select("id, type, poem, audio_url, difficulty, question_options(id)", { count: "exact" })
-    .order("created_at", { ascending: false });
+    // `id` is a tiebreaker: many rows share the same created_at (bulk-seeded),
+    // and range() pagination over a non-unique sort can return the same row
+    // on two different pages (or skip one) since ties aren't ordered
+    // consistently across separate queries.
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true });
 
   if (params.type) query = query.eq("type", params.type);
   if (params.difficulty) query = query.eq("difficulty", params.difficulty);

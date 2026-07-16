@@ -51,7 +51,7 @@ async function importExam(examKey: string, exam: SeedExam) {
 
     for (const [qIndex, question] of section.questions.entries()) {
       const { data: questionRow, error: questionError } = await supabase
-        .from("questions")
+        .from("exam_questions")
         .insert({
           exam_section_id: sectionRow.id,
           number: question.number,
@@ -66,7 +66,7 @@ async function importExam(examKey: string, exam: SeedExam) {
 
       for (const [partIndex, part] of question.parts.entries()) {
         const { data: partRow, error: partError } = await supabase
-          .from("question_parts")
+          .from("exam_question_parts")
           .insert({
             question_id: questionRow.id,
             part_index: partIndex,
@@ -86,7 +86,7 @@ async function importExam(examKey: string, exam: SeedExam) {
         }
 
         if (part.options?.length) {
-          const { error: optionsError } = await supabase.from("question_options").insert(
+          const { error: optionsError } = await supabase.from("exam_question_options").insert(
             part.options.map((o, i) => ({
               question_part_id: partRow.id,
               option_key: o.optionKey ?? null,

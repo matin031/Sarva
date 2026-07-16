@@ -29,14 +29,14 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
   if (sectionsError) throw new Error(`getExamByKey(${examKey}) sections: ${sectionsError.message}`);
 
   const { data: questions, error: questionsError } = await supabase
-    .from("questions")
+    .from("exam_questions")
     .select("id, exam_section_id, number, page_ref, instruction, layout_pattern, order_index")
     .in("exam_section_id", (sections ?? []).map((s) => s.id))
     .order("order_index");
   if (questionsError) throw new Error(`getExamByKey(${examKey}) questions: ${questionsError.message}`);
 
   const { data: parts, error: partsError } = await supabase
-    .from("question_parts")
+    .from("exam_question_parts")
     .select(
       "id, question_id, part_index, label, type, score, content, correct_answer, accepted_answers, grading_mode, ai_grading_hint",
     )
@@ -45,7 +45,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
   if (partsError) throw new Error(`getExamByKey(${examKey}) parts: ${partsError.message}`);
 
   const { data: options, error: optionsError } = await supabase
-    .from("question_options")
+    .from("exam_question_options")
     .select("id, question_part_id, option_key, order_index, text, is_correct")
     .in("question_part_id", (parts ?? []).map((p) => p.id))
     .order("order_index");

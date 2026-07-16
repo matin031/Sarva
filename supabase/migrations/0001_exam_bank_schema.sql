@@ -3,6 +3,14 @@
 -- "part" of a question, typed against the 23-type catalogue from
 -- spec-azmoon-online.md. Student attempts/answers are NOT part of this
 -- migration — that is a later phase once the authoring model is settled.
+--
+-- Table names are prefixed exam_* (exam_questions / exam_question_parts /
+-- exam_question_options) rather than the shorter questions/question_parts/
+-- question_options: this project already has unrelated `questions` and
+-- `question_options` tables for the pre-existing poetry-meter quiz
+-- (app/quiz/page.tsx — columns id/type/poem/audio_url, nothing like this
+-- schema). Reusing those names would either collide outright or, worse,
+-- silently coexist with the wrong column expectations.
 
 create extension if not exists pgcrypto;
 
@@ -14,8 +22,9 @@ create extension if not exists pgcrypto;
 -- component. The 5 catalogue types that are not here (multi-subquestion,
 -- bracket-choice-mcq, multi-item-true-false, multi-paraphrase-block,
 -- list-of-parallel-blanks) are "container patterns": a question of one of
--- those shapes is just several question_parts rows (each an atomic type
--- below) sharing one `questions` row. See questions.layout_pattern.
+-- those shapes is just several exam_question_parts rows (each an atomic
+-- type below) sharing one `exam_questions` row. See
+-- exam_questions.layout_pattern.
 create type question_part_type as enum (
   'word-meaning-input',
   'mcq-inline',
@@ -51,7 +60,7 @@ create type grading_mode as enum (
 );
 
 -- ---------------------------------------------------------------------------
--- exams / exam_sections / questions / question_parts / question_options
+-- exams / exam_sections / exam_questions / exam_question_parts / exam_question_options
 -- ---------------------------------------------------------------------------
 
 create table exams (
@@ -72,12 +81,12 @@ create table exam_sections (
   title text not null,                 -- 'قلمرو زبانی' / 'قلمرو ادبی' / 'قلمرو فکری'
   order_index smallint not null,
   section_score numeric(5,2) not null, -- declared total (7 / 5 / 8); cross-checked
-                                        -- against sum(question_parts.score) in app code,
+                                        -- against sum(exam_question_parts.score) in app code,
                                         -- not enforced in SQL (avoids fragile triggers).
   unique (exam_id, order_index)
 );
 
-create table questions (
+create table exam_questions (
   id uuid primary key default gen_random_uuid(),
   exam_section_id uuid not null references exam_sections(id) on delete cascade,
   number smallint not null,            -- display number, 1..41
@@ -87,7 +96,7 @@ create table questions (
                                         -- their own text. See lib/exam/content-schemas.ts.
   instruction text,                    -- صورت‌سؤال / instructions text
   layout_pattern text
-    constraint questions_layout_pattern_check check (
+    constraint exam_questions_layout_pattern_check check (
       layout_pattern is null or layout_pattern in (
         'multi-subquestion',
         'bracket-choice-mcq',
@@ -101,9 +110,9 @@ create table questions (
   unique (exam_section_id, number)
 );
 
-create table question_parts (
+create table exam_question_parts (
   id uuid primary key default gen_random_uuid(),
-  question_id uuid not null references questions(id) on delete cascade,
+  question_id uuid not null references exam_questions(id) on delete cascade,
   part_index smallint not null default 0,
   label text,                          -- 'الف' / 'ب' / ... — null for single-part questions
   type question_part_type not null,
@@ -120,9 +129,9 @@ create table question_parts (
   unique (question_id, part_index)
 );
 
-create table question_options (
+create table exam_question_options (
   id uuid primary key default gen_random_uuid(),
-  question_part_id uuid not null references question_parts(id) on delete cascade,
+  question_part_id uuid not null references exam_question_parts(id) on delete cascade,
   option_key text,                     -- 'الف' / 'ب' / 'ج' / ... — null if unlabeled
   order_index smallint not null,
   text text not null,
@@ -133,18 +142,18 @@ create table question_options (
   unique (question_part_id, order_index)
 );
 
-create index questions_exam_section_id_idx on questions (exam_section_id);
-create index question_parts_question_id_idx on question_parts (question_id);
-create index question_options_question_part_id_idx on question_options (question_part_id);
+create index exam_questions_exam_section_id_idx on exam_questions (exam_section_id);
+create index exam_question_parts_question_id_idx on exam_question_parts (question_id);
+create index exam_question_options_question_part_id_idx on exam_question_options (question_part_id);
 
 -- Convenience view: per-question total score (sum of its parts), used to
 -- cross-check against exam_sections.section_score / exams.total_score.
-create view question_totals as
+create view exam_question_totals as
   select
     q.id as question_id,
     q.exam_section_id,
     q.number,
     sum(qp.score) as total_score
-  from questions q
-  join question_parts qp on qp.question_id = q.id
+  from exam_questions q
+  join exam_question_parts qp on qp.question_id = q.id
   group by q.id, q.exam_section_id, q.number;

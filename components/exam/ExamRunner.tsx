@@ -5,7 +5,11 @@ import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
-import { submitExamAttempt, submitQuestion, type QuestionResult } from "@/app/exam/[examKey]/actions";
+import {
+  submitExamAttempt,
+  submitQuestion,
+  type QuestionResult,
+} from "@/app/exam/[examKey]/actions";
 
 type Props = {
   examKey: string;
@@ -22,7 +26,12 @@ type Progress = {
   showResults: boolean;
 };
 
-const emptyProgress: Progress = { currentIndex: 0, answers: {}, questionResults: {}, showResults: false };
+const emptyProgress: Progress = {
+  currentIndex: 0,
+  answers: {},
+  questionResults: {},
+  showResults: false,
+};
 
 function storageKey(examKey: string) {
   return `exam-progress:${examKey}`;
@@ -42,7 +51,10 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const flatQuestions = useMemo<FlatQuestion[]>(
     () =>
       exam.sections.flatMap((section) =>
-        section.questions.map((question) => ({ sectionTitle: section.title, question })),
+        section.questions.map((question) => ({
+          sectionTitle: section.title,
+          question,
+        })),
       ),
     [exam],
   );
@@ -66,7 +78,10 @@ export default function ExamRunner({ examKey, exam }: Props) {
         restoredProgress = {
           currentIndex:
             typeof parsed.currentIndex === "number"
-              ? Math.min(Math.max(parsed.currentIndex, 0), flatQuestions.length - 1)
+              ? Math.min(
+                  Math.max(parsed.currentIndex, 0),
+                  flatQuestions.length - 1,
+                )
               : 0,
           answers: parsed.answers ?? {},
           questionResults: parsed.questionResults ?? {},
@@ -89,7 +104,10 @@ export default function ExamRunner({ examKey, exam }: Props) {
 
   if (!restored) {
     return (
-      <div dir="rtl" className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-muted-foreground">
+      <div
+        dir="rtl"
+        className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-muted-foreground"
+      >
         ...در حال بارگذاری
       </div>
     );
@@ -103,7 +121,11 @@ export default function ExamRunner({ examKey, exam }: Props) {
     question.parts.map((_, i) => [i, answers[`${question.number}:${i}`]]),
   );
   const hasAnyAnswer = Object.values(currentAnswers).some(
-    (v) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0),
+    (v) =>
+      v !== undefined &&
+      v !== null &&
+      v !== "" &&
+      !(Array.isArray(v) && v.length === 0),
   );
 
   const setAnswer = (partIndex: number, value: unknown) => {
@@ -117,10 +139,17 @@ export default function ExamRunner({ examKey, exam }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await submitQuestion(examKey, question.number, currentAnswers);
+        const result = await submitQuestion(
+          examKey,
+          question.number,
+          currentAnswers,
+        );
         setProgress((prev) => ({
           ...prev,
-          questionResults: { ...prev.questionResults, [question.number]: result },
+          questionResults: {
+            ...prev.questionResults,
+            [question.number]: result,
+          },
         }));
       } catch {
         setError("مشکلی در ثبت پاسخ پیش آمد. دوباره تلاش کنید.");
@@ -183,11 +212,20 @@ export default function ExamRunner({ examKey, exam }: Props) {
   };
 
   if (showResults) {
-    return <ExamResults exam={exam} questionResults={questionResults} onRetry={handleRetry} />;
+    return (
+      <ExamResults
+        exam={exam}
+        questionResults={questionResults}
+        onRetry={handleRetry}
+      />
+    );
   }
 
   return (
-    <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-6 pb-28 xs:px-5">
+    <div
+      dir="rtl"
+      className="mx-auto mt-8 flex max-w-xl flex-col gap-4 px-4 py-6 pb-28 xs:px-5"
+    >
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -239,7 +277,9 @@ export default function ExamRunner({ examKey, exam }: Props) {
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / flatQuestions.length) * 100}%` }}
+          style={{
+            width: `${((currentIndex + 1) / flatQuestions.length) * 100}%`,
+          }}
         />
       </div>
 
@@ -289,7 +329,11 @@ export default function ExamRunner({ examKey, exam }: Props) {
                 : "ثبت پاسخ"}
           </button>
         </div>
-        {error && <p className="mx-auto mt-2 max-w-xl text-center text-xs text-destructive">{error}</p>}
+        {error && (
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs text-destructive">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );

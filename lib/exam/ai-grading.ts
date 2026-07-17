@@ -5,23 +5,30 @@ import { matchesAny, normalizeFa, statusFromRatio, type PartGradeResult } from "
 /**
  * Server-only AI grading for the open-ended exam parts that gradePart()
  * leaves as "needs_review" (gradingMode "ai_semantic" / "ai_partial_credit").
- * Uses Google's Gemini API (free tier) via plain fetch — no SDK dependency.
+ * Uses a chat LLM via plain fetch — no SDK dependency. Two providers are
+ * supported and chosen by which key is set:
+ *  - GROQ_API_KEY  → Groq (OpenAI-compatible; real free tier, works from
+ *    accounts Google's free tier refuses — e.g. Iran-registered accounts,
+ *    where Gemini's free tier is capped at 0). Preferred when present.
+ *  - GEMINI_API_KEY → Google Gemini.
  *
  * Design choices that matter:
  *  - Exact matches short-circuit BEFORE any network call, so a student who
  *    writes the textbook answer verbatim is scored for free and instantly.
  *    The model is only consulted for answers that aren't literal matches.
- *  - Every failure path (no API key, network blocked, unparseable reply)
- *    falls back to "needs_review" instead of throwing. An exam must never
- *    break because the grader is unreachable — e.g. Gemini is geo-blocked
- *    from inside Iran, so this only works when the server runs abroad
- *    (Vercel etc.); locally it degrades to "needs_review", not an error.
+ *  - Every failure path (no API key, network blocked, quota exhausted,
+ *    unparseable reply) falls back to "needs_review" instead of throwing.
+ *    An exam must never break because the grader is unreachable — both
+ *    providers are geo-blocked from inside Iran, so locally this needs a
+ *    system-wide VPN; on a server abroad (Vercel) it just works. Either
+ *    way, when it can't grade it degrades to "needs_review", not an error.
  *  - This file is server-only (imported by the "use server" submit action),
  *    same boundary as grading.ts — it reads the full answer key.
  */
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
-const GEMINI_TIMEOUT_MS = 15_000;
+const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const LLM_TIMEOUT_MS = 15_000;
 
 type SubItem = { label?: string; studentAnswer: string; accepted: string[] };
 type AIGradable = { questionText: string; items: SubItem[] };
@@ -81,14 +88,71 @@ function extractGradable(part: SeedPart, submitted: unknown): AIGradable | null 
   }
 }
 
-type GeminiResult = { score: number; feedback: string };
+type LLMResult = { score: number; feedback: string };
 
-async function callGemini(prompt: string, itemCount: number): Promise<GeminiResult[] | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+/** Normalizes a raw {results:[{score,feedback}]} JSON string into our shape,
+ *  or null if it doesn't have exactly one entry per graded item. */
+function parseResults(text: string, itemCount: number): LLMResult[] | null {
+  try {
+    const parsed = JSON.parse(text) as { results?: LLMResult[] };
+    const results = parsed.results;
+    if (!Array.isArray(results) || results.length !== itemCount) return null;
+    return results.map((r) => ({
+      score: Math.max(0, Math.min(1, Number(r.score) || 0)),
+      feedback: String(r.feedback ?? "").trim(),
+    }));
+  } catch {
+    return null;
+  }
+}
 
+/** Dispatches to whichever provider is configured. Groq wins when its key
+ *  is present (its free tier actually works for Iran-registered accounts,
+ *  unlike Gemini's). Returns null on any failure → caller shows needs_review. */
+async function callLLM(prompt: string, itemCount: number): Promise<LLMResult[] | null> {
+  if (process.env.GROQ_API_KEY) return callGroq(prompt, itemCount);
+  if (process.env.GEMINI_API_KEY) return callGemini(prompt, itemCount);
+  return null;
+}
+
+async function callGroq(prompt: string, itemCount: number): Promise<LLMResult[] | null> {
+  const apiKey = process.env.GROQ_API_KEY!;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error(`Groq grading HTTP ${res.status}: ${await res.text().catch(() => "")}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text !== "string") return null;
+    return parseResults(text, itemCount);
+  } catch (err) {
+    console.error("Groq grading failed:", err);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callGemini(prompt: string, itemCount: number): Promise<LLMResult[] | null> {
+  const apiKey = process.env.GEMINI_API_KEY!;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
 
   try {
     const res = await fetch(
@@ -129,15 +193,7 @@ async function callGemini(prompt: string, itemCount: number): Promise<GeminiResu
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== "string") return null;
-
-    const parsed = JSON.parse(text) as { results?: GeminiResult[] };
-    const results = parsed.results;
-    if (!Array.isArray(results) || results.length !== itemCount) return null;
-
-    return results.map((r) => ({
-      score: Math.max(0, Math.min(1, Number(r.score) || 0)),
-      feedback: String(r.feedback ?? "").trim(),
-    }));
+    return parseResults(text, itemCount);
   } catch (err) {
     console.error("Gemini grading failed:", err);
     return null;
@@ -196,7 +252,7 @@ export async function gradePartWithAI(part: SeedPart, submitted: unknown): Promi
   const needsAI = gradable.items.filter((_, i) => ratios[i] === null);
   if (needsAI.length > 0) {
     const prompt = buildPrompt(gradable, part.aiGradingHint, needsAI);
-    const aiResults = await callGemini(prompt, needsAI.length);
+    const aiResults = await callLLM(prompt, needsAI.length);
     if (!aiResults) {
       return { score: 0, maxScore, status: "needs_review" };
     }

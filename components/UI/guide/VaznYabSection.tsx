@@ -376,16 +376,36 @@ function VaznYabSection({
 }
 
 function ResultLoadingOverlay() {
+  // an animated equalizer — bars rise and fall in a travelling wave, which
+  // reads as "listening to the rhythm" and fits a meter-analysis tool far
+  // better than a generic spinner
+  const bars = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl">
-      <div className="flex flex-col items-center gap-y-3">
-        <span className="relative flex size-9">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
-          <span className="relative inline-flex size-9 items-center justify-center rounded-full bg-primary/20">
-            <span className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          </span>
-        </span>
-        <span className="text-xs text-muted-foreground">در حال تحلیل وزن…</span>
+    <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl bg-card/50 backdrop-blur-[3px]">
+      <div className="flex flex-col items-center gap-y-4">
+        <div className="flex h-11 items-center gap-[5px]">
+          {bars.map((i) => (
+            <motion.span
+              key={i}
+              className="w-[5px] rounded-full bg-gradient-to-b from-primary to-primary/60 shadow-[0_0_10px_var(--color-primary)]"
+              style={{ height: "25%" }}
+              animate={{ height: ["25%", "100%", "25%"] }}
+              transition={{
+                duration: 0.9,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.09,
+              }}
+            />
+          ))}
+        </div>
+        <motion.span
+          className="text-xs sm:text-sm font-medium text-muted-foreground"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          در حال تحلیل وزن…
+        </motion.span>
       </div>
     </div>
   );

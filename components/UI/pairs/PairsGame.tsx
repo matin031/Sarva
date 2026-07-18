@@ -14,13 +14,13 @@ function GoldBorder() {
   return (
     <motion.div
       aria-hidden
-      className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2"
+      className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-70"
       style={{
         background:
-          "conic-gradient(from 0deg, transparent 0deg, var(--color-gold) 40deg, transparent 110deg, transparent 180deg, var(--color-gold) 220deg, transparent 290deg)",
+          "conic-gradient(from 0deg, transparent 0deg, var(--color-gold) 35deg, transparent 80deg, transparent 360deg)",
       }}
       animate={{ rotate: 360 }}
-      transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
+      transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
     />
   );
 }
@@ -109,7 +109,7 @@ function PairsGame() {
             <motion.div
               key={i}
               variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
-              className="glass flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+              className="glass relative z-20 flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
             >
               <span className="rounded-lg bg-gold/15 px-3 py-1.5 text-sm font-bold text-foreground">
                 {p.work}
@@ -197,9 +197,9 @@ function PairsGame() {
               type="button"
               onClick={() => handleFlip(index)}
               disabled={isUp || locked}
-              className="relative aspect-[3/4] overflow-hidden rounded-xl p-[2px] [perspective:800px]"
+              className="relative aspect-[3/4] overflow-hidden rounded-xl bg-border p-[2px] [perspective:800px]"
             >
-              <GoldBorder />
+              {!isUp && <GoldBorder />}
               <motion.div
                 className="relative h-full w-full [transform-style:preserve-3d]"
                 animate={{ rotateY: isUp ? 180 : 0 }}

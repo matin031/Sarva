@@ -12,7 +12,18 @@ type Props = {
   /** When present, the question has been submitted — each part renders a
    *  "پاسخ صحیح" reveal box under it, colored by grading status. */
   partResults?: PartResult[];
+  /** Called when the student self-scores an open-ended part (selfGrade). */
+  onSelfGrade?: (partIndex: number, score: number) => void;
 };
+
+const faNum = (n: number) => n.toLocaleString("fa-IR", { maximumFractionDigits: 2 });
+
+/** Score options for a self-graded part: 0 up to maxScore in 0.25 steps
+ *  (e.g. maxScore 1 → 0, ۰٫۲۵, ۰٫۵, ۰٫۷۵, ۱). */
+function scoreOptions(maxScore: number): number[] {
+  const steps = Math.round(maxScore / 0.25);
+  return Array.from({ length: steps + 1 }, (_, i) => i * 0.25);
+}
 
 const statusStyles: Record<
   PartResult["status"],
@@ -47,6 +58,7 @@ export default function ExamQuestionCard({
   onAnswerChange,
   disabled,
   partResults,
+  onSelfGrade,
 }: Props) {
   const totalScore = question.parts.reduce((sum, p) => sum + p.score, 0);
 
@@ -106,35 +118,67 @@ export default function ExamQuestionCard({
                 onChange={(v) => onAnswerChange(partIndex, v)}
                 disabled={disabled}
               />
-              {result && (
-                <div
-                  dir="rtl"
-                  className={`flex flex-col gap-1 rounded-xl border px-3 py-2 text-sm ${statusStyles[result.status].className}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">
-                      {statusStyles[result.status].label}
-                    </span>
-                    {result.status !== "needs_review" && (
-                      <span className="text-xs">
-                        {result.score.toFixed(2)} / {result.maxScore}
-                      </span>
-                    )}
-                  </div>
-                  <p className="leading-relaxed">
-                    <span className="text-muted-foreground">پاسخ صحیح: </span>
-                    {result.correctAnswerText}
-                  </p>
-                  {result.feedback && (
-                    <p className="mt-1 flex gap-1.5 border-t border-current/15 pt-1.5 leading-relaxed whitespace-pre-line">
-                      <span className="shrink-0" aria-hidden>
-                        ✦
-                      </span>
-                      <span>{result.feedback}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+              {result &&
+                (() => {
+                  // A self-graded part starts as needs_review (ungraded);
+                  // once the student picks a score its status flips to
+                  // correct/partial/incorrect, so "graded" = not needs_review.
+                  const isSelfGrade = result.selfGrade;
+                  const graded = result.status !== "needs_review";
+                  const style = isSelfGrade && !graded ? statusStyles.needs_review : statusStyles[result.status];
+                  return (
+                    <div dir="rtl" className={`flex flex-col gap-1 rounded-xl border px-3 py-2 text-sm ${style.className}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">
+                          {isSelfGrade && !graded ? "خودارزیابی" : style.label}
+                        </span>
+                        {(!isSelfGrade ? result.status !== "needs_review" : graded) && (
+                          <span className="text-xs">
+                            {faNum(result.score)} / {faNum(result.maxScore)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="leading-relaxed">
+                        <span className="text-muted-foreground">پاسخ صحیح: </span>
+                        {result.correctAnswerText}
+                      </p>
+                      {isSelfGrade && (
+                        <div className="mt-1.5 border-t border-current/15 pt-2">
+                          <p className="mb-2 text-xs text-muted-foreground">
+                            پاسخت را با پاسخ صحیح مقایسه کن و به خودت نمره بده:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {scoreOptions(result.maxScore).map((v) => {
+                              const selected = graded && Math.abs(result.score - v) < 0.001;
+                              return (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  onClick={() => onSelfGrade?.(partIndex, v)}
+                                  className={`min-h-9 min-w-11 rounded-lg border px-3 text-sm font-semibold transition-all ${
+                                    selected
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border bg-card text-foreground hover:border-primary/50"
+                                  }`}
+                                >
+                                  {faNum(v)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {result.feedback && (
+                        <p className="mt-1 flex gap-1.5 border-t border-current/15 pt-1.5 leading-relaxed whitespace-pre-line">
+                          <span className="shrink-0" aria-hidden>
+                            ✦
+                          </span>
+                          <span>{result.feedback}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
             </div>
           );
         })}

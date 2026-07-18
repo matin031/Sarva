@@ -157,6 +157,23 @@ export default function ExamRunner({ examKey, exam }: Props) {
     });
   };
 
+  const handleSelfGrade = (partIndex: number, score: number) => {
+    setProgress((prev) => {
+      const qr = prev.questionResults[question.number];
+      if (!qr) return prev;
+      const parts = qr.parts.map((p, i) => {
+        if (i !== partIndex) return p;
+        const status =
+          score >= p.maxScore ? "correct" : score <= 0 ? "incorrect" : "partial";
+        return { ...p, score, status: status as typeof p.status };
+      });
+      return {
+        ...prev,
+        questionResults: { ...prev.questionResults, [question.number]: { ...qr, parts } },
+      };
+    });
+  };
+
   const goNext = () => {
     if (isLast) {
       setProgress((prev) => ({ ...prev, showResults: true }));
@@ -300,6 +317,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
         onAnswerChange={setAnswer}
         disabled={isRevealed || isPending}
         partResults={questionResults[question.number]?.parts}
+        onSelfGrade={handleSelfGrade}
       />
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md xs:px-5">

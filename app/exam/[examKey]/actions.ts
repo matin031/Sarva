@@ -2,7 +2,6 @@
 
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { gradePart } from "@/lib/exam/grading";
-import { gradePartWithAI } from "@/lib/exam/ai-grading";
 import { getExamByKey } from "@/lib/exam/db-exam";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -21,6 +20,9 @@ export type PartResult = {
   correctAnswerText: string;
   /** Short AI feedback shown to the student, present only for AI-graded parts. */
   feedback?: string;
+  /** True for open-ended (conceptual) parts that the student scores
+   *  themselves against the revealed answer — no auto/AI grading. */
+  selfGrade?: boolean;
 };
 
 export type QuestionResult = {
@@ -42,25 +44,30 @@ export async function submitQuestion(
   const question = exam.sections.flatMap((s) => s.questions).find((q) => q.number === questionNumber);
   if (!question) throw new Error(`Unknown question: ${questionNumber}`);
 
-  // Parts are graded in parallel: exact_match ones resolve synchronously,
-  // AI ones (ai_semantic / ai_partial_credit) await Gemini. Most questions
-  // have a single part, so this is usually one await at most.
-  const parts = await Promise.all(
-    question.parts.map(async (part, partIndex) => {
-      const graded =
-        part.gradingMode === "exact_match"
-          ? gradePart(part, partIndex, answers[partIndex])
-          : await gradePartWithAI(part, answers[partIndex]);
+  // exact_match parts are auto-graded here. Open-ended (conceptual) parts
+  // are not auto-graded for now — the student sees the correct answer and
+  // scores themselves (selfGrade), which works offline without any AI
+  // service. The ai-grading module is kept for a later server-side deploy.
+  const parts: PartResult[] = question.parts.map((part, partIndex) => {
+    if (part.gradingMode === "exact_match") {
+      const graded = gradePart(part, partIndex, answers[partIndex]);
       return {
         label: part.label,
         score: graded.score,
         maxScore: graded.maxScore,
         status: graded.status,
         correctAnswerText: formatCorrectAnswer(part),
-        feedback: graded.feedback,
       };
-    }),
-  );
+    }
+    return {
+      label: part.label,
+      score: 0,
+      maxScore: part.score,
+      status: "needs_review",
+      correctAnswerText: formatCorrectAnswer(part),
+      selfGrade: true,
+    };
+  });
 
   return { number: question.number, parts };
 }

@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import JasoosGame from "@/components/UI/jasoos/JasoosGame";
 import NinjaGame from "@/components/UI/ninja/NinjaGame";
+import PairsGame from "@/components/UI/pairs/PairsGame";
 
-type GameId = "jasoos" | "ninja";
+type GameId = "jasoos" | "ninja" | "pairs";
 
 const ACTIVE_GAME_KEY = "bazi-active-game";
 
@@ -28,6 +29,13 @@ const GAMES: {
       "کلماتِ یک دسته‌ی دستوری (قید، صفت، حرف ربط، ضمیر) را حفظ کن، بعد از بین صدها کلمه‌ی دیگر که توی هوا پرت می‌شوند، فقط همان‌ها را برش بزن.",
     cta: "شروع بازی",
   },
+  {
+    id: "pairs",
+    title: "جفت‌های ادبی",
+    description:
+      "کارت‌ها را برگردان و هر اثر بزرگِ ادبیات فارسی را به پدیدآورنده‌اش جفت کن؛ بازیِ حافظه‌ای که نویسنده و اثر را در ذهنت ماندگار می‌کند.",
+    cta: "شروع بازی",
+  },
 ];
 
 function GamesHub() {
@@ -39,7 +47,7 @@ function GamesHub() {
   // requires the browser, so this can only happen after mount
   useEffect(() => {
     const saved = localStorage.getItem(ACTIVE_GAME_KEY);
-    if (saved === "jasoos" || saved === "ninja") {
+    if (saved === "jasoos" || saved === "ninja" || saved === "pairs") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActive(saved);
     }
@@ -112,6 +120,7 @@ function GamesHub() {
         </div>
         {active === "jasoos" && <JasoosGame />}
         {active === "ninja" && <NinjaGame />}
+        {active === "pairs" && <PairsGame />}
 
         <AnimatePresence>
           {showExitConfirm && (

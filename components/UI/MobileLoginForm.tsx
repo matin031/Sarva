@@ -46,8 +46,45 @@ export default function LoginForm({
   const {
     register: registerEmail,
     handleSubmit: handleEmailSubmit,
+    getValues: getEmailValues,
     formState: { errors: emailErrors },
   } = useForm<EmailFormData>({ resolver: zodResolver(emailSchema) });
+
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  const openForgot = () => {
+    setResetEmail(getEmailValues("email") || "");
+    setResetError(null);
+    setResetSent(false);
+    setForgotOpen(true);
+  };
+
+  const sendReset = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail)) {
+      setResetError("ایمیل معتبر نیست");
+      return;
+    }
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      setResetLoading(false);
+      if (error) {
+        setResetError("ارسال لینک با خطا مواجه شد. دوباره تلاش کنید.");
+        return;
+      }
+      setResetSent(true);
+    } catch {
+      setResetLoading(false);
+      setResetError("خطای اتصال. اینترنت خود را بررسی کنید.");
+    }
+  };
 
   useEffect(() => {
     if (showOtp) {
@@ -119,6 +156,7 @@ export default function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
+    <>
     <form
       onSubmit={
         tab === "mobile"
@@ -212,9 +250,13 @@ export default function LoginForm({
           </div>
           <div className="mt-5">
             <div className=" flex items-center justify-between">
-              <span className=" text-sm cursor-pointer text-primary">
+              <button
+                type="button"
+                onClick={openForgot}
+                className=" text-sm cursor-pointer text-primary hover:underline"
+              >
                 فراموش کردی؟
-              </span>
+              </button>
               <span className=" text-sm text-muted-foreground">رمز عبور</span>
             </div>
             <div className="border  px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
@@ -294,5 +336,73 @@ export default function LoginForm({
         </span>
       </p>
     </form>
+
+    {forgotOpen && (
+      <div
+        dir="rtl"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+        onClick={() => setForgotOpen(false)}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
+        >
+          {resetSent ? (
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold">لینک بازیابی ارسال شد</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                یک ایمیل حاوی لینک بازنشانی رمز عبور به <span dir="ltr" className="text-foreground">{resetEmail}</span> فرستادیم. صندوق ورودی (و پوشهٔ اسپم) را بررسی کن.
+              </p>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(false)}
+                className="mt-5 min-h-11 w-full rounded-xl bg-primary font-bold text-black"
+              >
+                باشه
+              </button>
+            </div>
+          ) : (
+            <>
+              <h3 className="text-lg font-bold">بازیابی رمز عبور</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                ایمیل حسابت را وارد کن تا لینک بازنشانی رمز برایت بفرستیم.
+              </p>
+              <input
+                type="email"
+                dir="ltr"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="mt-4 w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-left outline-none focus:border-primary"
+              />
+              {resetError && <p className="mt-2 text-xs text-red-500">{resetError}</p>}
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForgotOpen(false)}
+                  className="min-h-11 flex-1 rounded-xl border border-border text-sm font-medium text-muted-foreground"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  disabled={resetLoading}
+                  onClick={sendReset}
+                  className="min-h-11 flex-1 rounded-xl bg-primary text-sm font-bold text-black disabled:opacity-60"
+                >
+                  {resetLoading ? "در حال ارسال…" : "ارسال لینک"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }

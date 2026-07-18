@@ -138,7 +138,7 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
   }
 
   const filtered = searching
-    ? items.filter((q) => TYPE_LABELS[q.type].includes(query) || q.poem?.[0]?.includes(query))
+    ? items.filter((q) => (TYPE_LABELS[q.type] ?? "").includes(query) || q.poem?.[0]?.includes(query))
     : items;
 
   return (

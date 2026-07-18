@@ -1,11 +1,18 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { NinjaRound } from "@/lib/ninja-data";
+import type { NinjaDifficulty } from "./NinjaSettingsModal";
 
-// lower gravity = slower rise/fall and more hang time in the air, while the
-// height-aware launch speed below still aims for the same apex — this is
-// the single lever that controls how "fast" the whole game feels
-const GRAVITY = 800;
+// Difficulty tunes two levers: gravity (lower = slower rise/fall, more
+// hang time to react) and how often words are launched. "easy" is
+// noticeably slower and sparser than the old fixed feel; "hard" is faster
+// and busier.
+const DIFFICULTY: Record<NinjaDifficulty, { gravity: number; spawnBase: number; spawnJitter: number }> = {
+  easy: { gravity: 480, spawnBase: 780, spawnJitter: 400 },
+  medium: { gravity: 780, spawnBase: 560, spawnJitter: 350 },
+  hard: { gravity: 1120, spawnBase: 380, spawnJitter: 260 },
+};
+
 const SLICE_RADIUS = 48;
 const CHIP_COLORS = [
   "bg-primary/85 text-primary-foreground",
@@ -51,16 +58,19 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 function SliceField({
   round,
   durationMs,
+  difficulty,
   onSlice,
   onMiss,
   onRoundComplete,
 }: {
   round: NinjaRound;
   durationMs: number;
+  difficulty: NinjaDifficulty;
   onSlice: (word: string, isTarget: boolean) => void;
   onMiss: (word: string) => void;
   onRoundComplete: () => void;
 }) {
+  const { gravity: GRAVITY, spawnBase, spawnJitter } = DIFFICULTY[difficulty];
   const containerRef = useRef<HTMLDivElement>(null);
   const trailRef = useRef<SVGPolylineElement>(null);
   const [renderWords, setRenderWords] = useState<
@@ -145,7 +155,7 @@ function SliceField({
       ...ws,
       { id, text, colorClass: word.colorClass, x0: word.x, y0: word.y },
     ]);
-  }, []);
+  }, [GRAVITY]);
 
   const updateTrailDom = () => {
     if (!trailRef.current) return;
@@ -239,7 +249,7 @@ function SliceField({
 
     function scheduleNext() {
       if (cancelled || !spawning) return;
-      const delay = 550 + Math.random() * 350;
+      const delay = spawnBase + Math.random() * spawnJitter;
       spawnTimeout = window.setTimeout(() => {
         spawnCount++;
         let text: string;

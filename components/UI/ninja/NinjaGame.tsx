@@ -5,7 +5,7 @@ import { buildNinjaRound } from "@/lib/ninja-data";
 import type { NinjaRound } from "@/lib/ninja-data";
 import StudyTable from "./StudyTable";
 import SliceField from "./SliceField";
-import NinjaSettingsModal, { NinjaSettings } from "./NinjaSettingsModal";
+import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./NinjaSettingsModal";
 
 type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
@@ -20,6 +20,7 @@ type StoredState = {
   lives: number;
   totalScore: number;
   lastMistake: string | null;
+  difficulty?: NinjaDifficulty;
 };
 
 function NinjaGame() {
@@ -28,6 +29,7 @@ function NinjaGame() {
   const [lives, setLives] = useState(START_LIVES);
   const [totalScore, setTotalScore] = useState(0);
   const [lastMistake, setLastMistake] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<NinjaDifficulty>("easy");
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
   // resume a saved run so a mid-game refresh doesn't lose progress
@@ -48,6 +50,7 @@ function NinjaGame() {
           setLives(parsed.lives ?? START_LIVES);
           setTotalScore(parsed.totalScore ?? 0);
           setLastMistake(parsed.lastMistake ?? null);
+          setDifficulty(parsed.difficulty ?? "easy");
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -64,12 +67,13 @@ function NinjaGame() {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
-    const data: StoredState = { screen, round, lives, totalScore, lastMistake };
+    const data: StoredState = { screen, round, lives, totalScore, lastMistake, difficulty };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [restoredFromStorage, screen, round, lives, totalScore, lastMistake]);
+  }, [restoredFromStorage, screen, round, lives, totalScore, lastMistake, difficulty]);
 
   const beginRound = (settings: NinjaSettings) => {
     setRound(buildNinjaRound(settings.wordCount));
+    setDifficulty(settings.difficulty);
     setLives(START_LIVES);
     setTotalScore(0);
     setLastMistake(null);
@@ -197,6 +201,7 @@ function NinjaGame() {
             <SliceField
               round={round}
               durationMs={ROUND_DURATION_MS}
+              difficulty={difficulty}
               onSlice={handleSlice}
               onMiss={handleMiss}
               onRoundComplete={handleRoundComplete}

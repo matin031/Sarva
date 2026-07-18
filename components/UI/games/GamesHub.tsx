@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import JasoosGame from "@/components/UI/jasoos/JasoosGame";
 import NinjaGame from "@/components/UI/ninja/NinjaGame";
 import PairsGame from "@/components/UI/pairs/PairsGame";
+import { JasoosPreview, NinjaPreview, PairsPreview } from "./GamePreviews";
 
 type GameId = "jasoos" | "ninja" | "pairs";
 
@@ -12,29 +13,54 @@ const ACTIVE_GAME_KEY = "bazi-active-game";
 const GAMES: {
   id: GameId;
   title: string;
-  description: string;
-  cta: string;
+  tagline: string;
+  skill: string;
+  how: string[];
+  accent: string; // tailwind text color class for the number/accents
+  chipBg: string;
+  Preview: () => React.ReactNode;
 }[] = [
   {
     id: "jasoos",
     title: "جاسوسِ نقش‌ها",
-    description:
-      "وارد مدرسه شو، پشتِ هر در یک بیت هست و چهار مظنون؛ جاسوسی را که نقشی دستوری یا آرایه‌ای ادعا می‌کند که در بیت وجود ندارد، نشانه بگیر و شلیک کن.",
-    cta: "شروع بازی",
+    tagline: "یک بیت، چهار مظنون، یک دروغگو.",
+    skill: "نقش‌های دستوری و آرایه‌های ادبی",
+    how: [
+      "پشتِ هر در یک بیت باز می‌شود و چهار مظنون ادعایی دربارهٔ آن می‌کنند.",
+      "یکی‌شان نقشی دستوری یا آرایه‌ای می‌گوید که در بیت وجود ندارد.",
+      "جاسوسِ دروغگو را نشانه بگیر و شلیک کن.",
+    ],
+    accent: "text-lapis-light",
+    chipBg: "bg-lapis-light/15 text-foreground",
+    Preview: JasoosPreview,
   },
   {
     id: "ninja",
     title: "نینجای دستور زبان",
-    description:
-      "کلماتِ یک دسته‌ی دستوری (قید، صفت، حرف ربط، ضمیر) را حفظ کن، بعد از بین صدها کلمه‌ی دیگر که توی هوا پرت می‌شوند، فقط همان‌ها را برش بزن.",
-    cta: "شروع بازی",
+    tagline: "فقط کلمه‌های درست را برش بزن.",
+    skill: "تشخیص دسته‌های دستوری",
+    how: [
+      "یک دستهٔ دستوری می‌گیری: قید، صفت، حرف ربط یا ضمیر.",
+      "ده‌ها کلمه توی هوا پرت می‌شوند و باید سریع تصمیم بگیری.",
+      "فقط کلمه‌های همان دسته را برش بزن و بقیه را رها کن.",
+    ],
+    accent: "text-primary",
+    chipBg: "bg-primary/15 text-foreground",
+    Preview: NinjaPreview,
   },
   {
     id: "pairs",
     title: "جفت‌های ادبی",
-    description:
-      "کارت‌ها را برگردان و هر اثر بزرگِ ادبیات فارسی را به پدیدآورنده‌اش جفت کن؛ بازیِ حافظه‌ای که نویسنده و اثر را در ذهنت ماندگار می‌کند.",
-    cta: "شروع بازی",
+    tagline: "هر اثر را به خالقش برسان.",
+    skill: "آثار و پدیدآورندگانِ ادب فارسی",
+    how: [
+      "اول آثار و نویسنده‌هایشان را مرور و حفظ می‌کنی.",
+      "کارت‌ها برمی‌گردند و باید از حافظه‌ات کمک بگیری.",
+      "هر اثر را به پدیدآورنده‌اش جفت کن تا همه باز شوند.",
+    ],
+    accent: "text-gold",
+    chipBg: "bg-gold/15 text-foreground",
+    Preview: PairsPreview,
   },
 ];
 
@@ -168,42 +194,106 @@ function GamesHub() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto my-10 sm:my-16">
-      <div className="text-center mb-10">
-        <h1 className="text-2xl sm:text-4xl font-bold mb-3 text-primary">
-          بازی
-        </h1>
-        <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto">
-          یاد گرفتن نقش‌های دستوری و آرایه‌های ادبی، این بار به‌شکل بازی.
-        </p>
-      </div>
+    <div dir="rtl" className="container mx-auto my-10 max-w-5xl sm:my-16">
+      {/* hero */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="relative mb-14 overflow-hidden rounded-3xl border border-border bg-card px-6 py-12 text-center sm:py-16"
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(90% 120% at 50% -10%, color-mix(in oklab, var(--color-primary) 22%, transparent), transparent 60%)",
+          }}
+        />
+        {/* floating glyphs */}
+        {["∪", "—", "✦", "؟", "∪", "—"].map((g, i) => (
+          <motion.span
+            key={i}
+            className="pointer-events-none absolute text-2xl text-primary/15 sm:text-4xl"
+            style={{ left: `${8 + i * 16}%`, top: `${i % 2 === 0 ? 15 : 60}%` }}
+            animate={{ y: [0, -14, 0], opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 3 + i * 0.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            {g}
+          </motion.span>
+        ))}
+        <div className="relative">
+          <span className="inline-block rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary">
+            بازی و یادگیری
+          </span>
+          <h1 className="mt-4 text-3xl font-extrabold sm:text-5xl">
+            زمینِ بازیِ <span className="text-primary">ادبیات</span>
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-lg">
+            دستور زبان، آرایه‌ها و بزرگانِ ادب فارسی را این بار بازی کن — سریع، رقابتی و ماندگار.
+          </p>
+        </div>
+      </motion.div>
 
-      <div className="grid sm:grid-cols-2 gap-5">
-        <AnimatePresence>
-          {GAMES.map((g, i) => (
-            <motion.button
+      {/* one lavish section per game */}
+      <div className="flex flex-col gap-16 sm:gap-24">
+        {GAMES.map((g, i) => {
+          const reversed = i % 2 === 1;
+          return (
+            <motion.section
               key={g.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              onClick={() => setActive(g.id)}
-              className="glass relative z-20 rounded-2xl p-6 sm:p-8 text-right hover:brightness-105 active:scale-[0.98] transition-all flex flex-col"
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className={`flex flex-col items-center gap-8 md:gap-12 ${reversed ? "md:flex-row-reverse" : "md:flex-row"}`}
             >
-              <h2 className="text-lg sm:text-2xl font-bold mb-2 text-primary">
-                {g.title}
-              </h2>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-6 flex-1">
-                {g.description}
-              </p>
-              <span
-                className="self-start inline-flex items-center justify-center font-medium text-primary-foreground
-                  bg-primary hover:brightness-90 transition-all rounded-xl px-6 py-2.5 text-sm sm:text-base"
-              >
-                {g.cta}
-              </span>
-            </motion.button>
-          ))}
-        </AnimatePresence>
+              {/* animated preview */}
+              <div className="w-full md:w-1/2">
+                <g.Preview />
+              </div>
+
+              {/* copy */}
+              <div className="w-full text-right md:w-1/2">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className={`text-5xl font-black opacity-20 ${g.accent}`}>
+                    {(i + 1).toLocaleString("fa-IR")}
+                  </span>
+                  <div>
+                    <h2 className="text-2xl font-bold sm:text-3xl">{g.title}</h2>
+                    <p className={`text-sm font-semibold ${g.accent}`}>{g.tagline}</p>
+                  </div>
+                </div>
+
+                <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${g.chipBg}`}>
+                  تقویت: {g.skill}
+                </span>
+
+                <ol className="mt-4 flex flex-col gap-2.5">
+                  {g.how.map((step, s) => (
+                    <li key={s} className="flex items-start gap-2.5 text-sm text-muted-foreground sm:text-base">
+                      <span
+                        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${g.chipBg}`}
+                      >
+                        {(s + 1).toLocaleString("fa-IR")}
+                      </span>
+                      <span className="leading-relaxed">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+
+                <button
+                  onClick={() => setActive(g.id)}
+                  className="group mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+                >
+                  شروع بازی
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="size-4 transition-transform group-hover:-translate-x-1">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
+                  </svg>
+                </button>
+              </div>
+            </motion.section>
+          );
+        })}
       </div>
     </div>
   );

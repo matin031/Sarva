@@ -42,11 +42,11 @@ export async function POST(req: Request) {
   const { error: emailError } = await resend.emails.send({
     from: "noreply@aruzino.ir",
     to: email,
-    subject: "کد تأیید عروضینو",
+    subject: "کد تأیید سروا",
     html: `
       <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;direction:rtl;">
         <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px 24px;text-align:center;">
-          <p style="font-size:22px;font-weight:700;color:#fff;margin:0;">عروضینو</p>
+          <p style="font-size:22px;font-weight:700;color:#fff;margin:0;">سروا</p>
         </div>
         <div style="padding:32px 24px;">
           <h2 style="font-size:18px;color:#e2e8f0;margin-bottom:8px;">کد تأیید ورود</h2>
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         </div>
       </div>
     `,
-    text: `کد تأیید عروضینو: ${otp}`,
+    text: `کد تأیید سروا: ${otp}`,
   });
 
   if (emailError) {

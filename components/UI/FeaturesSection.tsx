@@ -32,7 +32,7 @@ function FeaturesSection() {
           variants={fadeUp}
           className="text-2xl sm:text-3xl md:text-4xl font-bold"
         >
-          چرا عروضینو؟
+          چرا سروا؟
         </motion.h2>
         <motion.p
           variants={fadeUp}

@@ -17,7 +17,7 @@ function Footer() {
               <div className=" size-12  text-primary">
                 <MainLogo />
               </div>
-              <span className=" text-2xl font-bold text-primary">عروضینو</span>
+              <span className=" text-2xl font-bold text-primary">سروا</span>
             </div>
             <p className=" text-muted-foreground text-sm mt-4 cursor-default md:max-w-70 lg:max-w-100">
               پلتفرمی تعاملی برای یادگیری علم عروض و آشنایی با اوزان شعر فارسی،
@@ -254,7 +254,7 @@ function Footer() {
       >
         <p className="">
           © 2026 کلیه حقوق مادی و معنوی سایت برای
-          <span className=" text-primary"> عروضینو </span> محفوظ است.
+          <span className=" text-primary"> سروا </span> محفوظ است.
         </p>
         <div className=" items-center flex gap-x-1">
           <p>ساخته شده برای عاشقان ادبیات فارسی توسط متین</p>

@@ -8,6 +8,7 @@ import { ToastContainer } from "react-toastify";
 import Footer from "@/components/UI/Footer";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
+import LogoReveal from "@/components/UI/LogoReveal";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -126,6 +127,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <LogoReveal />
         <Suspense>
           <NavigationProgress />
         </Suspense>

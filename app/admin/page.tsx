@@ -80,7 +80,7 @@ export default async function Page() {
     <div dir="rtl" className="flex max-w-4xl flex-col gap-8 p-4 xs:p-6">
       <div>
         <h1 className="text-2xl font-bold">داشبورد</h1>
-        <p className="text-sm text-muted-foreground">نمای کلی محتوا و کاربران عروضینو.</p>
+        <p className="text-sm text-muted-foreground">نمای کلی محتوا و کاربران سروا.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 xs:grid-cols-4">

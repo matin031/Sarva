@@ -92,7 +92,7 @@ function SiteHighlightsSection() {
           variants={fadeUp}
           className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]"
         >
-          عروضینو فقط عروض سماعی نیست؛ این بخش‌ها را هم امتحان کن
+          سروا فقط عروض سماعی نیست؛ این بخش‌ها را هم امتحان کن
         </motion.p>
       </motion.div>
 

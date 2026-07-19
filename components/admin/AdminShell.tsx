@@ -68,7 +68,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </span>
           <div className="flex flex-col">
             <span className="text-sm font-bold">پنل مدیریت</span>
-            <span className="text-[11px] text-muted-foreground">عروضینو</span>
+            <span className="text-[11px] text-muted-foreground">سروا</span>
           </div>
         </Link>
 

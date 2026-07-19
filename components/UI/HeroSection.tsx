@@ -27,7 +27,7 @@ function HeroSection() {
           آهنگِ شعر پارسی را
         </motion.span>
         <motion.span variants={fadeUp} className="text-primary block">
-          با عروضینو بیاموز
+          با سروا بیاموز
         </motion.span>
       </h1>
       <motion.p

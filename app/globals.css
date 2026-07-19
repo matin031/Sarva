@@ -223,6 +223,187 @@
   opacity: 0.9;
 }
 
+/* ---------- Logo reveal intro (shown once per session on entry) ---------- */
+.logo-reveal {
+  position: fixed;
+  inset: 0;
+  background: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  --lr-sweep: rgba(0, 0, 0, 0.08);
+  animation: lrLoaderOut 0.45s ease-in forwards;
+  animation-delay: 2.55s;
+}
+
+.dark .logo-reveal {
+  --lr-sweep: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes lrLoaderOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.lr-mark {
+  position: relative;
+  width: min(190px, 45vw);
+  animation: lrFly 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation-delay: 2.35s;
+}
+
+@keyframes lrFly {
+  to {
+    transform: translate(var(--fly-x, 0px), var(--fly-y, 0px))
+      scale(var(--fly-scale, 0.3));
+    opacity: 0.85;
+  }
+}
+
+.lr-clip {
+  width: 100%;
+  clip-path: inset(100% 0 0 0);
+  opacity: 0;
+  animation:
+    lrRevealClip 1.05s cubic-bezier(0.45, 0, 0.2, 1) forwards,
+    lrFadeIn 0.35s ease-out forwards;
+  animation-delay: 0.65s, 0.65s;
+}
+
+@keyframes lrRevealClip {
+  to {
+    clip-path: inset(0% 0 0 0);
+  }
+}
+
+@keyframes lrFadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.lr-pen {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  animation: lrPenFade 0.25s ease-out forwards;
+  animation-delay: 0.7s;
+}
+
+@keyframes lrPenFade {
+  to {
+    opacity: 0;
+  }
+}
+
+.lr-pen svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: auto;
+}
+
+.lr-pen-line {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: lrDraw 0.5s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes lrDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.lr-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 35%;
+  background: linear-gradient(100deg, transparent, var(--lr-sweep), transparent);
+  opacity: 0;
+  animation: lrSweepMove 0.55s ease-in-out forwards;
+  animation-delay: 2s;
+  pointer-events: none;
+}
+
+@keyframes lrSweepMove {
+  0% {
+    left: -40%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 105%;
+    opacity: 0;
+  }
+}
+
+.lr-word {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--color-foreground);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: lrWordIn 0.5s ease-out forwards;
+  animation-delay: 1.7s;
+}
+
+@keyframes lrWordIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-reveal *,
+  .logo-reveal {
+    animation-delay: 0s !important;
+  }
+
+  .logo-reveal {
+    animation: lrLoaderOut 0.3s ease-out forwards;
+    animation-delay: 0.5s !important;
+  }
+
+  .lr-clip {
+    animation: none;
+    clip-path: none;
+    opacity: 1;
+  }
+
+  .lr-mark,
+  .lr-pen,
+  .lr-sweep {
+    animation: none;
+  }
+
+  .lr-pen {
+    opacity: 0;
+  }
+
+  .lr-word {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+/* ------------------------------------------------------------------------ */
+
 @keyframes marquee {
   0% {
     transform: translateX(100%);

@@ -62,13 +62,13 @@ function Header() {
           href={"/"}
         >
           <h3 className=" hidden sm:block text-2xl font-bold text-primary">
-            عروضینو
+            سروا
           </h3>
           <div
             className="bg-linear-to-br transition-all flex
            items-center justify-center "
           >
-            <div className=" size-13 text-primary-foreground">
+            <div id="site-logo" className=" size-13 text-primary-foreground">
               <MainLogo />
             </div>
           </div>

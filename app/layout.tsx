@@ -4,7 +4,7 @@ import "./globals.css";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
 import SiteChrome from "@/components/SiteChrome";
-
+import LogoReveal from "@/components/UI/LogoReveal";
 import { ToastContainer } from "react-toastify";
 
 const vazirmatn = Vazirmatn({
@@ -124,6 +124,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <LogoReveal />
         <Suspense>
           <NavigationProgress />
         </Suspense>

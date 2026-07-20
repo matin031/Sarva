@@ -22,11 +22,11 @@ function Footer() {
       >
         <div className=" flex-col items-center  justify-between min-[340px]:flex min-[340px]:flex-row mt-6 sm:mt-0  sm:block space-y-6">
           <div className=" ">
-            <div className=" inline-flex  px-3 py-1 border-3 border-primary rounded-2xl items-center shrink-0 gap-x-2">
-              <div className=" size-12  text-primary">
+            <div className=" inline-flex   items-center shrink-0 gap-x-2">
+              <div className=" size-13  text-primary">
                 <MainLogo />
               </div>
-              <span className=" text-2xl font-bold text-primary">سروا</span>
+              <span className=" text-3xl font-bold text-primary">ســـروا</span>
             </div>
             <p className=" text-muted-foreground text-sm mt-4 cursor-default md:max-w-70 lg:max-w-100">
               پلتفرمی تعاملی برای یادگیری علم عروض و آشنایی با اوزان شعر فارسی،
@@ -249,7 +249,7 @@ function Footer() {
       >
         <p className="">
           © 2026 کلیه حقوق مادی و معنوی سایت برای
-          <span className=" text-primary"> سروا </span> محفوظ است.
+          <span className=" text-primary"> ســـروا </span> محفوظ است.
         </p>
         <div className=" items-center flex gap-x-1">
           <p>ساخته شده برای عاشقان ادبیات فارسی توسط متین</p>

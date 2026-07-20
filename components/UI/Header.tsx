@@ -55,14 +55,14 @@ function Header() {
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className=" sm:px-3 sm:py-1 border-3 border-primary rounded-2xl"
+        className=" sm:px-3 sm:py-1 rounded-2xl"
       >
         <Link
-          className="hover:brightness-90 items-center size-full flex"
+          className="hover:brightness-90 gap-x-2 items-center size-full flex"
           href={"/"}
         >
-          <h3 className=" hidden sm:block text-2xl font-bold text-primary">
-            سروا
+          <h3 className=" hidden sm:block text-3xl font-bold text-primary">
+            ســـروا
           </h3>
           <div
             className="bg-linear-to-br transition-all flex

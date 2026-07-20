@@ -8,6 +8,8 @@ import type { User } from "@supabase/supabase-js";
 import SchoolMap from "./SchoolMap";
 import ShootingScene from "./ShootingScene";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
+import GameIntro from "@/components/UI/games/GameIntro";
+import { JasoosPreview } from "@/components/UI/games/GamePreviews";
 
 type Screen = "intro" | "settings" | "map" | "scene" | "gameover" | "win";
 type GameOverReason = "lives" | "time";
@@ -322,33 +324,20 @@ function JasoosGame() {
 
       <AnimatePresence mode="wait">
         {screen === "intro" && (
-          <motion.div
-            key="intro"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center"
-          >
-            <h1 className="text-2xl sm:text-4xl font-bold mb-4 text-primary">
-              جاسوسِ نقش‌ها
-            </h1>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              وارد مدرسه شو. پشتِ هر در، یک بیت یا جمله و چهار نفر منتظرت
-              هستند؛ هرکدام مدعیِ یک نقشِ دستوری یا آرایه‌ی ادبی‌اند. سه نفرشان
-              راست می‌گویند، اما یکی‌شان جاسوس است: نقشی را ادعا می‌کند که در
-              آن متن اصلاً وجود ندارد. با دقت نگاه کن، جاسوس را نشانه بگیر و
-              شلیک کن. {START_LIVES} جان داری؛ هر اشتباه یک جان می‌گیرد اما همان
-              پرونده را دوباره امتحان می‌کنی. اگر جان‌هایت تمام شود، از اولِ
-              همین دور شروع می‌کنی.
-            </p>
-            <button
-              onClick={() => setScreen("settings")}
-              className="inline-flex items-center justify-center font-medium text-primary-foreground
-                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-            >
-              ادامه
-            </button>
-          </motion.div>
+          <GameIntro
+            title="جاسوسِ نقش‌ها"
+            tagline="یک بیت، چهار مظنون، یک دروغگو."
+            steps={[
+              "پشتِ هر در، یک بیت و چهار مظنون که هرکدام نقشی دستوری یا آرایه‌ای ادعا می‌کنند.",
+              "سه نفر راست می‌گویند؛ یکی جاسوس است و نقشی می‌گوید که در بیت اصلاً نیست.",
+              "جاسوسِ دروغگو را نشانه بگیر و شلیک کن — هر اشتباه یک جان می‌گیرد.",
+            ]}
+            lives={START_LIVES}
+            accent="text-lapis"
+            chipBg="bg-lapis-light/15 text-foreground"
+            Preview={JasoosPreview}
+            onStart={() => setScreen("settings")}
+          />
         )}
 
         {screen === "settings" && (

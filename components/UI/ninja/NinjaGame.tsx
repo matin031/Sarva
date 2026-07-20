@@ -6,6 +6,8 @@ import type { NinjaRound } from "@/lib/ninja-data";
 import StudyTable from "./StudyTable";
 import SliceField from "./SliceField";
 import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./NinjaSettingsModal";
+import GameIntro from "@/components/UI/games/GameIntro";
+import { NinjaPreview } from "@/components/UI/games/GamePreviews";
 
 type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
@@ -148,31 +150,20 @@ function NinjaGame() {
 
       <AnimatePresence mode="wait">
         {screen === "intro" && (
-          <motion.div
-            key="intro"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center"
-          >
-            <h1 className="text-2xl sm:text-4xl font-bold mb-4 text-primary">
-              نینجای دستور زبان
-            </h1>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              اول کلماتِ دسته‌ی انتخابی را در یک جدول می‌بینی و باید حفظشان کنی.
-              بعد کلمات، هم‌رنگ‌جماعت با صدها کلمه‌ی دیگر، توی هوا پرت می‌شوند و
-              تو باید با کشیدن موس یا انگشتت فقط همان کلماتِ هدف را برش بزنی.
-              برش‌زدنِ کلمه‌ی اشتباه یا از دست‌دادنِ یک کلمه‌ی هدف، یک جان
-              می‌گیرد. با {START_LIVES} جان شروع می‌کنی — تمومش نکن!
-            </p>
-            <button
-              onClick={() => setScreen("settings")}
-              className="inline-flex items-center justify-center font-medium text-primary-foreground
-                bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-            >
-              ادامه
-            </button>
-          </motion.div>
+          <GameIntro
+            title="نینجای دستور زبان"
+            tagline="فقط کلمه‌های درست را برش بزن."
+            steps={[
+              "اول کلماتِ یک دستهٔ دستوری (قید، صفت، حرف ربط یا ضمیر) را حفظ می‌کنی.",
+              "بعد ده‌ها کلمه توی هوا پرت می‌شوند و با کشیدن انگشت یا موس برش می‌زنی.",
+              "فقط کلماتِ هدف را ببُر؛ برشِ اشتباه یا از دست‌دادنِ کلمهٔ هدف یک جان می‌گیرد.",
+            ]}
+            lives={START_LIVES}
+            accent="text-primary"
+            chipBg="bg-primary/15 text-foreground"
+            Preview={NinjaPreview}
+            onStart={() => setScreen("settings")}
+          />
         )}
 
         {screen === "settings" && (

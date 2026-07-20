@@ -18,7 +18,7 @@ function LogoReveal() {
     sessionStorage.setItem(SEEN_KEY, "1");
 
     const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
     if (!reduceMotion) {
@@ -29,17 +29,20 @@ function LogoReveal() {
         const to = target.getBoundingClientRect();
         mark.style.setProperty(
           "--fly-x",
-          `${to.left + to.width / 2 - (from.left + from.width / 2)}px`
+          `${to.left + to.width / 2 - (from.left + from.width / 2)}px`,
         );
         mark.style.setProperty(
           "--fly-y",
-          `${to.top + to.height / 2 - (from.top + from.height / 2)}px`
+          `${to.top + to.height / 2 - (from.top + from.height / 2)}px`,
         );
         mark.style.setProperty("--fly-scale", `${to.width / from.width}`);
       }
     }
 
-    const timeout = setTimeout(() => setHidden(true), reduceMotion ? 900 : TOTAL_MS);
+    const timeout = setTimeout(
+      () => setHidden(true),
+      reduceMotion ? 900 : TOTAL_MS,
+    );
     return () => clearTimeout(timeout);
   }, []);
 
@@ -70,7 +73,7 @@ function LogoReveal() {
             </svg>
           </div>
         </div>
-        <div className="lr-word">سروا</div>
+        <div className="lr-word text-3xl ">ســـروا</div>
       </div>
       <script
         dangerouslySetInnerHTML={{

@@ -30,7 +30,7 @@ const GAMES: {
       "یکی‌شان نقشی دستوری یا آرایه‌ای می‌گوید که در بیت وجود ندارد.",
       "جاسوسِ دروغگو را نشانه بگیر و شلیک کن.",
     ],
-    accent: "text-lapis-light",
+    accent: "text-lapis",
     chipBg: "bg-lapis-light/15 text-foreground",
     Preview: JasoosPreview,
   },
@@ -200,7 +200,8 @@ function GamesHub() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mb-14 overflow-hidden rounded-3xl border border-border bg-card px-6 py-12 text-center sm:py-16"
+        className="relative mb-14 overflow-hidden rounded-3xl border border-border
+         px-6 py-12 text-center sm:py-16 bg-card z-20"
       >
         <div
           className="pointer-events-none absolute inset-0"
@@ -216,20 +217,28 @@ function GamesHub() {
             className="pointer-events-none absolute text-2xl text-primary/15 sm:text-4xl"
             style={{ left: `${8 + i * 16}%`, top: `${i % 2 === 0 ? 15 : 60}%` }}
             animate={{ y: [0, -14, 0], opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 3 + i * 0.4, repeat: Infinity, ease: "easeInOut" }}
+            transition={{
+              duration: 3 + i * 0.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
           >
             {g}
           </motion.span>
         ))}
         <div className="relative">
-          <span className="inline-block rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary">
+          <span
+            className="inline-block rounded-full bg-primary/10 px-4 py-1 text-xs
+           font-semibold text-primary"
+          >
             بازی و یادگیری
           </span>
           <h1 className="mt-4 text-3xl font-extrabold sm:text-5xl">
             زمینِ بازیِ <span className="text-primary">ادبیات</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-lg">
-            دستور زبان، آرایه‌ها و بزرگانِ ادب فارسی را این بار بازی کن — سریع، رقابتی و ماندگار.
+            دستور زبان، آرایه‌ها و بزرگانِ ادب فارسی را این بار بازی کن — سریع،
+            رقابتی و ماندگار.
           </p>
         </div>
       </motion.div>
@@ -248,29 +257,40 @@ function GamesHub() {
               className={`flex flex-col items-center gap-8 md:gap-12 ${reversed ? "md:flex-row-reverse" : "md:flex-row"}`}
             >
               {/* animated preview */}
-              <div className="w-full md:w-1/2">
+              <div className="w-full md:w-1/2 max-h-[385px]!">
                 <g.Preview />
               </div>
 
               {/* copy */}
               <div className="w-full text-right md:w-1/2">
                 <div className="mb-3 flex items-center gap-3">
-                  <span className={`text-5xl font-black opacity-20 ${g.accent}`}>
+                  <span
+                    className={`text-5xl font-black opacity-20 ${g.accent}`}
+                  >
                     {(i + 1).toLocaleString("fa-IR")}
                   </span>
                   <div>
-                    <h2 className="text-2xl font-bold sm:text-3xl">{g.title}</h2>
-                    <p className={`text-sm font-semibold ${g.accent}`}>{g.tagline}</p>
+                    <h2 className="text-2xl font-bold sm:text-3xl">
+                      {g.title}
+                    </h2>
+                    <p className={`text-sm font-semibold ${g.accent}`}>
+                      {g.tagline}
+                    </p>
                   </div>
                 </div>
 
-                <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${g.chipBg}`}>
+                <span
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${g.chipBg}`}
+                >
                   تقویت: {g.skill}
                 </span>
 
                 <ol className="mt-4 flex flex-col gap-2.5">
                   {g.how.map((step, s) => (
-                    <li key={s} className="flex items-start gap-2.5 text-sm text-muted-foreground sm:text-base">
+                    <li
+                      key={s}
+                      className="flex items-start gap-2.5 text-sm text-muted-foreground sm:text-base"
+                    >
                       <span
                         className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${g.chipBg}`}
                       >
@@ -286,8 +306,18 @@ function GamesHub() {
                   className="group mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
                 >
                   شروع بازی
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="size-4 transition-transform group-hover:-translate-x-1">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.2}
+                    className="size-4 transition-transform group-hover:-translate-x-1"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 6 3 12l6 6M21 12H4"
+                    />
                   </svg>
                 </button>
               </div>

@@ -20,11 +20,11 @@ function HeroSection() {
         variants={springPop}
         className=" max-w-48 mx-auto mb-3 sm:mb-0 rounded-full text-xs sm:text-sm px-4 font-semibold py-1 bg-primary/10 text-primary"
       >
-        پلتفرمِ آموزشِ عروضِ پارسی
+        پلتفرمِ آموزشی ســروا
       </motion.div>
       <h1 className=" -space-y-6 sm:-space-y-8 md:-space-y-12 font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-foreground leading-tight mb-6 ">
-        <motion.span variants={fadeUp} className=" block ">
-          آهنگِ شعر پارسی را
+        <motion.span variants={fadeUp} className="block">
+          ادبیات پارسی را
         </motion.span>
         <motion.span variants={fadeUp} className="text-primary block">
           با سروا بیاموز
@@ -35,8 +35,9 @@ function HeroSection() {
         className=" text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl
            mx-auto mb-8 text-pretty "
       >
-        با روشی تعاملی و امروزی، اوزانِ عروضی را گام‌به‌گام بشناس و ریتمِ زیبای
-        شعرِ حافظ، سعدی و دیگر بزرگان را حس کن
+        از آهنگ و وزن شعر تا دستور زبان، آرایه‌های ادبی و مفاهیم؛ همراه با
+        درس‌به‌درس کتاب فارسی دهم، یازدهم و دوازدهم — به روشی تعاملی، امروزی و
+        ماندگار
       </motion.p>
       <motion.div
         variants={fadeUp}

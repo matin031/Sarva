@@ -121,7 +121,7 @@ function GamesHub() {
 
   if (active) {
     return (
-      <div>
+      <div dir="rtl">
         <div className="container max-w-4xl mx-auto pt-6">
           <button
             onClick={requestExit}

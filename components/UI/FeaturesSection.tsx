@@ -38,8 +38,8 @@ function FeaturesSection() {
           variants={fadeUp}
           className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]"
         >
-          با ترکیب زیبایی‌شناسی ایرانی و فناوری مدرن، تجربه‌ای متفاوت در یادگیری
-          عروض
+          ترکیب زیبایی‌شناسی ایرانی با فناوری مدرن، یادگیری ادبیات را از
+          حفظ‌کردن صرف به کشف و لذت تبدیل می‌کند
         </motion.p>
       </motion.div>
 

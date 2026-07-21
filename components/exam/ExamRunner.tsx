@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
@@ -64,6 +65,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<null | "finish" | "reset">(null);
   const [isPending, startTransition] = useTransition();
 
   // Restoring persisted progress on mount is a one-time sync with an
@@ -208,25 +210,30 @@ export default function ExamRunner({ examKey, exam }: Props) {
 
   const handleReset = () => {
     setMenuOpen(false);
-    if (!confirm("آزمون از اول شروع شود؟ همهٔ پاسخ‌ها و نتیجه‌های فعلی پاک می‌شود.")) return;
-    handleRetry();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setConfirmKind("reset");
   };
 
   const finishEarly = () => {
     setMenuOpen(false);
-    const answered = Object.keys(questionResults).length;
-    if (
-      !confirm(
-        `همین حالا امتحان تمام شود؟ فقط ${answered.toLocaleString("fa-IR")} سؤالی که ثبت کرده‌اید نمره داده می‌شود و بقیه بی‌پاسخ می‌ماند.`,
-      )
-    )
-      return;
+    setConfirmKind("finish");
+  };
+
+  // run after the student confirms in the modal
+  const doReset = () => {
+    setConfirmKind(null);
+    handleRetry();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const doFinish = () => {
+    setConfirmKind(null);
     setProgress((prev) => ({ ...prev, showResults: true }));
     // same fire-and-forget stats record as the normal finish in goNext()
     void submitExamAttempt(examKey, questionResults);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const answeredCount = Object.keys(questionResults).length;
 
   if (showResults) {
     return (
@@ -353,6 +360,94 @@ export default function ExamRunner({ examKey, exam }: Props) {
           </p>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmKind !== null}
+        kind={confirmKind}
+        answeredCount={answeredCount}
+        onCancel={() => setConfirmKind(null)}
+        onConfirm={confirmKind === "finish" ? doFinish : doReset}
+      />
     </div>
+  );
+}
+
+function ConfirmDialog({
+  open,
+  kind,
+  answeredCount,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  kind: null | "finish" | "reset";
+  answeredCount: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const isReset = kind === "reset";
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center"
+          onClick={onCancel}
+        >
+          <motion.div
+            dir="rtl"
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card p-6 text-center shadow-2xl"
+          >
+            <div
+              className={`mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl text-3xl ${
+                isReset ? "bg-destructive/15" : "bg-primary/15"
+              }`}
+            >
+              {isReset ? "🔄" : "🏁"}
+            </div>
+            <h3 className="text-lg font-black">
+              {isReset ? "آزمون از اول شروع شود؟" : "همین حالا امتحان تمام شود؟"}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {isReset ? (
+                "همهٔ پاسخ‌ها و نتیجه‌های فعلی پاک می‌شود و از سؤال اول شروع می‌کنی."
+              ) : (
+                <>
+                  فقط <b className="text-foreground">{answeredCount.toLocaleString("fa-IR")}</b> سؤالی که
+                  نمره داده‌اید نمره می‌شود و بقیه بی‌پاسخ می‌ماند.
+                </>
+              )}
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="min-h-12 flex-1 rounded-2xl border border-border bg-card font-medium text-muted-foreground transition-all hover:border-primary/50 active:scale-95"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                className={`min-h-12 flex-[1.4] rounded-2xl font-black transition-all hover:brightness-90 active:scale-95 ${
+                  isReset
+                    ? "bg-destructive text-destructive-foreground"
+                    : "bg-primary text-primary-foreground"
+                }`}
+              >
+                {isReset ? "پاک کن و از اول" : "بله، تمام کن"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

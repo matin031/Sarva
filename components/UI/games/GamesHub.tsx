@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "motion/react";
 import JasoosGame from "@/components/UI/jasoos/JasoosGame";
 import NinjaGame from "@/components/UI/ninja/NinjaGame";
 import PairsGame from "@/components/UI/pairs/PairsGame";
-import { JasoosPreview, NinjaPreview, PairsPreview } from "./GamePreviews";
+import VocabGame from "@/components/UI/vocab/VocabGame";
+import { JasoosPreview, NinjaPreview, PairsPreview, VocabPreview } from "./GamePreviews";
 
-type GameId = "jasoos" | "ninja" | "pairs";
+type GameId = "jasoos" | "ninja" | "pairs" | "vocab";
 
 const ACTIVE_GAME_KEY = "bazi-active-game";
 
@@ -62,6 +63,20 @@ const GAMES: {
     chipBg: "bg-gold/15 text-foreground",
     Preview: PairsPreview,
   },
+  {
+    id: "vocab",
+    title: "واژه‌یاب",
+    tagline: "تصویر را ببین، واژه‌اش را بشناس.",
+    skill: "واژگانِ درس‌های فارسی",
+    how: [
+      "پایه و درس را انتخاب می‌کنی.",
+      "یک تصویر می‌بینی و سه واژه پیشِ روی توست.",
+      "واژهٔ مربوط به تصویر را بزن و معنی کامل را یاد بگیر.",
+    ],
+    accent: "text-primary",
+    chipBg: "bg-primary/15 text-foreground",
+    Preview: VocabPreview,
+  },
 ];
 
 function GamesHub() {
@@ -73,7 +88,7 @@ function GamesHub() {
   // requires the browser, so this can only happen after mount
   useEffect(() => {
     const saved = localStorage.getItem(ACTIVE_GAME_KEY);
-    if (saved === "jasoos" || saved === "ninja" || saved === "pairs") {
+    if (saved === "jasoos" || saved === "ninja" || saved === "pairs" || saved === "vocab") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActive(saved);
     }
@@ -147,6 +162,7 @@ function GamesHub() {
         {active === "jasoos" && <JasoosGame />}
         {active === "ninja" && <NinjaGame />}
         {active === "pairs" && <PairsGame />}
+        {active === "vocab" && <VocabGame />}
 
         <AnimatePresence>
           {showExitConfirm && (

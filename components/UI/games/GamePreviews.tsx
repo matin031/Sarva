@@ -320,3 +320,58 @@ export function PairsPreview() {
     </Frame>
   );
 }
+
+/** واژه‌یاب: a picture card with three word options; the correct one gets
+ *  picked and confirmed with a green check, then it resets and loops. */
+export function VocabPreview() {
+  const times = [0, 0.25, 0.4, 0.85, 1];
+  const opts = ["داد", "تیمار", "محال"];
+  const correct = 1; // "تیمار"
+  return (
+    <Frame glow="rgba(0,165,166,0.20)">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
+        {/* picture placeholder */}
+        <motion.div
+          className="flex h-24 w-32 items-center justify-center rounded-2xl border border-border bg-secondary text-3xl shadow-lg sm:h-28 sm:w-40"
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          🖼️
+        </motion.div>
+        {/* options */}
+        <div className="flex gap-2">
+          {opts.map((o, i) => (
+            <motion.span
+              key={i}
+              className="relative rounded-xl border-2 px-3 py-1.5 text-xs font-bold"
+              animate={
+                i === correct
+                  ? {
+                      borderColor: ["var(--color-border)", "var(--color-border)", "#22c55e", "#22c55e", "var(--color-border)"],
+                      color: ["var(--color-foreground)", "var(--color-foreground)", "#16a34a", "#16a34a", "var(--color-foreground)"],
+                      scale: [1, 1, 1.08, 1.08, 1],
+                    }
+                  : { opacity: [1, 1, 0.5, 0.5, 1] }
+              }
+              transition={{ duration: 4, repeat: Infinity, times, ease: "easeInOut" }}
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              {o}
+              {i === correct && (
+                <motion.span
+                  className="absolute -left-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-green-500 text-white"
+                  animate={{ opacity: [0, 0, 1, 1, 0], scale: [0.4, 0.4, 1, 1, 0.4] }}
+                  transition={{ duration: 4, repeat: Infinity, times, ease: "easeInOut" }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={4} className="size-2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </motion.span>
+              )}
+            </motion.span>
+          ))}
+        </div>
+      </div>
+    </Frame>
+  );
+}

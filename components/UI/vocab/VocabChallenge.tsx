@@ -2,14 +2,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { playableWords, type VocabGrade, type VocabLesson, type VocabWord } from "@/lib/vocab-data";
+import MeaningModal from "./MeaningModal";
 
 const ROUND_MS = 7000; // time per image
 const BEST_KEY = "vocab-challenge-best";
 
 type Step = { answer: VocabWord; options: VocabWord[] }; // options.length === 2 (right, left)
-type Phase = "ready" | "playing" | "won" | "failed";
+type Phase = "ready" | "playing" | "won";
 type Flash = null | "correct" | "wrong";
-type FailReason = "wrong" | "timeout";
+type ReviewStatus = "correct" | "wrong" | "timeout";
 
 function shuffle<T>(arr: T[]): T[] {
   const c = [...arr];
@@ -115,9 +116,8 @@ export default function VocabChallenge({
   const [remaining, setRemaining] = useState(ROUND_MS);
   const [flash, setFlash] = useState<Flash>(null);
   const [wrongId, setWrongId] = useState<string | null>(null);
-  const [failReason, setFailReason] = useState<FailReason>("wrong");
-  const [reached, setReached] = useState(0); // words cleared in the failed/won run
-  const [failedWord, setFailedWord] = useState<VocabWord | null>(null); // the word missed
+  const [review, setReview] = useState<ReviewStatus | null>(null); // open modal after each answer
+  const [reached, setReached] = useState(0); // words cleared in the run so far
   const [best, setBest] = useState(0);
 
   const total = steps.length;
@@ -129,7 +129,7 @@ export default function VocabChallenge({
   const lastTickSec = useRef(0);
   const idxRef = useRef(0);
   const phaseRef = useRef<Phase>("ready");
-  const busyRef = useRef(false); // true while a correct/wrong flash is resolving
+  const busyRef = useRef(false); // true while a review modal is open / resolving
 
   useEffect(() => {
     soundRef.current = makeSoundKit();
@@ -160,19 +160,6 @@ export default function VocabChallenge({
     rafRef.current = null;
   };
 
-  const finishRun = useCallback(
-    (won: boolean, cleared: number, reason: FailReason) => {
-      stopTimer();
-      saveBest(cleared);
-      setReached(cleared);
-      if (!won) setFailedWord(steps[cleared]?.answer ?? null);
-      phaseRef.current = won ? "won" : "failed";
-      setFailReason(reason);
-      setPhase(won ? "won" : "failed");
-    },
-    [saveBest, steps],
-  );
-
   const startRound = useCallback(() => {
     stopTimer();
     startRef.current = performance.now();
@@ -187,14 +174,19 @@ export default function VocabChallenge({
         soundRef.current?.tick(sec <= 3);
       }
       if (rem <= 0) {
+        // ran out of time — teach the word, then it's back to the start
         soundRef.current?.fail();
-        finishRun(false, idxRef.current, "timeout");
+        busyRef.current = true;
+        setFlash("wrong");
+        saveBest(idxRef.current);
+        setReached(idxRef.current);
+        setReview("timeout");
         return;
       }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-  }, [finishRun]);
+  }, [saveBest]);
 
   const beginRun = useCallback(() => {
     soundRef.current?.unlock();
@@ -204,41 +196,49 @@ export default function VocabChallenge({
     setIdx(0);
     setFlash(null);
     setWrongId(null);
+    setReview(null);
     busyRef.current = false;
     phaseRef.current = "playing";
     setPhase("playing");
     startRound();
   }, [lesson, startRound]);
 
-  const advance = useCallback(() => {
-    const nextIdx = idxRef.current + 1;
-    if (nextIdx >= steps.length) {
-      finishRun(true, steps.length, "wrong");
-      return;
-    }
-    idxRef.current = nextIdx;
-    setIdx(nextIdx);
-    setFlash(null);
-    setWrongId(null);
-    busyRef.current = false;
-    startRound();
-  }, [steps.length, finishRun, startRound]);
-
   const pick = (id: string) => {
     if (phaseRef.current !== "playing" || busyRef.current) return;
     stopTimer();
     busyRef.current = true;
-    const cur = steps[idxRef.current];
-    if (id === cur.answer.id) {
+    const curStep = steps[idxRef.current];
+    if (id === curStep.answer.id) {
       soundRef.current?.success();
       setFlash("correct");
-      setTimeout(advance, 480);
+      setTimeout(() => setReview("correct"), 450);
     } else {
       soundRef.current?.fail();
       setFlash("wrong");
       setWrongId(id);
-      setTimeout(() => finishRun(false, idxRef.current, "wrong"), 750);
+      saveBest(idxRef.current);
+      setReached(idxRef.current);
+      setTimeout(() => setReview("wrong"), 650);
     }
+  };
+
+  // modal "ادامه" after a correct answer → next word, or win on the last one
+  const continueAfterCorrect = () => {
+    setReview(null);
+    setFlash(null);
+    setWrongId(null);
+    busyRef.current = false;
+    const nextIdx = idxRef.current + 1;
+    if (nextIdx >= steps.length) {
+      saveBest(steps.length);
+      setReached(steps.length);
+      phaseRef.current = "won";
+      setPhase("won");
+      return;
+    }
+    idxRef.current = nextIdx;
+    setIdx(nextIdx);
+    startRound();
   };
 
   const cur = steps[idx];
@@ -263,7 +263,7 @@ export default function VocabChallenge({
               <span className="text-primary">•</span> برای هر تصویر فقط <b className="text-foreground">۷ ثانیه</b> وقت داری.
             </li>
             <li className="flex gap-2">
-              <span className="text-primary">•</span> دو واژه پیشِ روی توست؛ درست را بزن.
+              <span className="text-primary">•</span> دو واژه پیشِ روی توست؛ درست را بزن و معنی‌اش را ببین.
             </li>
             <li className="flex gap-2">
               <span className="text-destructive">•</span> یک اشتباه یا تمام‌شدن وقت = <b className="text-foreground">از اول</b>!
@@ -321,67 +321,14 @@ export default function VocabChallenge({
     );
   }
 
-  // ---------- failed ----------
-  if (phase === "failed") {
-    return (
-      <Shell title="از اول!" onBack={onExit}>
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass relative z-20 mx-auto max-w-md rounded-3xl p-8 text-center"
-        >
-          <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-destructive/15 text-4xl">
-            {failReason === "timeout" ? "⌛" : "💥"}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {failReason === "timeout" ? "وقت تمام شد!" : "اشتباه بود!"}
-          </p>
-          <p className="my-1 text-3xl font-black text-foreground">
-            تا واژهٔ {reached.toLocaleString("fa-IR")} رسیدی
-          </p>
-          <p className="text-sm text-muted-foreground">
-            رکورد تو: <span className="font-bold text-gold">{best.toLocaleString("fa-IR")}</span> از{" "}
-            {total.toLocaleString("fa-IR")}
-          </p>
-
-          {/* learn the word you missed before trying again */}
-          {failedWord && (
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-background/60 p-3 text-right">
-              <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={failedWord.image} alt="" className="absolute inset-0 size-full object-cover" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">واژه‌ای که ماند</p>
-                <p className="text-lg font-black text-primary">{failedWord.word}</p>
-                <p className="text-sm leading-relaxed text-muted-foreground">{failedWord.meaning}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 flex justify-center gap-3">
-            <button
-              onClick={beginRun}
-              className="rounded-xl bg-primary px-7 py-2.5 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
-            >
-              از اول
-            </button>
-            <button
-              onClick={onExit}
-              className="rounded-xl border border-border bg-card px-6 py-2.5 font-medium text-muted-foreground transition-all hover:border-primary/50"
-            >
-              بازگشت
-            </button>
-          </div>
-        </motion.div>
-      </Shell>
-    );
-  }
-
   // ---------- playing ----------
   const ringColor = frac > 0.5 ? "text-primary" : frac > 0.28 ? "text-gold" : "text-destructive";
   const R = 34;
   const C = 2 * Math.PI * R;
+
+  const reviewCorrect = review === "correct";
+  const isLastWord = idx + 1 >= steps.length;
+  const others = cur ? cur.options.filter((o) => o.id !== cur.answer.id) : [];
 
   return (
     <div dir="rtl" className="container mx-auto my-6 max-w-xl">
@@ -491,6 +438,30 @@ export default function VocabChallenge({
           );
         })}
       </div>
+
+      {/* learning modal — appears after every answer, right or wrong */}
+      {cur && (
+        <MeaningModal
+          open={review !== null}
+          isCorrect={reviewCorrect}
+          answer={cur.answer}
+          others={others}
+          dismissable={reviewCorrect}
+          headline={review === "timeout" ? "وقت تمام شد!" : review === "wrong" ? "اشتباه بود!" : undefined}
+          note={
+            reviewCorrect ? undefined : (
+              <div className="rounded-2xl border border-border bg-background/60 p-3 text-center text-sm text-muted-foreground">
+                تا واژهٔ <b className="text-foreground">{reached.toLocaleString("fa-IR")}</b> رسیدی · رکورد تو:{" "}
+                <b className="text-gold">{best.toLocaleString("fa-IR")}</b> از {total.toLocaleString("fa-IR")}
+              </div>
+            )
+          }
+          continueLabel={reviewCorrect ? (isLastWord ? "دیدن نتیجه" : "ادامه") : "از اول"}
+          onContinue={reviewCorrect ? continueAfterCorrect : beginRun}
+          secondaryLabel={reviewCorrect ? undefined : "بازگشت"}
+          onSecondary={reviewCorrect ? undefined : onExit}
+        />
+      )}
     </div>
   );
 }

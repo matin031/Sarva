@@ -7,21 +7,16 @@ const PAIR_COUNT = 6; // 12 cards → tidy 3×4 / 4×3 grid on any screen
 
 type Phase = "study" | "playing";
 
-/** A spinning gold arc around a card's border — a rotating conic-gradient
- *  clipped by the card's rounded corners, so a bright band of gold travels
- *  around the edge. Sits behind the card face, which is inset by ~2px. */
-function GoldBorder() {
-  return "";
-  // <motion.div
-  //   aria-hidden
-  //   className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 opacity-70"
-  //   style={{
-  //     background:
-  //       "conic-gradient(from 0deg, transparent 0deg, var(--color-gold) 35deg, transparent 80deg, transparent 360deg)",
-  //   }}
-  //   animate={{ rotate: 360 }}
-  //   transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
-  // />
+function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85L12 3.5Z"
+      />
+    </svg>
+  );
 }
 
 function PairsGame() {
@@ -213,43 +208,55 @@ function PairsGame() {
         </div>
       </div>
 
-      <div className={`grid ${cols} gap-2.5 sm:gap-3`}>
+      <div className={`grid ${cols} gap-2.5 sm:gap-3.5`}>
         {deck.map((card, index) => {
           const isMatched = matched.has(card.pairId);
           const isUp = isMatched || flipped.includes(index);
+          const isWork = card.kind === "work";
           return (
             <button
               key={card.id}
               type="button"
               onClick={() => handleFlip(index)}
               disabled={isUp || locked}
-              className="relative aspect-3/4 overflow-hidden rounded-xl 
-              bg-border z-20 p-[2px] [perspective:800px]"
+              className="group relative z-20 aspect-3/4 [perspective:900px] focus:outline-none"
             >
-              {!isUp && <GoldBorder />}
               <motion.div
-                className="relative h-full rounded-xl w-full [transform-style:preserve-3d]"
+                className="relative h-full w-full [transform-style:preserve-3d]"
                 animate={{ rotateY: isUp ? 180 : 0 }}
-                transition={{ duration: 0.35 }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
-                {/* back */}
-                <span
-                  className="absolute bg-card inset-0 flex items-center 
-                justify-center rounded-xl text-2xl text-primary/40 [backface-visibility:hidden]"
-                >
-                  ؟
+                {/* back — dark, minimal, star + سروا watermark */}
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2130] to-[#0b0f18] shadow-lg ring-1 ring-inset ring-white/10 transition-all duration-300 group-enabled:group-hover:-translate-y-0.5 group-enabled:group-hover:ring-white/25 group-active:scale-[0.97] [backface-visibility:hidden]">
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-6 opacity-[0.05] [background-image:radial-gradient(white_0.5px,transparent_1px)] [background-size:13px_13px]"
+                  />
+                  <StarIcon className="size-6 text-white/25 transition-colors duration-300 group-enabled:group-hover:text-gold/70" />
+                  <span className="text-[10px] font-bold tracking-[0.35em] text-white/20">سَروا</span>
                 </span>
-                {/* front */}
+
+                {/* front — neon glow by category, small label + name */}
                 <span
-                  className={`absolute inset-0 flex items-center justify-center rounded-xlnpm p-2 text-center text-xs font-semibold leading-snug [transform:rotateY(180deg)] [backface-visibility:hidden] sm:text-sm ${
-                    isMatched
-                      ? "bg-primary/10 text-primary"
-                      : card.kind === "work"
-                        ? "bg-gold/15 text-foreground"
-                        : "bg-lapis-light/15 text-foreground"
-                  }`}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2130] to-[#0b0f18] p-2 text-center ring-1 [transform:rotateY(180deg)] [backface-visibility:hidden] ${
+                    isWork
+                      ? "ring-gold/70 shadow-[0_0_28px_-8px_var(--color-gold)]"
+                      : "ring-primary/70 shadow-[0_0_28px_-8px_var(--color-primary)]"
+                  } ${isMatched ? "opacity-90" : ""}`}
                 >
-                  {card.text}
+                  <span
+                    className={`text-[9px] font-bold tracking-[0.2em] ${isWork ? "text-gold" : "text-primary"}`}
+                  >
+                    {isWork ? "اثر" : "پدیدآورنده"}
+                  </span>
+                  <span className="text-balance px-0.5 text-xs font-black leading-tight text-white sm:text-sm">
+                    {card.text}
+                  </span>
+                  {isMatched && (
+                    <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-green-500/20 text-[9px] text-green-400">
+                      ✓
+                    </span>
+                  )}
                 </span>
               </motion.div>
             </button>

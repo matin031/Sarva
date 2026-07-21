@@ -35,6 +35,12 @@ create policy "Anyone can read vocab words"
 -- select at all — grant read to both anonymous and signed-in visitors.
 grant select on public.vocab_words to anon, authenticated;
 
+-- The admin panel writes through the service-role key. service_role bypasses
+-- RLS, but table GRANTs are a separate check and new tables created in the
+-- SQL editor don't reliably inherit them — so grant it explicitly, exactly
+-- like supabase/migrations/0005_grant_service_role.sql does for the exam bank.
+grant select, insert, update, delete on public.vocab_words to service_role;
+
 -- ---------------------------------------------------------------------------
 -- Seed: درس دوم فارسی دهم (the 15 words already used while testing). Safe to
 -- re-run — it only inserts if this lesson is still empty.

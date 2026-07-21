@@ -241,7 +241,7 @@ function PairsGame() {
                 </span>
                 {/* front */}
                 <span
-                  className={`absolute inset-0 flex items-center justify-center rounded-xl p-2 text-center text-xs font-semibold leading-snug [transform:rotateY(180deg)] [backface-visibility:hidden] sm:text-sm ${
+                  className={`absolute inset-0 flex items-center justify-center rounded-xlnpm p-2 text-center text-xs font-semibold leading-snug [transform:rotateY(180deg)] [backface-visibility:hidden] sm:text-sm ${
                     isMatched
                       ? "bg-primary/10 text-primary"
                       : card.kind === "work"

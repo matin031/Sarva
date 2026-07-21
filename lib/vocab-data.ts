@@ -1,169 +1,71 @@
-// Data for the "واژه‌یاب" picture-vocabulary game.
+// Structure for the "واژه‌یاب" picture-vocabulary game.
 //
-// HOW TO ADD IMAGES (for you, Matin):
-//   1. Put the picture files in  public/vocab/<something>/  (any names).
-//   2. Fill the `image` field of each word below with its path, e.g.
-//      image: "https://raw.githubusercontent.com/ramtin1111/testPics/main/1.png"
-//   The game only quizzes words whose `image` is filled, so you can add
-//   pictures a few at a time — a lesson needs at least 3 pictured words to
-//   be playable. Leave `image: ""` for words without a picture yet.
+// The lesson STRUCTURE (three books, 18 lessons each, with the two "آزاد"
+// free lessons per book that carry no words) lives here as static config.
+// The WORDS themselves live in the database (table `vocab_words`) so they
+// can be added/edited from the admin panel — see lib/vocab-db.ts for the
+// fetch/log helpers and lib/admin/vocab-actions.ts for the admin CRUD.
 
 export type VocabWord = {
   id: string;
   word: string;
   meaning: string; // full explanation, shown after answering
-  image: string; // path under /public, e.g. "/vocab/.../1.png" — empty = no picture yet
+  image: string; // image URL (local /public path or remote), empty = no picture yet
 };
 
 export type VocabLesson = {
   id: string;
+  number: number; // 1..18
   title: string;
-  words: VocabWord[];
+  free: boolean; // "آزاد" lesson — has no words, not playable
 };
 
 export type VocabGrade = {
-  id: string;
+  id: "dahom" | "yazdahom" | "davazdahom";
   title: string;
   lessons: VocabLesson[];
 };
 
+const ORDINALS = [
+  "",
+  "اول",
+  "دوم",
+  "سوم",
+  "چهارم",
+  "پنجم",
+  "ششم",
+  "هفتم",
+  "هشتم",
+  "نهم",
+  "دهم",
+  "یازدهم",
+  "دوازدهم",
+  "سیزدهم",
+  "چهاردهم",
+  "پانزدهم",
+  "شانزدهم",
+  "هفدهم",
+  "هجدهم",
+];
+
+function buildLessons(freeLessons: number[]): VocabLesson[] {
+  return Array.from({ length: 18 }, (_, i) => {
+    const number = i + 1;
+    return {
+      id: `d${number}`,
+      number,
+      title: `درس ${ORDINALS[number]}`,
+      free: freeLessons.includes(number),
+    };
+  });
+}
+
+// Free ("آزاد") lessons per book — these carry no words and are not playable:
+//   دهم: درس ۴ و ۱۵    یازدهم: درس ۴ و ۱۳    دوازدهم: درس ۴ و ۱۵
 export const VOCAB_GRADES: VocabGrade[] = [
-  {
-    id: "dahom",
-    title: "دهم",
-    lessons: [
-      { id: "d1", title: "درس اول", words: [] },
-      {
-        id: "d2",
-        title: "درس دوم",
-        words: [
-          {
-            id: "miasa",
-            word: "میاسا",
-            meaning: "دست نکش",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/1.png",
-          },
-          {
-            id: "dad",
-            word: "داد",
-            meaning: "عدالت",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/2.png",
-          },
-          {
-            id: "mostaghni",
-            word: "مستغنی",
-            meaning: "بی‌نیاز",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/3.png",
-          },
-          {
-            id: "timar",
-            word: "تیمار",
-            meaning: "پرستاری و دلسوزی",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/4.png",
-          },
-          {
-            id: "fel",
-            word: "فعل",
-            meaning: "کار",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/5.png",
-          },
-          {
-            id: "mohal",
-            word: "محال",
-            meaning: "غیرممکن",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/6.png",
-          },
-          {
-            id: "zaye",
-            word: "ضایع",
-            meaning: "تباه",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/7.png",
-          },
-          {
-            id: "gharabat",
-            word: "قرابت",
-            meaning:
-              "نزدیکی، خویشی، خویشاوندی؛ در متن درس، منظور «خویشاوند» است.",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/8.png",
-          },
-          {
-            id: "khase",
-            word: "خاصه",
-            meaning: "ویژه",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/9.png",
-          },
-          {
-            id: "hormat",
-            word: "حرمت",
-            meaning: "احترام",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/10.png",
-          },
-          {
-            id: "moule",
-            word: "مولع",
-            meaning: "حریص شدن به چیزی، بسیار مشتاق",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/11.png",
-          },
-          {
-            id: "nang",
-            word: "ننگ",
-            meaning: "شرمساری",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/12.png",
-          },
-          {
-            id: "raste",
-            word: "رسته",
-            meaning: "نجات یافت",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/13.png",
-          },
-          {
-            id: "amale",
-            word: "عَمَله",
-            meaning: "جمع عامل، کارگران",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/14.png",
-          },
-          {
-            id: "nemude",
-            word: "نموده",
-            meaning: "نشان داده، ارائه کرده، آشکار کرده",
-            image:
-              "https://raw.githubusercontent.com/ramtin1111/testPics/main/15.png",
-          },
-        ],
-      },
-      { id: "d3", title: "درس سوم", words: [] },
-    ],
-  },
-  {
-    id: "yazdahom",
-    title: "یازدهم",
-    lessons: [
-      { id: "d1", title: "درس اول", words: [] },
-      { id: "d2", title: "درس دوم", words: [] },
-    ],
-  },
-  {
-    id: "davazdahom",
-    title: "دوازدهم",
-    lessons: [
-      { id: "d1", title: "درس اول", words: [] },
-      { id: "d2", title: "درس دوم", words: [] },
-    ],
-  },
+  { id: "dahom", title: "دهم", lessons: buildLessons([4, 15]) },
+  { id: "yazdahom", title: "یازدهم", lessons: buildLessons([4, 13]) },
+  { id: "davazdahom", title: "دوازدهم", lessons: buildLessons([4, 15]) },
 ];
 
 export type VocabQuestion = {
@@ -181,20 +83,28 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 /** Only words that have a picture are quizzable. */
-export function playableWords(lesson: VocabLesson): VocabWord[] {
-  return lesson.words.filter((w) => w.image.trim().length > 0);
+export function playableWords(words: VocabWord[]): VocabWord[] {
+  return words.filter((w) => w.image.trim().length > 0);
 }
 
-/** Builds one round: every pictured word becomes a question (its image +
- *  itself and two other pictured words as options), in random order. */
-export function buildVocabRound(lesson: VocabLesson): VocabQuestion[] {
-  const pool = playableWords(lesson);
+/** Learning round: every pictured word becomes a 3-option question, shuffled. */
+export function buildVocabRound(words: VocabWord[]): VocabQuestion[] {
+  const pool = playableWords(words);
   if (pool.length < 3) return [];
   return shuffle(pool).map((answer) => {
-    const distractors = shuffle(pool.filter((w) => w.id !== answer.id)).slice(
-      0,
-      2,
-    );
+    const distractors = shuffle(pool.filter((w) => w.id !== answer.id)).slice(0, 2);
     return { answer, options: shuffle([answer, ...distractors]) };
+  });
+}
+
+export type ChallengeStep = { answer: VocabWord; options: VocabWord[] }; // options.length === 2
+
+/** Challenge run: every pictured word in random order, each with one distractor. */
+export function buildChallenge(words: VocabWord[]): ChallengeStep[] {
+  const pool = playableWords(words);
+  if (pool.length < 3) return [];
+  return shuffle(pool).map((answer) => {
+    const distractor = shuffle(pool.filter((w) => w.id !== answer.id))[0];
+    return { answer, options: shuffle([answer, distractor]) };
   });
 }

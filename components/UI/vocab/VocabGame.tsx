@@ -8,7 +8,10 @@ import {
   type VocabGrade,
   type VocabLesson,
   type VocabQuestion,
+  type VocabWord,
 } from "@/lib/vocab-data";
+import { fetchGradePlayableCounts, fetchLessonWords, logVocabAnswer } from "@/lib/vocab-db";
+import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
 
@@ -27,6 +30,12 @@ export default function VocabGame() {
   const [screen, setScreen] = useState<Screen>("grade");
   const [grade, setGrade] = useState<VocabGrade | null>(null);
   const [lesson, setLesson] = useState<VocabLesson | null>(null);
+  const [words, setWords] = useState<VocabWord[]>([]);
+
+  const [counts, setCounts] = useState<Record<number, number>>({});
+  const [countsLoading, setCountsLoading] = useState(false);
+  const [loadingLessonId, setLoadingLessonId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
   const [qi, setQi] = useState(0);
@@ -37,17 +46,42 @@ export default function VocabGame() {
   const correctAudio = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // one-time read of best scores + sound setup from the browser on mount
+    // one-time read of best scores + sound setup + current user on mount
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBest(loadBest());
     correctAudio.current = new Audio("/currectsound.mp3");
     correctAudio.current.volume = 0.5;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setUserId(data.user?.id ?? null))
+      .catch(() => setUserId(null));
   }, []);
 
-  const startLesson = (l: VocabLesson) => {
-    const round = buildVocabRound(l);
-    if (round.length === 0) return;
+  const selectGrade = (g: VocabGrade) => {
+    setGrade(g);
+    setScreen("lesson");
+    setCounts({});
+    setCountsLoading(true);
+    fetchGradePlayableCounts(g.id).then((c) => {
+      setCounts(c);
+      setCountsLoading(false);
+    });
+  };
+
+  const selectLesson = async (l: VocabLesson) => {
+    if (l.free || !grade) return;
+    setLoadingLessonId(l.id);
+    const w = await fetchLessonWords(grade.id, l.number);
+    setLoadingLessonId(null);
+    if (playableWords(w).length < 3) return; // not enough pictured words yet
     setLesson(l);
+    setWords(w);
+    setScreen("mode");
+  };
+
+  const startLesson = () => {
+    const round = buildVocabRound(words);
+    if (round.length === 0) return;
     setQuestions(round);
     setQi(0);
     setPicked(null);
@@ -61,11 +95,22 @@ export default function VocabGame() {
   const bestKey = grade && lesson ? `${grade.id}:${lesson.id}` : "";
 
   const pick = (id: string) => {
-    if (answered) return;
+    if (answered || !q) return;
     setPicked(id);
-    if (id === q.answer.id) {
+    const correct = id === q.answer.id;
+    if (correct) {
       setScore((s) => s + 1);
       correctAudio.current?.play().catch(() => {});
+    }
+    if (userId && grade && lesson) {
+      logVocabAnswer(userId, {
+        grade: grade.id,
+        lesson: lesson.number,
+        word: q.answer.word,
+        meaning: q.answer.meaning,
+        image: q.answer.image,
+        isCorrect: correct,
+      });
     }
   };
 
@@ -90,30 +135,22 @@ export default function VocabGame() {
     return (
       <Shell title="واژه‌یاب" subtitle="پایه‌ات را انتخاب کن تا واژگانِ درس‌ها را با تصویر یاد بگیری.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {VOCAB_GRADES.map((g, i) => {
-            const total = g.lessons.reduce((s, l) => s + (playableWords(l).length >= 3 ? 1 : 0), 0);
-            return (
-              <motion.button
-                key={g.id}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                onClick={() => {
-                  setGrade(g);
-                  setScreen("lesson");
-                }}
-                className="group glass relative z-20 overflow-hidden rounded-2xl p-6 text-center transition-all hover:brightness-105 active:scale-[0.98]"
-              >
-                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-2xl font-black text-primary">
-                  {(i + 1).toLocaleString("fa-IR")}
-                </div>
-                <h3 className="text-xl font-bold">پایهٔ {g.title}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {total > 0 ? `${total.toLocaleString("fa-IR")} درس آماده` : "به‌زودی"}
-                </p>
-              </motion.button>
-            );
-          })}
+          {VOCAB_GRADES.map((g, i) => (
+            <motion.button
+              key={g.id}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              onClick={() => selectGrade(g)}
+              className="group glass relative z-20 overflow-hidden rounded-2xl p-6 text-center transition-all hover:brightness-105 active:scale-[0.98]"
+            >
+              <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-2xl font-black text-primary">
+                {(i + 1).toLocaleString("fa-IR")}
+              </div>
+              <h3 className="text-xl font-bold">پایهٔ {g.title}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">فارسی — ۱۸ درس</p>
+            </motion.button>
+          ))}
         </div>
       </Shell>
     );
@@ -129,17 +166,15 @@ export default function VocabGame() {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {grade.lessons.map((l) => {
-            const count = playableWords(l).length;
-            const ready = count >= 3;
+            const count = counts[l.number] ?? 0;
+            const ready = !l.free && count >= 3;
+            const isLoading = loadingLessonId === l.id;
             const b = best[`${grade.id}:${l.id}`];
             return (
               <button
                 key={l.id}
-                disabled={!ready}
-                onClick={() => {
-                  setLesson(l);
-                  setScreen("mode");
-                }}
+                disabled={l.free || isLoading || (!ready && !countsLoading)}
+                onClick={() => selectLesson(l)}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-5 text-right transition-all ${
                   ready
                     ? "border-border bg-card hover:border-primary/50 active:scale-[0.99]"
@@ -149,7 +184,15 @@ export default function VocabGame() {
                 <div>
                   <h3 className="font-bold">{l.title}</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {ready ? `${count.toLocaleString("fa-IR")} واژه` : "به‌زودی"}
+                    {l.free
+                      ? "درسِ آزاد"
+                      : isLoading
+                        ? "در حال باز کردن…"
+                        : countsLoading
+                          ? "…"
+                          : ready
+                            ? `${count.toLocaleString("fa-IR")} واژه`
+                            : "به‌زودی"}
                   </p>
                 </div>
                 {ready && b != null && (
@@ -167,7 +210,7 @@ export default function VocabGame() {
 
   // ---------- mode select ----------
   if (screen === "mode" && grade && lesson) {
-    const count = playableWords(lesson).length;
+    const count = playableWords(words).length;
     return (
       <Shell
         title={lesson.title}
@@ -178,7 +221,7 @@ export default function VocabGame() {
           <motion.button
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            onClick={() => startLesson(lesson)}
+            onClick={startLesson}
             className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
           >
             <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-3xl">📖</div>
@@ -209,7 +252,15 @@ export default function VocabGame() {
 
   // ---------- challenge ----------
   if (screen === "challenge" && grade && lesson) {
-    return <VocabChallenge grade={grade} lesson={lesson} onExit={() => setScreen("mode")} />;
+    return (
+      <VocabChallenge
+        grade={grade}
+        lesson={lesson}
+        words={words}
+        userId={userId}
+        onExit={() => setScreen("mode")}
+      />
+    );
   }
 
   // ---------- result ----------
@@ -234,7 +285,7 @@ export default function VocabGame() {
           <p className="text-sm text-muted-foreground">{pct.toLocaleString("fa-IR")}٪ درست</p>
           <div className="mt-6 flex justify-center gap-3">
             <button
-              onClick={() => startLesson(lesson)}
+              onClick={startLesson}
               className="rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
             >
               دوباره

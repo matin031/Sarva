@@ -12,6 +12,9 @@ import CompletedQuizzesSection, {
 import JasoosHistorySection, {
   type JasoosAnswer,
 } from "@/components/JasoosHistorySection";
+import VocabMistakesSection, {
+  type VocabMistake,
+} from "@/components/VocabMistakesSection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -158,6 +161,55 @@ async function page() {
     formattedDate: formatJalaliDate(a.answered_at),
   })) as JasoosAnswer[];
 
+  // --- واژه‌یاب: the vocabulary words this student has answered wrong ---
+  const { data: vocabAnswers } = await supabase
+    .from("vocab_answers")
+    .select("grade, lesson, word, meaning, image, is_correct, answered_at")
+    .eq("user_id", user!.id)
+    .order("answered_at", { ascending: false });
+
+  const VOCAB_GRADE_LABELS: Record<string, string> = {
+    dahom: "پایهٔ دهم",
+    yazdahom: "پایهٔ یازدهم",
+    davazdahom: "پایهٔ دوازدهم",
+  };
+  const VOCAB_LESSON_ORD = [
+    "", "اول", "دوم", "سوم", "چهارم", "پنجم", "ششم", "هفتم", "هشتم", "نهم",
+    "دهم", "یازدهم", "دوازدهم", "سیزدهم", "چهاردهم", "پانزدهم", "شانزدهم", "هفدهم", "هجدهم",
+  ];
+
+  // rows come newest-first, so the first time we see a wrong word is its most
+  // recent miss; later hits on the same word just bump its wrong count.
+  const vocabMistakeMap = new Map<string, VocabMistake>();
+  for (const a of (vocabAnswers ?? []) as {
+    grade: string;
+    lesson: number;
+    word: string;
+    meaning: string;
+    image: string | null;
+    is_correct: boolean;
+    answered_at: string;
+  }[]) {
+    if (a.is_correct) continue;
+    const key = `${a.grade}:${a.word}`;
+    const existing = vocabMistakeMap.get(key);
+    if (existing) {
+      existing.wrongCount += 1;
+    } else {
+      vocabMistakeMap.set(key, {
+        key,
+        word: a.word,
+        meaning: a.meaning,
+        image: a.image ?? "",
+        gradeLabel: VOCAB_GRADE_LABELS[a.grade] ?? a.grade,
+        lessonLabel: `درس ${VOCAB_LESSON_ORD[a.lesson] ?? a.lesson}`,
+        wrongCount: 1,
+        lastMissed: formatJalaliDate(a.answered_at),
+      });
+    }
+  }
+  const vocabMistakes = Array.from(vocabMistakeMap.values());
+
   return (
     <main dir="rtl" className=" mt-10 container">
       <div className=" flex sm:flex-row flex-col items-center gap-y-5 sm:items-end justify-center sm:justify-between">
@@ -263,6 +315,25 @@ async function page() {
         پرونده‌های بازیِ جاسوسِ نقش‌ها
       </h5>
       <JasoosHistorySection answers={jasoosAnswersWithDate} />
+
+      <h5 className="font-bold text-xl xs:text-2xl mt-10 mb-3 gap-x-2 flex items-center cursor-default">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className=" size-6 xs:size-8"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+          />
+        </svg>
+        واژه‌هایی که در واژه‌یاب اشتباه زدی
+      </h5>
+      <VocabMistakesSection mistakes={vocabMistakes} />
 
       <h5 className="font-bold text-xl xs:text-2xl mt-10 mb-3 gap-x-2 flex items-center cursor-default">
         <svg

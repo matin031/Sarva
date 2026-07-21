@@ -39,6 +39,17 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/vocab",
+    label: "واژه‌یاب",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <rect x="3" y="4" width="18" height="14" rx="2" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m3 14 4.5-4a2 2 0 0 1 2.7 0L15 14" />
+        <circle cx="15.5" cy="8.5" r="1.5" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/users",
     label: "کاربران",
     icon: (

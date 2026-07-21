@@ -1,34 +1,22 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { playableWords, type VocabGrade, type VocabLesson, type VocabWord } from "@/lib/vocab-data";
+import {
+  buildChallenge,
+  type ChallengeStep as Step,
+  type VocabGrade,
+  type VocabLesson,
+  type VocabWord,
+} from "@/lib/vocab-data";
+import { logVocabAnswer } from "@/lib/vocab-db";
 import MeaningModal from "./MeaningModal";
 
 const ROUND_MS = 7000; // time per image
 const BEST_KEY = "vocab-challenge-best";
 
-type Step = { answer: VocabWord; options: VocabWord[] }; // options.length === 2 (right, left)
 type Phase = "ready" | "playing" | "won";
 type Flash = null | "correct" | "wrong";
 type ReviewStatus = "correct" | "wrong" | "timeout";
-
-function shuffle<T>(arr: T[]): T[] {
-  const c = [...arr];
-  for (let i = c.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [c[i], c[j]] = [c[j], c[i]];
-  }
-  return c;
-}
-
-/** A fresh run: every pictured word in random order, each paired with one distractor. */
-function buildChallenge(lesson: VocabLesson): Step[] {
-  const pool = playableWords(lesson);
-  return shuffle(pool).map((answer) => {
-    const distractor = shuffle(pool.filter((w) => w.id !== answer.id))[0];
-    return { answer, options: shuffle([answer, distractor]) };
-  });
-}
 
 // ---- tiny sound engine (no asset files needed for the ticks) ----
 type SoundKit = {
@@ -104,13 +92,17 @@ function loadBest(): Record<string, number> {
 export default function VocabChallenge({
   grade,
   lesson,
+  words,
+  userId,
   onExit,
 }: {
   grade: VocabGrade;
   lesson: VocabLesson;
+  words: VocabWord[];
+  userId: string | null;
   onExit: () => void;
 }) {
-  const [steps, setSteps] = useState<Step[]>(() => buildChallenge(lesson));
+  const [steps, setSteps] = useState<Step[]>(() => buildChallenge(words));
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("ready");
   const [remaining, setRemaining] = useState(ROUND_MS);
@@ -155,6 +147,27 @@ export default function VocabChallenge({
     [bestKey],
   );
 
+  // keep the latest steps reachable from the rAF loop without stale closures
+  const stepsRef = useRef<Step[]>(steps);
+  useEffect(() => {
+    stepsRef.current = steps;
+  }, [steps]);
+
+  const logAnswer = useCallback(
+    (step: Step | undefined, isCorrect: boolean) => {
+      if (!userId || !step) return;
+      logVocabAnswer(userId, {
+        grade: grade.id,
+        lesson: lesson.number,
+        word: step.answer.word,
+        meaning: step.answer.meaning,
+        image: step.answer.image,
+        isCorrect,
+      });
+    },
+    [userId, grade.id, lesson.number],
+  );
+
   const stopTimer = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -180,18 +193,20 @@ export default function VocabChallenge({
         setFlash("wrong");
         saveBest(idxRef.current);
         setReached(idxRef.current);
+        logAnswer(stepsRef.current[idxRef.current], false);
         setReview("timeout");
         return;
       }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-  }, [saveBest]);
+  }, [saveBest, logAnswer]);
 
   const beginRun = useCallback(() => {
     soundRef.current?.unlock();
-    const fresh = buildChallenge(lesson);
+    const fresh = buildChallenge(words);
     setSteps(fresh);
+    stepsRef.current = fresh;
     idxRef.current = 0;
     setIdx(0);
     setFlash(null);
@@ -201,7 +216,7 @@ export default function VocabChallenge({
     phaseRef.current = "playing";
     setPhase("playing");
     startRound();
-  }, [lesson, startRound]);
+  }, [words, startRound]);
 
   const pick = (id: string) => {
     if (phaseRef.current !== "playing" || busyRef.current) return;
@@ -210,10 +225,12 @@ export default function VocabChallenge({
     const curStep = steps[idxRef.current];
     if (id === curStep.answer.id) {
       soundRef.current?.success();
+      logAnswer(curStep, true);
       setFlash("correct");
       setTimeout(() => setReview("correct"), 450);
     } else {
       soundRef.current?.fail();
+      logAnswer(curStep, false);
       setFlash("wrong");
       setWrongId(id);
       saveBest(idxRef.current);

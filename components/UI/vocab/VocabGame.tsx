@@ -11,8 +11,9 @@ import {
   type VocabQuestion,
   type VocabWord,
 } from "@/lib/vocab-data";
+import VocabChallenge from "./VocabChallenge";
 
-type Screen = "grade" | "lesson" | "quiz" | "result";
+type Screen = "grade" | "lesson" | "mode" | "quiz" | "result" | "challenge";
 const BEST_KEY = "vocab-best";
 
 function loadBest(): Record<string, number> {
@@ -136,7 +137,10 @@ export default function VocabGame() {
               <button
                 key={l.id}
                 disabled={!ready}
-                onClick={() => startLesson(l)}
+                onClick={() => {
+                  setLesson(l);
+                  setScreen("mode");
+                }}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-5 text-right transition-all ${
                   ready
                     ? "border-border bg-card hover:border-primary/50 active:scale-[0.99]"
@@ -160,6 +164,53 @@ export default function VocabGame() {
         </div>
       </Shell>
     );
+  }
+
+  // ---------- mode select ----------
+  if (screen === "mode" && grade && lesson) {
+    const count = playableWords(lesson).length;
+    return (
+      <Shell
+        title={lesson.title}
+        subtitle="چطور می‌خواهی این درس را تمرین کنی؟"
+        onBack={() => setScreen("lesson")}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <motion.button
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => startLesson(lesson)}
+            className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-3xl">📖</div>
+            <h3 className="text-lg font-black text-primary">حالتِ یادگیری</h3>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              بدون عجله. یک تصویر و سه واژه؛ بعد از هر پاسخ، معنی کاملِ واژه‌ها را می‌بینی و یاد می‌گیری.
+            </p>
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.06 }}
+            onClick={() => setScreen("challenge")}
+            className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-destructive/15 text-3xl">⏱️</div>
+            <h3 className="text-lg font-black text-destructive">حالتِ چالش</h3>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              هر تصویر ۷ ثانیه! دو واژه، صدای تیک‌تیک و مسابقه با زمان. یک اشتباه = از اول. باید هر{" "}
+              {count.toLocaleString("fa-IR")} واژه را بی‌غلط بزنی.
+            </p>
+          </motion.button>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ---------- challenge ----------
+  if (screen === "challenge" && grade && lesson) {
+    return <VocabChallenge grade={grade} lesson={lesson} onExit={() => setScreen("mode")} />;
   }
 
   // ---------- result ----------

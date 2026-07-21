@@ -3,7 +3,7 @@
 // HOW TO ADD IMAGES (for you, Matin):
 //   1. Put the picture files in  public/vocab/<something>/  (any names).
 //   2. Fill the `image` field of each word below with its path, e.g.
-//      image: "/vocab/farsi-dahom/dars-2/1.png"
+//      image: "https://raw.githubusercontent.com/ramtin1111/testPics/main/1.png"
 //   The game only quizzes words whose `image` is filled, so you can add
 //   pictures a few at a time — a lesson needs at least 3 pictured words to
 //   be playable. Leave `image: ""` for words without a picture yet.
@@ -41,92 +41,107 @@ export const VOCAB_GRADES: VocabGrade[] = [
             id: "miasa",
             word: "میاسا",
             meaning: "دست نکش",
-            image: "/vocab/farsi-dahom/dars-2/1.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/1.png",
           },
           {
             id: "dad",
             word: "داد",
             meaning: "عدالت",
-            image: "/vocab/farsi-dahom/dars-2/2.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/2.png",
           },
           {
             id: "mostaghni",
             word: "مستغنی",
             meaning: "بی‌نیاز",
-            image: "/vocab/farsi-dahom/dars-2/3.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/3.png",
           },
           {
             id: "timar",
             word: "تیمار",
             meaning: "پرستاری و دلسوزی",
-            image: "/vocab/farsi-dahom/dars-2/4.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/4.png",
           },
           {
             id: "fel",
             word: "فعل",
             meaning: "کار",
-            image: "/vocab/farsi-dahom/dars-2/5.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/5.png",
           },
           {
             id: "mohal",
             word: "محال",
             meaning: "غیرممکن",
-            image: "/vocab/farsi-dahom/dars-2/6.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/6.png",
           },
           {
             id: "zaye",
             word: "ضایع",
             meaning: "تباه",
-            image: "/vocab/farsi-dahom/dars-2/7.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/7.png",
           },
           {
             id: "gharabat",
             word: "قرابت",
             meaning:
               "نزدیکی، خویشی، خویشاوندی؛ در متن درس، منظور «خویشاوند» است.",
-            image: "/vocab/farsi-dahom/dars-2/8.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/8.png",
           },
           {
             id: "khase",
             word: "خاصه",
             meaning: "ویژه",
-            image: "/vocab/farsi-dahom/dars-2/9.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/9.png",
           },
           {
             id: "hormat",
             word: "حرمت",
             meaning: "احترام",
-            image: "/vocab/farsi-dahom/dars-2/10.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/10.png",
           },
           {
             id: "moule",
             word: "مولع",
             meaning: "حریص شدن به چیزی، بسیار مشتاق",
-            image: "/vocab/farsi-dahom/dars-2/11.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/11.png",
           },
           {
             id: "nang",
             word: "ننگ",
             meaning: "شرمساری",
-            image: "/vocab/farsi-dahom/dars-2/12.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/12.png",
           },
           {
             id: "raste",
             word: "رسته",
             meaning: "نجات یافت",
-            image: "/vocab/farsi-dahom/dars-2/13.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/13.png",
           },
           {
             id: "amale",
             word: "عَمَله",
             meaning: "جمع عامل، کارگران",
-            image: "/vocab/farsi-dahom/dars-2/14.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/14.png",
           },
           {
             id: "nemude",
             word: "نموده",
             meaning: "نشان داده، ارائه کرده، آشکار کرده",
-            image: "/vocab/farsi-dahom/dars-2/15.png",
+            image:
+              "https://raw.githubusercontent.com/ramtin1111/testPics/main/15.png",
           },
         ],
       },

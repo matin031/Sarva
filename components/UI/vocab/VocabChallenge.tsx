@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import { playableWords, type VocabGrade, type VocabLesson, type VocabWord } from "@/lib/vocab-data";
 
@@ -118,6 +117,7 @@ export default function VocabChallenge({
   const [wrongId, setWrongId] = useState<string | null>(null);
   const [failReason, setFailReason] = useState<FailReason>("wrong");
   const [reached, setReached] = useState(0); // words cleared in the failed/won run
+  const [failedWord, setFailedWord] = useState<VocabWord | null>(null); // the word missed
   const [best, setBest] = useState(0);
 
   const total = steps.length;
@@ -165,11 +165,12 @@ export default function VocabChallenge({
       stopTimer();
       saveBest(cleared);
       setReached(cleared);
+      if (!won) setFailedWord(steps[cleared]?.answer ?? null);
       phaseRef.current = won ? "won" : "failed";
       setFailReason(reason);
       setPhase(won ? "won" : "failed");
     },
-    [saveBest],
+    [saveBest, steps],
   );
 
   const startRound = useCallback(() => {
@@ -342,6 +343,22 @@ export default function VocabChallenge({
             رکورد تو: <span className="font-bold text-gold">{best.toLocaleString("fa-IR")}</span> از{" "}
             {total.toLocaleString("fa-IR")}
           </p>
+
+          {/* learn the word you missed before trying again */}
+          {failedWord && (
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-background/60 p-3 text-right">
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={failedWord.image} alt="" className="absolute inset-0 size-full object-cover" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">واژه‌ای که ماند</p>
+                <p className="text-lg font-black text-primary">{failedWord.word}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{failedWord.meaning}</p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={beginRun}
@@ -432,7 +449,8 @@ export default function VocabChallenge({
               : "border-border"
         }`}
       >
-        <Image src={cur.answer.image} alt="" fill className="object-cover" sizes="(max-width:640px) 100vw, 600px" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={cur.answer.image} alt="" className="absolute inset-0 size-full object-cover" />
         <AnimatePresence>
           {flash === "correct" && (
             <motion.div

@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import {
   VOCAB_GRADES,
@@ -281,7 +280,8 @@ export default function VocabGame() {
           animate={{ opacity: 1, y: 0 }}
           className="relative z-20 mx-auto aspect-[4/3] w-full overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
         >
-          <Image src={q.answer.image} alt="" fill className="object-cover" sizes="(max-width:640px) 100vw, 600px" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={q.answer.image} alt="" className="absolute inset-0 size-full object-cover" />
         </motion.div>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">این تصویر، کدام واژه است؟</p>
@@ -317,35 +317,15 @@ export default function VocabGame() {
           })}
         </div>
 
-        {/* feedback */}
-        <AnimatePresence>
-          {answered && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mt-4 rounded-2xl border p-4 text-sm ${
-                isCorrect
-                  ? "border-green-500/40 bg-green-500/10"
-                  : "border-destructive/40 bg-destructive/10"
-              }`}
-            >
-              <p className={`mb-2 font-bold ${isCorrect ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
-                {isCorrect ? "آفرین! درست بود ✓" : "نادرست ✗"}
-              </p>
-              <Explain word={q.answer} highlight />
-              {!isCorrect &&
-                q.options
-                  .filter((o) => o.id !== q.answer.id)
-                  .map((o) => <Explain key={o.id} word={o} />)}
-              <button
-                onClick={next}
-                className="mt-3 min-h-11 w-full rounded-xl bg-primary font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
-              >
-                {qi + 1 >= questions.length ? "دیدن نتیجه" : "واژهٔ بعدی"}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* learning modal — the heart of the game: see the word & its full meaning */}
+        <MeaningModal
+          open={answered}
+          isCorrect={!!isCorrect}
+          answer={q.answer}
+          others={q.options.filter((o) => o.id !== q.answer.id)}
+          isLast={qi + 1 >= questions.length}
+          onContinue={next}
+        />
       </div>
     );
   }
@@ -353,12 +333,101 @@ export default function VocabGame() {
   return null;
 }
 
-function Explain({ word, highlight }: { word: VocabWord; highlight?: boolean }) {
+function MeaningModal({
+  open,
+  isCorrect,
+  answer,
+  others,
+  isLast,
+  onContinue,
+}: {
+  open: boolean;
+  isCorrect: boolean;
+  answer: VocabWord;
+  others: VocabWord[];
+  isLast: boolean;
+  onContinue: () => void;
+}) {
   return (
-    <p className="leading-relaxed text-foreground">
-      <span className={`font-bold ${highlight ? "text-primary" : ""}`}>{word.word}:</span>{" "}
-      <span className="text-muted-foreground">{word.meaning}</span>
-    </p>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center"
+          onClick={onContinue}
+        >
+          <motion.div
+            dir="rtl"
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-2xl"
+          >
+            {/* status ribbon */}
+            <div
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold ${
+                isCorrect
+                  ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                  : "bg-destructive/15 text-destructive"
+              }`}
+            >
+              <span className="flex size-6 items-center justify-center rounded-full bg-current/20 text-base">
+                {isCorrect ? "✓" : "✗"}
+              </span>
+              {isCorrect ? "آفرین! درست بود" : "اشکالی ندارد، یاد بگیر"}
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-6">
+              {/* the word */}
+              <div className="flex items-start gap-4">
+                <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={answer.image} alt="" className="absolute inset-0 size-full object-cover" />
+                </div>
+                <div className="min-w-0 pt-1">
+                  <p className="text-xs text-muted-foreground">واژه</p>
+                  <h3 className="text-3xl font-black text-primary">{answer.word}</h3>
+                </div>
+              </div>
+
+              {/* the meaning — the focus */}
+              <div className="mt-4 rounded-2xl bg-primary/5 p-4">
+                <p className="mb-1 text-xs font-semibold text-primary">معنی</p>
+                <p className="text-lg leading-relaxed text-foreground">{answer.meaning}</p>
+              </div>
+
+              {/* the other options, so nothing is left unlearned */}
+              {others.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">واژه‌های دیگرِ این پرسش</p>
+                  <div className="space-y-2">
+                    {others.map((o) => (
+                      <div key={o.id} className="rounded-xl border border-border bg-background/60 p-3">
+                        <span className="font-bold text-foreground">{o.word}:</span>{" "}
+                        <span className="text-sm text-muted-foreground">{o.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border p-4">
+              <button
+                onClick={onContinue}
+                className="min-h-12 w-full rounded-2xl bg-primary text-lg font-black text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+              >
+                {isLast ? "دیدن نتیجه" : "ادامه"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

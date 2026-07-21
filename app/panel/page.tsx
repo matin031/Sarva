@@ -14,6 +14,7 @@ import JasoosHistorySection, {
 } from "@/components/JasoosHistorySection";
 import VocabMistakesSection, {
   type VocabMistake,
+  type VocabMistakeGroup,
 } from "@/components/VocabMistakesSection";
 import type { Metadata } from "next";
 
@@ -178,9 +179,16 @@ async function page() {
     "دهم", "یازدهم", "دوازدهم", "سیزدهم", "چهاردهم", "پانزدهم", "شانزدهم", "هفدهم", "هجدهم",
   ];
 
-  // rows come newest-first, so the first time we see a wrong word is its most
-  // recent miss; later hits on the same word just bump its wrong count.
-  const vocabMistakeMap = new Map<string, VocabMistake>();
+  // rows come newest-first. Group the wrong answers by lesson; within each
+  // lesson keep one entry per word (first seen = most recent miss) and bump a
+  // wrong count on repeats. Group insertion order stays newest-first too.
+  type MistakeGroupAcc = {
+    key: string;
+    gradeLabel: string;
+    lessonLabel: string;
+    words: Map<string, VocabMistake>;
+  };
+  const vocabGroupMap = new Map<string, MistakeGroupAcc>();
   for (const a of (vocabAnswers ?? []) as {
     grade: string;
     lesson: number;
@@ -191,24 +199,39 @@ async function page() {
     answered_at: string;
   }[]) {
     if (a.is_correct) continue;
-    const key = `${a.grade}:${a.word}`;
-    const existing = vocabMistakeMap.get(key);
+    const groupKey = `${a.grade}:${a.lesson}`;
+    let group = vocabGroupMap.get(groupKey);
+    if (!group) {
+      group = {
+        key: groupKey,
+        gradeLabel: VOCAB_GRADE_LABELS[a.grade] ?? a.grade,
+        lessonLabel: `درس ${VOCAB_LESSON_ORD[a.lesson] ?? a.lesson}`,
+        words: new Map<string, VocabMistake>(),
+      };
+      vocabGroupMap.set(groupKey, group);
+    }
+    const existing = group.words.get(a.word);
     if (existing) {
       existing.wrongCount += 1;
     } else {
-      vocabMistakeMap.set(key, {
-        key,
+      group.words.set(a.word, {
+        key: `${groupKey}:${a.word}`,
         word: a.word,
         meaning: a.meaning,
         image: a.image ?? "",
-        gradeLabel: VOCAB_GRADE_LABELS[a.grade] ?? a.grade,
-        lessonLabel: `درس ${VOCAB_LESSON_ORD[a.lesson] ?? a.lesson}`,
         wrongCount: 1,
         lastMissed: formatJalaliDate(a.answered_at),
       });
     }
   }
-  const vocabMistakes = Array.from(vocabMistakeMap.values());
+  const vocabMistakeGroups: VocabMistakeGroup[] = Array.from(vocabGroupMap.values()).map(
+    (g) => ({
+      key: g.key,
+      gradeLabel: g.gradeLabel,
+      lessonLabel: g.lessonLabel,
+      mistakes: Array.from(g.words.values()),
+    }),
+  );
 
   return (
     <main dir="rtl" className=" mt-10 container">
@@ -333,7 +356,7 @@ async function page() {
         </svg>
         واژه‌هایی که در واژه‌یاب اشتباه زدی
       </h5>
-      <VocabMistakesSection mistakes={vocabMistakes} />
+      <VocabMistakesSection groups={vocabMistakeGroups} />
 
       <h5 className="font-bold text-xl xs:text-2xl mt-10 mb-3 gap-x-2 flex items-center cursor-default">
         <svg

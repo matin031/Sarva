@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
-/** Self-playing preview of the وزن‌یاب tool for the homepage: types a verse
- *  into both مصراع inputs, presses "پیدا کن", runs the analysing loader, then
- *  reveals the detected ارکان عروضی + بحر — and loops. Purely decorative; no
- *  real logic. Pauses off-screen and honors prefers-reduced-motion. */
+/** Self-playing preview of the وزن‌یاب tool for the homepage. Everything lives
+ *  inside ONE fixed-height card so the page never reflows: it types a verse
+ *  into both مصراع inputs, presses "پیدا کن", the result area (always present,
+ *  showing dashes at first) runs the analysing loader and then crossfades to
+ *  the detected ارکان عروضی + بحر — and loops. Purely decorative; no real logic.
+ *  Pauses off-screen and honors prefers-reduced-motion. */
 
 const EXAMPLE = {
   mesra1: "شهر یاران بود و خاک مهربانان این دیار",
@@ -14,6 +16,7 @@ const EXAMPLE = {
   feet: "فاعلاتن فاعلاتن فاعلاتن فاعلن",
   bahr: "رملِ مثمنِ محذوف",
 };
+const DASHES = "— — — —";
 
 type Stage = "idle" | "loading" | "result";
 type Caret = "one" | "two" | null;
@@ -41,16 +44,13 @@ export default function VaznYabDemo() {
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), {
-      threshold: 0.3,
-    });
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.3 });
     io.observe(el);
     return () => io.disconnect();
   }, []);
 
   useEffect(() => {
     if (reduced) {
-      // static end-state: filled + result shown
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTyped1(EXAMPLE.mesra1);
       setTyped2(EXAMPLE.mesra2);
@@ -96,7 +96,7 @@ export default function VaznYabDemo() {
         if (cancelled) return;
 
         setStage("result");
-        await sleep(3400);
+        await sleep(3600);
         if (cancelled) return;
       }
     })();
@@ -106,10 +106,12 @@ export default function VaznYabDemo() {
     };
   }, [active, reduced]);
 
+  const showResult = stage === "result";
+
   return (
-    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      {/* input card */}
+    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto w-full max-w-2xl">
       <div className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-7">
+        {/* ---- input part ---- */}
         <span className="text-xs text-muted-foreground sm:text-sm">
           بیت خود را بنویس — هر مصراع در یک خط
         </span>
@@ -139,14 +141,7 @@ export default function VaznYabDemo() {
           transition={{ duration: 0.18 }}
           className="mt-7 inline-flex items-center gap-x-2 rounded-3xl bg-primary px-4 py-1.5 font-bold text-secondary sm:text-lg"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-5"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -155,64 +150,72 @@ export default function VaznYabDemo() {
           </svg>
           {stage === "loading" ? "درحال جستجو" : "پیدا کن"}
         </motion.span>
-      </div>
 
-      {/* result region: empty → loading → result */}
-      <div className="relative min-h-[210px]">
-        <AnimatePresence mode="wait">
-          {stage === "loading" && (
-            <motion.div
-              key="loading"
-              initial={reduced ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="glass relative z-20 flex min-h-[210px] items-center justify-center rounded-3xl bg-card! p-6"
-            >
-              <Equalizer />
-            </motion.div>
-          )}
+        {/* ---- divider ---- */}
+        <div className="my-6 h-px w-full bg-border" />
 
-          {stage === "result" && (
-            <motion.div
-              key="result"
-              initial={reduced ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-7"
-            >
-              <div className="flex items-center gap-x-3 text-lg font-bold sm:text-xl">
-                <span className="flex size-10 items-center justify-center rounded-full bg-primary/20 text-primary">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    className="size-5"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2" />
-                  </svg>
-                </span>
-                <h3>وزن و بحر</h3>
-              </div>
+        {/* ---- result part (always present → fixed height, no page jump) ---- */}
+        <div className="relative">
+          <div className="flex items-center gap-x-3 text-lg font-bold sm:text-xl">
+            <span className="flex size-10 items-center justify-center rounded-full bg-primary/20 text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="size-5" viewBox="0 0 24 24">
+                <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2" />
+              </svg>
+            </span>
+            <h3>وزن و بحر</h3>
+          </div>
 
-              <div className="mt-6">
-                <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">ارکان عروضی</span>
-                <div className="w-full rounded-3xl bg-primary/10 px-2 py-3 text-center font-bold text-primary">
-                  {EXAMPLE.feet}
-                </div>
-              </div>
+          <div className="mt-6">
+            <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">ارکان عروضی</span>
+            <div className="flex min-h-[3.25rem] w-full items-center justify-center rounded-3xl bg-primary/10 px-2 py-3 text-center font-bold text-primary">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={showResult ? "feet" : "idle"}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.3 }}
+                  className={showResult ? "" : "text-primary/40"}
+                >
+                  {showResult ? EXAMPLE.feet : DASHES}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+          </div>
 
-              <div className="mt-3">
-                <span className="text-xs text-muted-foreground sm:text-sm">بحر</span>
-                <div className="w-full font-bold brightness-75">{EXAMPLE.bahr}</div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <div className="mt-3">
+            <span className="text-xs text-muted-foreground sm:text-sm">بحر</span>
+            <div className="min-h-6 w-full font-bold brightness-75">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={showResult ? "bahr" : "idle"}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.3 }}
+                  className={showResult ? "" : "text-muted-foreground/40"}
+                >
+                  {showResult ? EXAMPLE.bahr : DASHES}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* analysing overlay — sits over the result area only, adds no height */}
+          <AnimatePresence>
+            {stage === "loading" && (
+              <motion.div
+                initial={reduced ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-card/70 backdrop-blur-[2px]"
+              >
+                <Equalizer />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
@@ -233,8 +236,8 @@ function Caret() {
 function Equalizer() {
   const bars = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   return (
-    <div className="flex flex-col items-center gap-y-4">
-      <div className="flex h-11 items-center gap-[5px]">
+    <div className="flex flex-col items-center gap-y-3">
+      <div className="flex h-10 items-center gap-[5px]">
         {bars.map((i) => (
           <motion.span
             key={i}
@@ -246,7 +249,7 @@ function Equalizer() {
         ))}
       </div>
       <motion.span
-        className="text-xs font-medium text-muted-foreground sm:text-sm"
+        className="text-xs font-medium text-muted-foreground"
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
       >

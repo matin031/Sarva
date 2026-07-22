@@ -109,7 +109,7 @@ export default function VaznYabDemo() {
   return (
     <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       {/* input card */}
-      <div className="glass relative z-20 rounded-3xl p-5 sm:p-7">
+      <div className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-7">
         <span className="text-xs text-muted-foreground sm:text-sm">
           بیت خود را بنویس — هر مصراع در یک خط
         </span>
@@ -166,7 +166,7 @@ export default function VaznYabDemo() {
               initial={reduced ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="glass relative z-20 flex min-h-[210px] items-center justify-center rounded-3xl p-6"
+              className="glass relative z-20 flex min-h-[210px] items-center justify-center rounded-3xl bg-card! p-6"
             >
               <Equalizer />
             </motion.div>
@@ -179,7 +179,7 @@ export default function VaznYabDemo() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="glass relative z-20 rounded-3xl p-5 sm:p-7"
+              className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-7"
             >
               <div className="flex items-center gap-x-3 text-lg font-bold sm:text-xl">
                 <span className="flex size-10 items-center justify-center rounded-full bg-primary/20 text-primary">

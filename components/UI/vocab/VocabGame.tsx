@@ -358,14 +358,13 @@ export default function VocabGame() {
           key={q.answer.id}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-20 mx-auto aspect-[3/2] w-full overflow-hidden
-           rounded-3xl border border-border bg-card shadow-lg"
+          className="relative z-20 mx-auto aspect-[4/3] w-full overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={q.answer.image}
-            alt="عکس واژگان"
-            className="size-full absolute object-cover"
+            alt=""
+            className="absolute inset-0 size-full object-cover"
           />
         </motion.div>
 

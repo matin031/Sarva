@@ -1,6 +1,7 @@
 "use client";
 import { motion, AnimatePresence } from "motion/react";
 import type { VocabWord } from "@/lib/vocab-data";
+import { vocabImageUrl } from "@/lib/vocab-image";
 
 /** Shared "learn the meaning" modal used by both واژه‌یاب modes. */
 export default function MeaningModal({
@@ -66,7 +67,7 @@ export default function MeaningModal({
               <div className="flex items-start gap-4">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={answer.image} alt="" className="absolute inset-0 size-full object-cover" />
+                  <img src={vocabImageUrl(answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
                 </div>
                 <div className="min-w-0 pt-1">
                   <p className="text-xs text-muted-foreground">واژه</p>

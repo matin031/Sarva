@@ -9,6 +9,7 @@ import {
   type VocabWord,
 } from "@/lib/vocab-data";
 import { logVocabAnswer } from "@/lib/vocab-db";
+import { vocabImageUrl } from "@/lib/vocab-image";
 import MeaningModal from "./MeaningModal";
 
 const ROUND_MS = 7000; // time per image
@@ -93,16 +94,18 @@ export default function VocabChallenge({
   grade,
   lesson,
   words,
+  pool,
   userId,
   onExit,
 }: {
   grade: VocabGrade;
   lesson: VocabLesson;
   words: VocabWord[];
+  pool: VocabWord[];
   userId: string | null;
   onExit: () => void;
 }) {
-  const [steps, setSteps] = useState<Step[]>(() => buildChallenge(words));
+  const [steps, setSteps] = useState<Step[]>(() => buildChallenge(words, pool));
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("ready");
   const [remaining, setRemaining] = useState(ROUND_MS);
@@ -204,7 +207,7 @@ export default function VocabChallenge({
 
   const beginRun = useCallback(() => {
     soundRef.current?.unlock();
-    const fresh = buildChallenge(words);
+    const fresh = buildChallenge(words, pool);
     setSteps(fresh);
     stepsRef.current = fresh;
     idxRef.current = 0;
@@ -216,7 +219,7 @@ export default function VocabChallenge({
     phaseRef.current = "playing";
     setPhase("playing");
     startRound();
-  }, [words, startRound]);
+  }, [words, pool, startRound]);
 
   const pick = (id: string) => {
     if (phaseRef.current !== "playing" || busyRef.current) return;
@@ -414,7 +417,7 @@ export default function VocabChallenge({
         }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cur.answer.image} alt="" className="absolute inset-0 size-full object-cover" />
+        <img src={vocabImageUrl(cur.answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
         <AnimatePresence>
           {flash === "correct" && (
             <motion.div

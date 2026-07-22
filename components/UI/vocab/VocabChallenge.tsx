@@ -9,6 +9,7 @@ import {
   type VocabWord,
 } from "@/lib/vocab-data";
 import { logVocabAnswer } from "@/lib/vocab-db";
+import { vocabImageUrl } from "@/lib/vocab-image";
 import MeaningModal from "./MeaningModal";
 
 const ROUND_MS = 7000; // time per image
@@ -416,7 +417,7 @@ export default function VocabChallenge({
         }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cur.answer.image} alt="" className="absolute inset-0 size-full object-cover" />
+        <img src={vocabImageUrl(cur.answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
         <AnimatePresence>
           {flash === "correct" && (
             <motion.div

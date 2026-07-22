@@ -11,6 +11,7 @@ import {
   type VocabWord,
 } from "@/lib/vocab-data";
 import { fetchGradePicturedWords, logVocabAnswer, type GradeWord } from "@/lib/vocab-db";
+import { vocabImageUrl } from "@/lib/vocab-image";
 import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
@@ -332,7 +333,7 @@ export default function VocabGame() {
           className="relative z-20 mx-auto aspect-[4/3] w-full overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={q.answer.image} alt="" className="absolute inset-0 size-full object-cover" />
+          <img src={vocabImageUrl(q.answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
         </motion.div>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">این تصویر، کدام واژه است؟</p>

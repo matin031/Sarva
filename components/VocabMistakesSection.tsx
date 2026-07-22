@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { vocabImageUrl } from "@/lib/vocab-image";
 
 export type VocabMistake = {
   key: string;
@@ -91,7 +92,7 @@ export default function VocabMistakesSection({ groups }: { groups: VocabMistakeG
                         <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
                           {m.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={m.image} alt="" className="absolute inset-0 size-full object-cover" />
+                            <img src={vocabImageUrl(m.image)} alt="" className="absolute inset-0 size-full object-cover" />
                           ) : (
                             <span className="flex size-full items-center justify-center text-xl">🖼️</span>
                           )}

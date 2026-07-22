@@ -1,0 +1,69 @@
+import "server-only";
+import sharp from "sharp";
+
+// The سروا mark (public/favicon.svg), recolored white so it reads as a
+// watermark over any photo. Baked directly into the image bytes so the file a
+// user can download is already watermarked — a CSS overlay wouldn't be.
+const RAW_MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="318.87 491.18 376.80 449.82"><path fill="#0DBFC3" d="M461.93 743.5c-1.79-12.95-.46-28.89 1.09-41.5 3.25 1.33 6.49 14.35 10.12 13.03-4.66-20.32-3.77-49.13 1.41-68.25 1.15.99 5.56 12.34 6.46 10.87-.6-16.07 1.51-34.52 5.05-48.15h.81l3.93 8.75c3.03-23.38 6.44-46.35 14.72-64.25H507v.36c6.75 18.22 12.39 39.28 13.25 62.89 2.94.91 2.6-7.17 5.66-7.3 3.81 13.58 4.43 31.01 5.22 47.55l.62-.02 4.69-10.48h.95c4.47 19.45 5.63 46.84 1.61 68 4.79-2.46 5.86-10.52 9.83-13 2.73 20.26 2.05 45.4-2.75 62.5-3.71.49-5.02-2.42-7.58-3.2v-.24c5.5-11.96-.34-7.81-7.25-7.15-18.3 3.52-35.47 2.97-47.39-3.16-9.96-12.37-12-13.7-6.46 5.5-6.96 2.2-4.71-15.02-15.47-12.75Z"/><path fill="#0DBFC3" d="M324.38 629.46c52.65-192.58 342.2-183.57 371 24.29l.14 171.84-1.27-.42c-.23-36.71-.16-78.72-.5-115.12-3.51-3.75-3.63-4.86-10.5-3.8-.5.5.32 4.45-1.75 3.86v-47.94c-4.88-93.71-94.65-172.18-203.25-154.22-68.19 11.29-122.72 60.15-139.78 123.55-1.54.61-1.58-2.32-1.89-2.36-4.41-1.51-7.59 1.5-12.2.32Z"/><path fill="#00ABB5" d="M338.47 631.5c-1.95 7.58-3.15 16.41-4.67 24.75l-.55 221.17c-.6.68-14.14 2.89-14.23.33l-.01-212.5c1.12-12.28 2.78-25.34 5.37-35.79 4.61 1.18 7.79-1.83 12.2-.32.31.04.35 2.97 1.89 2.36Zm357.05 194.09c-.46 16.97.82 37.18-.65 53.47 0 0-13.53-.38-13.37-1.6V710.11c2.07.59 1.25-3.36 1.75-3.86 6.87-1.06 6.99.05 10.5 3.8.34 36.4.27 78.41.5 115.12l1.27.42ZM546.08 764.5c-.85 4.05-3.24 9.36-2.7 13.25 1.55-.64 9.03-12.76 11.62-13.75-.95 38.85-8.94 71.54-41 78.97v40.45c-.63 3.22-5.55 6.51-7.19 9.1-.55.16-7.24-7.49-8.31-8.5l-.01-40.77c-31.72-7.79-41.54-38.93-41.49-78.75h.94c1.68.56 8.34 13.82 11.25 12.48-3.52-9.73-5.99-21.46-7.26-33.48 10.76-2.27 8.51 14.95 15.47 12.75-5.54-19.2-3.5-17.87 6.46-5.5 11.92 6.13 29.09 6.68 47.39 3.16 6.91-.66 12.75-4.81 7.25 7.15v.24c2.56.78 3.87 3.69 7.58 3.2Z"/><path fill="#00ABB5" d="m693.84 892.82-.35 8.28h-48.24c-58.52.3-103.67 14.92-137.74 39.9h-1.89c-32.26-24.49-75.97-38.16-130.87-39.97L320.2 901c-1.78-.72-1.78-7.28 0-8 .57-.23 6.9.05 7.55-.02 71.05-7.61 139.55 3.05 178.5 34.27.61.06 4.07-2.75 5-3.37 40.85-24.52 76.35-34.47 143-32.84 12.77.31 27.25 1.9 39.59 1.78Z"/><path fill="#0DBFC3" d="m693.49 901.1.35-8.28c2.56-.18 2.41 9.01-.35 8.28Z"/><path fill="#00ABB5" d="M657 855.12v13.84l-2.02 1.08c-62.13-5.76-109.93 12.99-141.84 40.46h-.75c23.78-41.69 76.29-63.7 144.61-55.38ZM499.5 909.5c-1.02 1.02-4.38-3.31-4.75-3.59-31.5-23.65-67.34-37.88-123.5-36.89-2.13.04-13.07 1.51-13.75.37v-14.87c67.98-6.4 118.69 13.17 142 54.98Z"/></svg>`;
+
+const WHITE_MARK = RAW_MARK.replace(/#0dbfc3|#00abb5/gi, "#ffffff");
+
+function markPng(size: number): Promise<Buffer> {
+  return sharp(Buffer.from(WHITE_MARK)).resize({ width: size }).png().toBuffer();
+}
+
+/** Multiply an image's alpha channel down to `alpha` (0..1) so it becomes a
+ *  faint watermark. Uses the classic dest-in composite trick. */
+function fade(buf: Buffer, alpha: number): Promise<Buffer> {
+  return sharp(buf)
+    .ensureAlpha()
+    .composite([
+      {
+        input: Buffer.from([255, 255, 255, Math.round(255 * alpha)]),
+        raw: { width: 1, height: 1, channels: 4 },
+        tile: true,
+        blend: "dest-in",
+      },
+    ])
+    .png()
+    .toBuffer();
+}
+
+const MAX_WIDTH = 760;
+
+/** Composite the سروا mark onto the image: a faint repeating pattern across the
+ *  whole photo (so it can't be cropped out) plus a clearer corner mark. */
+export async function watermarkImage(srcBuf: Buffer): Promise<Buffer> {
+  const base = await sharp(srcBuf, { failOn: "none" })
+    .rotate()
+    .resize({ width: MAX_WIDTH, withoutEnlargement: true })
+    .toBuffer();
+
+  // repeating faint tile (mark centered in transparent padding for spacing)
+  const tileMark = await markPng(92);
+  const tile = await sharp({
+    create: { width: 190, height: 190, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite([{ input: tileMark, gravity: "center" }])
+    .png()
+    .toBuffer();
+  const tileFaded = await fade(tile, 0.1);
+
+  // clearer corner mark, padded off the very edge
+  const cornerMark = await markPng(46);
+  const cornerFaded = await fade(cornerMark, 0.55);
+  const corner = await sharp({
+    create: { width: 74, height: 74, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite([{ input: cornerFaded, gravity: "center" }])
+    .png()
+    .toBuffer();
+
+  return sharp(base)
+    .composite([
+      { input: tileFaded, tile: true, blend: "over" },
+      { input: corner, gravity: "southwest", blend: "over" },
+    ])
+    .webp({ quality: 82 })
+    .toBuffer();
+}

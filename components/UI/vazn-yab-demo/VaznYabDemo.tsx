@@ -44,7 +44,9 @@ export default function VaznYabDemo() {
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.3 });
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), {
+      threshold: 0.3,
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -109,7 +111,12 @@ export default function VaznYabDemo() {
   const showResult = stage === "result";
 
   return (
-    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto w-full max-w-2xl">
+    <div
+      ref={rootRef}
+      aria-hidden
+      dir="rtl"
+      className="mx-auto w-full max-w-2xl"
+    >
       <div className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-7">
         {/* ---- input part ---- */}
         <span className="text-xs text-muted-foreground sm:text-sm">
@@ -120,8 +127,11 @@ export default function VaznYabDemo() {
           <span className="w-18.75 shrink-0 rounded-xl border border-border bg-secondary px-2 py-1 text-center text-xs">
             مصراع اول
           </span>
-          <div className="flex min-h-[2.75rem] w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
-            {typed1 || (caret !== "one" && <span className="text-muted-foreground/30">مصراع اول…</span>)}
+          <div className="flex min-h-12.75 w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
+            {typed1 ||
+              (caret !== "one" && (
+                <span className="text-muted-foreground/30">مصراع اول…</span>
+              ))}
             {caret === "one" && <Caret />}
           </div>
         </div>
@@ -130,18 +140,31 @@ export default function VaznYabDemo() {
           <span className="w-18.75 shrink-0 rounded-xl border border-border bg-secondary px-2 py-1 text-center text-xs">
             مصراع دوم
           </span>
-          <div className="flex min-h-[2.75rem] w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
-            {typed2 || (caret !== "two" && <span className="text-muted-foreground/30">مصراع دوم…</span>)}
+          <div className="flex min-h-12.75 w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
+            {typed2 ||
+              (caret !== "two" && (
+                <span className="text-muted-foreground/30">مصراع دوم…</span>
+              ))}
             {caret === "two" && <Caret />}
           </div>
         </div>
 
         <motion.span
-          animate={{ scale: pressed ? 0.92 : 1, filter: pressed ? "brightness(1.1)" : "brightness(0.9)" }}
+          animate={{
+            scale: pressed ? 0.92 : 1,
+            filter: pressed ? "brightness(1.1)" : "brightness(0.9)",
+          }}
           transition={{ duration: 0.18 }}
           className="mt-7 inline-flex items-center gap-x-2 rounded-3xl bg-primary px-4 py-1.5 font-bold text-secondary sm:text-lg"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-5"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -158,7 +181,16 @@ export default function VaznYabDemo() {
         <div className="relative">
           <div className="flex items-center gap-x-3 text-lg font-bold sm:text-xl">
             <span className="flex size-10 items-center justify-center rounded-full bg-primary/20 text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="size-5" viewBox="0 0 24 24">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                className="size-5"
+                viewBox="0 0 24 24"
+              >
                 <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2" />
               </svg>
             </span>
@@ -166,7 +198,9 @@ export default function VaznYabDemo() {
           </div>
 
           <div className="mt-6">
-            <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">ارکان عروضی</span>
+            <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">
+              ارکان عروضی
+            </span>
             <div className="flex min-h-[3.25rem] w-full items-center justify-center rounded-3xl bg-primary/10 px-2 py-3 text-center font-bold text-primary">
               <AnimatePresence mode="wait">
                 <motion.span
@@ -184,7 +218,9 @@ export default function VaznYabDemo() {
           </div>
 
           <div className="mt-3">
-            <span className="text-xs text-muted-foreground sm:text-sm">بحر</span>
+            <span className="text-xs text-muted-foreground sm:text-sm">
+              بحر
+            </span>
             <div className="min-h-6 w-full font-bold brightness-75">
               <AnimatePresence mode="wait">
                 <motion.span
@@ -244,7 +280,12 @@ function Equalizer() {
             className="w-[5px] rounded-full bg-gradient-to-b from-primary to-primary/60 shadow-[0_0_10px_var(--color-primary)]"
             style={{ height: "25%" }}
             animate={{ height: ["25%", "100%", "25%"] }}
-            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.09 }}
+            transition={{
+              duration: 0.9,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.09,
+            }}
           />
         ))}
       </div>

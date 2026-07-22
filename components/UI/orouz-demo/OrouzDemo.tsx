@@ -13,19 +13,32 @@ import { motion, AnimatePresence } from "motion/react";
 type Question =
   | { kind: "audio-weight"; prompt: string; options: string[]; correct: number }
   | { kind: "audio-poem"; prompt: string; options: string[]; correct: number }
-  | { kind: "poem-audio"; prompt: string; bayt: [string, string]; correct: number };
+  | {
+      kind: "poem-audio";
+      prompt: string;
+      bayt: [string, string];
+      correct: number;
+    };
 
 const QUESTIONS: Question[] = [
   {
     kind: "audio-weight",
     prompt: "کدام وزن با ریتمِ پخش‌ شده مطابقت دارد؟",
-    options: ["مفاعیلن مفاعیلن فعولن", "فاعلاتن فاعلاتن فاعلن", "مستفعلن مستفعلن مستفعلن", "فعولن فعولن فعولن فعل"],
+    options: [
+      "مفاعیلن مفاعیلن فعولن",
+      "فاعلاتن فاعلاتن فاعلن",
+      "مستفعلن مستفعلن مستفعلن",
+      "فعولن فعولن فعولن فعل",
+    ],
     correct: 1,
   },
   {
     kind: "poem-audio",
     prompt: "وزن عروضی این بیت کدام است؟",
-    bayt: ["یار بارافتاده را در کاروان بگذاشتند", "بی‌وفا یاران که بربستند بارِ خویش را"],
+    bayt: [
+      "یار بارافتاده را در کاروان بگذاشتند",
+      "بی‌وفا یاران که بربستند بارِ خویش را",
+    ],
     correct: 2,
   },
   {
@@ -62,7 +75,9 @@ export default function OrouzDemo() {
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.25 });
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), {
+      threshold: 0.25,
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -102,7 +117,12 @@ export default function OrouzDemo() {
   const cells = q.kind === "poem-audio" ? [0, 1, 2, 3] : q.options;
 
   return (
-    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto w-full max-w-3xl select-none">
+    <div
+      ref={rootRef}
+      aria-hidden
+      dir="rtl"
+      className="mx-auto w-full max-w-3xl select-none"
+    >
       {/* progress bar (like the quiz header) */}
       <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <motion.div
@@ -113,7 +133,12 @@ export default function OrouzDemo() {
       </div>
 
       {/* question card — same glass box + gradient edges as the quiz */}
-      <div className="glass relative z-20 mb-6 flex h-62.5 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl py-3 text-base xs:p-5 xs:text-lg sm:text-xl md:px-8 md:py-5 md:text-2xl">
+      <div
+        className="glass relative z-20 mb-6 flex h-62.5
+       flex-col items-center justify-center gap-2 overflow-hidden
+        rounded-2xl py-3 text-base xs:p-5 xs:text-lg sm:text-xl
+         md:px-8 md:py-5 md:text-2xl"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={qi}
@@ -153,9 +178,10 @@ export default function OrouzDemo() {
           return (
             <div
               key={i}
-              className={`relative z-20 flex h-full w-full cursor-pointer items-center gap-x-3 rounded-xl border-2 bg-card transition-all duration-300 ${
-                audioOption ? "justify-start p-2 sm:p-4" : "justify-center px-3 py-6"
-              } ${state}`}
+              className={`relative z-20 flex h-full w-full cursor-pointer 
+                items-center gap-x-3 rounded-xl border-2 bg-card transition-all duration-300 ${
+                  audioOption ? " p-2 sm:p-4" : "justify-center px-3 py-6"
+                } ${state}`}
             >
               {/* corner badges — identical to the quiz */}
               {picked && !graded && (
@@ -163,8 +189,18 @@ export default function OrouzDemo() {
               )}
               {graded && (
                 <div className="absolute left-3 top-3 z-20 flex size-5 items-center justify-center rounded-full bg-green-500 text-white sm:size-6">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-3 sm:size-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    className="size-3 sm:size-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m4.5 12.75 6 6 9-13.5"
+                    />
                   </svg>
                 </div>
               )}
@@ -174,7 +210,9 @@ export default function OrouzDemo() {
               ) : (
                 <span
                   className={`w-full text-center leading-relaxed ${
-                    q.kind === "audio-poem" ? "text-sm sm:text-base" : "text-sm font-semibold sm:text-base"
+                    q.kind === "audio-poem"
+                      ? "text-sm sm:text-base"
+                      : "text-sm font-semibold sm:text-base"
                   } text-foreground`}
                 >
                   {opt as string}
@@ -211,20 +249,32 @@ function DemoBlob({ reduced }: { reduced: boolean }) {
       const pts: [number, number][] = [];
       for (let i = 0; i < POINTS; i++) {
         const angle = (i / POINTS) * Math.PI * 2 - Math.PI / 2;
-        const wave = Math.sin(i * 0.6 + phase) * 0.5 + Math.sin(i * 0.23 - phase * 0.7) * 0.5;
+        const wave =
+          Math.sin(i * 0.6 + phase) * 0.5 +
+          Math.sin(i * 0.23 - phase * 0.7) * 0.5;
         const wobble = 0.18 * wave;
         const h = base + wobble * 48;
         pts.push([cx + Math.cos(angle) * h, cy + Math.sin(angle) * h]);
       }
       ctx.beginPath();
-      ctx.moveTo((pts[POINTS - 1][0] + pts[0][0]) / 2, (pts[POINTS - 1][1] + pts[0][1]) / 2);
+      ctx.moveTo(
+        (pts[POINTS - 1][0] + pts[0][0]) / 2,
+        (pts[POINTS - 1][1] + pts[0][1]) / 2,
+      );
       for (let i = 0; i < POINTS; i++) {
         const p = pts[i];
         const n = pts[(i + 1) % POINTS];
         ctx.quadraticCurveTo(p[0], p[1], (p[0] + n[0]) / 2, (p[1] + n[1]) / 2);
       }
       ctx.closePath();
-      const rg = ctx.createRadialGradient(cx, cy, base * 0.4, cx, cy, base + 55);
+      const rg = ctx.createRadialGradient(
+        cx,
+        cy,
+        base * 0.4,
+        cx,
+        cy,
+        base + 55,
+      );
       rg.addColorStop(0, "rgba(31,209,164,0.05)");
       rg.addColorStop(0.7, "rgba(31,209,164,0.25)");
       rg.addColorStop(1, "rgba(20,150,120,0.45)");
@@ -263,7 +313,13 @@ function DemoBlob({ reduced }: { reduced: boolean }) {
         className="pointer-events-none absolute left-1/2 top-1/2 size-[210px] max-w-none -translate-x-1/2 -translate-y-1/2"
       />
       <div className="absolute left-1/2 top-1/2 flex size-[84px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-border bg-card text-foreground">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-6">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          className="size-6"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -278,22 +334,31 @@ function DemoBlob({ reduced }: { reduced: boolean }) {
 /** A faux WaveSurfer waveform (play button + bars) for the poem→audio options. */
 function OptionWaveform({ seed }: { seed: number }) {
   const bars = Array.from({ length: 34 }, (_, i) => {
-    const h = 18 + Math.abs(Math.sin(i * 1.7 + seed * 2.3)) * 74 + ((i * 7 + seed * 13) % 16);
+    const h =
+      18 +
+      Math.abs(Math.sin(i * 1.7 + seed * 2.3)) * 74 +
+      ((i * 7 + seed * 13) % 16);
     return Math.min(100, h);
   });
   return (
     <>
-      <div className="flex h-10 w-full items-center gap-[2px] overflow-hidden">
+      <div className="flex h-10 w-full items-center gap-0.5 overflow-hidden">
         {bars.map((h, i) => (
           <span
             key={i}
-            className="w-[3px] shrink-0 rounded-full bg-[#64748b]"
+            className="w-0.75 mx-0.5 shrink-0 rounded-full bg-[#64748b]"
             style={{ height: `${h}%` }}
           />
         ))}
       </div>
       <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground sm:size-8">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-3">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          className="size-3"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

@@ -35,7 +35,7 @@ export default function Home() {
         <section className=" container relative pb-22">
           <VocabHomeSection />
         </section>
-        <section className=" container z-10 relative pb-22">
+        <section className=" container relative pb-22">
           <OrouzHomeSection />
         </section>
       </main>

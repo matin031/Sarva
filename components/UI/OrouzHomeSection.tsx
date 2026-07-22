@@ -1,22 +1,22 @@
 "use client";
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
-import VocabChallengeDemo from "./vocab-demo/VocabChallengeDemo";
+import OrouzDemo from "./orouz-demo/OrouzDemo";
 import SectionCTA from "./SectionCTA";
 
-function VocabHomeSection() {
+function OrouzHomeSection() {
   return (
     <div dir="rtl">
       <div className="flex items-center justify-center">
         <div className="mx-auto mb-3 inline-flex rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary sm:mb-0 sm:text-sm">
-          واژه‌یاب
+          عروض سماعی
         </div>
       </div>
 
-      <h2 className="text-center text-4xl font-bold">واژگان را با تصویر و در چالشِ زمان یاد بگیر</h2>
+      <h2 className="text-center text-4xl font-bold">وزن را با گوش تشخیص بده</h2>
       <p className="mx-auto max-w-xl text-center text-base font-[550] text-muted-foreground">
-        در حالتِ چالش، تصویر را می‌بینی و باید در چند ثانیه واژهٔ درست را بزنی؛
-        یک اشتباه و از اول! سریع، هیجان‌انگیز و ماندگار.
+        ریتمِ وزن را می‌شنوی و از میان گزینه‌ها انتخاب می‌کنی؛ سه نوع پرسش —
+        صوت به وزن، صوت به بیت و بیت به صوت.
       </p>
 
       <motion.div
@@ -26,12 +26,12 @@ function VocabHomeSection() {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="mt-8 sm:mt-10"
       >
-        <VocabChallengeDemo />
+        <OrouzDemo />
       </motion.div>
 
-      <SectionCTA href="/game" label="شروع بازی واژه‌یاب" />
+      <SectionCTA href="/quiz" label="شروع عروض سماعی" />
     </div>
   );
 }
 
-export default VocabHomeSection;
+export default OrouzHomeSection;

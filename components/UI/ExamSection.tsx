@@ -8,6 +8,7 @@ import {
   defaultViewport,
 } from "@/lib/motion";
 import ExamDemo from "./exam-demo/ExamDemo";
+import SectionCTA from "./SectionCTA";
 function ExamSection() {
   return (
     <div dir="rtl">
@@ -44,6 +45,8 @@ function ExamSection() {
       >
         <ExamDemo />
       </motion.div>
+
+      <SectionCTA href="/exam" label="شروع آزمون نهایی" />
     </div>
   );
 }

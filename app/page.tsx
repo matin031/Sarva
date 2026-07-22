@@ -11,7 +11,7 @@ import VerseCard from "@/components/UI/WaveDivider";
 export default function Home() {
   return (
     <div className="relative bg-background overflow-hidden">
-      <main className=" pb-22 space-y-29">
+      <main className=" pb-22 space-y-30">
         <section
           className="container text-center flex items-center justify-center flex-col px-6  
         md:px-12 lg:px-20 py-14 relative"
@@ -25,17 +25,13 @@ export default function Home() {
         <section className="container">
           <FeaturesSection />
         </section>
-
-        {/* <section className=" container z-10 relative pb-22">
-          <StartLearningSection />
-        </section> */}
-        <section className=" container relative pb-22">
+        <section className=" container relative">
           <VaznYabHomeSection />
         </section>
-        <section className=" container  relative pb-22">
+        <section className=" container  relative">
           <ExamSection />
         </section>
-        <section className=" container z-10 relative pb-22">
+        <section className=" container relative pb-22">
           <VocabHomeSection />
         </section>
       </main>

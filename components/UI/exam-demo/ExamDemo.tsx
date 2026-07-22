@@ -162,7 +162,7 @@ export default function ExamDemo() {
         />
       </div>
 
-      <div className="relative min-h-115 ">
+      <div className="relative h-105 ">
         <AnimatePresence mode="wait">
           <motion.div
             key={q.number}

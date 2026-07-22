@@ -24,10 +24,10 @@ function HeroSection() {
       </motion.div>
       <h1 className=" -space-y-6 sm:-space-y-8 md:-space-y-12 font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-foreground leading-tight mb-6 ">
         <motion.span variants={fadeUp} className="block">
-          ادبیات پارسی را
+          مسیری نو
         </motion.span>
         <motion.span variants={fadeUp} className="text-primary block">
-          با سروا بیاموز
+          برای یادگیری ادبیات پارسی
         </motion.span>
       </h1>
       <motion.p
@@ -46,7 +46,7 @@ function HeroSection() {
         <Link
           className="active:scale-95 hover:brightness-90 transition-all bg-primary
            px-4 py-1 text-white justify-center rounded-xl flex items-center gap-x-2 z-20 relative"
-          href={"/quiz"}
+          href={"/game"}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -60,7 +60,7 @@ function HeroSection() {
               clipRule="evenodd"
             />
           </svg>
-          شروع آزمون
+          شروع بازی
         </Link>
         <Link
           className=" border z-20 relative  hover:bg-accent/70 transition-all active:scale-95 rounded-xl px-6 py-1"

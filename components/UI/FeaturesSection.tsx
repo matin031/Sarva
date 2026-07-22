@@ -38,8 +38,8 @@ function FeaturesSection() {
           variants={fadeUp}
           className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]"
         >
-          ترکیب زیبایی‌شناسی ایرانی با فناوری مدرن، یادگیری ادبیات را از
-          حفظ‌کردن صرف به کشف و لذت تبدیل می‌کند
+          سروا یک پلتفرم است، نه یک آزمون؛ از بازی و وزن‌یابی تا آزمون‌های نهایی
+          و آموزش گام‌به‌گام، هر آنچه برای یادگیری ادبیات فارسی نیاز داری، یک‌جا
         </motion.p>
       </motion.div>
 
@@ -58,22 +58,22 @@ function FeaturesSection() {
           variants={ACTIVE_VARIANT}
         />
         <FeaturesCard
-          title="گوش دادن به ریتم"
-          desc="با پخشِ صوتی، ریتمِ هر وزن را بشنو و حس کن"
+          title="یادگیری از طریق بازی"
+          desc="مفاهیم ادبی را نه با حفظ کردن، بلکه با بازی و تمرین تعاملی یاد بگیر"
           icon={<FeaturesSectionIconThird />}
           bgColor="bg-gold/20"
           variants={ACTIVE_VARIANT}
         />
         <FeaturesCard
-          title="یادگیری تعاملی"
-          desc="با پاسخ به پرسش‌های چندگزینه‌ای، اوزان را عملی و ماندگار بیاموز"
+          title="وزن‌یاب هوشمند"
+          desc="هر مصراعی را وارد کن و وزن عروضی‌اش را در لحظه تشخیص بده"
           icon={<FeaturesSectionIconFourth />}
           bgColor="bg-primary/10"
           variants={ACTIVE_VARIANT}
         />
         <FeaturesCard
-          title="طراحی زیبا"
-          desc="رابطی کاربری، الهام‌گرفته از هنر و معماریِ اصیلِ ایرانی"
+          title="آزمون‌های نهایی گذشته"
+          desc="امتحانات نهایی سال‌های قبل را به‌صورت آنلاین و مدرن تمرین کن"
           icon={<FeaturesSectionIconSecond />}
           bgColor="bg-turquoise-light/20"
           variants={ACTIVE_VARIANT}

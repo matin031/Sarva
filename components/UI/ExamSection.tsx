@@ -1,0 +1,40 @@
+"use client";
+import { motion } from "motion/react";
+
+import {
+  fadeUp,
+  springPop,
+  staggerContainer,
+  defaultViewport,
+} from "@/lib/motion";
+function ExamSection() {
+  return (
+    <div dir="rtl">
+      <div
+        className=" flex items-center
+       justify-center"
+      >
+        <motion.div
+          variants={springPop}
+          className=" inline-flex mx-auto mb-3 sm:mb-0 rounded-full text-xs 
+        sm:text-sm px-4 font-semibold py-1 bg-primary/10 text-primary"
+        >
+          امتحانات نهایی
+        </motion.div>
+      </div>
+
+      <h2 className=" font-bold text-4xl text-center">
+        امتحانات نهایی را به‌صورت تعاملی تجربه کن
+      </h2>
+      <motion.p
+        variants={fadeUp}
+        className="text-muted-foreground text-center max-w-xl mx-auto text-base font-[550]"
+      >
+        اینجا قرار نیست پی‌دی‌اف از آزمون‌های نهایی ببینی؛اینجا قراره سوال به
+        سوال در لحظه برای خودت آزمون بدی و جواب رو ببینی!
+      </motion.p>
+    </div>
+  );
+}
+
+export default ExamSection;

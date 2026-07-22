@@ -7,6 +7,7 @@ import {
   staggerContainer,
   defaultViewport,
 } from "@/lib/motion";
+import ExamDemo from "./exam-demo/ExamDemo";
 function ExamSection() {
   return (
     <div dir="rtl">
@@ -33,6 +34,16 @@ function ExamSection() {
         اینجا قرار نیست پی‌دی‌اف از آزمون‌های نهایی ببینی؛اینجا قراره سوال به
         سوال در لحظه برای خودت آزمون بدی و جواب رو ببینی!
       </motion.p>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={defaultViewport}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mt-8 flex justify-center sm:mt-10"
+      >
+        <ExamDemo />
+      </motion.div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import VaznYabDemo from "./vazn-yab-demo/VaznYabDemo";
+import SectionCTA from "./SectionCTA";
 
 function VaznYabHomeSection() {
   return (
@@ -29,6 +30,8 @@ function VaznYabHomeSection() {
       >
         <VaznYabDemo />
       </motion.div>
+
+      <SectionCTA href="/vazn-yab" label="رفتن به وزن‌یاب" />
     </div>
   );
 }

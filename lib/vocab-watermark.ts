@@ -39,21 +39,22 @@ export async function watermarkImage(srcBuf: Buffer): Promise<Buffer> {
     .resize({ width: MAX_WIDTH, withoutEnlargement: true })
     .toBuffer();
 
-  // repeating faint tile (mark centered in transparent padding for spacing)
-  const tileMark = await markPng(92);
+  // repeating faint tile — small marks with generous spacing so they read as a
+  // subtle texture, not a busy grid
+  const tileMark = await markPng(48);
   const tile = await sharp({
-    create: { width: 190, height: 190, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: { width: 250, height: 250, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     .composite([{ input: tileMark, gravity: "center" }])
     .png()
     .toBuffer();
-  const tileFaded = await fade(tile, 0.1);
+  const tileFaded = await fade(tile, 0.09);
 
   // clearer corner mark, padded off the very edge
-  const cornerMark = await markPng(46);
-  const cornerFaded = await fade(cornerMark, 0.55);
+  const cornerMark = await markPng(38);
+  const cornerFaded = await fade(cornerMark, 0.5);
   const corner = await sharp({
-    create: { width: 74, height: 74, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: { width: 60, height: 60, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     .composite([{ input: cornerFaded, gravity: "center" }])
     .png()

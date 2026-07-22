@@ -26,23 +26,27 @@ export async function fetchLessonWords(grade: string, lesson: number): Promise<V
   }));
 }
 
-/** How many *pictured* words each lesson of a book has — drives the lesson list. */
-export async function fetchGradePlayableCounts(grade: string): Promise<Record<number, number>> {
+export type GradeWord = { lesson: number; word: VocabWord };
+
+/** Every *pictured* word of a whole book, with its lesson number. Drives both
+ *  the lesson list (counts per lesson) and the shared distractor pool, so a
+ *  lesson with only one or two pictured words is still playable. */
+export async function fetchGradePicturedWords(grade: string): Promise<GradeWord[]> {
   const { data, error } = await supabase
     .from("vocab_words")
-    .select("lesson, image")
-    .eq("grade", grade);
+    .select("id, word, meaning, image, lesson")
+    .eq("grade", grade)
+    .order("sort_index", { ascending: true });
   if (error) {
-    console.error("vocab_words count failed:", error.message);
-    return {};
+    console.error("vocab_words grade fetch failed:", error.message);
+    return [];
   }
-  const counts: Record<number, number> = {};
-  for (const r of (data ?? []) as { lesson: number; image: string | null }[]) {
-    if ((r.image ?? "").trim().length > 0) {
-      counts[r.lesson] = (counts[r.lesson] ?? 0) + 1;
-    }
-  }
-  return counts;
+  return (data ?? [])
+    .filter((r: WordRow & { lesson: number }) => (r.image ?? "").trim().length > 0)
+    .map((r: WordRow & { lesson: number }) => ({
+      lesson: r.lesson,
+      word: { id: r.id, word: r.word, meaning: r.meaning, image: r.image ?? "" },
+    }));
 }
 
 /** Fire-and-forget: record one answer so the student sees their misses in the panel. */

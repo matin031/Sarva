@@ -10,7 +10,7 @@ import {
   type VocabQuestion,
   type VocabWord,
 } from "@/lib/vocab-data";
-import { fetchGradePlayableCounts, fetchLessonWords, logVocabAnswer } from "@/lib/vocab-db";
+import { fetchGradePicturedWords, logVocabAnswer, type GradeWord } from "@/lib/vocab-db";
 import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
@@ -32,9 +32,9 @@ export default function VocabGame() {
   const [lesson, setLesson] = useState<VocabLesson | null>(null);
   const [words, setWords] = useState<VocabWord[]>([]);
 
-  const [counts, setCounts] = useState<Record<number, number>>({});
-  const [countsLoading, setCountsLoading] = useState(false);
-  const [loadingLessonId, setLoadingLessonId] = useState<string | null>(null);
+  const [gradeWords, setGradeWords] = useState<GradeWord[]>([]); // all pictured words of the grade
+  const [pool, setPool] = useState<VocabWord[]>([]); // shared distractor pool (whole grade)
+  const [gradeLoading, setGradeLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
@@ -60,27 +60,29 @@ export default function VocabGame() {
   const selectGrade = (g: VocabGrade) => {
     setGrade(g);
     setScreen("lesson");
-    setCounts({});
-    setCountsLoading(true);
-    fetchGradePlayableCounts(g.id).then((c) => {
-      setCounts(c);
-      setCountsLoading(false);
+    setGradeWords([]);
+    setPool([]);
+    setGradeLoading(true);
+    fetchGradePicturedWords(g.id).then((gw) => {
+      setGradeWords(gw);
+      setPool(gw.map((x) => x.word));
+      setGradeLoading(false);
     });
   };
 
-  const selectLesson = async (l: VocabLesson) => {
+  const selectLesson = (l: VocabLesson) => {
     if (l.free || !grade) return;
-    setLoadingLessonId(l.id);
-    const w = await fetchLessonWords(grade.id, l.number);
-    setLoadingLessonId(null);
-    if (playableWords(w).length < 3) return; // not enough pictured words yet
+    const answers = gradeWords.filter((g) => g.lesson === l.number).map((g) => g.word);
+    // a lesson is playable with even 1 pictured word, as long as the whole
+    // grade has at least 3 (so we can always build 3 options)
+    if (answers.length < 1 || pool.length < 3) return;
     setLesson(l);
-    setWords(w);
+    setWords(answers);
     setScreen("mode");
   };
 
   const startLesson = () => {
-    const round = buildVocabRound(words);
+    const round = buildVocabRound(words, pool);
     if (round.length === 0) return;
     setQuestions(round);
     setQi(0);
@@ -166,14 +168,13 @@ export default function VocabGame() {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {grade.lessons.map((l) => {
-            const count = counts[l.number] ?? 0;
-            const ready = !l.free && count >= 3;
-            const isLoading = loadingLessonId === l.id;
+            const count = gradeWords.filter((g) => g.lesson === l.number).length;
+            const ready = !l.free && count >= 1 && pool.length >= 3;
             const b = best[`${grade.id}:${l.id}`];
             return (
               <button
                 key={l.id}
-                disabled={l.free || isLoading || (!ready && !countsLoading)}
+                disabled={l.free || (!ready && !gradeLoading)}
                 onClick={() => selectLesson(l)}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-5 text-right transition-all ${
                   ready
@@ -186,13 +187,11 @@ export default function VocabGame() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {l.free
                       ? "درسِ آزاد"
-                      : isLoading
-                        ? "در حال باز کردن…"
-                        : countsLoading
-                          ? "…"
-                          : ready
-                            ? `${count.toLocaleString("fa-IR")} واژه`
-                            : "به‌زودی"}
+                      : gradeLoading
+                        ? "…"
+                        : ready
+                          ? `${count.toLocaleString("fa-IR")} واژه`
+                          : "به‌زودی"}
                   </p>
                 </div>
                 {ready && b != null && (
@@ -257,6 +256,7 @@ export default function VocabGame() {
         grade={grade}
         lesson={lesson}
         words={words}
+        pool={pool}
         userId={userId}
         onExit={() => setScreen("mode")}
       />

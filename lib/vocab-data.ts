@@ -87,24 +87,46 @@ export function playableWords(words: VocabWord[]): VocabWord[] {
   return words.filter((w) => w.image.trim().length > 0);
 }
 
-/** Learning round: every pictured word becomes a 3-option question, shuffled. */
-export function buildVocabRound(words: VocabWord[]): VocabQuestion[] {
-  const pool = playableWords(words);
-  if (pool.length < 3) return [];
-  return shuffle(pool).map((answer) => {
-    const distractors = shuffle(pool.filter((w) => w.id !== answer.id)).slice(0, 2);
+/** Pick `n` distractors for `answer`: prefer words from the same lesson, then
+ *  fill from the wider pool (the whole grade) — so a lesson with even a single
+ *  pictured word is still playable as long as the grade has enough words. */
+function pickDistractors(answer: VocabWord, sameSet: VocabWord[], pool: VocabWord[], n: number): VocabWord[] {
+  const chosen: VocabWord[] = [];
+  const take = (list: VocabWord[]) => {
+    for (const w of list) {
+      if (chosen.length >= n) break;
+      if (w.id === answer.id || chosen.some((c) => c.id === w.id)) continue;
+      chosen.push(w);
+    }
+  };
+  take(shuffle(sameSet)); // same-lesson distractors first
+  if (chosen.length < n) take(shuffle(pool)); // then borrow from the rest of the grade
+  return chosen;
+}
+
+/** Learning round: every pictured word of the lesson becomes a 3-option
+ *  question. `pool` is the wider word set (the whole grade) that distractors
+ *  may be borrowed from; it defaults to the lesson's own words. */
+export function buildVocabRound(answers: VocabWord[], pool: VocabWord[] = answers): VocabQuestion[] {
+  const answerPics = playableWords(answers);
+  const poolPics = playableWords(pool);
+  if (answerPics.length < 1 || poolPics.length < 3) return [];
+  return shuffle(answerPics).map((answer) => {
+    const distractors = pickDistractors(answer, answerPics, poolPics, 2);
     return { answer, options: shuffle([answer, ...distractors]) };
   });
 }
 
 export type ChallengeStep = { answer: VocabWord; options: VocabWord[] }; // options.length === 2
 
-/** Challenge run: every pictured word in random order, each with one distractor. */
-export function buildChallenge(words: VocabWord[]): ChallengeStep[] {
-  const pool = playableWords(words);
-  if (pool.length < 3) return [];
-  return shuffle(pool).map((answer) => {
-    const distractor = shuffle(pool.filter((w) => w.id !== answer.id))[0];
-    return { answer, options: shuffle([answer, distractor]) };
+/** Challenge run: every pictured word of the lesson, each with one distractor
+ *  (same-lesson first, then borrowed from the grade `pool`). */
+export function buildChallenge(answers: VocabWord[], pool: VocabWord[] = answers): ChallengeStep[] {
+  const answerPics = playableWords(answers);
+  const poolPics = playableWords(pool);
+  if (answerPics.length < 1 || poolPics.length < 3) return [];
+  return shuffle(answerPics).map((answer) => {
+    const distractors = pickDistractors(answer, answerPics, poolPics, 1);
+    return { answer, options: shuffle([answer, ...distractors]) };
   });
 }

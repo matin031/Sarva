@@ -162,7 +162,7 @@ export default function ExamDemo() {
         />
       </div>
 
-      <div className="relative min-h-[360px]">
+      <div className="relative min-h-115 ">
         <AnimatePresence mode="wait">
           <motion.div
             key={q.number}
@@ -170,7 +170,7 @@ export default function ExamDemo() {
             animate={{ opacity: 1, x: 0 }}
             exit={reduced ? undefined : { opacity: 0, x: -36 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="glass rounded-2xl border border-border bg-card! p-4 shadow xs:p-5"
+            className="glass z-20 relative rounded-2xl border border-border bg-card! p-4 shadow xs:p-5"
           >
             {/* header: number badge (right) + score (left) */}
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -183,7 +183,9 @@ export default function ExamDemo() {
             </div>
 
             {/* prompt */}
-            <p className="text-sm leading-relaxed text-foreground xs:text-base">{q.prompt}</p>
+            <p className="text-sm leading-relaxed text-foreground xs:text-base">
+              {q.prompt}
+            </p>
             {q.verse && (
               <p className="mt-2 rounded-xl bg-muted/50 px-3 py-2 text-center text-sm font-medium text-foreground">
                 {q.verse}
@@ -196,7 +198,11 @@ export default function ExamDemo() {
                 {typed ? (
                   <span className="font-medium text-foreground">{typed}</span>
                 ) : (
-                  !feedback && <span className="text-muted-foreground">پاسخِ خود را بنویس…</span>
+                  !feedback && (
+                    <span className="text-muted-foreground">
+                      پاسخِ خود را بنویس…
+                    </span>
+                  )
                 )}
                 {!feedback && <BlinkingCaret />}
               </div>

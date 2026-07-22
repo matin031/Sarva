@@ -26,9 +26,7 @@ export default function Home() {
         <section className="container pt-20">
           <SiteHighlightsSection />
         </section>
-        <section>
-          <LearningProcessSection />
-        </section>
+
         <section className=" container z-10 relative pb-22">
           <StartLearningSection />
         </section>

@@ -10,11 +10,8 @@ import {
   type VocabQuestion,
   type VocabWord,
 } from "@/lib/vocab-data";
-import {
-  fetchGradePlayableCounts,
-  fetchLessonWords,
-  logVocabAnswer,
-} from "@/lib/vocab-db";
+import { fetchGradePicturedWords, logVocabAnswer, type GradeWord } from "@/lib/vocab-db";
+import { vocabImageUrl } from "@/lib/vocab-image";
 import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
@@ -36,9 +33,9 @@ export default function VocabGame() {
   const [lesson, setLesson] = useState<VocabLesson | null>(null);
   const [words, setWords] = useState<VocabWord[]>([]);
 
-  const [counts, setCounts] = useState<Record<number, number>>({});
-  const [countsLoading, setCountsLoading] = useState(false);
-  const [loadingLessonId, setLoadingLessonId] = useState<string | null>(null);
+  const [gradeWords, setGradeWords] = useState<GradeWord[]>([]); // all pictured words of the grade
+  const [pool, setPool] = useState<VocabWord[]>([]); // shared distractor pool (whole grade)
+  const [gradeLoading, setGradeLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
@@ -64,27 +61,29 @@ export default function VocabGame() {
   const selectGrade = (g: VocabGrade) => {
     setGrade(g);
     setScreen("lesson");
-    setCounts({});
-    setCountsLoading(true);
-    fetchGradePlayableCounts(g.id).then((c) => {
-      setCounts(c);
-      setCountsLoading(false);
+    setGradeWords([]);
+    setPool([]);
+    setGradeLoading(true);
+    fetchGradePicturedWords(g.id).then((gw) => {
+      setGradeWords(gw);
+      setPool(gw.map((x) => x.word));
+      setGradeLoading(false);
     });
   };
 
-  const selectLesson = async (l: VocabLesson) => {
+  const selectLesson = (l: VocabLesson) => {
     if (l.free || !grade) return;
-    setLoadingLessonId(l.id);
-    const w = await fetchLessonWords(grade.id, l.number);
-    setLoadingLessonId(null);
-    if (playableWords(w).length < 3) return; // not enough pictured words yet
+    const answers = gradeWords.filter((g) => g.lesson === l.number).map((g) => g.word);
+    // a lesson is playable with even 1 pictured word, as long as the whole
+    // grade has at least 3 (so we can always build 3 options)
+    if (answers.length < 1 || pool.length < 3) return;
     setLesson(l);
-    setWords(w);
+    setWords(answers);
     setScreen("mode");
   };
 
   const startLesson = () => {
-    const round = buildVocabRound(words);
+    const round = buildVocabRound(words, pool);
     if (round.length === 0) return;
     setQuestions(round);
     setQi(0);
@@ -122,10 +121,7 @@ export default function VocabGame() {
     if (qi + 1 >= questions.length) {
       // persist best score for this lesson
       const finalScore = score;
-      const nextBest = {
-        ...best,
-        [bestKey]: Math.max(best[bestKey] ?? 0, finalScore),
-      };
+      const nextBest = { ...best, [bestKey]: Math.max(best[bestKey] ?? 0, finalScore) };
       setBest(nextBest);
       try {
         localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
@@ -140,10 +136,7 @@ export default function VocabGame() {
   // ---------- grade select ----------
   if (screen === "grade") {
     return (
-      <Shell
-        title="واژه‌یاب"
-        subtitle="پایه‌ات را انتخاب کن تا واژگانِ درس‌ها را با تصویر یاد بگیری."
-      >
+      <Shell title="واژه‌یاب" subtitle="پایه‌ات را انتخاب کن تا واژگانِ درس‌ها را با تصویر یاد بگیری.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {VOCAB_GRADES.map((g, i) => (
             <motion.button
@@ -158,9 +151,7 @@ export default function VocabGame() {
                 {(i + 1).toLocaleString("fa-IR")}
               </div>
               <h3 className="text-xl font-bold">پایهٔ {g.title}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                فارسی — ۱۸ درس
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">فارسی — ۱۸ درس</p>
             </motion.button>
           ))}
         </div>
@@ -178,14 +169,13 @@ export default function VocabGame() {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {grade.lessons.map((l) => {
-            const count = counts[l.number] ?? 0;
-            const ready = !l.free && count >= 3;
-            const isLoading = loadingLessonId === l.id;
+            const count = gradeWords.filter((g) => g.lesson === l.number).length;
+            const ready = !l.free && count >= 1 && pool.length >= 3;
             const b = best[`${grade.id}:${l.id}`];
             return (
               <button
                 key={l.id}
-                disabled={l.free || isLoading || (!ready && !countsLoading)}
+                disabled={l.free || (!ready && !gradeLoading)}
                 onClick={() => selectLesson(l)}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-5 text-right transition-all ${
                   ready
@@ -198,19 +188,16 @@ export default function VocabGame() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {l.free
                       ? "درسِ آزاد"
-                      : isLoading
-                        ? "در حال باز کردن…"
-                        : countsLoading
-                          ? "…"
-                          : ready
-                            ? `${count.toLocaleString("fa-IR")} واژه`
-                            : "به‌زودی"}
+                      : gradeLoading
+                        ? "…"
+                        : ready
+                          ? `${count.toLocaleString("fa-IR")} واژه`
+                          : "به‌زودی"}
                   </p>
                 </div>
                 {ready && b != null && (
                   <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-bold text-gold">
-                    بهترین: {b.toLocaleString("fa-IR")}/
-                    {count.toLocaleString("fa-IR")}
+                    بهترین: {b.toLocaleString("fa-IR")}/{count.toLocaleString("fa-IR")}
                   </span>
                 )}
               </button>
@@ -237,13 +224,10 @@ export default function VocabGame() {
             onClick={startLesson}
             className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
           >
-            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-3xl">
-              📖
-            </div>
+            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-3xl">📖</div>
             <h3 className="text-lg font-black text-primary">حالتِ یادگیری</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              بدون عجله. یک تصویر و سه واژه؛ بعد از هر پاسخ، معنی کاملِ واژه‌ها
-              را می‌بینی و یاد می‌گیری.
+              بدون عجله. یک تصویر و سه واژه؛ بعد از هر پاسخ، معنی کاملِ واژه‌ها را می‌بینی و یاد می‌گیری.
             </p>
           </motion.button>
 
@@ -254,14 +238,11 @@ export default function VocabGame() {
             onClick={() => setScreen("challenge")}
             className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
           >
-            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-destructive/15 text-3xl">
-              ⏱️
-            </div>
+            <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-destructive/15 text-3xl">⏱️</div>
             <h3 className="text-lg font-black text-destructive">حالتِ چالش</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              هر تصویر ۷ ثانیه! دو واژه، صدای تیک‌تیک و مسابقه با زمان. یک
-              اشتباه = از اول. باید هر {count.toLocaleString("fa-IR")} واژه را
-              بی‌غلط بزنی.
+              هر تصویر ۷ ثانیه! دو واژه، صدای تیک‌تیک و مسابقه با زمان. یک اشتباه = از اول. باید هر{" "}
+              {count.toLocaleString("fa-IR")} واژه را بی‌غلط بزنی.
             </p>
           </motion.button>
         </div>
@@ -276,6 +257,7 @@ export default function VocabGame() {
         grade={grade}
         lesson={lesson}
         words={words}
+        pool={pool}
         userId={userId}
         onExit={() => setScreen("mode")}
       />
@@ -299,13 +281,9 @@ export default function VocabGame() {
           <p className="text-sm text-muted-foreground">امتیاز این دور</p>
           <p className="my-1 text-4xl font-black text-primary">
             {score.toLocaleString("fa-IR")}
-            <span className="text-2xl text-muted-foreground">
-              /{total.toLocaleString("fa-IR")}
-            </span>
+            <span className="text-2xl text-muted-foreground">/{total.toLocaleString("fa-IR")}</span>
           </p>
-          <p className="text-sm text-muted-foreground">
-            {pct.toLocaleString("fa-IR")}٪ درست
-          </p>
+          <p className="text-sm text-muted-foreground">{pct.toLocaleString("fa-IR")}٪ درست</p>
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={startLesson}
@@ -331,24 +309,18 @@ export default function VocabGame() {
       <div dir="rtl" className="container mx-auto my-6 max-w-xl">
         {/* top bar */}
         <div className="mb-4 flex items-center justify-between gap-3">
-          <button
-            onClick={() => setScreen("lesson")}
-            className="text-sm text-muted-foreground hover:text-primary"
-          >
+          <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
             ← درس‌ها
           </button>
           <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-            {(qi + 1).toLocaleString("fa-IR")} /{" "}
-            {questions.length.toLocaleString("fa-IR")}
+            {(qi + 1).toLocaleString("fa-IR")} / {questions.length.toLocaleString("fa-IR")}
           </span>
         </div>
         {/* progress */}
         <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-muted">
           <motion.div
             className="h-full rounded-full bg-primary"
-            animate={{
-              width: `${((qi + (answered ? 1 : 0)) / questions.length) * 100}%`,
-            }}
+            animate={{ width: `${((qi + (answered ? 1 : 0)) / questions.length) * 100}%` }}
             transition={{ ease: "easeOut" }}
           />
         </div>
@@ -361,16 +333,10 @@ export default function VocabGame() {
           className="relative z-20 mx-auto aspect-[4/3] w-full overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={q.answer.image}
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-          />
+          <img src={vocabImageUrl(q.answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
         </motion.div>
 
-        <p className="mt-5 text-center text-sm text-muted-foreground">
-          این تصویر، کدام واژه است؟
-        </p>
+        <p className="mt-5 text-center text-sm text-muted-foreground">این تصویر، کدام واژه است؟</p>
 
         {/* options */}
         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
@@ -434,19 +400,12 @@ function Shell({
     <div dir="rtl" className="container mx-auto my-8 max-w-2xl sm:my-12">
       <div className="mb-6 text-center">
         {onBack && (
-          <button
-            onClick={onBack}
-            className="float-right text-sm text-muted-foreground hover:text-primary"
-          >
+          <button onClick={onBack} className="float-right text-sm text-muted-foreground hover:text-primary">
             ← بازگشت
           </button>
         )}
         <h1 className="text-2xl font-bold text-primary sm:text-3xl">{title}</h1>
-        {subtitle && (
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            {subtitle}
-          </p>
-        )}
+        {subtitle && <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
     </div>

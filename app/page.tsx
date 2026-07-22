@@ -1,5 +1,6 @@
 import ExamSection from "@/components/UI/ExamSection";
 import VaznYabHomeSection from "@/components/UI/VaznYabHomeSection";
+import VocabHomeSection from "@/components/UI/VocabHomeSection";
 import FeaturesSection from "@/components/UI/FeaturesSection";
 import HeroSection from "@/components/UI/HeroSection";
 import LearningProcessSection from "@/components/UI/LearningProcessSection";
@@ -36,6 +37,9 @@ export default function Home() {
         </section>
         <section className=" container z-10 relative pb-22">
           <ExamSection />
+        </section>
+        <section className=" container z-10 relative pb-22">
+          <VocabHomeSection />
         </section>
       </main>
     </div>

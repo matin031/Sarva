@@ -107,9 +107,14 @@ export default function VaznYabDemo() {
   }, [active, reduced]);
 
   return (
-    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+    <div
+      ref={rootRef}
+      aria-hidden
+      dir="rtl"
+      className="mx-auto flex cursor-default w-full max-w-2xl flex-col gap-5"
+    >
       {/* input card */}
-      <div className="glass relative z-20 rounded-3xl p-5 sm:p-7">
+      <div className="glass h-76 relative z-20 rounded-3xl p-5 sm:p-7">
         <span className="text-xs text-muted-foreground sm:text-sm">
           بیت خود را بنویس — هر مصراع در یک خط
         </span>
@@ -118,8 +123,11 @@ export default function VaznYabDemo() {
           <span className="w-18.75 shrink-0 rounded-xl border border-border bg-secondary px-2 py-1 text-center text-xs">
             مصراع اول
           </span>
-          <div className="flex min-h-[2.75rem] w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
-            {typed1 || (caret !== "one" && <span className="text-muted-foreground/30">مصراع اول…</span>)}
+          <div className="flex min-h-12.75 w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
+            {typed1 ||
+              (caret !== "one" && (
+                <span className="text-muted-foreground/30">مصراع اول…</span>
+              ))}
             {caret === "one" && <Caret />}
           </div>
         </div>
@@ -128,14 +136,20 @@ export default function VaznYabDemo() {
           <span className="w-18.75 shrink-0 rounded-xl border border-border bg-secondary px-2 py-1 text-center text-xs">
             مصراع دوم
           </span>
-          <div className="flex min-h-[2.75rem] w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
-            {typed2 || (caret !== "two" && <span className="text-muted-foreground/30">مصراع دوم…</span>)}
+          <div className="flex min-h-12.75 w-full items-center rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm text-foreground sm:text-base">
+            {typed2 ||
+              (caret !== "two" && (
+                <span className="text-muted-foreground/30">مصراع دوم…</span>
+              ))}
             {caret === "two" && <Caret />}
           </div>
         </div>
 
         <motion.span
-          animate={{ scale: pressed ? 0.92 : 1, filter: pressed ? "brightness(1.1)" : "brightness(0.9)" }}
+          animate={{
+            scale: pressed ? 0.92 : 1,
+            filter: pressed ? "brightness(1.1)" : "brightness(0.9)",
+          }}
           transition={{ duration: 0.18 }}
           className="mt-7 inline-flex items-center gap-x-2 rounded-3xl bg-primary px-4 py-1.5 font-bold text-secondary sm:text-lg"
         >
@@ -200,15 +214,21 @@ export default function VaznYabDemo() {
               </div>
 
               <div className="mt-6">
-                <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">ارکان عروضی</span>
+                <span className="mb-2 inline-block text-xs text-muted-foreground sm:text-sm">
+                  ارکان عروضی
+                </span>
                 <div className="w-full rounded-3xl bg-primary/10 px-2 py-3 text-center font-bold text-primary">
                   {EXAMPLE.feet}
                 </div>
               </div>
 
               <div className="mt-3">
-                <span className="text-xs text-muted-foreground sm:text-sm">بحر</span>
-                <div className="w-full font-bold brightness-75">{EXAMPLE.bahr}</div>
+                <span className="text-xs text-muted-foreground sm:text-sm">
+                  بحر
+                </span>
+                <div className="w-full font-bold brightness-75">
+                  {EXAMPLE.bahr}
+                </div>
               </div>
             </motion.div>
           )}
@@ -241,7 +261,12 @@ function Equalizer() {
             className="w-[5px] rounded-full bg-gradient-to-b from-primary to-primary/60 shadow-[0_0_10px_var(--color-primary)]"
             style={{ height: "25%" }}
             animate={{ height: ["25%", "100%", "25%"] }}
-            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.09 }}
+            transition={{
+              duration: 0.9,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.09,
+            }}
           />
         ))}
       </div>

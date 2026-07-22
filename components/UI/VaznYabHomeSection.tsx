@@ -12,7 +12,9 @@ function VaznYabHomeSection() {
         </div>
       </div>
 
-      <h2 className="text-center text-4xl font-bold">وزنِ هر بیت را در یک لحظه پیدا کن</h2>
+      <h2 className="text-center text-4xl font-bold">
+        وزنِ هر بیت را در یک لحظه پیدا کن
+      </h2>
       <p className="mx-auto max-w-xl text-center text-base font-[550] text-muted-foreground">
         بیت یا مصراعی را بنویس تا وزنِ عروضی، ارکان و بحرِ آن را همان‌جا ببینی و
         ضرب‌آهنگش را بشنوی.

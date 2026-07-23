@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { motion, useMotionTemplate, useMotionValue } from "motion/react";
 import ArkanSphere from "./ArkanSphere";
+import { RevealGroup, RevealItem, RevealLine } from "./reveal";
 
 /** The عروض سماعی hero: an aurora-lit stage with a perspective grid floor, a
  *  cursor spotlight, the interactive arkān sphere, and a headline. */
@@ -84,55 +85,62 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
       {/* ---------- content ---------- */}
       <div className="container grid items-center gap-12 lg:grid-cols-2">
         {/* text column */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 30, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 text-center lg:text-right"
-        >
-          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary backdrop-blur-sm">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-primary" />
+        <RevealGroup stagger={0.14} className="relative z-10 text-center lg:text-right">
+          <RevealItem>
+            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary backdrop-blur-sm">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
+              </span>
+              عروضِ سماعی سروا
             </span>
-            عروضِ سماعی سروا
-          </span>
+          </RevealItem>
 
           <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl xl:text-7xl">
-            <span className="block text-foreground">وزنِ شعر را</span>
-            <span className="aruz-gradient-text block">با گوش می‌شنوی</span>
+            <RevealLine className="text-foreground" delay={0.1}>
+              وزنِ شعر را
+            </RevealLine>
+            <RevealLine className="aruz-gradient-text" delay={0.24}>
+              با گوش می‌شنوی
+            </RevealLine>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-            دیگر لازم نیست ارکان را حفظ کنی؛ در سروا ریتمِ هر بیت را می‌شنوی و وزنش
-            را تشخیص می‌دهی. یادگیریِ عروض، به سادگیِ گوش دادن به یک آهنگ.
-          </p>
+          <RevealItem>
+            <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
+              دیگر لازم نیست ارکان را حفظ کنی؛ در سروا ریتمِ هر بیت را می‌شنوی و
+              وزنش را تشخیص می‌دهی. یادگیریِ عروض، به سادگیِ گوش دادن به یک آهنگ.
+            </p>
+          </RevealItem>
 
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-            <GlowCTA />
-            <Link
-              href="/guide"
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border bg-card/60 px-6 font-bold text-foreground backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card active:scale-95"
-            >
-              راهنمای عروض
-            </Link>
-          </div>
+          <RevealItem>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+              <GlowCTA />
+              <Link
+                href="/guide"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border bg-card/60 px-6 font-bold text-foreground backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card active:scale-95"
+              >
+                راهنمای عروض
+              </Link>
+            </div>
+          </RevealItem>
 
           {/* mini stats */}
-          <div className="mt-10 flex items-center justify-center gap-5 text-center sm:gap-7 lg:justify-start">
-            {[
-              ["+۲۵۰۰", "شعر و بیت"],
-              ["+۱۲", "وزنِ اصلی"],
-              ["+۹۸٪", "دقتِ تشخیص"],
-              ["+۱۰K", "کاربرِ فعال"],
-            ].map(([n, l]) => (
-              <div key={l}>
-                <div className="text-xl font-black text-primary sm:text-3xl">{n}</div>
-                <div className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{l}</div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+          <RevealItem>
+            <div className="mt-10 flex items-center justify-center gap-5 text-center sm:gap-7 lg:justify-start">
+              {[
+                ["+۲۵۰۰", "شعر و بیت"],
+                ["+۱۲", "وزنِ اصلی"],
+                ["+۹۸٪", "دقتِ تشخیص"],
+                ["+۱۰K", "کاربرِ فعال"],
+              ].map(([n, l]) => (
+                <div key={l}>
+                  <div className="text-xl font-black text-primary sm:text-3xl">{n}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{l}</div>
+                </div>
+              ))}
+            </div>
+          </RevealItem>
+        </RevealGroup>
 
         {/* visual column — the interactive arkān sphere */}
         <motion.div

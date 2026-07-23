@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
 import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
+import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
 
 export default function AruzPage() {
   const [reduced, setReduced] = useState(false);
@@ -20,31 +21,30 @@ export default function AruzPage() {
   }, []);
 
   return (
-    <div className="relative overflow-hidden bg-background">
-      <AruzHero reduced={reduced} />
+    <MotionConfig reducedMotion="user">
+      <div className="relative overflow-hidden bg-background">
+        <AruzHero reduced={reduced} />
 
       <AruzFeatures reduced={reduced} />
 
       {/* ---------- interactive demo, framed like a device ---------- */}
       <section dir="rtl" className="container relative py-20">
-        <motion.div
-          initial={reduced ? false : { opacity: 0, y: 24, filter: "blur(6px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={defaultViewport}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mb-12 max-w-2xl text-center"
-        >
-          <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
-            یک نگاه به داخل
-          </span>
+        <RevealGroup stagger={0.12} className="mx-auto mb-12 max-w-2xl text-center">
+          <RevealItem>
+            <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
+              یک نگاه به داخل
+            </span>
+          </RevealItem>
           <h2 className="text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-            آزمون را زنده ببین
+            <RevealWords text="آزمون را زنده ببین" />
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و گزینهٔ
-            درست روشن می‌شود.
-          </p>
-        </motion.div>
+          <RevealItem>
+            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+              همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و گزینهٔ
+              درست روشن می‌شود.
+            </p>
+          </RevealItem>
+        </RevealGroup>
 
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 30, scale: 0.97 }}
@@ -92,7 +92,7 @@ export default function AruzPage() {
             className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/20 blur-3xl"
           />
           <h2 className="relative text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-            گوشت را برای وزن آماده کن
+            <RevealWords text="گوشت را برای وزن آماده کن" />
           </h2>
           <p className="relative mx-auto mt-4 max-w-lg text-muted-foreground">
             رایگان شروع کن، بدونِ حفظ‌کردنِ ارکان. فقط گوش بده و وزن‌شناس شو.
@@ -120,6 +120,7 @@ export default function AruzPage() {
           </div>
         </motion.div>
       </section>
-    </div>
+      </div>
+    </MotionConfig>
   );
 }

@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import TiltCard from "./TiltCard";
+import { RevealGroup, RevealItem, RevealWords } from "./reveal";
 
 const FEATURES: {
   title: string;
@@ -55,37 +56,41 @@ const FEATURES: {
 export default function AruzFeatures({ reduced }: { reduced: boolean }) {
   return (
     <section dir="rtl" className="container relative py-20">
-      <motion.div
-        initial={reduced ? false : { opacity: 0, y: 24, filter: "blur(6px)" }}
-        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        viewport={defaultViewport}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mb-14 max-w-2xl text-center"
-      >
-        <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
-          سه نوع پرسش
-        </span>
+      <RevealGroup stagger={0.12} className="mx-auto mb-14 max-w-2xl text-center">
+        <RevealItem>
+          <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
+            سه نوع پرسش
+          </span>
+        </RevealItem>
         <h2 className="text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-          عروض را از هر زاویه تمرین کن
+          <RevealWords text="عروض را از هر زاویه تمرین کن" />
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-          هر پرسش گوشِ موسیقایی‌ات را از یک مسیرِ متفاوت تقویت می‌کند تا
-          وزن‌شناسی برایت به یک مهارتِ درونی تبدیل شود.
-        </p>
-      </motion.div>
+        <RevealItem>
+          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+            هر پرسش گوشِ موسیقایی‌ات را از یک مسیرِ متفاوت تقویت می‌کند تا
+            وزن‌شناسی برایت به یک مهارتِ درونی تبدیل شود.
+          </p>
+        </RevealItem>
+      </RevealGroup>
 
       <div className="grid gap-6 md:grid-cols-3">
         {FEATURES.map((f, i) => (
           <motion.div
             key={f.tag}
-            initial={reduced ? false : { opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={
+              reduced
+                ? false
+                : { opacity: 0, y: 64, rotateX: -20, scale: 0.92 }
+            }
+            whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
             viewport={defaultViewport}
             transition={{
-              duration: 0.6,
-              delay: i * 0.1,
-              ease: [0.16, 1, 0.3, 1],
+              type: "spring",
+              stiffness: 95,
+              damping: 15,
+              delay: i * 0.12,
             }}
+            style={{ transformPerspective: 1000 }}
           >
             <TiltCard
               disabled={reduced}

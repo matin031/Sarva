@@ -55,8 +55,11 @@ const FEATURES: {
 
 export default function AruzFeatures({ reduced }: { reduced: boolean }) {
   return (
-    <section dir="rtl" className="container relative py-20">
-      <RevealGroup stagger={0.12} className="mx-auto mb-14 max-w-2xl text-center">
+    <section dir="rtl" className="container cursor-default relative z-20 py-20">
+      <RevealGroup
+        stagger={0.12}
+        className="mx-auto mb-14 max-w-2xl text-center"
+      >
         <RevealItem>
           <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
             سه نوع پرسش
@@ -78,9 +81,7 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
           <motion.div
             key={f.tag}
             initial={
-              reduced
-                ? false
-                : { opacity: 0, y: 64, rotateX: -20, scale: 0.92 }
+              reduced ? false : { opacity: 0, y: 64, rotateX: -20, scale: 0.92 }
             }
             whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
             viewport={defaultViewport}
@@ -95,7 +96,7 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
             <TiltCard
               disabled={reduced}
               className="group h-full overflow-hidden rounded-3xl border 
-              border-border glass relative z-30 p-7 backdrop-blur-sm transition-colors hover:border-primary/40"
+              border-border  relative bg-card z-30 p-7 backdrop-blur-sm transition-colors hover:border-primary/40"
             >
               {/* accent glow that reveals on hover */}
               <div

@@ -89,9 +89,12 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
       </div>
 
       {/* ---------- content ---------- */}
-      <div className="container grid items-center gap-12 lg:grid-cols-2">
+      <div className="container cursor-default grid items-center gap-12 lg:grid-cols-2">
         {/* text column */}
-        <RevealGroup stagger={0.14} className="relative z-10 text-center lg:text-right">
+        <RevealGroup
+          stagger={0.14}
+          className="relative z-10 text-center lg:text-right"
+        >
           <RevealItem>
             <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary backdrop-blur-sm">
               <span className="relative flex size-2">
@@ -104,17 +107,17 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
 
           <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl xl:text-7xl">
             <RevealLine className="text-foreground" delay={0.1}>
-              وزنِ شعر را
+              آرزویی دست‌یافتنی
             </RevealLine>
             <RevealLine className="aruz-gradient-text" delay={0.24}>
-              با گوش می‌شنوی
+              به سادگیِ گوش دادن
             </RevealLine>
           </h1>
 
           <RevealItem>
             <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-              دیگر لازم نیست ارکان را حفظ کنی؛ در سروا ریتمِ هر بیت را می‌شنوی و
-              وزنش را تشخیص می‌دهی. یادگیریِ عروض، به سادگیِ گوش دادن به یک آهنگ.
+              سماعی شدن در عروض حالا دیگر دشوار نیست با تست‌های صوتی و تعاملی
+              ســروا به راحتی وزن هر بیت را تنها با گوش دادن تشخیص می‌دهی
             </p>
           </RevealItem>
 
@@ -131,7 +134,7 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
           </RevealItem>
 
           {/* mini stats */}
-          <RevealItem>
+          {/* <RevealItem>
             <div className="mt-10 flex items-center justify-center gap-5 text-center sm:gap-7 lg:justify-start">
               {[
                 ["+۲۵۰۰", "شعر و بیت"],
@@ -145,7 +148,7 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
                 </div>
               ))}
             </div>
-          </RevealItem>
+          </RevealItem> */}
         </RevealGroup>
 
         {/* visual column — the interactive arkān sphere */}
@@ -179,8 +182,18 @@ function GlowCTA() {
         }}
       />
       شروع آزمونِ صوتی
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        className="size-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M11 6 5 12l6 6M19 12H5"
+        />
       </svg>
     </Link>
   );

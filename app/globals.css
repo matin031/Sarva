@@ -443,3 +443,118 @@ button {
 .recharts-surface {
   outline: none !important;
 }
+
+/* ============================================================
+   /aruz — عروض سماعی intro page effects
+   ============================================================ */
+
+/* slowly drifting aurora blobs behind the hero */
+@keyframes aruzDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(8%, -6%, 0) scale(1.12);
+  }
+  66% {
+    transform: translate3d(-6%, 7%, 0) scale(0.92);
+  }
+}
+@keyframes aruzDrift2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-10%, 8%, 0) scale(1.2);
+  }
+}
+
+/* perspective "3D floor" grid that keeps scrolling toward the viewer */
+@keyframes aruzGridMove {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 60px,
+      60px 0;
+  }
+}
+
+/* infinite marquee of عروضی feet */
+@keyframes aruzMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* gentle float for layered depth elements */
+@keyframes aruzFloatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+/* slow spin for the orbiting ring */
+@keyframes aruzSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* animated conic shimmer for the CTA halo */
+@keyframes aruzConic {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.aruz-grid-floor {
+  background-image:
+    linear-gradient(to right, var(--aruz-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--aruz-grid-line) 1px, transparent 1px);
+  background-size: 60px 60px;
+  --aruz-grid-line: color-mix(in oklch, var(--primary) 22%, transparent);
+  animation: aruzGridMove 6s linear infinite;
+}
+
+.aruz-gradient-text {
+  background: linear-gradient(
+    120deg,
+    var(--color-primary),
+    var(--color-gold),
+    var(--color-primary)
+  );
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: aruzHueShift 6s ease-in-out infinite;
+}
+@keyframes aruzHueShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aruz-grid-floor,
+  .aruz-gradient-text {
+    animation: none;
+  }
+}

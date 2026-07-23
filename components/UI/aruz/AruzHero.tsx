@@ -10,7 +10,7 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import AudioOrb from "./AudioOrb";
+import CrystalOrb from "./CrystalOrb";
 
 /** The عروض سماعی hero: an aurora-lit stage with a perspective grid floor, a
  *  pulsing audio orb, floating عروضی-foot chips, and a headline — all reacting
@@ -132,15 +132,16 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
           </div>
 
           {/* mini stats */}
-          <div className="mt-10 flex items-center justify-center gap-6 text-center lg:justify-start">
+          <div className="mt-10 flex items-center justify-center gap-5 text-center sm:gap-7 lg:justify-start">
             {[
-              ["۳", "نوع پرسشِ صوتی"],
-              ["∞", "تمرینِ نامحدود"],
-              ["۱۰۰٪", "رایگان"],
+              ["+۲۵۰۰", "شعر و بیت"],
+              ["+۱۲", "وزنِ اصلی"],
+              ["+۹۸٪", "دقتِ تشخیص"],
+              ["+۱۰K", "کاربرِ فعال"],
             ].map(([n, l]) => (
               <div key={l}>
-                <div className="text-2xl font-black text-primary sm:text-3xl">{n}</div>
-                <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{l}</div>
+                <div className="text-xl font-black text-primary sm:text-3xl">{n}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{l}</div>
               </div>
             ))}
           </div>
@@ -151,34 +152,46 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
           initial={reduced ? false : { opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-          className="relative mx-auto flex aspect-square w-full max-w-md items-center justify-center"
+          className="relative mx-auto aspect-square w-full max-w-md"
         >
-          {/* slow orbiting ring */}
+          {/* slow orbiting rings */}
           <div
             aria-hidden
-            className="absolute inset-4 rounded-full border border-dashed border-primary/20"
-            style={reduced ? undefined : { animation: "aruzSpin 40s linear infinite" }}
+            className="absolute inset-2 rounded-full border border-dashed border-primary/15"
+            style={reduced ? undefined : { animation: "aruzSpin 44s linear infinite" }}
           >
             <span className="absolute -top-1.5 left-1/2 size-3 -translate-x-1/2 rounded-full bg-gold shadow-[0_0_16px_var(--color-gold)]" />
-            <span className="absolute -bottom-1.5 left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_14px_var(--color-primary)]" />
+          </div>
+          <div
+            aria-hidden
+            className="absolute inset-10 rounded-full border border-primary/10"
+            style={reduced ? undefined : { animation: "aruzSpin 30s linear infinite reverse" }}
+          >
+            <span className="absolute top-1/2 -right-1 size-2 -translate-y-1/2 rounded-full bg-primary shadow-[0_0_14px_var(--color-primary)]" />
           </div>
 
-          <ParallaxLayer mx={mx} my={my} depth={reduced ? 0 : 26}>
-            <AudioOrb reduced={reduced} />
+          <ParallaxLayer mx={mx} my={my} depth={reduced ? 0 : 22}>
+            <CrystalOrb reduced={reduced} />
           </ParallaxLayer>
 
-          {/* floating arkan chips at varying depths */}
-          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 60} className="left-0 top-6">
-            فاعلاتن
-          </FloatChip>
-          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 44} className="right-0 top-1/4">
+          {/* floating arkan chips at varying depths, ringed around the orb */}
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 40} className="left-1/2 top-0 -translate-x-1/2">
             مفاعیلن
           </FloatChip>
-          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 70} className="bottom-8 left-6">
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 58} className="right-0 top-[22%]">
+            فعولن
+          </FloatChip>
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 50} className="right-1 bottom-[30%]">
             مستفعلن
           </FloatChip>
-          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 50} className="bottom-1/4 right-2">
-            فعولن
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 44} className="bottom-2 left-1/2 -translate-x-1/2">
+            فاعلاتن
+          </FloatChip>
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 62} className="bottom-[30%] left-0">
+            مفعولاتُ
+          </FloatChip>
+          <FloatChip mx={mx} my={my} depth={reduced ? 0 : 52} className="left-1 top-[22%]">
+            متفاعلن
           </FloatChip>
         </motion.div>
       </div>
@@ -201,7 +214,10 @@ function ParallaxLayer({
   const x = useTransform(mx, (v) => v * depth);
   const y = useTransform(my, (v) => v * depth);
   return (
-    <motion.div style={{ x, y }} className="relative z-10">
+    <motion.div
+      style={{ x, y }}
+      className="absolute inset-0 z-10 flex items-center justify-center"
+    >
       {children}
     </motion.div>
   );

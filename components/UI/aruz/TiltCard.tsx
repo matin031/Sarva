@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   motion,
   useMotionTemplate,
@@ -25,6 +25,7 @@ export default function TiltCard({
   disabled?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
 
   const rx = useSpring(0, { stiffness: 200, damping: 18 });
   const ry = useSpring(0, { stiffness: 200, damping: 18 });
@@ -36,6 +37,7 @@ export default function TiltCard({
 
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
+    if (!hovered) setHovered(true);
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -48,6 +50,7 @@ export default function TiltCard({
   };
 
   const onLeave = () => {
+    setHovered(false);
     rx.set(0);
     ry.set(0);
     gx.set(50);
@@ -57,6 +60,7 @@ export default function TiltCard({
   return (
     <motion.div
       ref={ref}
+      onPointerEnter={() => !disabled && setHovered(true)}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
       style={disabled ? undefined : { transform, transformStyle: "preserve-3d" }}
@@ -67,7 +71,9 @@ export default function TiltCard({
         <motion.div
           aria-hidden
           style={{ background: glareBg }}
-          className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-70 mix-blend-soft-light"
+          className={`pointer-events-none absolute inset-0 rounded-[inherit] mix-blend-soft-light transition-opacity duration-300 ${
+            hovered ? "opacity-70" : "opacity-0"
+          }`}
         />
       )}
     </motion.div>

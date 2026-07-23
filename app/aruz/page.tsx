@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
-import RhythmSequencer from "@/components/UI/aruz/RhythmSequencer";
+import MeterSphere from "@/components/UI/aruz/MeterSphere";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
 import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
 
@@ -24,7 +24,7 @@ export default function AruzPage() {
     <div className="relative overflow-hidden bg-background">
       <AruzHero reduced={reduced} />
 
-      <RhythmSequencer reduced={reduced} />
+      <MeterSphere reduced={reduced} />
 
       <AruzFeatures reduced={reduced} />
 

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   motion,
+  useMotionTemplate,
   useMotionValue,
   useSpring,
   useTransform,
@@ -15,25 +16,55 @@ import AudioOrb from "./AudioOrb";
  *  pulsing audio orb, floating عروضی-foot chips, and a headline — all reacting
  *  to the pointer with layered 3D parallax. */
 export default function AruzHero({ reduced }: { reduced: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
   // normalized pointer position (-0.5 .. 0.5) with spring smoothing
   const mx = useSpring(useMotionValue(0), { stiffness: 90, damping: 18 });
   const my = useSpring(useMotionValue(0), { stiffness: 90, damping: 18 });
+  // raw pointer position within the section, for the cursor spotlight
+  const spx = useMotionValue(50);
+  const spy = useMotionValue(30);
+  const spotlight = useMotionTemplate`radial-gradient(600px circle at ${spx}% ${spy}%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 60%)`;
 
   useEffect(() => {
     if (reduced) return;
     const onMove = (e: PointerEvent) => {
       mx.set(e.clientX / window.innerWidth - 0.5);
       my.set(e.clientY / window.innerHeight - 0.5);
+      const el = sectionRef.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        spx.set(((e.clientX - r.left) / r.width) * 100);
+        spy.set(((e.clientY - r.top) / r.height) * 100);
+      }
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [mx, my, reduced]);
+  }, [mx, my, spx, spy, reduced]);
 
   return (
     <section
+      ref={sectionRef}
       dir="rtl"
       className="relative flex min-h-[92vh] items-center overflow-hidden py-24"
     >
+      {/* cursor spotlight */}
+      {!reduced && (
+        <motion.div
+          aria-hidden
+          style={{ background: spotlight }}
+          className="pointer-events-none absolute inset-0 -z-10"
+        />
+      )}
+      {/* fine grain texture */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
+
       {/* ---------- background layers ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         {/* aurora blobs */}

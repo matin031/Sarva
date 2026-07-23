@@ -14,14 +14,14 @@ const ARKAN = [
   "مفاعیلن",
   "مستفعلن",
   "فعولن",
-  "فاعلن",
-  "مفعولاتُ",
-  "متفاعلن",
-  "مفاعلتن",
+  "مفعول",
+  "فاعلات",
+  "فعلات",
   "مفتعلن",
+  "مفاعیل",
   "فعلاتن",
   "مفاعلن",
-  "فعِلن",
+  "فعلن",
 ];
 
 export default function ArkanSphere({ reduced }: { reduced: boolean }) {
@@ -164,13 +164,17 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       <div
         aria-hidden
         className="pointer-events-none absolute inset-4 rounded-full border border-primary/20"
-        style={reduced ? undefined : { animation: "aruzSpin 32s linear infinite" }}
+        style={
+          reduced ? undefined : { animation: "aruzSpin 32s linear infinite" }
+        }
       />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-14 rounded-full border border-dashed border-gold/20"
         style={
-          reduced ? undefined : { animation: "aruzSpin 24s linear infinite reverse" }
+          reduced
+            ? undefined
+            : { animation: "aruzSpin 24s linear infinite reverse" }
         }
       />
 

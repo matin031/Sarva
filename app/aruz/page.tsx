@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
+import MeterSphere from "@/components/UI/aruz/MeterSphere";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
 import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
 
@@ -23,6 +24,8 @@ export default function AruzPage() {
     <div className="relative overflow-hidden bg-background">
       <AruzHero reduced={reduced} />
 
+      <MeterSphere reduced={reduced} />
+
       <AruzFeatures reduced={reduced} />
 
       {/* ---------- interactive demo, framed like a device ---------- */}
@@ -35,8 +38,8 @@ export default function AruzPage() {
             آزمون را زنده ببین
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و گزینهٔ درست
-            روشن می‌شود.
+            همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و گزینهٔ
+            درست روشن می‌شود.
           </p>
         </div>
 
@@ -103,7 +106,11 @@ export default function AruzPage() {
                 strokeWidth={2}
                 className="size-5 transition-transform group-hover:-translate-x-1"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 6 5 12l6 6M19 12H5"
+                />
               </svg>
             </Link>
           </div>

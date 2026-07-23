@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useMotionTemplate, useMotionValue } from "motion/react";
 import ArkanSphere from "./ArkanSphere";
 import { RevealGroup, RevealItem, RevealLine } from "./reveal";
@@ -15,8 +15,16 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
   const spy = useMotionValue(30);
   const spotlight = useMotionTemplate`radial-gradient(600px circle at ${spx}% ${spy}%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 60%)`;
 
+  // the cursor spotlight is a mouse-only flourish; skip it entirely on touch
+  // devices (no hover, and the moving radial-gradient repaint is wasteful there)
+  const [fine, setFine] = useState(false);
   useEffect(() => {
-    if (reduced) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFine(window.matchMedia("(pointer: fine)").matches);
+  }, []);
+
+  useEffect(() => {
+    if (reduced || !fine) return;
     const onMove = (e: PointerEvent) => {
       const el = sectionRef.current;
       if (el) {
@@ -27,7 +35,7 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [spx, spy, reduced]);
+  }, [spx, spy, reduced, fine]);
 
   return (
     <section
@@ -35,8 +43,8 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
       dir="rtl"
       className="relative flex min-h-[92vh] items-center overflow-hidden py-24"
     >
-      {/* cursor spotlight */}
-      {!reduced && (
+      {/* cursor spotlight — mouse only */}
+      {!reduced && fine && (
         <motion.div
           aria-hidden
           style={{ background: spotlight }}
@@ -55,19 +63,17 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
 
       {/* ---------- background layers ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        {/* aurora blobs */}
+        {/* aurora blobs — smaller blur radii so mobile GPUs don't allocate huge
+            blur surfaces */}
         <div
-          className="absolute -right-40 -top-20 size-[520px] rounded-full bg-primary/25 blur-[120px]"
-          style={reduced ? undefined : { animation: "aruzDrift 16s ease-in-out infinite" }}
+          className="absolute -right-40 -top-20 size-[440px] rounded-full bg-primary/25 blur-[80px]"
+          style={reduced ? undefined : { animation: "aruzDrift 18s ease-in-out infinite" }}
         />
         <div
-          className="absolute -left-32 top-1/3 size-[460px] rounded-full bg-gold/20 blur-[120px]"
-          style={reduced ? undefined : { animation: "aruzDrift2 20s ease-in-out infinite" }}
+          className="absolute -left-32 top-1/3 size-[400px] rounded-full bg-gold/20 blur-[80px]"
+          style={reduced ? undefined : { animation: "aruzDrift2 22s ease-in-out infinite" }}
         />
-        <div
-          className="absolute bottom-0 left-1/3 size-[420px] rounded-full bg-lapis-light/25 blur-[130px]"
-          style={reduced ? undefined : { animation: "aruzDrift 22s ease-in-out infinite" }}
-        />
+        <div className="absolute bottom-0 left-1/3 size-[380px] rounded-full bg-lapis-light/20 blur-[90px]" />
         {/* perspective 3D grid floor */}
         <div
           className="absolute inset-x-0 bottom-0 h-[45vh] [mask-image:linear-gradient(to_top,black,transparent)]"

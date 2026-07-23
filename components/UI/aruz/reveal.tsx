@@ -39,11 +39,10 @@ export function RevealGroup({
 }
 
 const itemV: Variants = {
-  hidden: { opacity: 0, y: 26, filter: "blur(8px)" },
+  hidden: { opacity: 0, y: 24 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: { duration: 0.7, ease: EASE },
   },
 };

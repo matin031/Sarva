@@ -74,11 +74,12 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         const el = tagRefs.current[i];
         if (!el) continue;
         el.style.transform = `translate(-50%,-50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) scale(${(0.58 + depth * 0.62).toFixed(3)})`;
-        el.style.opacity = (0.28 + depth * 0.72).toFixed(3);
+        el.style.opacity = (0.3 + depth * 0.7).toFixed(3);
         el.style.zIndex = String(Math.round(z2 * 100) + 200);
-        el.style.setProperty("--near", depth.toFixed(3));
       }
     };
+
+    const el = stageRef.current;
 
     if (reduced) {
       st.ax = -0.35;
@@ -87,18 +88,44 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       return;
     }
 
+    // ~30fps is plenty for a slow spin and halves the work on weak devices
+    const FRAME = 1000 / 30;
     let raf = 0;
-    const loop = () => {
+    let last = 0;
+    let visible = true;
+    const step = (now: number) => {
+      raf = requestAnimationFrame(step);
+      if (now - last < FRAME) return;
+      last = now;
       st.vx += (st.tx - st.vx) * 0.05;
       st.vy += (st.ty - st.vy) * 0.05;
       st.ax += st.vx;
       st.ay += st.vy;
       render();
-      raf = requestAnimationFrame(loop);
     };
-    loop();
-
-    const el = stageRef.current;
+    const start = () => {
+      if (!raf) {
+        last = 0;
+        raf = requestAnimationFrame(step);
+      }
+    };
+    const stop = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    // pause the loop entirely while the sphere is scrolled off-screen
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visible = entry.isIntersecting;
+        if (visible) start();
+        else stop();
+      },
+      { threshold: 0 },
+    );
+    if (el) io.observe(el);
+    start();
     const onMove = (e: PointerEvent) => {
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -140,7 +167,8 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     window.addEventListener("pointerup", onUp);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      io.disconnect();
       el?.removeEventListener("pointermove", onMove);
       el?.removeEventListener("pointerleave", onReset);
       el?.removeEventListener("pointerdown", onDown);
@@ -150,14 +178,11 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
 
   return (
     <div className="relative mx-auto flex aspect-square w-full max-w-[440px] items-center justify-center">
-      {/* soft aura — gives the sphere presence without a hard edge */}
+      {/* soft aura — gives the sphere presence without a hard edge (kept light
+          so mobile GPUs don't choke on a huge blur surface) */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-6 rounded-full bg-primary/20 blur-[80px]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-24 rounded-full bg-gold/15 blur-[70px]"
+        className="pointer-events-none absolute inset-10 rounded-full bg-primary/20 blur-[56px]"
       />
 
       {/* orbit rings */}
@@ -190,12 +215,8 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
             ref={(node) => {
               tagRefs.current[i] = node;
             }}
-            className="absolute left-1/2 top-1/2 rounded-full border border-primary/30 bg-card/80 px-3.5 py-1.5 text-sm font-bold whitespace-nowrap text-foreground shadow-[0_0_24px_-6px_var(--color-primary)] backdrop-blur-md select-none"
-            style={{
-              willChange: "transform, opacity",
-              textShadow:
-                "0 0 calc(var(--near, 0.5) * 16px) color-mix(in oklch, var(--color-primary) 70%, transparent)",
-            }}
+            className="absolute left-1/2 top-1/2 rounded-full border border-primary/30 bg-card px-3.5 py-1.5 text-sm font-bold whitespace-nowrap text-foreground shadow-[0_2px_10px_-4px_rgba(0,0,0,0.45)] select-none"
+            style={{ willChange: "transform" }}
           >
             {word}
           </span>

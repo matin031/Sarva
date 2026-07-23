@@ -175,12 +175,18 @@ export default function MeterSphere({ reduced }: { reduced: boolean }) {
         <div
           aria-hidden
           className="pointer-events-none absolute inset-6 rounded-full border border-primary/15"
-          style={reduced ? undefined : { animation: "aruzSpin 32s linear infinite" }}
+          style={
+            reduced ? undefined : { animation: "aruzSpin 32s linear infinite" }
+          }
         />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-16 rounded-full border border-dashed border-gold/15"
-          style={reduced ? undefined : { animation: "aruzSpin 24s linear infinite reverse" }}
+          style={
+            reduced
+              ? undefined
+              : { animation: "aruzSpin 24s linear infinite reverse" }
+          }
         />
 
         {/* the interactive sphere stage */}

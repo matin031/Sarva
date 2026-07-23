@@ -55,7 +55,13 @@ const FEATURES: {
 export default function AruzFeatures({ reduced }: { reduced: boolean }) {
   return (
     <section dir="rtl" className="container relative py-20">
-      <div className="mx-auto mb-14 max-w-2xl text-center">
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 24, filter: "blur(6px)" }}
+        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        viewport={defaultViewport}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="mx-auto mb-14 max-w-2xl text-center"
+      >
         <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
           سه نوع پرسش
         </span>
@@ -66,7 +72,7 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
           هر پرسش گوشِ موسیقایی‌ات را از یک مسیرِ متفاوت تقویت می‌کند تا
           وزن‌شناسی برایت به یک مهارتِ درونی تبدیل شود.
         </p>
-      </div>
+      </motion.div>
 
       <div className="grid gap-6 md:grid-cols-3">
         {FEATURES.map((f, i) => (

@@ -27,7 +27,13 @@ export default function AruzPage() {
 
       {/* ---------- interactive demo, framed like a device ---------- */}
       <section dir="rtl" className="container relative py-20">
-        <div className="mx-auto mb-12 max-w-2xl text-center">
+        <motion.div
+          initial={reduced ? false : { opacity: 0, y: 24, filter: "blur(6px)" }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          viewport={defaultViewport}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="mx-auto mb-12 max-w-2xl text-center"
+        >
           <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
             یک نگاه به داخل
           </span>
@@ -38,7 +44,7 @@ export default function AruzPage() {
             همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و گزینهٔ
             درست روشن می‌شود.
           </p>
-        </div>
+        </motion.div>
 
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 30, scale: 0.97 }}

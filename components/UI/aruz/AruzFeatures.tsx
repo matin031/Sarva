@@ -63,8 +63,8 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
           عروض را از هر زاویه تمرین کن
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-          هر پرسش گوشِ موسیقایی‌ات را از یک مسیرِ متفاوت تقویت می‌کند تا وزن‌شناسی
-          برایت به یک مهارتِ درونی تبدیل شود.
+          هر پرسش گوشِ موسیقایی‌ات را از یک مسیرِ متفاوت تقویت می‌کند تا
+          وزن‌شناسی برایت به یک مهارتِ درونی تبدیل شود.
         </p>
       </div>
 
@@ -75,11 +75,16 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
             initial={reduced ? false : { opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={defaultViewport}
-            transition={{ duration: 0.6, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{
+              duration: 0.6,
+              delay: i * 0.1,
+              ease: [0.16, 1, 0.3, 1],
+            }}
           >
             <TiltCard
               disabled={reduced}
-              className="group h-full overflow-hidden rounded-3xl border border-border bg-card/60 p-7 backdrop-blur-sm transition-colors hover:border-primary/40"
+              className="group h-full overflow-hidden rounded-3xl border 
+              border-border glass relative z-30 p-7 backdrop-blur-sm transition-colors hover:border-primary/40"
             >
               {/* accent glow that reveals on hover */}
               <div
@@ -104,12 +109,17 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
               </div>
               <div
                 className="mb-2 inline-block rounded-md px-2 py-0.5 text-xs font-bold"
-                style={{ color: f.accent, background: `color-mix(in oklch, ${f.accent} 12%, transparent)` }}
+                style={{
+                  color: f.accent,
+                  background: `color-mix(in oklch, ${f.accent} 12%, transparent)`,
+                }}
               >
                 {f.tag}
               </div>
               <h3 className="text-xl font-bold text-foreground">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {f.desc}
+              </p>
             </TiltCard>
           </motion.div>
         ))}

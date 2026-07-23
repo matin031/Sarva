@@ -170,7 +170,7 @@ export default function ExamDemo() {
             animate={{ opacity: 1, x: 0 }}
             exit={reduced ? undefined : { opacity: 0, x: -36 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="glass z-20 relative rounded-2xl border border-border bg-card! p-4 shadow xs:p-5"
+            className="glass absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl border border-border bg-card! p-4 shadow xs:p-5"
           >
             {/* header: number badge (right) + score (left) */}
             <div className="mb-3 flex items-center justify-between gap-2">

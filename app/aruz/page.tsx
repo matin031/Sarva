@@ -52,7 +52,7 @@ export default function AruzPage() {
             aria-hidden
             className="absolute inset-0 -z-10 rounded-[2rem] bg-primary/20 blur-3xl"
           />
-          <div className="relative rounded-[2rem] border border-border bg-card/50 p-4 shadow-2xl backdrop-blur-md sm:p-8">
+          <div className="relative bg-card z-20 rounded-[2rem] border border-border bg-card/50 p-4 shadow-2xl backdrop-blur-md sm:p-8">
             {/* faux window chrome */}
             <div className="mb-6 flex items-center gap-2">
               <span className="size-3 rounded-full bg-destructive/60" />
@@ -74,7 +74,8 @@ export default function AruzPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={defaultViewport}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="relative mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 bg-gradient-to-br from-card to-card/40 p-10 text-center shadow-2xl backdrop-blur-md sm:p-16"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 
+          bg-gradient-to-br z-30 from-card to-card/40 p-10 text-center shadow-2xl backdrop-blur-md sm:p-16"
         >
           <div
             aria-hidden

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
-import MeterSphere from "@/components/UI/aruz/MeterSphere";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
 import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
 
@@ -23,8 +22,6 @@ export default function AruzPage() {
   return (
     <div className="relative overflow-hidden bg-background">
       <AruzHero reduced={reduced} />
-
-      <MeterSphere reduced={reduced} />
 
       <AruzFeatures reduced={reduced} />
 

@@ -2,24 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import {
-  motion,
-  useMotionTemplate,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  type MotionValue,
-} from "motion/react";
-import AruzWaveHero from "./AruzWaveHero";
+import { motion, useMotionTemplate, useMotionValue } from "motion/react";
+import ArkanSphere from "./ArkanSphere";
 
 /** The عروض سماعی hero: an aurora-lit stage with a perspective grid floor, a
- *  pulsing audio orb, floating عروضی-foot chips, and a headline — all reacting
- *  to the pointer with layered 3D parallax. */
+ *  cursor spotlight, the interactive arkān sphere, and a headline. */
 export default function AruzHero({ reduced }: { reduced: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
-  // normalized pointer position (-0.5 .. 0.5) with spring smoothing
-  const mx = useSpring(useMotionValue(0), { stiffness: 90, damping: 18 });
-  const my = useSpring(useMotionValue(0), { stiffness: 90, damping: 18 });
   // raw pointer position within the section, for the cursor spotlight
   const spx = useMotionValue(50);
   const spy = useMotionValue(30);
@@ -28,8 +17,6 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
   useEffect(() => {
     if (reduced) return;
     const onMove = (e: PointerEvent) => {
-      mx.set(e.clientX / window.innerWidth - 0.5);
-      my.set(e.clientY / window.innerHeight - 0.5);
       const el = sectionRef.current;
       if (el) {
         const r = el.getBoundingClientRect();
@@ -39,7 +26,7 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
     };
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
-  }, [mx, my, spx, spy, reduced]);
+  }, [spx, spy, reduced]);
 
   return (
     <section
@@ -147,40 +134,17 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
           </div>
         </motion.div>
 
-        {/* visual column — minimal "listening" player, with a light parallax */}
+        {/* visual column — the interactive arkān sphere */}
         <motion.div
           initial={reduced ? false : { opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-          className="relative"
+          className="relative z-10 mx-auto w-full max-w-md"
         >
-          <ParallaxLayer mx={mx} my={my} depth={reduced ? 0 : 18}>
-            <AruzWaveHero reduced={reduced} />
-          </ParallaxLayer>
+          <ArkanSphere reduced={reduced} />
         </motion.div>
       </div>
     </section>
-  );
-}
-
-/** Translates its children opposite/along the pointer for a parallax depth cue. */
-function ParallaxLayer({
-  mx,
-  my,
-  depth,
-  children,
-}: {
-  mx: MotionValue<number>;
-  my: MotionValue<number>;
-  depth: number;
-  children: React.ReactNode;
-}) {
-  const x = useTransform(mx, (v) => v * depth);
-  const y = useTransform(my, (v) => v * depth);
-  return (
-    <motion.div style={{ x, y }} className="relative z-10">
-      {children}
-    </motion.div>
   );
 }
 

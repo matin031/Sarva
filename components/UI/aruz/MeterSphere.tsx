@@ -167,25 +167,31 @@ export default function MeterSphere({ reduced }: { reduced: boolean }) {
       </div>
 
       <div className="relative mx-auto flex aspect-square w-full max-w-[440px] items-center justify-center">
-        {/* ambient glow + decorative rings */}
+        {/* soft outer glow */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-8 rounded-full bg-primary/15 blur-3xl"
+          className="pointer-events-none absolute inset-10 rounded-full bg-primary/12 blur-3xl"
         />
+        {/* the sphere body — a shaded glass ball so it clearly reads as a 3D sphere */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-6 rounded-full border border-primary/15"
-          style={
-            reduced ? undefined : { animation: "aruzSpin 32s linear infinite" }
-          }
+          className="pointer-events-none absolute inset-4 rounded-full border border-border bg-card/70 backdrop-blur-sm"
+          style={{
+            boxShadow:
+              "inset 24px 28px 60px rgba(255,255,255,0.12), inset -28px -32px 72px rgba(0,0,0,0.22), 0 36px 80px -28px rgba(0,0,0,0.4), 0 0 50px -10px color-mix(in oklch, var(--color-primary) 30%, transparent)",
+          }}
         />
+        {/* specular highlight (top-left) */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-16 rounded-full border border-dashed border-gold/15"
+          className="pointer-events-none absolute left-[18%] top-[14%] size-28 rounded-full bg-white/25 blur-2xl"
+        />
+        {/* faint equator ring */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-4 rounded-full border border-primary/15"
           style={
-            reduced
-              ? undefined
-              : { animation: "aruzSpin 24s linear infinite reverse" }
+            reduced ? undefined : { animation: "aruzSpin 34s linear infinite" }
           }
         />
 

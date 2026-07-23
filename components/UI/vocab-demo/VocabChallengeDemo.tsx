@@ -9,12 +9,24 @@ import { motion, AnimatePresence } from "motion/react";
  *  Everything sits in one fixed-height card so the page never reflows. Purely
  *  decorative; no real game logic. Pauses off-screen, honors reduced-motion. */
 
-type Round = { emoji: string; options: string[]; correctIndex: number };
+type Round = { src: string; options: string[]; correctIndex: number };
 
 const ROUNDS: Round[] = [
-  { emoji: "👑", options: ["اورنگ", "تیمار"], correctIndex: 0 },
-  { emoji: "⚖️", options: ["ننگ", "داد"], correctIndex: 1 },
-  { emoji: "🕊️", options: ["آشتی", "غوغا"], correctIndex: 0 },
+  {
+    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/تیمار.webp",
+    options: ["اورنگ", "تیمار"],
+    correctIndex: 1,
+  },
+  {
+    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/داد.webp",
+    options: ["ننگ", "داد"],
+    correctIndex: 1,
+  },
+  {
+    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/غبطه.webp",
+    options: ["آرزو", "غبطه"],
+    correctIndex: 1,
+  },
 ];
 
 const R = 34;
@@ -42,7 +54,9 @@ export default function VocabChallengeDemo() {
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), { threshold: 0.3 });
+    const io = new IntersectionObserver(([e]) => setActive(e.isIntersecting), {
+      threshold: 0.3,
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -89,7 +103,12 @@ export default function VocabChallengeDemo() {
   const r = ROUNDS[round];
 
   return (
-    <div ref={rootRef} aria-hidden dir="rtl" className="mx-auto w-full max-w-sm">
+    <div
+      ref={rootRef}
+      aria-hidden
+      dir="rtl"
+      className="mx-auto w-full max-w-sm"
+    >
       <div className="glass relative z-20 rounded-3xl bg-card! p-5 sm:p-6">
         {/* progress dots */}
         <div className="mb-4 flex items-center justify-center gap-1.5">
@@ -97,7 +116,11 @@ export default function VocabChallengeDemo() {
             <span
               key={i}
               className={`h-1.5 rounded-full transition-all ${
-                i < round ? "w-5 bg-primary" : i === round ? "w-5 bg-gold" : "w-1.5 bg-muted"
+                i < round
+                  ? "w-5 bg-primary"
+                  : i === round
+                    ? "w-5 bg-gold"
+                    : "w-1.5 bg-muted"
               }`}
             />
           ))}
@@ -107,7 +130,15 @@ export default function VocabChallengeDemo() {
         <div className="mb-4 flex items-center justify-center">
           <div className="relative size-16 text-primary">
             <svg viewBox="0 0 80 80" className="size-full -rotate-90">
-              <circle cx="40" cy="40" r={R} fill="none" stroke="currentColor" strokeOpacity={0.15} strokeWidth="7" />
+              <circle
+                cx="40"
+                cy="40"
+                r={R}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity={0.15}
+                strokeWidth="7"
+              />
               <motion.circle
                 key={round}
                 cx="40"
@@ -118,7 +149,11 @@ export default function VocabChallengeDemo() {
                 strokeWidth="7"
                 strokeLinecap="round"
                 strokeDasharray={C}
-                initial={reduced ? { strokeDashoffset: C * 0.62 } : { strokeDashoffset: 0 }}
+                initial={
+                  reduced
+                    ? { strokeDashoffset: C * 0.62 }
+                    : { strokeDashoffset: 0 }
+                }
                 animate={{ strokeDashoffset: C * 0.62 }}
                 transition={{ duration: reduced ? 0 : 1.85, ease: "linear" }}
               />
@@ -141,7 +176,7 @@ export default function VocabChallengeDemo() {
               answered ? "border-green-500" : "border-border"
             }`}
           >
-            <span className="text-6xl">{r.emoji}</span>
+            <img src={r.src} alt="تصویر" className=" object-cover size-full" />
             <AnimatePresence>
               {answered && (
                 <motion.div

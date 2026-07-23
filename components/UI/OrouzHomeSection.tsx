@@ -13,10 +13,12 @@ function OrouzHomeSection() {
         </div>
       </div>
 
-      <h2 className="text-center text-4xl font-bold">وزن را با گوش تشخیص بده</h2>
+      <h2 className="text-center text-4xl font-bold">
+        وزن را با گوش تشخیص بده
+      </h2>
       <p className="mx-auto max-w-xl text-center text-base font-[550] text-muted-foreground">
-        ریتمِ وزن را می‌شنوی و از میان گزینه‌ها انتخاب می‌کنی؛ سه نوع پرسش —
-        صوت به وزن، صوت به بیت و بیت به صوت.
+        ریتمِ وزن را می‌شنوی و از میان گزینه‌ها انتخاب می‌کنی؛ سه نوع پرسش — صوت
+        به وزن، صوت به بیت و بیت به صوت.
       </p>
 
       <motion.div
@@ -29,7 +31,7 @@ function OrouzHomeSection() {
         <OrouzDemo />
       </motion.div>
 
-      <SectionCTA href="/quiz" label="شروع عروض سماعی" />
+      <SectionCTA href="/aruz" label="شروع عروض سماعی" />
     </div>
   );
 }

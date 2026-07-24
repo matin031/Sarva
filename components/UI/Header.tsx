@@ -48,7 +48,7 @@ function Header() {
     }
   }, [user]);
 
-  const menuItems = [
+  const menuItemsMobile = [
     {
       id: 1,
       title: "آزمون‌ها",
@@ -157,6 +157,15 @@ function Header() {
     },
   ];
 
+  const menUItemsPc = [
+    { id: 1, title: "آزمون‌نهایی", src: "/exam" },
+    { id: 2, title: "درسنامه", src: "/doroos" },
+    { id: 3, title: "بازی", src: "/game" },
+    { id: 4, title: "عروض", src: "/aruz" },
+    { id: 5, title: "درباره", src: "/about" },
+    { id: 6, title: "راهنما", src: "/guide" },
+  ];
+
   return (
     <nav className="mt-4 flex justify-between items-center flex-row-reverse container">
       <motion.div
@@ -243,40 +252,16 @@ function Header() {
           </>
         )}
         |
-        <div className=" text-muted-foreground hidden gap-x-5 md:flex text-lg">
-          <Link className=" hover:text-primary transition-all" href={"/guide"}>
-            راهنما
-          </Link>
-          <Link
-            className=" sm:block hidden hover:text-primary transition-all"
-            href={"/about"}
-          >
-            درباره
-          </Link>
-          <Link
-            className=" sm:block hidden hover:text-primary transition-all"
-            href={"/aruz"}
-          >
-            عروض
-          </Link>
-          <Link
-            className=" sm:block hidden hover:text-primary transition-all"
-            href={"/aruz"}
-          >
-            بازی
-          </Link>
-          <Link
-            className=" sm:block hidden hover:text-primary transition-all"
-            href={"/aruz"}
-          >
-            درسنامه
-          </Link>
-          <Link
-            className=" sm:block hidden hover:text-primary transition-all"
-            href={"/aruz"}
-          >
-            آزمون نهایی
-          </Link>
+        <div className=" text-muted-foreground hidden gap-x-5 md:flex text-lg flex-row-reverse">
+          {menUItemsPc.map((l) => (
+            <Link
+              key={l.id}
+              className=" hover:text-primary transition-all"
+              href={l.src}
+            >
+              {l.title}
+            </Link>
+          ))}
         </div>
         <div className=" block md:hidden z-200 relative">
           <button
@@ -307,7 +292,7 @@ function Header() {
              transition-transform duration-150 ease-in-out absolute bg-menu-mobile border-border border py-5 px-4 rounded-lg gap-x-6 flex 
               items-center -left-30 max-h-22`}
           >
-            {menuItems.map((l) => (
+            {menuItemsMobile.map((l) => (
               <Link
                 key={l.id}
                 onClick={() => {

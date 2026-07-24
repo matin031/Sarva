@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion, useScroll, useSpring, useTransform } from "motion/react";
 
 /** The "space cable": one long, meandering wire that drops in from the top of
@@ -56,6 +56,8 @@ const NODES: { x: number; y: number }[] = [
 
 export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<SVGPathElement>(null);
+  const cometRef = useRef<HTMLSpanElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end end"],
@@ -67,6 +69,67 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
   });
   // the wire always runs a little ahead of the reader
   const drawn = useTransform(progress, (p) => Math.min(1, 0.1 + p * 1.2));
+
+  /** The energy pulse used to be a second full-length path with an animated
+   *  stroke-dashoffset. That repainted the entire cable every single frame,
+   *  which was the main source of scroll jank. Instead we sample the path once
+   *  and fly a single dot along it with translate3d — a pure compositor
+   *  operation that never triggers layout or paint. */
+  useEffect(() => {
+    if (reduced) return;
+    const path = measureRef.current;
+    const comet = cometRef.current;
+    const host = ref.current;
+    if (!path || !comet || !host) return;
+
+    const total = path.getTotalLength();
+    // pre-sample the curve so no geometry maths happens per frame
+    const SAMPLES = 420;
+    const pts = new Float32Array(SAMPLES * 2);
+    for (let i = 0; i < SAMPLES; i++) {
+      const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
+      pts[i * 2] = pt.x / W;
+      pts[i * 2 + 1] = pt.y / H;
+    }
+
+    let box = host.getBoundingClientRect();
+    const onResize = () => {
+      box = host.getBoundingClientRect();
+    };
+    window.addEventListener("resize", onResize);
+
+    let raf = 0;
+    let t = 0;
+    let last = performance.now();
+    const DURATION = 9000;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = Math.min(now - last, 100);
+      last = now;
+      t = (t + dt / DURATION) % 1;
+      const i = Math.min(SAMPLES - 1, Math.floor(t * SAMPLES));
+      const x = pts[i * 2] * box.width;
+      const y = pts[i * 2 + 1] * box.height;
+      // only paint-free transforms — no left/top, no layout
+      comet.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    };
+    raf = requestAnimationFrame(tick);
+
+    const onVis = () => {
+      if (document.hidden) cancelAnimationFrame(raf);
+      else {
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [reduced]);
 
   return (
     <div
@@ -87,23 +150,14 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
           </linearGradient>
         </defs>
 
-        {/* faked glow: two wider translucent strokes instead of a blur filter */}
+        {/* faked glow: one wider translucent stroke instead of a blur filter */}
         <path
           d={PATH}
           fill="none"
           stroke="var(--color-primary)"
-          strokeWidth={10}
+          strokeWidth={7}
           strokeLinecap="round"
-          opacity={0.07}
-          vectorEffect="non-scaling-stroke"
-        />
-        <path
-          d={PATH}
-          fill="none"
-          stroke="var(--color-primary)"
-          strokeWidth={5}
-          strokeLinecap="round"
-          opacity={0.12}
+          opacity={0.1}
           vectorEffect="non-scaling-stroke"
         />
 
@@ -118,23 +172,20 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
           style={{ pathLength: reduced ? 1 : drawn }}
         />
 
-        {/* travelling energy pulse */}
-        {!reduced && (
-          <path
-            d={PATH}
-            fill="none"
-            stroke="#eafff9"
-            strokeWidth={3}
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            opacity={0.85}
-            style={{
-              strokeDasharray: "16 780",
-              animation: "cablePulse 9s linear infinite",
-            }}
-          />
-        )}
+        {/* the measuring path for the comet — never painted */}
+        <path ref={measureRef} d={PATH} fill="none" stroke="none" />
       </svg>
+
+      {/* the energy comet, moved with transform only */}
+      {!reduced && (
+        <span
+          ref={cometRef}
+          className="absolute left-0 top-0"
+          style={{ willChange: "transform" }}
+        >
+          <span className="absolute left-0 top-0 block size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#eafff9] shadow-[0_0_18px_6px_rgba(160,255,240,0.55)]" />
+        </span>
+      )}
 
       {/* junction nodes — plain DOM so they stay perfectly round (the SVG above
           is stretched with preserveAspectRatio="none", which would squash any

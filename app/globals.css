@@ -585,7 +585,7 @@ button {
    ============================================================ */
 @keyframes cablePulse {
   from {
-    stroke-dashoffset: 640;
+    stroke-dashoffset: 796;
   }
   to {
     stroke-dashoffset: 0;

@@ -4,9 +4,9 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
-import type { PlanetKind } from "./Planet";
+import type { PlanetKind } from "./PlanetView";
 
-const Planet = dynamic(() => import("./Planet"), { ssr: false });
+const PlanetView = dynamic(() => import("./PlanetView"), { ssr: false });
 
 export type Stop = {
   index: string;
@@ -53,7 +53,7 @@ export default function PlanetStop({
             className="pointer-events-none absolute left-1/2 top-1/2 size-72 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-30 blur-[70px]"
             style={{ background: accent }}
           />
-          <Planet kind={planet} reduced={reduced} />
+          <PlanetView kind={planet} reduced={reduced} />
         </motion.div>
 
         {/* briefing panel — opaque so the starfield never washes out the text */}

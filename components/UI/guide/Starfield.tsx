@@ -28,7 +28,8 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
       cv.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // density scales with area, capped so phones stay cheap
-      const count = Math.min(220, Math.round((W * H) / 9000));
+      // fewer, larger stars: fill-rate matters far more than star count
+      const count = Math.min(120, Math.round((W * H) / 16000));
       stars = Array.from({ length: count }, () => ({
         x: Math.random() * W,
         y: Math.random() * H,
@@ -42,11 +43,20 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
 
     const draw = (t: number) => {
       ctx.clearRect(0, 0, W, H);
-      for (const s of stars) {
-        const twinkle = reduced ? 0.8 : 0.55 + 0.45 * Math.sin(t * 0.002 + s.tw);
+      // one path per opacity bucket instead of a beginPath/fill per star —
+      // far fewer canvas state changes for the same picture
+      const BUCKETS = 4;
+      for (let bi = 0; bi < BUCKETS; bi++) {
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r * s.z, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(190, 235, 235, ${0.25 + twinkle * 0.55 * s.z})`;
+        for (const s of stars) {
+          const twinkle = reduced ? 0.8 : 0.55 + 0.45 * Math.sin(t * 0.002 + s.tw);
+          const a = 0.25 + twinkle * 0.55 * s.z;
+          if (Math.min(BUCKETS - 1, Math.floor(a * BUCKETS)) !== bi) continue;
+          const r = s.r * s.z;
+          ctx.moveTo(s.x + r, s.y);
+          ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        }
+        ctx.fillStyle = `rgba(190, 235, 235, ${(bi + 0.5) / BUCKETS})`;
         ctx.fill();
       }
     };

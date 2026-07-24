@@ -5,39 +5,53 @@ import { motion, useScroll, useSpring, useTransform } from "motion/react";
 
 /** The "space cable": one long, meandering wire that drops in from the top of
  *  the page and snakes past every planet — never straight, always curving off to
- *  one side and back. It draws itself as you scroll, with an energy pulse
- *  running along it and glowing nodes where it touches each planet.
+ *  one side and back — all the way down to the final section. It draws itself as
+ *  you scroll, with an energy pulse running along it and glowing nodes where it
+ *  touches each planet.
  *
- *  The SVG is stretched over the whole page (preserveAspectRatio="none"), and
- *  every stroke uses vector-effect="non-scaling-stroke" so the wire keeps a
- *  constant on-screen thickness no matter how tall the page gets. */
+ *  Performance notes:
+ *  - No SVG <filter> anywhere. A feGaussianBlur on a path this tall forces the
+ *    browser to rasterise a page-sized filtered surface on every repaint, which
+ *    was one of the worst offenders here. The glow is faked with a couple of
+ *    wider, translucent strokes instead — those composite for free.
+ *  - The stroke keeps a constant on-screen width via vector-effect, so the SVG
+ *    can be stretched over the page with preserveAspectRatio="none".
+ */
 
-// viewBox is 100 wide; each of the 5 stops gets 100 units of height
 const W = 100;
-const STOPS = 5;
-const H = STOPS * 100;
+// 6 bands: 1 launch pad + 5 planets, plus a tail into the closing section
+const H = 660;
 
-/** Hand-tuned meander: starts top-centre, then swings side to side past each
- *  planet. Y values land near the middle of each stop's band. */
+/** Hand-tuned meander: starts above the fold, then swings side to side past each
+ *  planet and finally curves back to the centre for the closing panel. */
 const PATH = `
   M 50 -6
-  C 50 6, 78 10, 76 22
-  C 74 36, 20 34, 22 52
-  C 24 70, 82 66, 80 86
-  C 78 104, 18 104, 20 124
-  C 22 144, 84 142, 82 162
-  C 80 182, 16 180, 18 202
-  C 20 222, 62 226, 56 244
-  C 52 258, 50 262, 50 272
+  C 50 8, 78 12, 76 26
+  C 74 42, 20 40, 22 60
+  C 24 80, 82 76, 80 98
+  C 78 118, 18 118, 20 140
+  C 22 162, 84 160, 82 182
+  C 80 204, 16 202, 18 226
+  C 20 248, 70 250, 62 274
+  C 56 292, 44 300, 50 318
+  C 56 336, 78 340, 76 360
+  C 74 382, 22 380, 24 404
+  C 26 428, 80 428, 78 452
+  C 76 476, 20 476, 22 500
+  C 24 524, 68 526, 60 548
+  C 54 566, 38 574, 44 592
+  C 49 608, 58 616, 50 632
+  C 46 640, 46 644, 48 652
 `;
 
 /** Where the wire passes each planet — glowing junction nodes. */
 const NODES: { x: number; y: number }[] = [
-  { x: 76, y: 22 },
-  { x: 22, y: 52 },
-  { x: 80, y: 86 },
-  { x: 20, y: 124 },
-  { x: 82, y: 162 },
+  { x: 76, y: 26 },
+  { x: 22, y: 60 },
+  { x: 80, y: 98 },
+  { x: 20, y: 140 },
+  { x: 82, y: 182 },
+  { x: 44, y: 592 },
 ];
 
 export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
@@ -46,14 +60,13 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
     target: ref,
     offset: ["start start", "end end"],
   });
-  // smooth the raw scroll so the draw doesn't jitter
   const progress = useSpring(scrollYProgress, {
     stiffness: 90,
     damping: 24,
     restDelta: 0.001,
   });
-  // the wire is always slightly ahead of the reader
-  const drawn = useTransform(progress, (p) => Math.min(1, 0.12 + p * 1.15));
+  // the wire always runs a little ahead of the reader
+  const drawn = useTransform(progress, (p) => Math.min(1, 0.1 + p * 1.2));
 
   return (
     <div
@@ -72,25 +85,26 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
             <stop offset="45%" stopColor="var(--color-gold)" />
             <stop offset="100%" stopColor="var(--color-primary)" />
           </linearGradient>
-          <filter id="cableGlow" x="-60%" y="-10%" width="220%" height="120%">
-            <feGaussianBlur stdDeviation="2.5" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
-        {/* soft halo underneath */}
+        {/* faked glow: two wider translucent strokes instead of a blur filter */}
         <path
           d={PATH}
           fill="none"
           stroke="var(--color-primary)"
-          strokeWidth={9}
+          strokeWidth={10}
           strokeLinecap="round"
-          opacity={0.1}
+          opacity={0.07}
           vectorEffect="non-scaling-stroke"
-          filter="url(#cableGlow)"
+        />
+        <path
+          d={PATH}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth={5}
+          strokeLinecap="round"
+          opacity={0.12}
+          vectorEffect="non-scaling-stroke"
         />
 
         {/* the wire, drawn on scroll */}
@@ -113,15 +127,13 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
             strokeWidth={3}
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            opacity={0.9}
-            filter="url(#cableGlow)"
+            opacity={0.85}
             style={{
-              strokeDasharray: "18 620",
-              animation: "cablePulse 7s linear infinite",
+              strokeDasharray: "16 780",
+              animation: "cablePulse 9s linear infinite",
             }}
           />
         )}
-
       </svg>
 
       {/* junction nodes — plain DOM so they stay perfectly round (the SVG above
@@ -139,7 +151,10 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
             style={
               reduced
                 ? undefined
-                : { animation: `cableNode 2.6s ease-in-out ${i * 0.35}s infinite` }
+                : {
+                    animation: `cableNode 2.6s ease-in-out ${i * 0.35}s infinite`,
+                    willChange: "transform",
+                  }
             }
           />
         </span>

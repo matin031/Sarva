@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, MotionConfig } from "motion/react";
 import PlanetStop, { type Stop } from "@/components/UI/guide/PlanetStop";
@@ -16,6 +16,11 @@ import {
 const Starfield = dynamic(() => import("@/components/UI/guide/Starfield"), {
   ssr: false,
 });
+// one shared WebGL context for every planet on the page
+const GalaxyCanvas = dynamic(
+  () => import("@/components/UI/guide/GalaxyCanvas"),
+  { ssr: false },
+);
 
 /** The guide as a galaxy map: every part of the platform is a planet, and one
  *  meandering space cable threads them together from the top of the page down. */
@@ -98,6 +103,7 @@ const STOPS: Stop[] = [
 ];
 
 export default function GuidePage() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -109,13 +115,14 @@ export default function GuidePage() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative overflow-hidden bg-background">
+      <div ref={rootRef} className="relative overflow-hidden bg-background">
         {/* deep-space wash + drifting stars */}
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
         />
         <Starfield reduced={reduced} />
+        <GalaxyCanvas eventSource={rootRef} reduced={reduced} />
 
         {/* the whole map, with the cable threaded behind every stop */}
         <div className="relative">
@@ -179,9 +186,8 @@ export default function GuidePage() {
               reduced={reduced}
             />
           ))}
-        </div>
 
-        {/* ---------- end of the line ---------- */}
+        {/* ---------- end of the line (still under the cable) ---------- */}
         <section dir="rtl" className="relative z-20 container py-24">
           <motion.div
             initial={reduced ? false : { opacity: 0, y: 30 }}
@@ -220,6 +226,7 @@ export default function GuidePage() {
             </div>
           </motion.div>
         </section>
+        </div>
       </div>
     </MotionConfig>
   );

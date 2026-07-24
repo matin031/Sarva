@@ -47,11 +47,16 @@ export default function PlanetStop({
           transition={{ type: "spring", stiffness: 70, damping: 16 }}
           className={`relative z-10 flex justify-center ${flip ? "lg:order-2" : ""}`}
         >
-          {/* planet halo */}
+          {/* planet halo — a radial gradient, NOT a blurred div. A 70px blur on
+              a 288px box forces the compositor to allocate and filter a texture
+              for every planet; a gradient paints in one pass and looks the
+              same. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-1/2 size-72 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-30 blur-[70px]"
-            style={{ background: accent }}
+            className="pointer-events-none absolute left-1/2 top-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              background: `radial-gradient(closest-side, ${accent}55, ${accent}22 45%, transparent 72%)`,
+            }}
           />
           <PlanetView kind={planet} reduced={reduced} />
         </motion.div>

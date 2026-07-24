@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { motion, useScroll, useSpring, useTransform } from "motion/react";
 
 /** The "space cable": one long, meandering wire that drops in from the top of
@@ -19,42 +19,53 @@ import { motion, useScroll, useSpring, useTransform } from "motion/react";
  */
 
 const W = 100;
-// 6 bands: 1 launch pad + 5 planets, plus a tail into the closing section
 const H = 660;
 
-/** Hand-tuned meander: starts above the fold, then swings side to side past each
- *  planet and finally curves back to the centre for the closing panel. */
-const PATH = `
-  M 50 -6
-  C 50 8, 78 12, 76 26
-  C 74 42, 20 40, 22 60
-  C 24 80, 82 76, 80 98
-  C 78 118, 18 118, 20 140
-  C 22 162, 84 160, 82 182
-  C 80 204, 16 202, 18 226
-  C 20 248, 70 250, 62 274
-  C 56 292, 44 300, 50 318
-  C 56 336, 78 340, 76 360
-  C 74 382, 22 380, 24 404
-  C 26 428, 80 428, 78 452
-  C 76 476, 20 476, 22 500
-  C 24 524, 68 526, 60 548
-  C 54 566, 38 574, 44 592
-  C 49 608, 58 616, 50 632
-  C 46 640, 46 644, 48 652
-`;
+/** Build the meander procedurally so the cable adapts to however many planets
+ *  the page has, instead of being hand-tuned to one layout.
+ *
+ *  Bands: one for the intro, one per planet, one for the closing section. Each
+ *  planet gets a node alternating left/right, and consecutive nodes are joined
+ *  with cubic curves whose control points overshoot sideways — that overshoot
+ *  is what makes the wire swing wide and wavy instead of zig-zagging straight
+ *  between points. */
+function buildCable(planetCount: number) {
+  const bands = planetCount + 2;
+  const band = H / bands;
 
-/** Where the wire passes each planet — glowing junction nodes. */
-const NODES: { x: number; y: number }[] = [
-  { x: 76, y: 26 },
-  { x: 22, y: 60 },
-  { x: 80, y: 98 },
-  { x: 20, y: 140 },
-  { x: 82, y: 182 },
-  { x: 44, y: 592 },
-];
+  const nodes: { x: number; y: number }[] = [];
+  for (let i = 0; i < planetCount; i++) {
+    nodes.push({ x: i % 2 === 0 ? 78 : 22, y: (i + 1.5) * band });
+  }
 
-export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
+  const start = { x: 50, y: -6 };
+  const end = { x: 48, y: H + 10 };
+  const all = [start, ...nodes, end];
+
+  let d = `M ${start.x} ${start.y}`;
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1];
+    const b = all[i];
+    const dy = b.y - a.y;
+    // push the control points past each node so the curve bows outward
+    const c1x = a.x + (a.x - 50) * 0.35;
+    const c2x = b.x + (b.x - 50) * 0.35;
+    d += ` C ${c1x.toFixed(1)} ${(a.y + dy * 0.38).toFixed(1)}, ${c2x.toFixed(1)} ${(b.y - dy * 0.38).toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  }
+
+  // a node on the closing section too, so the wire visibly terminates
+  nodes.push({ x: 50, y: H - band * 0.45 });
+  return { d, nodes };
+}
+
+export default function SpaceCable({
+  planets = 5,
+  reduced = false,
+}: {
+  planets?: number;
+  reduced?: boolean;
+}) {
+  const { d: PATH, nodes: NODES } = useMemo(() => buildCable(planets), [planets]);
   const ref = useRef<HTMLDivElement>(null);
   const measureRef = useRef<SVGPathElement>(null);
   const cometRef = useRef<HTMLSpanElement>(null);
@@ -196,7 +207,13 @@ export default function SpaceCable({ reduced = false }: { reduced?: boolean }) {
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={{ left: `${n.x}%`, top: `${(n.y / H) * 100}%` }}
         >
-          <span className="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/15 blur-md" />
+          <span
+            className="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              background:
+                "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 35%, transparent), transparent)",
+            }}
+          />
           <span
             className="relative block size-2.5 rounded-full bg-gold shadow-[0_0_14px_var(--color-gold)]"
             style={

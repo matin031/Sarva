@@ -1,14 +1,12 @@
-import GamesHub from "@/components/UI/games/GamesHub";
+import GamesGalaxy from "@/components/UI/games/GamesGalaxy";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "بازی | جاسوسِ نقش‌ها و نینجای دستور زبان",
+  title: "کهکشانِ بازی‌ها | سروا",
   description:
-    "نقش‌های دستوری، آرایه‌های ادبی و اجزای دستور زبان فارسی را با دو بازیِ جاسوس‌یابی و برش‌زدنِ کلمات یاد بگیر.",
+    "چهار بازی برای یادگیریِ ادبیات و دستور زبان فارسی: جاسوسِ نقش‌ها، نینجای دستور زبان، جفت‌های ادبی و واژه‌یاب.",
 };
 
-function BaziPage() {
-  return <GamesHub />;
+export default function GamePage() {
+  return <GamesGalaxy />;
 }
-
-export default BaziPage;

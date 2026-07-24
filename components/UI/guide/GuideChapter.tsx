@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import dynamic from "next/dynamic";
 import { motion } from "motion/react";
-import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
-import type { Shape } from "./Chapter3D";
-
-// WebGL is client-only and heavy; keep it out of the initial bundle
-const Chapter3D = dynamic(() => import("./Chapter3D"), { ssr: false });
+import TiltCard from "@/components/UI/aruz/TiltCard";
+import {
+  RevealGroup,
+  RevealItem,
+  RevealWords,
+} from "@/components/UI/aruz/reveal";
 
 export type Chapter = {
   index: string;
@@ -18,14 +18,13 @@ export type Chapter = {
   steps: string[];
   href: string;
   cta: string;
-  accent: string; // CSS color (may be a var) for text/UI
-  hex: string; // concrete hex for the WebGL material
-  shape: Shape;
-  badge: ReactNode; // small inline preview under the 3D object
+  accent: string;
+  icon: ReactNode;
+  preview?: ReactNode;
 };
 
-/** One feature "chapter": a staggered text column beside a live 3D object.
- *  Alternates sides on `flip` for rhythm. */
+/** One feature "chapter" of the guide: a staggered text column beside a 3D
+ *  tilting preview card. Alternates sides on `flip` for rhythm. */
 export default function GuideChapter({
   chapter,
   flip,
@@ -35,16 +34,15 @@ export default function GuideChapter({
   flip: boolean;
   reduced: boolean;
 }) {
-  const { index, tag, title, desc, steps, href, cta, accent, hex, shape, badge } =
+  const { index, tag, title, desc, steps, href, cta, accent, icon, preview } =
     chapter;
-
   return (
-    <section dir="rtl" className="relative z-20 container py-14 sm:py-20">
+    <section dir="rtl" className="container relative z-20 py-14 sm:py-20">
       <div className="grid items-center gap-10 lg:grid-cols-2">
         {/* text */}
         <RevealGroup
           stagger={0.1}
-          className={`relative z-20 ${flip ? "lg:order-2" : ""}`}
+          className={`relative z-10 ${flip ? "lg:order-2" : ""}`}
         >
           <RevealItem>
             <div className="mb-4 flex items-center gap-3">
@@ -58,7 +56,7 @@ export default function GuideChapter({
                 className="rounded-full px-3 py-1 text-xs font-bold"
                 style={{
                   color: accent,
-                  background: `color-mix(in oklch, ${accent} 14%, transparent)`,
+                  background: `color-mix(in oklch, ${accent} 12%, transparent)`,
                 }}
               >
                 {tag}
@@ -111,7 +109,10 @@ export default function GuideChapter({
             <Link
               href={href}
               className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl px-6 font-bold text-white shadow-lg transition-all active:scale-95"
-              style={{ background: accent, boxShadow: `0 10px 30px -10px ${accent}` }}
+              style={{
+                background: accent,
+                boxShadow: `0 10px 30px -10px ${accent}`,
+              }}
             >
               {cta}
               <svg
@@ -131,26 +132,46 @@ export default function GuideChapter({
           </RevealItem>
         </RevealGroup>
 
-        {/* live 3D object on an opaque stage */}
+        {/* 3D preview card */}
         <motion.div
-          initial={reduced ? false : { opacity: 0, y: 44, scale: 0.95 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true, amount: 0.3 }}
+          initial={
+            reduced ? false : { opacity: 0, y: 50, rotateX: -16, scale: 0.94 }
+          }
+          whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.35 }}
           transition={{ type: "spring", stiffness: 90, damping: 16 }}
-          className={`relative z-20 ${flip ? "lg:order-1" : ""}`}
+          style={{ transformPerspective: 1000 }}
+          className={`relative ${flip ? "lg:order-1" : ""}`}
         >
-          <div className="relative z-20 overflow-hidden rounded-[2rem] border border-border bg-card p-4 shadow-2xl">
-            {/* accent bloom behind the object */}
+          <TiltCard
+            disabled={reduced}
+            max={10}
+            className="glass relative z-20 overflow-hidden rounded-4xl border border-border p-8 shadow-2xl"
+          >
+            {/* accent glow */}
             <div
               aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 size-56 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
+              className="absolute -right-16 -top-16 size-52 rounded-full opacity-50 blur-3xl"
               style={{ background: accent }}
             />
-            <div className="relative z-20">
-              <Chapter3D shape={shape} color={hex} reduced={reduced} />
-              <div className="mt-1 flex justify-center pb-2">{badge}</div>
+            <div className="relative flex min-h-56 flex-col items-center justify-center gap-5">
+              <div
+                className="flex size-20 items-center justify-center rounded-3xl border border-border bg-background/70"
+                style={{ boxShadow: `0 0 40px -12px ${accent}`, color: accent }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  className="size-10"
+                >
+                  {icon}
+                </svg>
+              </div>
+              {preview}
             </div>
-          </div>
+          </TiltCard>
         </motion.div>
       </div>
     </section>

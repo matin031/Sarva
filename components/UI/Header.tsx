@@ -72,8 +72,8 @@ function Header() {
     },
     {
       id: 2,
-      title: "عروض",
-      src: "/aruz",
+      title: "درسنامه",
+      src: "/doroos",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -93,8 +93,8 @@ function Header() {
     },
     {
       id: 3,
-      title: "درسنامه",
-      src: "/doroos",
+      title: "بازی‌ها",
+      src: "/game",
       icon: (
         <svg
           width="24"
@@ -115,8 +115,8 @@ function Header() {
     },
     {
       id: 4,
-      title: "بازی‌ها",
-      src: "/game",
+      title: "عروض",
+      src: "/aruz",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -242,48 +242,8 @@ function Header() {
             </Link>
           </>
         )}
-        {/* <div className="relative" ref={moreRef}>
-          <button
-            type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            className="flex items-center gap-x-1 hover:text-primary transition-all"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className={`size-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m6 9 6 6 6-6"
-              />
-            </svg>
-            بیشتر
-          </button>
-          {moreOpen && (
-            <div
-              dir="rtl"
-              className="absolute top-full right-0 z-50 mt-2 flex min-w-40 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-lg"
-            >
-              {MORE_NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMoreOpen(false)}
-                  className={`rounded-lg ${link.href == "/about" && "sm:hidden"} px-3 py-2 text-sm font-normal hover:bg-accent/70 transition-all`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div> */}
         |
-        <div className=" hidden gap-x-5 md:flex text-lg">
+        <div className=" text-muted-foreground hidden gap-x-5 md:flex text-lg">
           <Link className=" hover:text-primary transition-all" href={"/guide"}>
             راهنما
           </Link>
@@ -320,7 +280,7 @@ function Header() {
         </div>
         <div className=" block md:hidden z-200 relative">
           <button
-            className=" flex items-center gap-x-2 flex-row-reverse"
+            className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2 flex-row-reverse"
             onClick={() => {
               setOpenMenuMobile((prev) => !prev);
             }}
@@ -353,7 +313,7 @@ function Header() {
                 onClick={() => {
                   setOpenMenuMobile(false);
                 }}
-                className=" text-xs hover:gap-y-0.5 transition-all  sm:text-base flex items-center flex-col"
+                className=" text-xs text-muted-foreground hover:gap-y-0.5 transition-all  sm:text-base flex items-center flex-col"
                 href={l.src}
               >
                 {l.icon}
@@ -362,6 +322,12 @@ function Header() {
             ))}
           </div>
         </div>
+        <Link
+          className=" md:hidden  text-muted-foreground text-sm xs:text-base"
+          href={"/guide"}
+        >
+          راهنما
+        </Link>
       </motion.div>
       <div
         onClick={() => {

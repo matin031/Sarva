@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, MotionConfig } from "motion/react";
-import GuideChapter, { type Chapter } from "@/components/UI/guide/GuideChapter";
+import PlanetStop, { type Stop } from "@/components/UI/guide/PlanetStop";
+import SpaceCable from "@/components/UI/guide/SpaceCable";
 import {
   RevealGroup,
   RevealItem,
@@ -12,12 +13,13 @@ import {
   RevealWords,
 } from "@/components/UI/aruz/reveal";
 
-// real WebGL — client-only, kept out of the initial bundle
-const Guide3DHero = dynamic(() => import("@/components/UI/guide/Guide3DHero"), {
+const Starfield = dynamic(() => import("@/components/UI/guide/Starfield"), {
   ssr: false,
 });
 
-const CHAPTERS: Chapter[] = [
+/** The guide as a galaxy map: every part of the platform is a planet, and one
+ *  meandering space cable threads them together from the top of the page down. */
+const STOPS: Stop[] = [
   {
     index: "۰۱",
     tag: "عروضِ سماعی",
@@ -30,16 +32,8 @@ const CHAPTERS: Chapter[] = [
     ],
     href: "/aruz",
     cta: "شروعِ عروضِ سماعی",
-    accent: "var(--color-primary)",
-    hex: "#00b3ad",
-    shape: "knot",
-    badge: (
-      <div className="flex h-8 items-end gap-1">
-        {[10, 26, 16, 32, 20, 30, 14, 24, 12].map((h, i) => (
-          <span key={i} className="w-1.5 rounded-full bg-primary/70" style={{ height: h }} />
-        ))}
-      </div>
-    ),
+    accent: "#00b3ad",
+    planet: { color: "#00b3ad", ring: true, distort: 0.22 },
   },
   {
     index: "۰۲",
@@ -53,14 +47,8 @@ const CHAPTERS: Chapter[] = [
     ],
     href: "/vazn-yab",
     cta: "بازکردنِ وزن‌یاب",
-    accent: "var(--color-gold)",
-    hex: "#d9a441",
-    shape: "torus",
-    badge: (
-      <span className="rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-sm font-bold text-gold">
-        وزن: مفاعیلن فعولن
-      </span>
-    ),
+    accent: "#d9a441",
+    planet: { color: "#d9a441", distort: 0.28 },
   },
   {
     index: "۰۳",
@@ -74,21 +62,8 @@ const CHAPTERS: Chapter[] = [
     ],
     href: "/game",
     cta: "رفتن به بازی‌ها",
-    accent: "var(--color-lapis-light)",
-    hex: "#5b6ea8",
-    shape: "octa",
-    badge: (
-      <div className="flex gap-2">
-        {["📖", "🕵️", "🥷"].map((e) => (
-          <span
-            key={e}
-            className="flex size-10 items-center justify-center rounded-xl border border-border bg-background/70 text-xl"
-          >
-            {e}
-          </span>
-        ))}
-      </div>
-    ),
+    accent: "#7b8fd4",
+    planet: { color: "#7b8fd4", moon: true, distort: 0.18 },
   },
   {
     index: "۰۴",
@@ -102,20 +77,8 @@ const CHAPTERS: Chapter[] = [
     ],
     href: "/exam",
     cta: "دیدنِ آزمون‌ها",
-    accent: "var(--color-primary)",
-    hex: "#00b3ad",
-    shape: "box",
-    badge: (
-      <div className="w-40">
-        <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-          <span>نمره</span>
-          <span className="font-bold text-primary">۱۸ / ۲۰</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <span className="block h-full w-[90%] rounded-full bg-gradient-to-l from-primary to-gold" />
-        </div>
-      </div>
-    ),
+    accent: "#2bb39a",
+    planet: { color: "#2bb39a", ring: true, distort: 0.16 },
   },
   {
     index: "۰۵",
@@ -129,22 +92,8 @@ const CHAPTERS: Chapter[] = [
     ],
     href: "/panel",
     cta: "ورود به پنل",
-    accent: "var(--color-gold)",
-    hex: "#d9a441",
-    shape: "sphere",
-    badge: (
-      <div className="flex gap-5 text-center">
-        {[
-          ["۱۲", "روز پیاپی"],
-          ["۸۴٪", "پیشرفت"],
-        ].map(([n, l]) => (
-          <div key={l}>
-            <div className="text-2xl font-black text-gold">{n}</div>
-            <div className="text-[11px] text-muted-foreground">{l}</div>
-          </div>
-        ))}
-      </div>
-    ),
+    accent: "#c79be0",
+    planet: { color: "#c79be0", moon: true, distort: 0.24 },
   },
 ];
 
@@ -161,93 +110,101 @@ export default function GuidePage() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="relative overflow-hidden bg-background">
-        {/* ---------- hero ---------- */}
-        <section
-          dir="rtl"
-          className="relative flex min-h-[88vh] items-center overflow-hidden py-24 sm:py-28"
-        >
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-            <div className="absolute -right-32 -top-24 size-[380px] rounded-full bg-primary/20 blur-[80px]" />
-            <div className="absolute -left-24 top-1/4 size-[340px] rounded-full bg-gold/15 blur-[80px]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,var(--color-background)_92%)]" />
-          </div>
+        {/* deep-space wash + drifting stars */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
+        />
+        <Starfield reduced={reduced} />
 
-          <div className="container grid items-center gap-8 lg:grid-cols-2">
-          <RevealGroup
-            stagger={0.12}
-            className="relative z-20 order-2 text-center lg:order-1 lg:text-right"
+        {/* the whole map, with the cable threaded behind every stop */}
+        <div className="relative">
+          <SpaceCable reduced={reduced} />
+
+          {/* ---------- launch pad ---------- */}
+          <section
+            dir="rtl"
+            className="relative z-20 container flex min-h-[88vh] items-center justify-center py-24 text-center"
           >
-            <RevealItem>
-              <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary backdrop-blur-sm">
-                راهنمای سروا
-              </span>
-            </RevealItem>
-            <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl">
-              <RevealLine className="text-foreground" delay={0.08}>
-                با هر بخشِ سروا
-              </RevealLine>
-              <RevealLine className="aruz-gradient-text" delay={0.2}>
-                آشنا شو
-              </RevealLine>
-            </h1>
-            <RevealItem>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                سروا یک پلتفرمِ کامل است، نه یک آزمون؛ از عروضِ سماعی و وزن‌یاب تا
-                بازی‌ها، آزمون‌های نهایی و پنلِ پیشرفت. این‌جا هر بخش را کوتاه و
-                کاربردی یاد می‌گیری.
-              </p>
-            </RevealItem>
-            <RevealItem>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                <Link
-                  href="/aruz"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-95 active:scale-95"
-                >
-                  شروعِ یادگیری
-                </Link>
-                <span className="text-sm text-muted-foreground">
-                  ۵ بخش · اسکرول کن تا همه را ببینی ↓
+            <RevealGroup stagger={0.12} className="relative z-20">
+              <RevealItem>
+                <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-card px-4 py-1.5 text-sm font-semibold text-primary shadow-lg">
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                  </span>
+                  نقشهٔ کهکشانِ سروا
                 </span>
-              </div>
-            </RevealItem>
-          </RevealGroup>
+              </RevealItem>
 
-            {/* live WebGL centrepiece */}
-            <motion.div
-              aria-hidden
-              initial={reduced ? false : { opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-              className="pointer-events-none relative z-10 order-1 h-[46vh] min-h-64 w-full lg:order-2 lg:h-[70vh]"
-            >
-              <Guide3DHero reduced={reduced} />
-            </motion.div>
-          </div>
-        </section>
+              <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl">
+                <RevealLine className="text-foreground" delay={0.08}>
+                  هر بخشِ سروا
+                </RevealLine>
+                <RevealLine className="aruz-gradient-text" delay={0.2}>
+                  یک سیاره است
+                </RevealLine>
+              </h1>
 
-        {/* ---------- chapters ---------- */}
-        {CHAPTERS.map((c, i) => (
-          <GuideChapter key={c.index} chapter={c} flip={i % 2 === 1} reduced={reduced} />
-        ))}
+              <RevealItem>
+                <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  از این‌جا یک سیمِ نوری تا انتهای کهکشان کشیده شده و پنج سیاره را
+                  به هم وصل می‌کند. اسکرول کن و سیاره‌به‌سیاره جلو برو تا با همهٔ
+                  امکاناتِ سروا آشنا شوی.
+                </p>
+              </RevealItem>
 
-        {/* ---------- final CTA ---------- */}
-        <section dir="rtl" className="container relative py-24">
+              <RevealItem>
+                <div className="mt-9 flex flex-col items-center gap-3">
+                  <Link
+                    href="/aruz"
+                    className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-7 font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
+                  >
+                    آغازِ سفر
+                  </Link>
+                  <span className="text-sm text-muted-foreground">
+                    ۵ سیاره · سیمِ نوری راهنمایت می‌کند ↓
+                  </span>
+                </div>
+              </RevealItem>
+            </RevealGroup>
+          </section>
+
+          {/* ---------- planets ---------- */}
+          {STOPS.map((s, i) => (
+            <PlanetStop
+              key={s.index}
+              stop={s}
+              flip={i % 2 === 1}
+              reduced={reduced}
+            />
+          ))}
+        </div>
+
+        {/* ---------- end of the line ---------- */}
+        <section dir="rtl" className="relative z-20 container py-24">
           <motion.div
             initial={reduced ? false : { opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="glass relative mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 p-10 text-center shadow-2xl sm:p-16"
+            className="relative z-20 mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 bg-card p-10 text-center shadow-2xl sm:p-16"
           >
-            <div aria-hidden className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
-            <div aria-hidden className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/15 blur-3xl" />
-            <h2 className="relative text-3xl font-black text-foreground sm:text-4xl">
-              <RevealWords text="آماده‌ای شروع کنی؟" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/15 blur-3xl"
+            />
+            <h2 className="relative z-20 text-3xl font-black text-foreground sm:text-4xl">
+              <RevealWords text="کهکشان مالِ توست" />
             </h2>
-            <p className="relative mx-auto mt-4 max-w-lg text-muted-foreground">
-              حساب بساز تا پیشرفتت ذخیره شود، بعد هر بخش را آزاد کن و جلو برو.
+            <p className="relative z-20 mx-auto mt-4 max-w-lg text-muted-foreground">
+              حساب بساز تا مسیرت بینِ سیاره‌ها ذخیره شود و از هرجا ادامه بدهی.
             </p>
-            <div className="relative mt-8 flex flex-wrap justify-center gap-3">
+            <div className="relative z-20 mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/auth"
                 className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
@@ -256,7 +213,7 @@ export default function GuidePage() {
               </Link>
               <Link
                 href="/"
-                className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-card/60 px-8 font-bold text-foreground transition-all hover:border-primary/40 active:scale-95"
+                className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-card px-8 font-bold text-foreground transition-all hover:border-primary/40 active:scale-95"
               >
                 صفحهٔ اصلی
               </Link>

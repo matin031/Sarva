@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { motion, useScroll, useSpring, useTransform } from "motion/react";
 
 /** The "space cable": one long, meandering wire that drops in from the top of
  *  the page and snakes past every planet — never straight, always curving off to
@@ -82,19 +81,8 @@ export default function SpaceCable({
   const { d: PATH, nodes: NODES } = useMemo(() => buildCable(planets), [planets]);
   const ref = useRef<HTMLDivElement>(null);
   const measureRef = useRef<SVGPathElement>(null);
+  const drawRef = useRef<SVGPathElement>(null);
   const cometRef = useRef<HTMLSpanElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end end"],
-  });
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 90,
-    damping: 24,
-    restDelta: 0.001,
-  });
-  // the wire always runs a little ahead of the reader
-  const drawn = useTransform(progress, (p) => Math.min(1, 0.1 + p * 1.2));
-
   /** The energy pulse.
    *
    *  History of this one line of sparkle: it started as a second full-length
@@ -126,11 +114,29 @@ export default function SpaceCable({
       const box = host.getBoundingClientRect();
       const SAMPLES = 160;
       const frames: Keyframe[] = [];
+      let screenLength = 0;
+      let prevX = 0;
+      let prevY = 0;
       for (let i = 0; i < SAMPLES; i++) {
         const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
         const x = (pt.x / W) * box.width;
         const y = (pt.y / H) * box.height;
         frames.push({ transform: `translate3d(${x}px, ${y}px, 0)` });
+        if (i > 0) screenLength += Math.hypot(x - prevX, y - prevY);
+        prevX = x;
+        prevY = y;
+      }
+      // The wire uses vector-effect="non-scaling-stroke", so its dash pattern is
+      // measured in screen pixels rather than viewBox units — hence walking the
+      // sampled points to get the real on-screen length. Publishing it as a
+      // custom property lets the CSS scroll-driven animation do the rest.
+      // Set the dash pattern inline (one write, not per frame). The CSS
+      // animation below only drives stroke-dashoffset to 0, so this inline
+      // value becomes the animation's implicit starting point.
+      const draw = drawRef.current;
+      if (draw) {
+        draw.style.strokeDasharray = `${screenLength.toFixed(1)}px`;
+        draw.style.strokeDashoffset = `${screenLength.toFixed(1)}px`;
       }
       // --- and the single write is handing them to the compositor ---
       animation = comet.animate(frames, {
@@ -187,15 +193,19 @@ export default function SpaceCable({
           vectorEffect="non-scaling-stroke"
         />
 
-        {/* the wire, drawn on scroll */}
-        <motion.path
+        {/* The wire, drawn as the page scrolls.
+            pathLength={1} normalises the dash maths, and the animation itself
+            lives in CSS (see .cable-draw) so the browser can run it on the
+            scroll timeline instead of us measuring scroll position in JS. */}
+        <path
+          ref={drawRef}
           d={PATH}
+          className="cable-draw"
           fill="none"
           stroke="url(#cableGrad)"
           strokeWidth={2}
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
-          style={{ pathLength: reduced ? 1 : drawn }}
         />
 
         {/* the measuring path for the comet — never painted */}

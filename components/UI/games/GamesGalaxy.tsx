@@ -18,7 +18,7 @@ const Starfield = dynamic(() => import("@/components/UI/galaxy/Starfield"), {
 });
 // one shared WebGL context for every planet on the page
 const GalaxyCanvas = dynamic(
-  () => import("@/components/UI/galaxy/GalaxyCanvas"),
+  () => import("@/components/UI/galaxy/runtime").then((m) => m.GalaxyCanvas),
   { ssr: false },
 );
 

@@ -6,7 +6,10 @@ import { motion } from "motion/react";
 import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
 import type { PlanetKind } from "./PlanetView";
 
-const PlanetView = dynamic(() => import("./PlanetView"), { ssr: false });
+const PlanetView = dynamic(
+  () => import("./runtime").then((m) => m.PlanetView),
+  { ssr: false },
+);
 
 export type Stop = {
   index: string;

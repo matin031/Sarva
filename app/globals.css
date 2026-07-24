@@ -610,3 +610,32 @@ button {
     animation: none !important;
   }
 }
+
+/* The cable draws itself as the page scrolls.
+   Where the browser supports scroll-driven animations this runs entirely off
+   the main thread: no scroll listener, no JS per frame, and — crucially — no
+   style writes from JS that would force the next layout read to reflow.
+   The dash length itself is measured once in JS and written inline, because
+   the wire uses non-scaling-stroke and so must be dashed in screen pixels. */
+@keyframes cableDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .cable-draw {
+    animation: cableDraw linear both;
+    animation-timeline: scroll(root block);
+    /* finish a little before the very bottom so the wire is fully drawn by the
+       time the closing section is in view */
+    animation-range: 0% 85%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cable-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

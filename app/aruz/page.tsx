@@ -43,12 +43,12 @@ export default function AruzPage() {
               </span>
             </RevealItem>
             <h2 className="text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-              <RevealWords text="آزمون را زنده ببین" />
+              <RevealWords text="آموختن با آزمون" />
             </h2>
             <RevealItem>
               <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-                همین حالا نمونه‌ای از پرسش‌ها را تماشا کن؛ ریتم پخش می‌شود و
-                گزینهٔ درست روشن می‌شود.
+                درست و غلط زدن پرسش‌ها مهم نیست!اینجا جدای از نتیجه، هر پاسخ گوش
+                تو را با یک وزن آشنا می‌کند
               </p>
             </RevealItem>
           </RevealGroup>
@@ -72,7 +72,7 @@ export default function AruzPage() {
                 <span className="size-3 rounded-full bg-gold/70" />
                 <span className="size-3 rounded-full bg-primary/70" />
                 <span className="ms-3 text-xs text-muted-foreground">
-                  عروض سماعی — نمونهٔ زنده
+                  عروض سماعی — نمونهٔ آزمون
                 </span>
               </div>
               <OrouzDemo />
@@ -99,10 +99,10 @@ export default function AruzPage() {
               className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/20 blur-3xl"
             />
             <h2 className="relative text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-              <RevealWords text="گوشت را برای وزن آماده کن" />
+              <RevealWords text="سماعی شدن؛دست‌یافتنی تر از همیشه" />
             </h2>
             <p className="relative mx-auto mt-4 max-w-lg text-muted-foreground">
-              رایگان شروع کن، بدونِ حفظ‌کردنِ ارکان. فقط گوش بده و وزن‌شناس شو.
+              ذهن و گوش بی آنکه بدانی با اوزان عروضی آشنا می‌شوند
             </p>
             <div className="relative mt-8 flex justify-center">
               <Link

@@ -92,6 +92,22 @@
 #nprogress .spinner {
   display: none !important;
 }
+.bg-menu-mobile {
+  /* From https://css.glass */
+  background: rgba(253, 252, 248, 0.34);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.dark .bg-menu-mobile {
+  /* From https://css.glass */
+  background: rgba(11, 18, 29, 0.56);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
 
 @theme inline {
   --font-sans: "Vazirmatn", "Geist", sans-serif;
@@ -325,7 +341,12 @@
   bottom: 0;
   left: -40%;
   width: 35%;
-  background: linear-gradient(100deg, transparent, var(--lr-sweep), transparent);
+  background: linear-gradient(
+    100deg,
+    transparent,
+    var(--lr-sweep),
+    transparent
+  );
   opacity: 0;
   animation: lrSweepMove 0.55s ease-in-out forwards;
   animation-delay: 2s;

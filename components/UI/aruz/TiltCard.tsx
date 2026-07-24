@@ -53,8 +53,9 @@ export default function TiltCard({
     setHovered(false);
     rx.set(0);
     ry.set(0);
-    gx.set(50);
-    gy.set(50);
+    // NOTE: don't recenter the glare here — moving it to the middle while it
+    // fades out makes a halo flash in the center of the card on mouse-leave.
+    // Leaving it where the cursor left lets it fade out in place, unseen.
   };
 
   return (

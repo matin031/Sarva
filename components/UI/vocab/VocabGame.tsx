@@ -40,8 +40,9 @@ export default function VocabGame() {
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
   const [qi, setQi] = useState(0);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [score, setScore] = useState(0);
+  // answer per question index, so navigating back/forward keeps each question's
+  // answered state without re-scoring or re-logging
+  const [picks, setPicks] = useState<Record<number, string>>({});
   const [best, setBest] = useState<Record<string, number>>({});
 
   const correctAudio = useRef<HTMLAudioElement | null>(null);
@@ -87,22 +88,25 @@ export default function VocabGame() {
     if (round.length === 0) return;
     setQuestions(round);
     setQi(0);
-    setPicked(null);
-    setScore(0);
+    setPicks({});
     setScreen("quiz");
   };
 
   const q = questions[qi];
+  const picked = picks[qi] ?? null;
   const answered = picked !== null;
   const isCorrect = answered && picked === q?.answer.id;
   const bestKey = grade && lesson ? `${grade.id}:${lesson.id}` : "";
+  const score = questions.reduce(
+    (s, qq, idx) => s + (picks[idx] === qq.answer.id ? 1 : 0),
+    0,
+  );
 
   const pick = (id: string) => {
     if (answered || !q) return;
-    setPicked(id);
+    setPicks((p) => ({ ...p, [qi]: id }));
     const correct = id === q.answer.id;
     if (correct) {
-      setScore((s) => s + 1);
       correctAudio.current?.play().catch(() => {});
     }
     if (userId && grade && lesson) {
@@ -120,8 +124,7 @@ export default function VocabGame() {
   const next = () => {
     if (qi + 1 >= questions.length) {
       // persist best score for this lesson
-      const finalScore = score;
-      const nextBest = { ...best, [bestKey]: Math.max(best[bestKey] ?? 0, finalScore) };
+      const nextBest = { ...best, [bestKey]: Math.max(best[bestKey] ?? 0, score) };
       setBest(nextBest);
       try {
         localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
@@ -130,8 +133,9 @@ export default function VocabGame() {
       return;
     }
     setQi((i) => i + 1);
-    setPicked(null);
   };
+
+  const prev = () => setQi((i) => Math.max(0, i - 1));
 
   // ---------- grade select ----------
   if (screen === "grade") {
@@ -312,9 +316,21 @@ export default function VocabGame() {
           <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
             ← درس‌ها
           </button>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-            {(qi + 1).toLocaleString("fa-IR")} / {questions.length.toLocaleString("fa-IR")}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prev}
+              disabled={qi === 0}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-all enabled:hover:border-primary/50 enabled:hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+              </svg>
+              سوال قبل
+            </button>
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+              {(qi + 1).toLocaleString("fa-IR")} / {questions.length.toLocaleString("fa-IR")}
+            </span>
+          </div>
         </div>
         {/* progress */}
         <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-muted">

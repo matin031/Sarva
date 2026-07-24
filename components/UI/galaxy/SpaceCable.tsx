@@ -39,7 +39,14 @@ function buildCable(planetCount: number) {
 
   // waypoints: the wire enters from above, sweeps past each planet, and takes a
   // wide swing back across the centre between them so it never runs straight
-  const pts: { x: number; y: number }[] = [{ x: 50, y: -10 }];
+  // A lead-in: the wire drops in off-centre and swings across before it reaches
+  // the first planet, so the opening reads as part of the meander instead of a
+  // straight drop down the page.
+  const pts: { x: number; y: number }[] = [
+    { x: 38, y: -12 },
+    { x: 58, y: band * 0.34 },
+    { x: 34, y: band * 0.78 },
+  ];
   nodes.forEach((n, i) => {
     pts.push(n);
     const next = nodes[i + 1];
@@ -105,40 +112,54 @@ export default function SpaceCable({
     const host = ref.current;
     if (!path || !comet || !host) return;
 
-    let animation: Animation | null = null;
+    // ---- measured ONCE: the path's shape never changes, only its scale ----
+    // Sampling an SVG path is expensive (160 geometry queries), and the result
+    // is scale-independent, so it is cached in normalised 0..1 space here and
+    // simply multiplied by the current box on resize.
+    const SAMPLES = 160;
+    const total = path.getTotalLength();
+    const norm = new Float32Array(SAMPLES * 2);
+    for (let i = 0; i < SAMPLES; i++) {
+      const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
+      norm[i * 2] = pt.x / W;
+      norm[i * 2 + 1] = pt.y / H;
+    }
 
-    const build = () => {
+    let animation: Animation | null = null;
+    let lastW = 0;
+    let lastH = 0;
+
+    /** Pure maths from cached samples — no DOM reads. Size is supplied by the
+     *  ResizeObserver, which reports a box the browser already measured. */
+    const apply = (boxW: number, boxH: number) => {
+      if (boxW === lastW && boxH === lastH) return;
+      lastW = boxW;
+      lastH = boxH;
       animation?.cancel();
-      // --- all DOM/geometry reads happen here, once, up front ---
-      const total = path.getTotalLength();
-      const box = host.getBoundingClientRect();
-      const SAMPLES = 160;
+
       const frames: Keyframe[] = [];
       let screenLength = 0;
       let prevX = 0;
       let prevY = 0;
       for (let i = 0; i < SAMPLES; i++) {
-        const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
-        const x = (pt.x / W) * box.width;
-        const y = (pt.y / H) * box.height;
+        const x = norm[i * 2] * boxW;
+        const y = norm[i * 2 + 1] * boxH;
         frames.push({ transform: `translate3d(${x}px, ${y}px, 0)` });
         if (i > 0) screenLength += Math.hypot(x - prevX, y - prevY);
         prevX = x;
         prevY = y;
       }
+
       // The wire uses vector-effect="non-scaling-stroke", so its dash pattern is
       // measured in screen pixels rather than viewBox units — hence walking the
-      // sampled points to get the real on-screen length. Publishing it as a
-      // custom property lets the CSS scroll-driven animation do the rest.
-      // Set the dash pattern inline (one write, not per frame). The CSS
-      // animation below only drives stroke-dashoffset to 0, so this inline
-      // value becomes the animation's implicit starting point.
+      // sampled points to get the real on-screen length. Written inline once;
+      // the CSS scroll-timeline animation drives the offset from here to 0.
       const draw = drawRef.current;
       if (draw) {
         draw.style.strokeDasharray = `${screenLength.toFixed(1)}px`;
         draw.style.strokeDashoffset = `${screenLength.toFixed(1)}px`;
       }
-      // --- and the single write is handing them to the compositor ---
+
       animation = comet.animate(frames, {
         duration: 9000,
         iterations: Infinity,
@@ -146,19 +167,14 @@ export default function SpaceCable({
       });
     };
 
-    build();
-
-    // geometry is cached; only a resize invalidates it
-    let resizeTimer: number | undefined;
-    const onResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(build, 150);
-    };
-    window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) apply(Math.round(r.width), Math.round(r.height));
+    });
+    ro.observe(host);
 
     return () => {
-      window.clearTimeout(resizeTimer);
-      window.removeEventListener("resize", onResize);
+      ro.disconnect();
       animation?.cancel();
     };
   }, [reduced]);

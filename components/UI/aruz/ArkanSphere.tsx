@@ -43,6 +43,10 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       ] as [number, number, number];
     });
 
+    const lastZ: string[] = new Array(N).fill("");
+    // the stage box is measured by a ResizeObserver instead of being read
+    // inside pointermove, which used to force a layout on every mouse move
+    let box = { left: 0, top: 0, width: 1, height: 1 };
     const st = {
       ax: -0.3,
       ay: 0,
@@ -75,7 +79,13 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         if (!el) continue;
         el.style.transform = `translate(-50%,-50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) scale(${(0.58 + depth * 0.62).toFixed(3)})`;
         el.style.opacity = (0.3 + depth * 0.7).toFixed(3);
-        el.style.zIndex = String(Math.round(z2 * 100) + 200);
+        // z-index only changes when the stacking order actually changes; writing
+        // the same value every frame still dirties style for no benefit
+        const layer = String(Math.round(z2 * 20) + 200);
+        if (lastZ[i] !== layer) {
+          el.style.zIndex = layer;
+          lastZ[i] = layer;
+        }
       }
     };
 
@@ -115,20 +125,36 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         raf = 0;
       }
     };
-    // pause the loop entirely while the sphere is scrolled off-screen
+    // pause the loop entirely while the sphere is scrolled off-screen, and take
+    // the stage's box straight from the observer entries — both callbacks hand
+    // us geometry the browser has already computed, so nothing here forces a
+    // layout the way a getBoundingClientRect in pointermove used to.
     const io = new IntersectionObserver(
       ([entry]) => {
         visible = entry.isIntersecting;
+        const r = entry.boundingClientRect;
+        box = { left: r.left, top: r.top, width: r.width || 1, height: r.height || 1 };
         if (visible) start();
         else stop();
       },
-      { threshold: 0 },
+      { threshold: [0, 0.5, 1] },
     );
-    if (el) io.observe(el);
+    const ro = new ResizeObserver(() => {
+      // size changed: re-observing makes the IntersectionObserver re-report a
+      // fresh box on the next frame without us reading the DOM
+      if (el) {
+        io.unobserve(el);
+        io.observe(el);
+      }
+    });
+    if (el) {
+      io.observe(el);
+      ro.observe(el);
+    }
     start();
     const onMove = (e: PointerEvent) => {
       if (!el) return;
-      const r = el.getBoundingClientRect();
+      const r = box;
       if (st.dragging) {
         const dx = e.clientX - st.lastX;
         const dy = e.clientY - st.lastY;
@@ -169,6 +195,7 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     return () => {
       stop();
       io.disconnect();
+      ro.disconnect();
       el?.removeEventListener("pointermove", onMove);
       el?.removeEventListener("pointerleave", onReset);
       el?.removeEventListener("pointerdown", onDown);

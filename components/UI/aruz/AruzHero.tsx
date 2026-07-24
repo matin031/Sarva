@@ -25,16 +25,43 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
 
   useEffect(() => {
     if (reduced || !fine) return;
+    const el = sectionRef.current;
+    if (!el) return;
+
+    // The section's box is kept in a ref and refreshed by observers rather than
+    // read inside pointermove. Reading layout in a handler that fires dozens of
+    // times a second — while other code is writing styles — is what shows up in
+    // DevTools as a forced reflow.
+    let box = { left: 0, top: 0, width: 1, height: 1 };
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        const r = entry.boundingClientRect;
+        box = {
+          left: r.left,
+          top: r.top,
+          width: r.width || 1,
+          height: r.height || 1,
+        };
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    io.observe(el);
+    const ro = new ResizeObserver(() => {
+      io.unobserve(el);
+      io.observe(el);
+    });
+    ro.observe(el);
+
     const onMove = (e: PointerEvent) => {
-      const el = sectionRef.current;
-      if (el) {
-        const r = el.getBoundingClientRect();
-        spx.set(((e.clientX - r.left) / r.width) * 100);
-        spy.set(((e.clientY - r.top) / r.height) * 100);
-      }
+      spx.set(((e.clientX - box.left) / box.width) * 100);
+      spy.set(((e.clientY - box.top) / box.height) * 100);
     };
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      io.disconnect();
+      ro.disconnect();
+    };
   }, [spx, spy, reduced, fine]);
 
   return (

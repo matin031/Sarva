@@ -35,7 +35,11 @@ const CHAPTERS: Chapter[] = [
     preview: (
       <div className="flex h-8 items-end gap-1">
         {[10, 26, 16, 32, 20, 30, 14, 24, 12].map((h, i) => (
-          <span key={i} className="w-1.5 rounded-full bg-primary/70" style={{ height: h }} />
+          <span
+            key={i}
+            className="w-1.5 rounded-full bg-primary/70"
+            style={{ height: h }}
+          />
         ))}
       </div>
     ),
@@ -182,7 +186,10 @@ export default function GuidePage() {
       <div className="relative overflow-hidden bg-background">
         {/* ---------- hero ---------- */}
         <section dir="rtl" className="relative overflow-hidden py-24 sm:py-28">
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10"
+          >
             <div className="absolute -right-32 -top-24 size-[380px] rounded-full bg-primary/20 blur-[80px]" />
             <div className="absolute -left-24 top-1/4 size-[340px] rounded-full bg-gold/15 blur-[80px]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,var(--color-background)_92%)]" />
@@ -204,9 +211,9 @@ export default function GuidePage() {
             </h1>
             <RevealItem>
               <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                سروا یک پلتفرمِ کامل است، نه یک آزمون؛ از عروضِ سماعی و وزن‌یاب تا
-                بازی‌ها، آزمون‌های نهایی و پنلِ پیشرفت. این‌جا هر بخش را کوتاه و
-                کاربردی یاد می‌گیری.
+                سروا یک پلتفرمِ کامل است، نه یک آزمون؛ از عروضِ سماعی و وزن‌یاب
+                تا بازی‌ها، آزمون‌های نهایی و پنلِ پیشرفت. این‌جا هر بخش را
+                کوتاه و کاربردی یاد می‌گیری.
               </p>
             </RevealItem>
             <RevealItem>
@@ -227,20 +234,31 @@ export default function GuidePage() {
 
         {/* ---------- chapters ---------- */}
         {CHAPTERS.map((c, i) => (
-          <GuideChapter key={c.index} chapter={c} flip={i % 2 === 1} reduced={reduced} />
+          <GuideChapter
+            key={c.index}
+            chapter={c}
+            flip={i % 2 === 1}
+            reduced={reduced}
+          />
         ))}
 
         {/* ---------- final CTA ---------- */}
-        <section dir="rtl" className="container relative py-24">
+        <section dir="rtl" className="container relative z-20 py-24">
           <motion.div
             initial={reduced ? false : { opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="glass relative mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 p-10 text-center shadow-2xl sm:p-16"
+            className="glass relative z-20 mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 p-10 text-center shadow-2xl sm:p-16"
           >
-            <div aria-hidden className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
-            <div aria-hidden className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/15 blur-3xl" />
+            <div
+              aria-hidden
+              className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/15 blur-3xl"
+            />
             <h2 className="relative text-3xl font-black text-foreground sm:text-4xl">
               <RevealWords text="آماده‌ای شروع کنی؟" />
             </h2>

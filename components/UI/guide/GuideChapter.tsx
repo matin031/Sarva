@@ -4,7 +4,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { motion } from "motion/react";
 import TiltCard from "@/components/UI/aruz/TiltCard";
-import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
+import {
+  RevealGroup,
+  RevealItem,
+  RevealWords,
+} from "@/components/UI/aruz/reveal";
 
 export type Chapter = {
   index: string;
@@ -30,9 +34,10 @@ export default function GuideChapter({
   flip: boolean;
   reduced: boolean;
 }) {
-  const { index, tag, title, desc, steps, href, cta, accent, icon, preview } = chapter;
+  const { index, tag, title, desc, steps, href, cta, accent, icon, preview } =
+    chapter;
   return (
-    <section dir="rtl" className="container relative py-14 sm:py-20">
+    <section dir="rtl" className="container relative z-20 py-14 sm:py-20">
       <div className="grid items-center gap-10 lg:grid-cols-2">
         {/* text */}
         <RevealGroup
@@ -72,13 +77,26 @@ export default function GuideChapter({
           <RevealItem>
             <ul className="mt-5 space-y-2.5">
               {steps.map((s, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-foreground/90">
+                <li
+                  key={i}
+                  className="flex items-start gap-2.5 text-sm text-foreground/90"
+                >
                   <span
                     className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-white"
                     style={{ background: accent }}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="size-3">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      className="size-3"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m4.5 12.75 6 6 9-13.5"
+                      />
                     </svg>
                   </span>
                   {s}
@@ -91,11 +109,24 @@ export default function GuideChapter({
             <Link
               href={href}
               className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl px-6 font-bold text-white shadow-lg transition-all active:scale-95"
-              style={{ background: accent, boxShadow: `0 10px 30px -10px ${accent}` }}
+              style={{
+                background: accent,
+                boxShadow: `0 10px 30px -10px ${accent}`,
+              }}
             >
               {cta}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                className="size-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 6 5 12l6 6M19 12H5"
+                />
               </svg>
             </Link>
           </RevealItem>
@@ -103,7 +134,9 @@ export default function GuideChapter({
 
         {/* 3D preview card */}
         <motion.div
-          initial={reduced ? false : { opacity: 0, y: 50, rotateX: -16, scale: 0.94 }}
+          initial={
+            reduced ? false : { opacity: 0, y: 50, rotateX: -16, scale: 0.94 }
+          }
           whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.35 }}
           transition={{ type: "spring", stiffness: 90, damping: 16 }}
@@ -113,7 +146,7 @@ export default function GuideChapter({
           <TiltCard
             disabled={reduced}
             max={10}
-            className="glass relative overflow-hidden rounded-[2rem] border border-border p-8 shadow-2xl"
+            className="glass relative z-20 overflow-hidden rounded-4xl border border-border p-8 shadow-2xl"
           >
             {/* accent glow */}
             <div
@@ -126,7 +159,13 @@ export default function GuideChapter({
                 className="flex size-20 items-center justify-center rounded-3xl border border-border bg-background/70"
                 style={{ boxShadow: `0 0 40px -12px ${accent}`, color: accent }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-10">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  className="size-10"
+                >
                   {icon}
                 </svg>
               </div>

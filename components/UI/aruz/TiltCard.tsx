@@ -26,6 +26,11 @@ export default function TiltCard({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
+  // The card's box is measured once when the pointer arrives, not on every
+  // move. Reading getBoundingClientRect inside a high-frequency handler that
+  // also writes styles is the classic layout-thrash pattern; caching it keeps
+  // the whole interaction write-only.
+  const rect = useRef<DOMRect | null>(null);
 
   const rx = useSpring(0, { stiffness: 200, damping: 18 });
   const ry = useSpring(0, { stiffness: 200, damping: 18 });
@@ -35,12 +40,15 @@ export default function TiltCard({
   const transform = useMotionTemplate`perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
   const glareBg = useMotionTemplate`radial-gradient(240px circle at ${gx}% ${gy}%, rgba(255,255,255,0.35), transparent 60%)`;
 
+  const measure = () => {
+    if (ref.current) rect.current = ref.current.getBoundingClientRect();
+  };
+
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     if (!hovered) setHovered(true);
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
+    const r = rect.current;
+    if (!r) return;
     const x = (e.clientX - r.left) / r.width;
     const y = (e.clientY - r.top) / r.height;
     ry.set((x - 0.5) * 2 * max);
@@ -51,6 +59,7 @@ export default function TiltCard({
 
   const onLeave = () => {
     setHovered(false);
+    rect.current = null;
     rx.set(0);
     ry.set(0);
     // NOTE: don't recenter the glare here — moving it to the middle while it
@@ -61,7 +70,11 @@ export default function TiltCard({
   return (
     <motion.div
       ref={ref}
-      onPointerEnter={() => !disabled && setHovered(true)}
+      onPointerEnter={() => {
+        if (disabled) return;
+        measure();
+        setHovered(true);
+      }}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
       style={disabled ? undefined : { transform, transformStyle: "preserve-3d" }}

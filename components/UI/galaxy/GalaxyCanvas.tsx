@@ -52,7 +52,9 @@ export default function GalaxyCanvas({
         pointerEvents: "none",
         background: "transparent",
       }}
-      className="z-0"
+      // above the cable (z-0) so the wire passes *behind* the planets instead of
+      // being painted across their surface, and below the briefing panels (z-20)
+      className="z-10"
     >
       <PerformanceMonitor
         // give it a moment per sample so a single janky frame doesn't downgrade

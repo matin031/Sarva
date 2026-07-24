@@ -24,11 +24,11 @@ const H = 660;
 /** Build the meander procedurally so the cable adapts to however many planets
  *  the page has, instead of being hand-tuned to one layout.
  *
- *  Bands: one for the intro, one per planet, one for the closing section. Each
- *  planet gets a node alternating left/right, and consecutive nodes are joined
- *  with cubic curves whose control points overshoot sideways — that overshoot
- *  is what makes the wire swing wide and wavy instead of zig-zagging straight
- *  between points. */
+ *  The curve is a Catmull-Rom spline converted to cubic Béziers. That matters
+ *  for looks, not just maths: a Catmull-Rom passes *through* every waypoint
+ *  with continuous tangents, so the wire sweeps past each planet on a smooth
+ *  arc instead of arriving head-on and kinking away, which is what the ad-hoc
+ *  control points did. */
 function buildCable(planetCount: number) {
   const bands = planetCount + 2;
   const band = H / bands;
@@ -38,24 +38,38 @@ function buildCable(planetCount: number) {
     nodes.push({ x: i % 2 === 0 ? 78 : 22, y: (i + 1.5) * band });
   }
 
-  const start = { x: 50, y: -6 };
-  const end = { x: 48, y: H + 10 };
-  const all = [start, ...nodes, end];
+  // waypoints: the wire enters from above, sweeps past each planet, and takes a
+  // wide swing back across the centre between them so it never runs straight
+  const pts: { x: number; y: number }[] = [{ x: 50, y: -10 }];
+  nodes.forEach((n, i) => {
+    pts.push(n);
+    const next = nodes[i + 1];
+    if (next) {
+      // a mid waypoint nudged past centre gives the crossing its lazy S shape
+      pts.push({ x: 50 + (n.x < 50 ? 9 : -9), y: (n.y + next.y) / 2 });
+    }
+  });
+  pts.push({ x: 52, y: H - band * 0.45 });
+  pts.push({ x: 48, y: H + 12 });
 
-  let d = `M ${start.x} ${start.y}`;
-  for (let i = 1; i < all.length; i++) {
-    const a = all[i - 1];
-    const b = all[i];
-    const dy = b.y - a.y;
-    // push the control points past each node so the curve bows outward
-    const c1x = a.x + (a.x - 50) * 0.35;
-    const c2x = b.x + (b.x - 50) * 0.35;
-    d += ` C ${c1x.toFixed(1)} ${(a.y + dy * 0.38).toFixed(1)}, ${c2x.toFixed(1)} ${(b.y - dy * 0.38).toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  // Catmull-Rom → Bézier: each segment's handles come from its neighbours'
+  // positions, which is what keeps the tangents continuous across waypoints
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
   }
 
   // a node on the closing section too, so the wire visibly terminates
-  nodes.push({ x: 50, y: H - band * 0.45 });
-  return { d, nodes };
+  const glowNodes = [...nodes, { x: 52, y: H - band * 0.45 }];
+  return { d, nodes: glowNodes };
 }
 
 export default function SpaceCable({
@@ -81,11 +95,21 @@ export default function SpaceCable({
   // the wire always runs a little ahead of the reader
   const drawn = useTransform(progress, (p) => Math.min(1, 0.1 + p * 1.2));
 
-  /** The energy pulse used to be a second full-length path with an animated
-   *  stroke-dashoffset. That repainted the entire cable every single frame,
-   *  which was the main source of scroll jank. Instead we sample the path once
-   *  and fly a single dot along it with translate3d — a pure compositor
-   *  operation that never triggers layout or paint. */
+  /** The energy pulse.
+   *
+   *  History of this one line of sparkle: it started as a second full-length
+   *  path with an animated stroke-dashoffset, which repainted the whole cable
+   *  every frame. Then it became a dot moved with translate3d from a rAF loop —
+   *  cheaper to paint, but it wrote to `style` on every frame, and drei's <View>
+   *  reads getBoundingClientRect() on every frame right after. Write-then-read
+   *  in the same frame is exactly the pattern that makes the browser recompute
+   *  layout synchronously: DevTools flagged it as "Forced reflow".
+   *
+   *  So now the whole trip is handed to the Web Animations API as one keyframe
+   *  set. The compositor interpolates the transforms on its own thread: no JS
+   *  runs per frame, nothing writes to the DOM per frame, and there is nothing
+   *  left for a layout read to be forced by. Geometry is sampled once here and
+   *  only re-sampled on resize. */
   useEffect(() => {
     if (reduced) return;
     const path = measureRef.current;
@@ -93,52 +117,43 @@ export default function SpaceCable({
     const host = ref.current;
     if (!path || !comet || !host) return;
 
-    const total = path.getTotalLength();
-    // pre-sample the curve so no geometry maths happens per frame
-    const SAMPLES = 420;
-    const pts = new Float32Array(SAMPLES * 2);
-    for (let i = 0; i < SAMPLES; i++) {
-      const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
-      pts[i * 2] = pt.x / W;
-      pts[i * 2 + 1] = pt.y / H;
-    }
+    let animation: Animation | null = null;
 
-    let box = host.getBoundingClientRect();
+    const build = () => {
+      animation?.cancel();
+      // --- all DOM/geometry reads happen here, once, up front ---
+      const total = path.getTotalLength();
+      const box = host.getBoundingClientRect();
+      const SAMPLES = 160;
+      const frames: Keyframe[] = [];
+      for (let i = 0; i < SAMPLES; i++) {
+        const pt = path.getPointAtLength((i / (SAMPLES - 1)) * total);
+        const x = (pt.x / W) * box.width;
+        const y = (pt.y / H) * box.height;
+        frames.push({ transform: `translate3d(${x}px, ${y}px, 0)` });
+      }
+      // --- and the single write is handing them to the compositor ---
+      animation = comet.animate(frames, {
+        duration: 9000,
+        iterations: Infinity,
+        easing: "linear",
+      });
+    };
+
+    build();
+
+    // geometry is cached; only a resize invalidates it
+    let resizeTimer: number | undefined;
     const onResize = () => {
-      box = host.getBoundingClientRect();
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(build, 150);
     };
     window.addEventListener("resize", onResize);
 
-    let raf = 0;
-    let t = 0;
-    let last = performance.now();
-    const DURATION = 9000;
-    const tick = (now: number) => {
-      raf = requestAnimationFrame(tick);
-      const dt = Math.min(now - last, 100);
-      last = now;
-      t = (t + dt / DURATION) % 1;
-      const i = Math.min(SAMPLES - 1, Math.floor(t * SAMPLES));
-      const x = pts[i * 2] * box.width;
-      const y = pts[i * 2 + 1] * box.height;
-      // only paint-free transforms — no left/top, no layout
-      comet.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    };
-    raf = requestAnimationFrame(tick);
-
-    const onVis = () => {
-      if (document.hidden) cancelAnimationFrame(raf);
-      else {
-        last = performance.now();
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-
     return () => {
-      cancelAnimationFrame(raf);
+      window.clearTimeout(resizeTimer);
       window.removeEventListener("resize", onResize);
-      document.removeEventListener("visibilitychange", onVis);
+      animation?.cancel();
     };
   }, [reduced]);
 

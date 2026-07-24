@@ -66,7 +66,7 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
           </span>
         </RevealItem>
         <h2 className="text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-          <RevealWords text="عروض را از هر زاویه تمرین کن" />
+          <RevealWords text="آزمونی از جنس یادگیری" />
         </h2>
         <RevealItem>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">

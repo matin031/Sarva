@@ -469,40 +469,50 @@ button {
    /aruz — عروض سماعی intro page effects
    ============================================================ */
 
-/* slowly drifting aurora blobs behind the hero */
+/* Slowly drifting aurora blobs behind the hero.
+   These carry an 80–90px blur. Animating `scale` alongside the translate forces
+   the compositor to re-rasterize that blur on every single frame — the single
+   most expensive thing on the page. Translate and opacity alone can be handled
+   entirely on the compositor from one cached blurred texture, so the drift is
+   free; the opacity swell replaces the breathing that scale used to give. */
 @keyframes aruzDrift {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
   }
   33% {
-    transform: translate3d(8%, -6%, 0) scale(1.12);
+    transform: translate3d(8%, -6%, 0);
+    opacity: 0.78;
   }
   66% {
-    transform: translate3d(-6%, 7%, 0) scale(0.92);
+    transform: translate3d(-6%, 7%, 0);
+    opacity: 1;
   }
 }
 @keyframes aruzDrift2 {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1.05);
+    transform: translate3d(0, 0, 0);
+    opacity: 0.85;
   }
   50% {
-    transform: translate3d(-10%, 8%, 0) scale(1.2);
+    transform: translate3d(-10%, 8%, 0);
+    opacity: 1;
   }
 }
 
-/* perspective "3D floor" grid that keeps scrolling toward the viewer */
+/* Perspective "3D floor" grid that keeps scrolling toward the viewer.
+   `background-position` is not a compositable property, so animating it
+   repainted the whole floor every frame. Instead the grid lives on an
+   oversized ::before that translates by exactly one tile, which loops
+   seamlessly and never leaves the compositor. */
 @keyframes aruzGridMove {
   from {
-    background-position:
-      0 0,
-      0 0;
+    transform: translate3d(0, 0, 0);
   }
   to {
-    background-position:
-      0 60px,
-      60px 0;
+    transform: translate3d(60px, 60px, 0);
   }
 }
 
@@ -542,11 +552,19 @@ button {
 }
 
 .aruz-grid-floor {
+  overflow: hidden;
+}
+.aruz-grid-floor::before {
+  content: "";
+  position: absolute;
+  /* one tile of slack on every side so the loop has somewhere to travel */
+  inset: -60px;
+  --aruz-grid-line: color-mix(in oklch, var(--primary) 22%, transparent);
   background-image:
     linear-gradient(to right, var(--aruz-grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--aruz-grid-line) 1px, transparent 1px);
   background-size: 60px 60px;
-  --aruz-grid-line: color-mix(in oklch, var(--primary) 22%, transparent);
+  will-change: transform;
   animation: aruzGridMove 6s linear infinite;
 }
 
@@ -573,8 +591,18 @@ button {
   }
 }
 
+/* the rukn label that is currently closest to the reader gets a gold accent —
+   the class is swapped only when the frontmost label actually changes, not
+   every frame */
+.arkan-near {
+  border-color: color-mix(in oklch, var(--color-gold) 65%, transparent);
+  box-shadow:
+    0 2px 14px -4px color-mix(in oklch, var(--color-gold) 55%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--color-gold) 25%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .aruz-grid-floor,
+  .aruz-grid-floor::before,
   .aruz-gradient-text {
     animation: none;
   }

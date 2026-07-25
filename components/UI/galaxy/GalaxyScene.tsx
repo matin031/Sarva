@@ -45,14 +45,17 @@ type Measured = { cx: number; cyDoc: number; size: number };
 function Planet({
   kind,
   reduced,
+  seed,
 }: {
   kind: PlanetKind;
   reduced: boolean;
+  seed: number;
 }) {
   const spin = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const moonOrbit = useRef<THREE.Group>(null);
   const lean = useRef<THREE.Group>(null);
+  const atmo = useRef<THREE.Mesh>(null);
 
   const atmosphereMat = useMemo(
     () =>
@@ -94,18 +97,41 @@ function Planet({
     [atmosphereMat, ringMat, moonMat],
   );
 
+  /** Minimal idle life: a slow bob, a breathing atmosphere and a lazy axial
+   *  wobble. All of it is trigonometry on the clock — no DOM reads, no new
+   *  geometry, no material recompiles, so the cost per planet per frame is a
+   *  handful of sin/cos calls. `seed` de-syncs the planets from each other. */
   useFrame((state, delta) => {
     const d = Math.min(delta, 0.05);
+    const t = state.clock.elapsedTime;
     if (spin.current) spin.current.rotation.y += d * 0.18;
-    if (ringRef.current) ringRef.current.rotation.z += d * 0.05;
     if (moonOrbit.current) moonOrbit.current.rotation.y += d * 0.6;
+
+    if (ringRef.current) {
+      ringRef.current.rotation.z += d * 0.05;
+      if (!reduced) {
+        ringRef.current.rotation.x =
+          Math.PI / 2.6 + Math.sin(t * 0.4 + seed) * 0.07;
+      }
+    }
+
     if (lean.current) {
       // state.pointer comes from R3F's cached pointer state — not a DOM read
       const k = 1 - Math.pow(0.004, d);
+      const wobbleX = reduced ? 0 : Math.sin(t * 0.45 + seed) * 0.055;
+      const wobbleY = reduced ? 0 : Math.cos(t * 0.33 + seed) * 0.055;
       lean.current.rotation.x +=
-        (-state.pointer.y * 0.22 - lean.current.rotation.x) * k;
+        (-state.pointer.y * 0.22 + wobbleX - lean.current.rotation.x) * k;
       lean.current.rotation.y +=
-        (state.pointer.x * 0.22 - lean.current.rotation.y) * k;
+        (state.pointer.x * 0.22 + wobbleY - lean.current.rotation.y) * k;
+      // local units, so the drift scales with the planet
+      if (!reduced) lean.current.position.y = Math.sin(t * 0.7 + seed) * 0.09;
+    }
+
+    if (atmo.current && !reduced) {
+      const pulse = Math.sin(t * 1.05 + seed);
+      atmo.current.scale.setScalar(1.14 + pulse * 0.035);
+      atmosphereMat.opacity = 0.15 + pulse * 0.045;
     }
   });
 
@@ -134,6 +160,7 @@ function Planet({
       </mesh>
 
       <mesh
+        ref={atmo}
         scale={1.14}
         geometry={ATMOSPHERE_GEO}
         material={atmosphereMat}
@@ -246,7 +273,7 @@ function Planets({ slots, reduced }: { slots: Slot[]; reduced: boolean }) {
           }}
           visible={false}
         >
-          <Planet kind={s.kind} reduced={reduced} />
+          <Planet kind={s.kind} reduced={reduced} seed={i * 1.73} />
         </group>
       ))}
     </>

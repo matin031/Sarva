@@ -25,16 +25,56 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
 
   useEffect(() => {
     if (reduced || !fine) return;
-    const onMove = (e: PointerEvent) => {
-      const el = sectionRef.current;
-      if (el) {
-        const r = el.getBoundingClientRect();
-        spx.set(((e.clientX - r.left) / r.width) * 100);
-        spy.set(((e.clientY - r.top) / r.height) * 100);
-      }
+    const el = sectionRef.current;
+    if (!el) return;
+
+    // The listener is on window, so it fires for pointer movement anywhere on
+    // the page. Reading the section's box inside it meant a layout read per
+    // move. Instead the box is measured in document space once (and again only
+    // when the layout can have changed) and the scroll offset is captured by a
+    // passive listener, leaving the handler as pure arithmetic.
+    const geo = { left: 0, top: 0, w: 1, h: 1 };
+    const sx = { v: 0 };
+    const sy = { v: 0 };
+
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      sx.v = window.scrollX;
+      sy.v = window.scrollY;
+      geo.left = r.left + sx.v;
+      geo.top = r.top + sy.v;
+      geo.w = r.width || 1;
+      geo.h = r.height || 1;
     };
+    let id = requestAnimationFrame(measure);
+
+    let lastW = 0;
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (w === lastW) return;
+      lastW = w;
+      cancelAnimationFrame(id);
+      id = requestAnimationFrame(measure);
+    });
+    ro.observe(el);
+
+    const onScroll = () => {
+      sx.v = window.scrollX;
+      sy.v = window.scrollY;
+    };
+    const onMove = (e: PointerEvent) => {
+      spx.set(((e.clientX + sx.v - geo.left) / geo.w) * 100);
+      spy.set(((e.clientY + sy.v - geo.top) / geo.h) * 100);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
+    return () => {
+      cancelAnimationFrame(id);
+      ro.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onMove);
+    };
   }, [spx, spy, reduced, fine]);
 
   return (
@@ -63,17 +103,44 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
 
       {/* ---------- background layers ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        {/* aurora blobs — smaller blur radii so mobile GPUs don't allocate huge
-            blur surfaces */}
+        {/* Aurora blobs. These used to be solid circles behind `filter: blur()`.
+            An 80–90px blur is a multi-pass, full-surface operation and it was
+            by far the most expensive paint on the page — measurably so, on any
+            device without a strong GPU. A radial-gradient is a single cheap
+            gradient fill and gives the same soft glow, so the blur is gone. */}
         <div
-          className="absolute -right-40 -top-20 size-[440px] rounded-full bg-primary/25 blur-[80px]"
-          style={reduced ? undefined : { animation: "aruzDrift 18s ease-in-out infinite" }}
+          className="absolute -right-40 -top-20 size-[560px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 30%, transparent), color-mix(in oklch, var(--color-primary) 10%, transparent) 62%, transparent)",
+            ...(reduced
+              ? null
+              : {
+                  animation: "aruzDrift 18s ease-in-out infinite",
+                  willChange: "transform, opacity",
+                }),
+          }}
         />
         <div
-          className="absolute -left-32 top-1/3 size-[400px] rounded-full bg-gold/20 blur-[80px]"
-          style={reduced ? undefined : { animation: "aruzDrift2 22s ease-in-out infinite" }}
+          className="absolute -left-32 top-1/4 size-[520px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 24%, transparent), color-mix(in oklch, var(--color-gold) 8%, transparent) 62%, transparent)",
+            ...(reduced
+              ? null
+              : {
+                  animation: "aruzDrift2 22s ease-in-out infinite",
+                  willChange: "transform, opacity",
+                }),
+          }}
         />
-        <div className="absolute bottom-0 left-1/3 size-[380px] rounded-full bg-lapis-light/20 blur-[90px]" />
+        <div
+          className="absolute -bottom-24 left-1/4 size-[500px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-lapis-light) 26%, transparent), transparent)",
+          }}
+        />
         {/* perspective 3D grid floor */}
         <div
           className="absolute inset-x-0 bottom-0 h-[45vh] [mask-image:linear-gradient(to_top,black,transparent)]"

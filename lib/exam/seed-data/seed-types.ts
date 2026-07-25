@@ -4,7 +4,7 @@ import {
   type LayoutPattern,
   type QuestionPartContent,
   type QuestionPartType,
-} from "../content-schemas";
+} from "@/lib/exam/content-schemas";
 
 export type SeedOption = {
   optionKey?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import CircularProgress, { toFa } from "./UI/CircularProgress";
+import CircularProgress, { toFa } from "@/components/UI/CircularProgress";
 
 function PanelStats({
   total,

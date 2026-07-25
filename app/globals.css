@@ -591,6 +591,25 @@ button {
   }
 }
 
+/* the 3D scene mounts only once the main thread is idle, so it fades in rather
+   than popping over the already-laid-out placeholders */
+@keyframes sceneFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.scene-fade-in {
+  animation: sceneFadeIn 700ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-fade-in {
+    animation: none;
+  }
+}
+
 /* the rukn label that is currently closest to the reader gets a gold accent —
    the class is swapped only when the frontmost label actually changes, not
    every frame */

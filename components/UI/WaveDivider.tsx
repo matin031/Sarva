@@ -1,5 +1,5 @@
 "use client";
-import WaveCanvas from "./WaveCanvas";
+import WaveCanvas from "@/components/UI/WaveCanvas";
 import { motion } from "motion/react";
 import {
   scaleIn,

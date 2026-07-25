@@ -131,7 +131,10 @@ function Planet({
     if (atmo.current && !reduced) {
       const pulse = Math.sin(t * 1.05 + seed);
       atmo.current.scale.setScalar(1.14 + pulse * 0.035);
-      atmosphereMat.opacity = 0.15 + pulse * 0.045;
+      // reached through the mesh rather than the memoised binding, so the frame
+      // loop only ever touches scene objects it owns
+      const mat = atmo.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.15 + pulse * 0.045;
     }
   });
 
@@ -331,8 +334,9 @@ export default function GalaxyScene({
         background: "transparent",
       }}
       // above the cable (z-0) so the wire passes behind the planets, and below
-      // the briefing panels (z-20)
-      className="z-10"
+      // the briefing panels (z-20). scene-fade-in keeps the deferred mount from
+      // popping in.
+      className="z-10 scene-fade-in"
     >
       <PerformanceMonitor
         ms={250}

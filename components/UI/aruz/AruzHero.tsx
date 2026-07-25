@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { motion, useMotionTemplate, useMotionValue } from "motion/react";
 import ArkanSphere from "./ArkanSphere";
-import { RevealGroup, RevealItem, RevealLine } from "./reveal";
+import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
 
 /** The عروض سماعی hero: an aurora-lit stage with a perspective grid floor, a
  *  cursor spotlight, the interactive arkān sphere, and a headline. */

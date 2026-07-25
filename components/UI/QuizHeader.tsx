@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toFa } from "./CircularProgress";
+import { toFa } from "@/components/UI/CircularProgress";
 
 interface QuizHeaderType {
   score: number;

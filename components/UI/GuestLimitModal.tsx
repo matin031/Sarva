@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { toFa } from "./CircularProgress";
+import { toFa } from "@/components/UI/CircularProgress";
 
 interface GuestLimitModalProps {
   questionLimit: number;

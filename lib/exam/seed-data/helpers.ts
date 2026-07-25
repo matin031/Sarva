@@ -1,4 +1,4 @@
-import type { RichPassage } from "../content-schemas";
+import type { RichPassage } from "@/lib/exam/content-schemas";
 
 /** Plain read-only text, no inline slots. */
 export const text = (s: string): RichPassage => ({

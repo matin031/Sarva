@@ -1,4 +1,4 @@
-import type { QuestionPartType } from "./content-schemas";
+import type { QuestionPartType } from "@/lib/exam/content-schemas";
 
 /** Starter JSON for the content/correctAnswer editors when a type is
  *  picked, so the admin edits a working example instead of starting from

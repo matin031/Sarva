@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { PanelAudioPlayer } from "./PanelAudioPlayer";
-import { toFa } from "./CircularProgress";
+import { PanelAudioPlayer } from "@/components/UI/PanelAudioPlayer";
+import { toFa } from "@/components/UI/CircularProgress";
 import type {
   Attempt,
   AttemptAnswer,
   AttemptQuestionOption,
-} from "../CompletedQuizzesSection";
+} from "@/components/CompletedQuizzesSection";
 
 const AUDIO_OPTION_TYPES = [
   "poem-to-audio",

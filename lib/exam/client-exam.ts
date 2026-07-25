@@ -1,4 +1,4 @@
-import type { QuestionPartContent } from "./content-schemas";
+import type { QuestionPartContent } from "@/lib/exam/content-schemas";
 import type { SeedExam } from "./seed-data/seed-types";
 import { optionId } from "./option-ids";
 

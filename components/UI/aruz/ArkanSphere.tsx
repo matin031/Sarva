@@ -40,41 +40,41 @@ const ARKAN = [
 const FALLBACK_PRIMARY = "#00b3ad";
 const FALLBACK_GOLD = "#d9a441";
 
-/** unit-sphere polylines: 3 latitude rings + 4 great-circle meridians.
- *  Flat Float32Arrays so the render loop allocates nothing per point. */
-function buildShell(): Float32Array[] {
-  const SEG = 42;
-  const curves: Float32Array[] = [];
-
-  for (const lat of [-0.62, 0, 0.62]) {
-    const arr = new Float32Array((SEG + 1) * 3);
-    const r = Math.cos(lat);
-    const y = Math.sin(lat);
-    for (let i = 0; i <= SEG; i++) {
-      const t = (i / SEG) * Math.PI * 2;
-      arr[i * 3] = r * Math.cos(t);
-      arr[i * 3 + 1] = y;
-      arr[i * 3 + 2] = r * Math.sin(t);
-    }
-    curves.push(arr);
+/** Light dust spread evenly over the sphere by a Fibonacci lattice — the same
+ *  construction as the labels, just far denser. Rendered as tiny depth-faded
+ *  dots, this is what makes the shape read as a solid volume; a latitude /
+ *  meridian grid reads as graph paper instead. */
+function buildDust(n: number): Float32Array {
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const phi = Math.acos(-1 + (2 * i + 1) / n);
+    const theta = Math.sqrt(n * Math.PI) * phi;
+    arr[i * 3] = Math.cos(theta) * Math.sin(phi);
+    arr[i * 3 + 1] = Math.sin(theta) * Math.sin(phi);
+    arr[i * 3 + 2] = Math.cos(phi);
   }
+  return arr;
+}
 
-  for (let m = 0; m < 4; m++) {
-    const lon = (m / 4) * Math.PI;
-    const cl = Math.cos(lon);
-    const sl = Math.sin(lon);
+/** Two tilted great circles. Two is enough to sell the third dimension and
+ *  still read as an orbit rather than as a wireframe. */
+function buildOrbits(): Float32Array[] {
+  const SEG = 56;
+  return [0.42, -0.72].map((tilt) => {
+    const ct = Math.cos(tilt);
+    const stl = Math.sin(tilt);
     const arr = new Float32Array((SEG + 1) * 3);
     for (let i = 0; i <= SEG; i++) {
       const u = (i / SEG) * Math.PI * 2;
       const cu = Math.cos(u);
-      arr[i * 3] = cu * cl;
-      arr[i * 3 + 1] = Math.sin(u);
-      arr[i * 3 + 2] = cu * sl;
+      const su = Math.sin(u);
+      // a unit circle in the xz plane, tipped around the x axis
+      arr[i * 3] = cu;
+      arr[i * 3 + 1] = su * stl;
+      arr[i * 3 + 2] = su * ct;
     }
-    curves.push(arr);
-  }
-
-  return curves;
+    return arr;
+  });
 }
 
 /** each foot linked to its single nearest neighbour, de-duplicated */
@@ -128,14 +128,16 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       ] as [number, number, number];
     });
 
-    const shell = buildShell();
+    const DUST_N = window.matchMedia("(pointer: coarse)").matches ? 110 : 170;
+    const dust = buildDust(DUST_N);
+    const orbits = buildOrbits();
     const links = buildLinks(base);
 
     // ---- geometry cached from ResizeObserver, never re-read in the loop ----
     let W = 0;
     let H = 0;
     let R = 0; // label radius
-    let RS = 0; // wireframe radius
+    let RS = 0; // sphere-surface radius (dust + orbits)
     let PERSP = 0;
 
     const dprCap = window.matchMedia("(pointer: coarse)").matches ? 1.5 : 2;
@@ -163,6 +165,10 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       ctx.strokeStyle = fallback;
       ctx.strokeStyle = c;
     };
+    const fill = (c: string, fallback: string) => {
+      ctx.fillStyle = fallback;
+      ctx.fillStyle = c;
+    };
 
     const st = {
       ax: -0.3,
@@ -177,11 +183,13 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     };
     const IDLE = { x: 0.0004, y: 0.003 };
 
-    // three paths per layer = three stroke calls instead of ~300
-    let shellPaths = [new Path2D(), new Path2D(), new Path2D()];
-    let linkPaths = [new Path2D(), new Path2D(), new Path2D()];
-    const SHELL_ALPHA = [0.11, 0.22, 0.46];
-    const LINK_ALPHA = [0.07, 0.16, 0.34];
+    // Everything is batched into three depth buckets, so a frame costs a fixed
+    // handful of canvas calls no matter how many points there are.
+    const DUST_ALPHA = [0.14, 0.34, 0.72];
+    const DUST_R = [0.55, 0.9, 1.45];
+    const ORBIT_ALPHA = [0.07, 0.16, 0.34];
+    const LINK_ALPHA = [0.06, 0.14, 0.3];
+    const NODE_ALPHA = [0.2, 0.45, 0.9];
     const bucket = (d: number) => (d < 0.34 ? 0 : d < 0.67 ? 1 : 2);
 
     const px2 = new Float32Array(N);
@@ -255,13 +263,33 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         nearest = nearIdx;
       }
 
-      // ---------- wireframe shell + neighbour links ----------
+      // ---------- light dust, orbits, links, nodes ----------
       ctx.clearRect(0, 0, W, H);
-      shellPaths = [new Path2D(), new Path2D(), new Path2D()];
-      linkPaths = [new Path2D(), new Path2D(), new Path2D()];
+      const dustPaths = [new Path2D(), new Path2D(), new Path2D()];
+      const orbitPaths = [new Path2D(), new Path2D(), new Path2D()];
+      const linkPaths = [new Path2D(), new Path2D(), new Path2D()];
+      const nodePaths = [new Path2D(), new Path2D(), new Path2D()];
 
-      for (let c = 0; c < shell.length; c++) {
-        const curve = shell[c];
+      for (let i = 0; i < dust.length; i += 3) {
+        const x = dust[i];
+        const y = dust[i + 1];
+        const z = dust[i + 2];
+        const y1 = y * cosX - z * sinX;
+        const z1 = y * sinX + z * cosX;
+        const x2 = x * cosY + z1 * sinY;
+        const z2 = -x * sinY + z1 * cosY;
+        const scale = PERSP / (PERSP - z2 * RS);
+        const depth = (z2 + 1) / 2;
+        const b = bucket(depth);
+        const px = cx + x2 * RS * scale;
+        const py = cy + y1 * RS * scale;
+        const p = dustPaths[b];
+        p.moveTo(px + DUST_R[b], py);
+        p.arc(px, py, DUST_R[b], 0, Math.PI * 2);
+      }
+
+      for (let c = 0; c < orbits.length; c++) {
+        const curve = orbits[c];
         let ppx = 0;
         let ppy = 0;
         let ppd = 0;
@@ -278,7 +306,7 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
           const sy = cy + y1 * RS * scale;
           const depth = (z2 + 1) / 2;
           if (i > 0) {
-            const p = shellPaths[bucket((depth + ppd) / 2)];
+            const p = orbitPaths[bucket((depth + ppd) / 2)];
             p.moveTo(ppx, ppy);
             p.lineTo(sx, sy);
           }
@@ -295,16 +323,37 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         p.lineTo(px2[j], py2[j]);
       }
 
+      // a small bright node exactly under each rukn, anchoring it to the surface
+      for (let i = 0; i < N; i++) {
+        const b = bucket(pd2[i]);
+        const r = 1.1 + pd2[i] * 1.5;
+        const p = nodePaths[b];
+        p.moveTo(px2[i] + r, py2[i]);
+        p.arc(px2[i], py2[i], r, 0, Math.PI * 2);
+      }
+
+      fill(colorPrimary, FALLBACK_PRIMARY);
+      for (let b = 0; b < 3; b++) {
+        ctx.globalAlpha = DUST_ALPHA[b];
+        ctx.fill(dustPaths[b]);
+      }
+
       ctx.lineWidth = 1;
       stroke(colorPrimary, FALLBACK_PRIMARY);
       for (let b = 0; b < 3; b++) {
-        ctx.globalAlpha = SHELL_ALPHA[b];
-        ctx.stroke(shellPaths[b]);
+        ctx.globalAlpha = ORBIT_ALPHA[b];
+        ctx.stroke(orbitPaths[b]);
       }
       stroke(colorGold, FALLBACK_GOLD);
       for (let b = 0; b < 3; b++) {
         ctx.globalAlpha = LINK_ALPHA[b];
         ctx.stroke(linkPaths[b]);
+      }
+
+      fill(colorGold, FALLBACK_GOLD);
+      for (let b = 0; b < 3; b++) {
+        ctx.globalAlpha = NODE_ALPHA[b];
+        ctx.fill(nodePaths[b]);
       }
       ctx.globalAlpha = 1;
     };

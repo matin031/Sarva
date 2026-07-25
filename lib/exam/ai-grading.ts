@@ -1,6 +1,6 @@
 import type { SeedPart } from "./seed-data/seed-types";
-import type { RichPassage } from "./content-schemas";
-import { matchesAny, normalizeFa, statusFromRatio, type PartGradeResult } from "./grading";
+import type { RichPassage } from "@/lib/exam/content-schemas";
+import { matchesAny, normalizeFa, statusFromRatio, type PartGradeResult } from "@/lib/exam/grading";
 
 /**
  * Server-only AI grading for the open-ended exam parts that gradePart()

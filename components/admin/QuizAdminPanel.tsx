@@ -11,7 +11,7 @@ import {
 } from "@/lib/quiz/admin-actions";
 import { QUIZ_PAGE_SIZE } from "@/lib/quiz/constants";
 import QuizQuestionForm from "./QuizQuestionForm";
-import { useAdminToast } from "./AdminToast";
+import { useAdminToast } from "@/components/admin/AdminToast";
 
 const TYPE_LABELS: Record<QuizType, string> = {
   "poem-to-audio": "بیت → صوت",

@@ -1,5 +1,5 @@
 import type { SeedPart } from "./seed-data/seed-types";
-import type { RichPassage } from "./content-schemas";
+import type { RichPassage } from "@/lib/exam/content-schemas";
 import { optionId } from "./option-ids";
 import type { McqPlusCorrectionValue } from "@/components/exam/parts/McqPlusCorrectionPart";
 import type { OpenErrorCorrectionValue } from "@/components/exam/parts/OpenErrorCorrectionInPassagePart";

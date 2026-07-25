@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import type { QuestionPartType } from "./content-schemas";
+import type { QuestionPartType } from "@/lib/exam/content-schemas";
 import type { SeedExam, SeedOption, SeedPart, SeedQuestion } from "./seed-data/seed-types";
 
 /**

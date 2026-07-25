@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { adminDeleteUser, adminSetUserBanned, adminSetUserRole, type AdminUserRow } from "@/lib/admin/user-actions";
-import { useAdminToast } from "./AdminToast";
+import { useAdminToast } from "@/components/admin/AdminToast";
 
 function formatDate(iso: string | undefined) {
   if (!iso) return "—";

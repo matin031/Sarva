@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import HandsUpFigure from "./HandsUpFigure";
+import HandsUpFigure from "@/components/UI/jasoos/HandsUpFigure";
 import type { SuspectRole } from "@/lib/jasoos-data";
 
 export type SuspectVisualState = "idle" | "shot-correct" | "shot-wrong" | "dimmed";

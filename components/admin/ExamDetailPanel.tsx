@@ -10,7 +10,7 @@ import {
   type AdminQuestionDetail,
 } from "@/lib/exam/admin-actions";
 import ExamQuestionForm from "./ExamQuestionForm";
-import { useAdminToast } from "./AdminToast";
+import { useAdminToast } from "@/components/admin/AdminToast";
 
 type Props = {
   exam: AdminExamDetail;

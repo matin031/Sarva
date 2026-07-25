@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { toFa } from "./UI/CircularProgress";
+import { toFa } from "@/components/UI/CircularProgress";
 
 export type JasoosAnswer = {
   id: string;

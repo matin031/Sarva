@@ -8,7 +8,7 @@ import {
   type LayoutPattern,
   type QuestionPartContent,
   type QuestionPartType,
-} from "./content-schemas";
+} from "@/lib/exam/content-schemas";
 import type { SeedOption } from "./seed-data/seed-types";
 
 // ---------------------------------------------------------------------------

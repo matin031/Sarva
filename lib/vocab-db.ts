@@ -2,7 +2,7 @@
 // Words are public content (anyone, signed in or not, can read them to play);
 // per-user wrong/right answers are logged to `vocab_answers` for the panel.
 import { supabase } from "@/lib/supabase";
-import type { VocabWord } from "./vocab-data";
+import type { VocabWord } from "@/lib/vocab-data";
 
 type WordRow = { id: string; word: string; meaning: string; image: string | null };
 

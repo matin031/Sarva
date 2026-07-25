@@ -1,5 +1,5 @@
-import { createSupabaseServer } from "./supabase-server";
-import { createSupabaseAdmin } from "./supabase-admin";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * Throws unless the currently signed-in user (from the request's session

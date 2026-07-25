@@ -8,7 +8,7 @@ import {
   vocabAdminUpsert,
   type AdminVocabWord,
 } from "@/lib/admin/vocab-actions";
-import { useAdminToast } from "./AdminToast";
+import { useAdminToast } from "@/components/admin/AdminToast";
 
 type Draft = { id?: string; word: string; meaning: string; image: string };
 

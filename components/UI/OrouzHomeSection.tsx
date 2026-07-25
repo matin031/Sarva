@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
-import OrouzDemo from "./orouz-demo/OrouzDemo";
+import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
 import SectionCTA from "./SectionCTA";
 
 function OrouzHomeSection() {

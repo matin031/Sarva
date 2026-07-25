@@ -2,8 +2,8 @@
 
 import { motion } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
-import TiltCard from "./TiltCard";
-import { RevealGroup, RevealItem, RevealWords } from "./reveal";
+import TiltCard from "@/components/UI/aruz/TiltCard";
+import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
 
 const FEATURES: {
   title: string;

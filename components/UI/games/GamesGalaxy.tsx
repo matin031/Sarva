@@ -98,6 +98,40 @@ export default function GamesGalaxy() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  /** three.js already lives in its own async chunk, so it is not part of this
+   *  route's first load. But `next/dynamic` starts fetching that chunk the
+   *  moment the component renders — during hydration — so ~870 kB of download,
+   *  parse and WebGL context setup competes with making the page interactive.
+   *  That is the cost felt on first entry.
+   *
+   *  Holding the mount until the main thread goes idle guarantees the text, the
+   *  buttons and hydration are done first; the scene then fades in over its
+   *  already-laid-out placeholder boxes, so nothing shifts.
+   *
+   *  A viewport gate was tried here and deliberately rejected: the launch pad is
+   *  88vh, so the first planet is at the fold on every viewport and an
+   *  IntersectionObserver fires at scroll 0 anyway — it cannot gate. Idle is the
+   *  only lever that actually moves this work off the critical path.
+   *  requestIdleCallback is unavailable in Safari, hence the timeout fallback. */
+  const [sceneReady, setSceneReady] = useState(false);
+  useEffect(() => {
+    type IdleWindow = Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const w = window as IdleWindow;
+    const show = () => setSceneReady(true);
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(show, { timeout: 1500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(show, 300);
+    return () => window.clearTimeout(id);
+  }, []);
+
   return (
     <MotionConfig reducedMotion="user">
       <div ref={rootRef} className="relative overflow-hidden bg-background">
@@ -106,8 +140,12 @@ export default function GamesGalaxy() {
           aria-hidden
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
         />
-        <Starfield reduced={reduced} />
-        <GalaxyScene eventSource={rootRef} reduced={reduced} />
+        {sceneReady && (
+          <>
+            <Starfield reduced={reduced} />
+            <GalaxyScene eventSource={rootRef} reduced={reduced} />
+          </>
+        )}
 
         <div className="relative">
           <SpaceCable planets={STOPS.length} reduced={reduced} />

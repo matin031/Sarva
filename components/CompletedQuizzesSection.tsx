@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import UserAnswerItem from "./UI/UserAnswerItem";
-import { toFa } from "./UI/CircularProgress";
+import { toFa } from "@/components/UI/CircularProgress";
 
 export type AttemptQuestionOption = {
   id: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,8 +9,16 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { AdaptiveDpr, MeshDistortMaterial, PerformanceMonitor } from "@react-three/drei";
+import {
+  Canvas,
+  useFrame,
+  useThree,
+  type RootState,
+} from "@react-three/fiber";
+// AdaptiveDpr is deliberately not used: it drives the same dpr knob as the
+// PerformanceMonitor ladder below, and two controllers fighting over one
+// setting produced a stream of GPU buffer reallocations.
+import { MeshDistortMaterial, PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import { planetSlots, type Slot } from "./planetSlots";
 import type { PlanetKind } from "./planetKind";
@@ -293,7 +302,18 @@ export default function GalaxyScene({
   const coarse =
     typeof window !== "undefined" &&
     window.matchMedia("(pointer: coarse)").matches;
-  const [dpr, setDpr] = useState<number>(coarse ? 0.85 : 1.15);
+
+  /** Every dpr change makes three.js reallocate the GPU drawing buffer. The
+   *  previous code nudged dpr by 0.15/0.25 on each PerformanceMonitor signal,
+   *  which meant a steady stream of reallocations on exactly the weak GPUs the
+   *  monitor is meant to protect. Snapping to a short ladder means at most a
+   *  handful of distinct buffer sizes, and repeated signals in the same
+   *  direction become no-ops once an end of the ladder is reached. */
+  const LADDER = coarse ? [0.6, 0.75, 0.9, 1] : [0.75, 1, 1.25, 1.5];
+  const [dprStep, setDprStep] = useState(coarse ? 1 : 1);
+  const dpr = LADDER[dprStep];
+  const stepDown = () => setDprStep((s) => Math.max(0, s - 1));
+  const stepUp = () => setDprStep((s) => Math.min(LADDER.length - 1, s + 1));
 
   // Re-read the registry only when a planet actually mounts or unmounts. The
   // list must be memoised on the version: PerformanceMonitor changes dpr, which
@@ -306,6 +326,38 @@ export default function GalaxyScene({
   );
   const slots = useMemo(() => planetSlots.list(), [version]);
 
+  /** A WebGL context can be taken away at any time — the GPU process restarts,
+   *  the driver resets, a laptop switches adapters, or the browser reclaims
+   *  memory. By default the canvas then goes permanently black.
+   *
+   *  Calling preventDefault() on `webglcontextlost` is what tells the browser we
+   *  intend to recover; without it no `webglcontextrestored` is ever dispatched.
+   *  On restore we force a frame so the scene reappears instead of staying
+   *  blank. Both paths log, so if it happens again there is a breadcrumb. */
+  const onCreated = useCallback(({ gl, invalidate }: RootState) => {
+    const canvas = gl.domElement;
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      console.warn(
+        "[galaxy] WebGL context lost — recovery requested, scene will restore.",
+      );
+    };
+    const onRestored = () => {
+      console.info("[galaxy] WebGL context restored.");
+      gl.resetState();
+      invalidate();
+    };
+    canvas.addEventListener("webglcontextlost", onLost, false);
+    canvas.addEventListener("webglcontextrestored", onRestored, false);
+    cleanupRef.current = () => {
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
+    };
+  }, []);
+
+  const cleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => cleanupRef.current?.(), []);
+
   return (
     <Canvas
       orthographic
@@ -316,9 +368,17 @@ export default function GalaxyScene({
       gl={{
         antialias: false,
         alpha: true,
-        powerPreference: "high-performance",
+        // Deliberately NOT "high-performance". That hint asks the browser for
+        // the discrete GPU, and on hybrid-graphics laptops the resulting GPU
+        // switch is a documented cause of "THREE.WebGLRenderer: Context Lost".
+        // This is a decorative background scene; the default adapter is the
+        // right one to ask for, and it keeps us off a contended GPU.
+        powerPreference: "default",
         stencil: false,
+        // a lost context is recoverable, but only if we never assumed otherwise
+        preserveDrawingBuffer: false,
       }}
+      onCreated={onCreated}
       performance={{ min: 0.5 }}
       // R3F tracks its container with react-use-measure, which by default
       // re-reads getBoundingClientRect on every scroll (debounced). This canvas
@@ -339,13 +399,14 @@ export default function GalaxyScene({
       className="z-10 scene-fade-in"
     >
       <PerformanceMonitor
-        ms={250}
-        iterations={5}
-        onDecline={() => setDpr((d) => Math.max(0.6, d - 0.25))}
-        onIncline={() => setDpr((d) => Math.min(coarse ? 1 : 1.5, d + 0.15))}
-        onFallback={() => setDpr(0.6)}
+        // a longer sampling window than the default settles instead of
+        // oscillating, which matters now that each change costs a reallocation
+        ms={400}
+        iterations={7}
+        onDecline={stepDown}
+        onIncline={stepUp}
+        onFallback={() => setDprStep(0)}
       />
-      <AdaptiveDpr pixelated />
       <ambientLight intensity={0.55} />
       <directionalLight position={[-300, 300, 500]} intensity={2.8} />
       <Planets slots={slots} reduced={reduced} />

@@ -28,21 +28,36 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
     const el = sectionRef.current;
     if (!el) return;
 
-    // The listener is on window, so it fires for pointer movement anywhere on
-    // the page. Reading the section's box inside it meant a layout read per
-    // move. Instead the box is measured in document space once (and again only
-    // when the layout can have changed) and the scroll offset is captured by a
-    // passive listener, leaving the handler as pure arithmetic.
+    // The pointer listener is on window, so it fires for movement anywhere on
+    // the page; reading the section's box inside it would mean a layout read
+    // per move. The box is therefore measured in document space once, and again
+    // only when the layout could actually have moved it.
     const geo = { left: 0, top: 0, w: 1, h: 1 };
-    const sx = { v: 0 };
-    const sy = { v: 0 };
+    const scroll = { x: 0, y: 0 };
+
+    /** Reading window.scrollY *inside* a scroll event is the read-after-write
+     *  that DevTools reports as "Forced reflow": by then this frame's style is
+     *  already invalidated, so the read forces a synchronous layout. The scroll
+     *  handler therefore only raises a flag, and the single read happens in a
+     *  requestAnimationFrame callback — the frame's read phase, before anything
+     *  writes — so it is never a forced layout. At most one read per frame, and
+     *  no frames at all while the page is still. */
+    let pending = 0;
+    const sample = () => {
+      pending = 0;
+      scroll.x = window.scrollX;
+      scroll.y = window.scrollY;
+    };
+    const onScroll = () => {
+      if (!pending) pending = requestAnimationFrame(sample);
+    };
 
     const measure = () => {
       const r = el.getBoundingClientRect();
-      sx.v = window.scrollX;
-      sy.v = window.scrollY;
-      geo.left = r.left + sx.v;
-      geo.top = r.top + sy.v;
+      scroll.x = window.scrollX;
+      scroll.y = window.scrollY;
+      geo.left = r.left + scroll.x;
+      geo.top = r.top + scroll.y;
       geo.w = r.width || 1;
       geo.h = r.height || 1;
     };
@@ -58,19 +73,17 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
     });
     ro.observe(el);
 
-    const onScroll = () => {
-      sx.v = window.scrollX;
-      sy.v = window.scrollY;
-    };
+    // pure arithmetic: cached box + cached scroll offset, no layout touched
     const onMove = (e: PointerEvent) => {
-      spx.set(((e.clientX + sx.v - geo.left) / geo.w) * 100);
-      spy.set(((e.clientY + sy.v - geo.top) / geo.h) * 100);
+      spx.set(((e.clientX + scroll.x - geo.left) / geo.w) * 100);
+      spy.set(((e.clientY + scroll.y - geo.top) / geo.h) * 100);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pointermove", onMove);
     return () => {
       cancelAnimationFrame(id);
+      if (pending) cancelAnimationFrame(pending);
       ro.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onMove);

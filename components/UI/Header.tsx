@@ -70,27 +70,10 @@ function Header() {
         </svg>
       ),
     },
-    {
-      id: 2,
-      title: "درسنامه",
-      src: "/doroos",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-          />
-        </svg>
-      ),
-    },
+    // A "درسنامه" entry pointed at /doroos, which has no route in app/. Next
+    // prefetches nav links, so every page load fired a 404 for it. Removed
+    // until the page actually exists — re-add both this and the desktop entry
+    // below when it does.
     {
       id: 3,
       title: "بازی‌ها",
@@ -159,7 +142,7 @@ function Header() {
 
   const menUItemsPc = [
     { id: 1, title: "آزمون‌نهایی", src: "/exam" },
-    { id: 2, title: "درسنامه", src: "/doroos" },
+    // "درسنامه" removed: /doroos has no route (see the mobile list above)
     { id: 3, title: "بازی", src: "/game" },
     { id: 4, title: "عروض", src: "/aruz" },
     { id: 5, title: "درباره", src: "/about" },

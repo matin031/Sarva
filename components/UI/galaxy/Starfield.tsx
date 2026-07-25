@@ -21,16 +21,9 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
     type Star = { x: number; y: number; z: number; r: number; tw: number };
     let stars: Star[] = [];
 
-    // Sizing comes from ResizeObserver's contentRect rather than clientWidth /
-    // clientHeight. The observer hands us dimensions the browser has already
-    // computed, so there is no layout read at all — the old version read the
-    // canvas box and then wrote canvas.width in the same breath, which is a
-    // forced reflow, and mobile fires resize while scrolling (URL bar) so it
-    // happened mid-scroll.
-    const build = (w: number, h: number) => {
-      if (w === W && h === H) return; // nothing actually changed
-      W = w;
-      H = h;
+    const build = () => {
+      W = cv.clientWidth;
+      H = cv.clientHeight;
       cv.width = W * dpr;
       cv.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -45,11 +38,8 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
         tw: Math.random() * Math.PI * 2,
       }));
     };
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]?.contentRect;
-      if (r) build(Math.round(r.width), Math.round(r.height));
-    });
-    ro.observe(cv);
+    build();
+    window.addEventListener("resize", build);
 
     const draw = (t: number) => {
       ctx.clearRect(0, 0, W, H);
@@ -72,12 +62,8 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
     };
 
     if (reduced) {
-      // one static frame once the observer has reported a size
-      const id = requestAnimationFrame(() => draw(0));
-      return () => {
-        cancelAnimationFrame(id);
-        ro.disconnect();
-      };
+      draw(0);
+      return () => window.removeEventListener("resize", build);
     }
 
     let raf = 0;
@@ -107,7 +93,7 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
 
     return () => {
       cancelAnimationFrame(raf);
-      ro.disconnect();
+      window.removeEventListener("resize", build);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [reduced]);

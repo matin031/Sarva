@@ -1,15 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { RevealGroup, RevealItem, RevealWords } from "@/components/UI/aruz/reveal";
-import type { PlanetKind } from "./PlanetView";
-
-const PlanetView = dynamic(
-  () => import("./runtime").then((m) => m.PlanetView),
-  { ssr: false },
-);
+import PlanetSlot from "./PlanetSlot";
+import type { PlanetKind } from "./planetKind";
 
 export type Stop = {
   index: string;
@@ -61,7 +56,7 @@ export default function PlanetStop({
               background: `radial-gradient(closest-side, ${accent}55, ${accent}22 45%, transparent 72%)`,
             }}
           />
-          <PlanetView kind={planet} reduced={reduced} />
+          <PlanetSlot kind={planet} />
         </motion.div>
 
         {/* briefing panel — opaque so the starfield never washes out the text */}

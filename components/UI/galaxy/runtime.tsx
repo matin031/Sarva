@@ -11,6 +11,4 @@
  *  Re-exporting both from one module means every lazy import resolves to the
  *  same chunk, so three.js is shipped once and shared. */
 
-export { default as GalaxyCanvas } from "./GalaxyCanvas";
-export { default as PlanetView } from "./PlanetView";
-export type { PlanetKind } from "./PlanetView";
+export { default as GalaxyScene } from "./GalaxyScene";

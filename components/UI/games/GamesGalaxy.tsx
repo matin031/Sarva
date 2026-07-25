@@ -16,9 +16,9 @@ import {
 const Starfield = dynamic(() => import("@/components/UI/galaxy/Starfield"), {
   ssr: false,
 });
-// one shared WebGL context for every planet on the page
-const GalaxyCanvas = dynamic(
-  () => import("@/components/UI/galaxy/runtime").then((m) => m.GalaxyCanvas),
+// one shared WebGL context — and one scene — for every planet on the page
+const GalaxyScene = dynamic(
+  () => import("@/components/UI/galaxy/runtime").then((m) => m.GalaxyScene),
   { ssr: false },
 );
 
@@ -107,7 +107,7 @@ export default function GamesGalaxy() {
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
         />
         <Starfield reduced={reduced} />
-        <GalaxyCanvas eventSource={rootRef} reduced={reduced} />
+        <GalaxyScene eventSource={rootRef} reduced={reduced} />
 
         <div className="relative">
           <SpaceCable planets={STOPS.length} reduced={reduced} />

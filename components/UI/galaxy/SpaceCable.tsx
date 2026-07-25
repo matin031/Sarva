@@ -39,7 +39,14 @@ function buildCable(planetCount: number) {
 
   // waypoints: the wire enters from above, sweeps past each planet, and takes a
   // wide swing back across the centre between them so it never runs straight
-  const pts: { x: number; y: number }[] = [{ x: 50, y: -10 }];
+  // A lead-in: the wire drops in off-centre and swings across before it reaches
+  // the first planet, so the opening reads as part of the meander instead of a
+  // straight drop down the page.
+  const pts: { x: number; y: number }[] = [
+    { x: 38, y: -12 },
+    { x: 58, y: band * 0.34 },
+    { x: 34, y: band * 0.78 },
+  ];
   nodes.forEach((n, i) => {
     pts.push(n);
     const next = nodes[i + 1];

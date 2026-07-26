@@ -75,6 +75,14 @@ export default function VocabGame() {
   const [picks, setPicks] = useState<Record<number, string>>({});
   const [best, setBest] = useState<Record<string, number>>({});
   const [indexOpen, setIndexOpen] = useState(false);
+  /** Which question's meaning modal is showing. Keyed by index rather than by
+   *  "is this answered", because the modal must appear at the moment of
+   *  answering — not every time an already-answered question comes back on
+   *  screen. Opening it on any answered question made going back impossible:
+   *  the modal covered the question and its only exit moved you forward again. */
+  const [modalFor, setModalFor] = useState<number | null>(null);
+  /** true while walking the round after it finished, from the result screen */
+  const [reviewing, setReviewing] = useState(false);
 
   // warm-up progress, and a token so a cancelled warm-up cannot start a round
   const [warm, setWarm] = useState({ done: 0, total: 0 });
@@ -96,6 +104,14 @@ export default function VocabGame() {
       .then(({ data }) => setUserId(data.user?.id ?? null))
       .catch(() => setUserId(null));
   }, []);
+
+  /** Every screen here replaces the whole view, but the browser keeps the old
+   *  scroll offset — so picking a lesson from far down the eighteen-item list
+   *  landed on the short mode screen already scrolled past it. Reset on each
+   *  change, the way a real navigation would. */
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [screen]);
 
   /** which lesson each word belongs to — a mixed run logs every answer against
    *  the word's own lesson, not the first one selected */
@@ -214,6 +230,8 @@ export default function VocabGame() {
     setQuestions(usable);
     setQi(0);
     setPicks({});
+    setModalFor(null);
+    setReviewing(false);
     setScreen("quiz");
   }, [words, pool]);
 
@@ -264,6 +282,7 @@ export default function VocabGame() {
   const pick = (id: string) => {
     if (answered || !q) return;
     setPicks((p) => ({ ...p, [qi]: id }));
+    setModalFor(qi); // the one place the meaning modal opens
     const correct = id === q.answer.id;
     if (correct) {
       correctAudio.current?.play().catch(() => {});
@@ -292,17 +311,34 @@ export default function VocabGame() {
     setScreen("result");
   }, [best, bestKey, score]);
 
+  // Any move between questions closes the modal, so a question you navigate to
+  // is actually readable. Only `pick` reopens it.
   const next = () => {
+    setModalFor(null);
     if (qi + 1 >= questions.length) {
-      finish();
+      if (!reviewing) finish();
       return;
     }
     setQi((i) => i + 1);
   };
 
-  const prev = () => setQi((i) => Math.max(0, i - 1));
-  const jumpTo = (i: number) =>
+  const prev = () => {
+    setModalFor(null);
+    setQi((i) => Math.max(0, i - 1));
+  };
+
+  const jumpTo = (i: number) => {
+    setModalFor(null);
     setQi(Math.max(0, Math.min(questions.length - 1, i)));
+  };
+
+  /** Walk the finished round from the first question, modal closed. */
+  const startReview = () => {
+    setReviewing(true);
+    setModalFor(null);
+    setQi(0);
+    setScreen("quiz");
+  };
 
   // ---------- grade select ----------
   if (screen === "grade") {
@@ -564,7 +600,7 @@ export default function VocabGame() {
               دوباره
             </button>
             <button
-              onClick={() => setScreen("quiz")}
+              onClick={startReview}
               className="rounded-xl border border-border bg-card px-6 py-2.5 font-medium text-muted-foreground transition-all hover:border-primary/50"
             >
               مرورِ سؤال‌ها
@@ -587,9 +623,18 @@ export default function VocabGame() {
       <div dir="rtl" className="container mx-auto my-6 max-w-xl">
         {/* top bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
-            ← درس‌ها
-          </button>
+          {reviewing ? (
+            <button
+              onClick={() => setScreen("result")}
+              className="text-sm font-bold text-muted-foreground hover:text-primary"
+            >
+              ← بازگشت به نتیجه
+            </button>
+          ) : (
+            <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
+              ← درس‌ها
+            </button>
+          )}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIndexOpen(true)}
@@ -610,6 +655,19 @@ export default function VocabGame() {
               </svg>
               سوال قبل
             </button>
+            {/* Forward is only reachable through the modal during play; an
+                answered question you came back to needs its own way onward. */}
+            {(reviewing || answered) && qi + 1 < questions.length && (
+              <button
+                onClick={next}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-primary"
+              >
+                سوال بعد
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m15 6-6 6 6 6" />
+                </svg>
+              </button>
+            )}
             <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
               {(qi + 1).toLocaleString("fa-IR")} / {questions.length.toLocaleString("fa-IR")}
             </span>
@@ -700,6 +758,30 @@ export default function VocabGame() {
           })}
         </div>
 
+        {/* An answered question being revisited shows its word inline, with the
+            full meaning one tap away — the modal no longer forces itself open. */}
+        {answered && modalFor !== qi && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">
+              پاسخِ درست:{" "}
+              <span className="font-bold text-foreground">{q.answer.word}</span>
+              {isCorrect ? (
+                <span className="ms-2 text-green-600 dark:text-green-400">
+                  ✓ درست زدی
+                </span>
+              ) : (
+                <span className="ms-2 text-destructive">✕ اشتباه زدی</span>
+              )}
+            </p>
+            <button
+              onClick={() => setModalFor(qi)}
+              className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm font-bold text-primary transition-all hover:brightness-95"
+            >
+              دیدنِ معنی
+            </button>
+          </div>
+        )}
+
         {/* jump to any question */}
         <QuestionIndex
           open={indexOpen}
@@ -712,11 +794,19 @@ export default function VocabGame() {
 
         {/* learning modal — the heart of the game: see the word & its full meaning */}
         <MeaningModal
-          open={answered && !indexOpen}
+          open={modalFor === qi && !indexOpen}
           isCorrect={!!isCorrect}
           answer={q.answer}
           others={q.options.filter((o) => o.id !== q.answer.id)}
-          continueLabel={qi + 1 >= questions.length ? "دیدن نتیجه" : "ادامه"}
+          continueLabel={
+            reviewing
+              ? qi + 1 >= questions.length
+                ? "بستن"
+                : "سوال بعد"
+              : qi + 1 >= questions.length
+                ? "دیدن نتیجه"
+                : "ادامه"
+          }
           onContinue={next}
         />
       </div>

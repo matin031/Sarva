@@ -97,13 +97,22 @@ export default function VocabChallenge({
   pool,
   userId,
   onExit,
+  label,
+  lessonOf,
 }: {
   grade: VocabGrade;
+  /** the selection, collapsed to one entry — `id` keys the best score and
+   *  `number` is the fallback lesson for logging */
   lesson: VocabLesson;
   words: VocabWord[];
   pool: VocabWord[];
   userId: string | null;
   onExit: () => void;
+  /** subtitle text; differs from `lesson.title` when several lessons are mixed */
+  label?: string;
+  /** a run may mix lessons, so each answer is logged against the lesson its own
+   *  word came from rather than a single lesson number */
+  lessonOf?: (wordId: string) => number | undefined;
 }) {
   const [steps, setSteps] = useState<Step[]>(() => buildChallenge(words, pool));
   const [idx, setIdx] = useState(0);
@@ -161,14 +170,14 @@ export default function VocabChallenge({
       if (!userId || !step) return;
       logVocabAnswer(userId, {
         grade: grade.id,
-        lesson: lesson.number,
+        lesson: lessonOf?.(step.answer.id) ?? lesson.number,
         word: step.answer.word,
         meaning: step.answer.meaning,
         image: step.answer.image,
         isCorrect,
       });
     },
-    [userId, grade.id, lesson.number],
+    [userId, grade.id, lesson.number, lessonOf],
   );
 
   const stopTimer = () => {
@@ -268,7 +277,7 @@ export default function VocabChallenge({
   // ---------- ready ----------
   if (phase === "ready") {
     return (
-      <Shell title="حالتِ چالش" subtitle={`${lesson.title} — پایهٔ ${grade.title}`} onBack={onExit}>
+      <Shell title="حالتِ چالش" subtitle={`${label ?? lesson.title} — پایهٔ ${grade.title}`} onBack={onExit}>
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}

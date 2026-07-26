@@ -1,5 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { motion } from "motion/react";
 import {
   VOCAB_GRADES,
@@ -12,12 +19,34 @@ import {
 } from "@/lib/vocab-data";
 import { fetchGradePicturedWords, logVocabAnswer, type GradeWord } from "@/lib/vocab-db";
 import { vocabImageUrl } from "@/lib/vocab-image";
+import {
+  hasFailed,
+  isPreloaded,
+  preloadBatch,
+  preloadImage,
+  resetFailure,
+} from "@/lib/vocab-preload";
 import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
+import QuestionIndex from "./QuestionIndex";
+import PreloadScreen from "./PreloadScreen";
 
-type Screen = "grade" | "lesson" | "mode" | "quiz" | "result" | "challenge";
+type Screen =
+  | "grade"
+  | "lesson"
+  | "mode"
+  | "loading"
+  | "quiz"
+  | "result"
+  | "challenge";
 const BEST_KEY = "vocab-best";
+
+/** Pictures warmed before the first question. Enough that play starts on an
+ *  already-decoded image without making the reader wait for a whole run. */
+const WARMUP = 6;
+/** Questions kept warm ahead of the one on screen. */
+const LOOKAHEAD = 3;
 
 function loadBest(): Record<string, number> {
   try {
@@ -30,7 +59,8 @@ function loadBest(): Record<string, number> {
 export default function VocabGame() {
   const [screen, setScreen] = useState<Screen>("grade");
   const [grade, setGrade] = useState<VocabGrade | null>(null);
-  const [lesson, setLesson] = useState<VocabLesson | null>(null);
+  /** lesson numbers the student picked — a run may mix several lessons */
+  const [selected, setSelected] = useState<number[]>([]);
   const [words, setWords] = useState<VocabWord[]>([]);
 
   const [gradeWords, setGradeWords] = useState<GradeWord[]>([]); // all pictured words of the grade
@@ -44,6 +74,14 @@ export default function VocabGame() {
   // answered state without re-scoring or re-logging
   const [picks, setPicks] = useState<Record<number, string>>({});
   const [best, setBest] = useState<Record<string, number>>({});
+  const [indexOpen, setIndexOpen] = useState(false);
+
+  // warm-up progress, and a token so a cancelled warm-up cannot start a round
+  const [warm, setWarm] = useState({ done: 0, total: 0 });
+  const runToken = useRef(0);
+  /** Whether a picture is decoded is module state in vocab-preload, read during
+   *  render. This is the nudge that re-reads it once a picture lands. */
+  const [, refreshImages] = useReducer((n: number) => n + 1, 0);
 
   const correctAudio = useRef<HTMLAudioElement | null>(null);
 
@@ -59,9 +97,50 @@ export default function VocabGame() {
       .catch(() => setUserId(null));
   }, []);
 
+  /** which lesson each word belongs to — a mixed run logs every answer against
+   *  the word's own lesson, not the first one selected */
+  const lessonOfWord = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const gw of gradeWords) m.set(gw.word.id, gw.lesson);
+    return m;
+  }, [gradeWords]);
+  const lessonOf = useCallback(
+    (wordId: string) => lessonOfWord.get(wordId),
+    [lessonOfWord],
+  );
+
+  const selectedLessons = useMemo(
+    () =>
+      grade
+        ? grade.lessons.filter((l) => selected.includes(l.number))
+        : ([] as VocabLesson[]),
+    [grade, selected],
+  );
+
+  /** «درس دهم» for one, «۳ درس: ۱۰، ۱۳، ۱۷» for several */
+  const selectionLabel = useMemo(() => {
+    if (selectedLessons.length === 0) return "";
+    if (selectedLessons.length === 1) return selectedLessons[0].title;
+    const nums = selectedLessons
+      .map((l) => l.number.toLocaleString("fa-IR"))
+      .join("، ");
+    return `${selectedLessons.length.toLocaleString("fa-IR")} درس: ${nums}`;
+  }, [selectedLessons]);
+
+  /** best scores are keyed by the exact selection, so a mixed run keeps its own
+   *  record instead of overwriting a single lesson's */
+  const bestKey = useMemo(
+    () =>
+      grade && selected.length
+        ? `${grade.id}:${[...selected].sort((a, b) => a - b).join("+")}`
+        : "",
+    [grade, selected],
+  );
+
   const selectGrade = (g: VocabGrade) => {
     setGrade(g);
     setScreen("lesson");
+    setSelected([]);
     setGradeWords([]);
     setPool([]);
     setGradeLoading(true);
@@ -72,35 +151,115 @@ export default function VocabGame() {
     });
   };
 
-  const selectLesson = (l: VocabLesson) => {
-    if (l.free || !grade) return;
-    const answers = gradeWords.filter((g) => g.lesson === l.number).map((g) => g.word);
-    // a lesson is playable with even 1 pictured word, as long as the whole
-    // grade has at least 3 (so we can always build 3 options)
+  const lessonReady = useCallback(
+    (l: VocabLesson) =>
+      !l.free &&
+      gradeWords.some((g) => g.lesson === l.number) &&
+      pool.length >= 3,
+    [gradeWords, pool.length],
+  );
+
+  const toggleLesson = (l: VocabLesson) => {
+    if (!lessonReady(l)) return;
+    setSelected((prev) =>
+      prev.includes(l.number)
+        ? prev.filter((n) => n !== l.number)
+        : [...prev, l.number],
+    );
+  };
+
+  const confirmSelection = () => {
+    if (!grade || selected.length === 0) return;
+    const answers = gradeWords
+      .filter((g) => selected.includes(g.lesson))
+      .map((g) => g.word);
     if (answers.length < 1 || pool.length < 3) return;
-    setLesson(l);
     setWords(answers);
     setScreen("mode");
   };
 
-  const startLesson = () => {
+  /** Build the round, warm the first few pictures, then start. Questions whose
+   *  picture never arrives are dropped here rather than mid-game. */
+  const startLesson = useCallback(async () => {
     const round = buildVocabRound(words, pool);
     if (round.length === 0) return;
-    setQuestions(round);
+
+    const token = ++runToken.current;
+    setScreen("loading");
+    const head = round.slice(0, WARMUP);
+    setWarm({ done: 0, total: head.length });
+
+    const { bad } = await preloadBatch(
+      head.map((q) => vocabImageUrl(q.answer.image)),
+      {
+        onProgress: (done, total) => {
+          if (runToken.current === token) setWarm({ done, total });
+        },
+        cancelled: () => runToken.current !== token,
+      },
+    );
+    if (runToken.current !== token) return; // cancelled
+
+    const badSet = new Set(bad);
+    const usable = round.filter(
+      (q) => !badSet.has(vocabImageUrl(q.answer.image)),
+    );
+    // if every warmed picture failed there is nothing to show; go back rather
+    // than opening an empty round
+    if (usable.length === 0) {
+      setScreen("mode");
+      return;
+    }
+
+    setQuestions(usable);
     setQi(0);
     setPicks({});
     setScreen("quiz");
+  }, [words, pool]);
+
+  const cancelWarmup = () => {
+    runToken.current++;
+    setScreen("mode");
   };
 
   const q = questions[qi];
   const picked = picks[qi] ?? null;
   const answered = picked !== null;
   const isCorrect = answered && picked === q?.answer.id;
-  const bestKey = grade && lesson ? `${grade.id}:${lesson.id}` : "";
   const score = questions.reduce(
     (s, qq, idx) => s + (picks[idx] === qq.answer.id ? 1 : 0),
     0,
   );
+
+  const currentUrl = q ? vocabImageUrl(q.answer.image) : "";
+  const currentReady = currentUrl ? isPreloaded(currentUrl) : false;
+  const currentFailed = currentUrl ? hasFailed(currentUrl) : false;
+
+  /** Rolling prefetch: keep the next few pictures warm while the reader answers
+   *  the current one, and re-render when the current picture lands. */
+  useEffect(() => {
+    if (screen !== "quiz" || questions.length === 0) return;
+    let alive = true;
+    const bump = () => {
+      if (alive) refreshImages();
+    };
+    // the one on screen first, then the lookahead window
+    const urls = [qi, ...Array.from({ length: LOOKAHEAD }, (_, k) => qi + 1 + k)]
+      .filter((i) => i >= 0 && i < questions.length)
+      .map((i) => vocabImageUrl(questions[i].answer.image));
+    preloadImage(urls[0]).then(bump);
+    for (const u of urls.slice(1)) preloadImage(u);
+    return () => {
+      alive = false;
+    };
+  }, [screen, qi, questions]);
+
+  const retryCurrent = () => {
+    if (!currentUrl) return;
+    resetFailure(currentUrl);
+    refreshImages();
+    preloadImage(currentUrl).then(refreshImages);
+  };
 
   const pick = (id: string) => {
     if (answered || !q) return;
@@ -109,10 +268,10 @@ export default function VocabGame() {
     if (correct) {
       correctAudio.current?.play().catch(() => {});
     }
-    if (userId && grade && lesson) {
+    if (userId && grade) {
       logVocabAnswer(userId, {
         grade: grade.id,
-        lesson: lesson.number,
+        lesson: lessonOf(q.answer.id) ?? selected[0] ?? 0,
         word: q.answer.word,
         meaning: q.answer.meaning,
         image: q.answer.image,
@@ -121,21 +280,29 @@ export default function VocabGame() {
     }
   };
 
+  const finish = useCallback(() => {
+    const nextBest = {
+      ...best,
+      [bestKey]: Math.max(best[bestKey] ?? 0, score),
+    };
+    setBest(nextBest);
+    try {
+      localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+    } catch {}
+    setScreen("result");
+  }, [best, bestKey, score]);
+
   const next = () => {
     if (qi + 1 >= questions.length) {
-      // persist best score for this lesson
-      const nextBest = { ...best, [bestKey]: Math.max(best[bestKey] ?? 0, score) };
-      setBest(nextBest);
-      try {
-        localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
-      } catch {}
-      setScreen("result");
+      finish();
       return;
     }
     setQi((i) => i + 1);
   };
 
   const prev = () => setQi((i) => Math.max(0, i - 1));
+  const jumpTo = (i: number) =>
+    setQi(Math.max(0, Math.min(questions.length - 1, i)));
 
   // ---------- grade select ----------
   if (screen === "grade") {
@@ -163,62 +330,144 @@ export default function VocabGame() {
     );
   }
 
-  // ---------- lesson select ----------
+  // ---------- lesson select (multi) ----------
   if (screen === "lesson" && grade) {
+    const readyLessons = grade.lessons.filter(lessonReady);
+    const selectedWordCount = gradeWords.filter((g) =>
+      selected.includes(g.lesson),
+    ).length;
+
     return (
       <Shell
         title={`پایهٔ ${grade.title}`}
-        subtitle="درسی را انتخاب کن."
+        subtitle="یک یا چند درس را انتخاب کن — می‌توانی چند درس را با هم آزمون بدهی."
         onBack={() => setScreen("grade")}
       >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* select all / clear */}
+        {readyLessons.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+            <button
+              onClick={() => setSelected(readyLessons.map((l) => l.number))}
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              انتخابِ همه
+            </button>
+            <button
+              onClick={() => setSelected([])}
+              disabled={selected.length === 0}
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-bold text-muted-foreground transition-colors enabled:hover:border-primary/50 enabled:hover:text-primary disabled:opacity-40"
+            >
+              پاک کردن
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 pb-28 sm:grid-cols-2">
           {grade.lessons.map((l) => {
             const count = gradeWords.filter((g) => g.lesson === l.number).length;
-            const ready = !l.free && count >= 1 && pool.length >= 3;
-            const b = best[`${grade.id}:${l.id}`];
+            const ready = lessonReady(l);
+            const b = best[`${grade.id}:${l.number}`];
+            const on = selected.includes(l.number);
             return (
               <button
                 key={l.id}
                 disabled={l.free || (!ready && !gradeLoading)}
-                onClick={() => selectLesson(l)}
-                className={`flex items-center justify-between gap-3 rounded-2xl border p-5 text-right transition-all ${
-                  ready
-                    ? "border-border bg-card hover:border-primary/50 active:scale-[0.99]"
-                    : "cursor-not-allowed border-border bg-muted/40 opacity-60"
+                onClick={() => toggleLesson(l)}
+                aria-pressed={on}
+                className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-5 text-right transition-all ${
+                  on
+                    ? "border-primary bg-primary/10"
+                    : ready
+                      ? "border-border bg-card hover:border-primary/50 active:scale-[0.99]"
+                      : "cursor-not-allowed border-border bg-muted/40 opacity-60"
                 }`}
               >
-                <div>
-                  <h3 className="font-bold">{l.title}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {l.free
-                      ? "درسِ آزاد"
-                      : gradeLoading
-                        ? "…"
-                        : ready
-                          ? `${count.toLocaleString("fa-IR")} واژه`
-                          : "به‌زودی"}
-                  </p>
+                <div className="flex items-center gap-3">
+                  {/* checkbox */}
+                  <span
+                    aria-hidden
+                    className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background"
+                    }`}
+                  >
+                    {on && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                        className="size-3.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m5 13 4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                  <div>
+                    <h3 className="font-bold">{l.title}</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {l.free
+                        ? "درسِ آزاد"
+                        : gradeLoading
+                          ? "…"
+                          : ready
+                            ? `${count.toLocaleString("fa-IR")} واژه`
+                            : "به‌زودی"}
+                    </p>
+                  </div>
                 </div>
                 {ready && b != null && (
                   <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-bold text-gold">
-                    بهترین: {b.toLocaleString("fa-IR")}/{count.toLocaleString("fa-IR")}
+                    بهترین: {b.toLocaleString("fa-IR")}
                   </span>
                 )}
               </button>
             );
           })}
         </div>
+
+        {/* sticky confirm bar */}
+        {selected.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur"
+          >
+            <div className="container mx-auto flex max-w-2xl items-center justify-between gap-3">
+              <div className="text-sm">
+                <p className="font-bold text-foreground">
+                  {selected.length.toLocaleString("fa-IR")} درس انتخاب شد
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedWordCount.toLocaleString("fa-IR")} واژه
+                </p>
+              </div>
+              <button
+                onClick={confirmSelection}
+                className="rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+              >
+                ادامه
+              </button>
+            </div>
+          </motion.div>
+        )}
       </Shell>
     );
   }
 
   // ---------- mode select ----------
-  if (screen === "mode" && grade && lesson) {
+  if (screen === "mode" && grade && selected.length > 0) {
     const count = playableWords(words).length;
     return (
       <Shell
-        title={lesson.title}
-        subtitle="چطور می‌خواهی این درس را تمرین کنی؟"
+        title={selectionLabel}
+        subtitle="چطور می‌خواهی این واژه‌ها را تمرین کنی؟"
         onBack={() => setScreen("lesson")}
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -254,12 +503,31 @@ export default function VocabGame() {
     );
   }
 
+  // ---------- warm-up ----------
+  if (screen === "loading") {
+    return (
+      <PreloadScreen
+        done={warm.done}
+        total={warm.total}
+        label={selectionLabel}
+        onCancel={cancelWarmup}
+      />
+    );
+  }
+
   // ---------- challenge ----------
-  if (screen === "challenge" && grade && lesson) {
+  if (screen === "challenge" && grade && selected.length > 0) {
     return (
       <VocabChallenge
         grade={grade}
-        lesson={lesson}
+        lesson={{
+          id: [...selected].sort((a, b) => a - b).join("+"),
+          number: selected[0],
+          title: selectionLabel,
+          free: false,
+        }}
+        label={selectionLabel}
+        lessonOf={lessonOf}
         words={words}
         pool={pool}
         userId={userId}
@@ -269,11 +537,11 @@ export default function VocabGame() {
   }
 
   // ---------- result ----------
-  if (screen === "result" && lesson) {
+  if (screen === "result" && selected.length > 0) {
     const total = questions.length;
     const pct = Math.round((score / total) * 100);
     return (
-      <Shell title="پایانِ درس" onBack={() => setScreen("lesson")}>
+      <Shell title="پایانِ دور" onBack={() => setScreen("lesson")}>
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -282,13 +550,13 @@ export default function VocabGame() {
           <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-primary/15 text-4xl">
             {pct >= 80 ? "🌟" : pct >= 50 ? "👏" : "💪"}
           </div>
-          <p className="text-sm text-muted-foreground">امتیاز این دور</p>
+          <p className="text-sm text-muted-foreground">{selectionLabel}</p>
           <p className="my-1 text-4xl font-black text-primary">
             {score.toLocaleString("fa-IR")}
             <span className="text-2xl text-muted-foreground">/{total.toLocaleString("fa-IR")}</span>
           </p>
           <p className="text-sm text-muted-foreground">{pct.toLocaleString("fa-IR")}٪ درست</p>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={startLesson}
               className="rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
@@ -296,10 +564,16 @@ export default function VocabGame() {
               دوباره
             </button>
             <button
+              onClick={() => setScreen("quiz")}
+              className="rounded-xl border border-border bg-card px-6 py-2.5 font-medium text-muted-foreground transition-all hover:border-primary/50"
+            >
+              مرورِ سؤال‌ها
+            </button>
+            <button
               onClick={() => setScreen("lesson")}
               className="rounded-xl border border-border bg-card px-6 py-2.5 font-medium text-muted-foreground transition-all hover:border-primary/50"
             >
-              درسِ دیگر
+              درس‌های دیگر
             </button>
           </div>
         </motion.div>
@@ -308,15 +582,24 @@ export default function VocabGame() {
   }
 
   // ---------- quiz ----------
-  if (screen === "quiz" && q && lesson) {
+  if (screen === "quiz" && q) {
     return (
       <div dir="rtl" className="container mx-auto my-6 max-w-xl">
         {/* top bar */}
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
             ← درس‌ها
           </button>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIndexOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-bold text-primary transition-all hover:brightness-95"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              فهرست
+            </button>
             <button
               onClick={prev}
               disabled={qi === 0}
@@ -341,15 +624,47 @@ export default function VocabGame() {
           />
         </div>
 
-        {/* image */}
+        {/* image — with a guard so a slow or missing picture costs a spinner,
+            not a broken round */}
         <motion.div
           key={q.answer.id}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative z-20 mx-auto aspect-[4/3] w-full overflow-hidden rounded-3xl border border-border bg-card shadow-lg"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={vocabImageUrl(q.answer.image)} alt="" className="absolute inset-0 size-full object-cover" />
+          {currentReady ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={currentUrl}
+              alt=""
+              className="absolute inset-0 size-full object-cover"
+            />
+          ) : currentFailed ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <span className="text-3xl" aria-hidden>
+                🖼️
+              </span>
+              <p className="text-sm text-muted-foreground">
+                این تصویر بارگذاری نشد.
+              </p>
+              <button
+                onClick={retryCurrent}
+                className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+              >
+                تلاش مجدد
+              </button>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <span
+                aria-hidden
+                className="size-8 animate-spin rounded-full border-3 border-muted border-t-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                در حالِ بارگذاریِ تصویر…
+              </p>
+            </div>
+          )}
         </motion.div>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">این تصویر، کدام واژه است؟</p>
@@ -367,9 +682,9 @@ export default function VocabGame() {
             return (
               <button
                 key={o.id}
-                disabled={answered}
+                disabled={answered || (!currentReady && !currentFailed)}
                 onClick={() => pick(o.id)}
-                className={`min-h-14 rounded-2xl border-2 px-3 text-lg font-bold transition-all ${
+                className={`min-h-14 rounded-2xl border-2 px-3 text-lg font-bold transition-all disabled:cursor-not-allowed ${
                   state === "idle"
                     ? "border-border bg-card hover:border-primary hover:bg-primary/5 active:scale-[0.98]"
                     : state === "correct"
@@ -385,9 +700,19 @@ export default function VocabGame() {
           })}
         </div>
 
+        {/* jump to any question */}
+        <QuestionIndex
+          open={indexOpen}
+          onClose={() => setIndexOpen(false)}
+          questions={questions}
+          picks={picks}
+          current={qi}
+          onJump={jumpTo}
+        />
+
         {/* learning modal — the heart of the game: see the word & its full meaning */}
         <MeaningModal
-          open={answered}
+          open={answered && !indexOpen}
           isCorrect={!!isCorrect}
           answer={q.answer}
           others={q.options.filter((o) => o.id !== q.answer.id)}

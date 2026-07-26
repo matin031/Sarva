@@ -1,0 +1,111 @@
+/** Types for the درسنامه (lesson notes) section.
+ *
+ *  Three textbooks — فارسی ۱/۲/۳ for دهم، یازدهم، دوازدهم — each with 18
+ *  lessons. A poem lesson is analysed one بیت at a time, and every بیت is
+ *  broken into the three قلمروs the curriculum uses: زبانی، ادبی، فکری.
+ *
+ *  Content currently lives in typed modules under `lib/doroos/content/`, the
+ *  same way exam seeds do. The shape is deliberately serialisable so the same
+ *  objects can be served from the database later without touching the UI. */
+
+export type GradeKey = "dahom" | "yazdahom" | "davazdahom";
+
+export type Grade = {
+  key: GradeKey;
+  /** پایه, e.g. "دهم" */
+  label: string;
+  /** the textbook's own name, e.g. "فارسی ۱" */
+  book: string;
+  /** 1..18 — a title only where we actually know it */
+  lessons: LessonRef[];
+};
+
+export type LessonRef = {
+  number: number;
+  /** omitted until the real title is known; the UI then shows «درس N» */
+  title?: string;
+  /** false while the lesson has no content yet */
+  ready: boolean;
+};
+
+/** One annotated note hanging off a بیت — «فراتر از قلمرو», «نکته», an
+ *  alternative grammatical reading, and so on. An empty label means the note is
+ *  a continuation bullet of the one before it. */
+export type BeytNote = { label: string; body: string };
+
+export type ExamQuestion = { q: string; a: string };
+
+export type Beyt = {
+  /** 1-based index within the poem */
+  n: number;
+  /** the two مصراع, in order */
+  hemistichs: [string, string];
+  /** معنی — a plain-language rendering */
+  meaning: string;
+  /** مفهوم — the single idea the بیت carries */
+  concept: string;
+  /** قلمرو زبانی — vocabulary, grammar, sentence patterns */
+  linguistic: string[];
+  /** قلمرو ادبی — figures of speech */
+  literary: string[];
+  /** قلمرو فکری — one paragraph, not a list */
+  intellectual: string;
+  notes?: BeytNote[];
+  /** قرابت معنایی — lines from elsewhere that carry the same idea */
+  affinity?: string[];
+  /** سؤال امتحانی, answer hidden until the reader asks for it */
+  exam?: ExamQuestion;
+};
+
+/** A closing «نکات پایانی و جمع‌بندی» topic. */
+export type WrapUpTopic = { title: string; body: string };
+
+export type PoemLesson = {
+  kind: "poem";
+  grade: GradeKey;
+  number: number;
+  title: string;
+  poet?: string;
+  /** the section of the book, e.g. "ستایش" or "فصل اول" */
+  section?: string;
+  /** a one-line orientation shown above the first بیت */
+  intro?: string;
+  beyts: Beyt[];
+  wrapUp?: WrapUpTopic[];
+};
+
+/** Prose lessons are analysed by paragraph rather than by بیت. Declared now so
+ *  the registry and routing do not have to change when the first one lands. */
+export type ProseLesson = {
+  kind: "prose";
+  grade: GradeKey;
+  number: number;
+  title: string;
+  author?: string;
+  section?: string;
+  intro?: string;
+  passages: {
+    n: number;
+    text: string;
+    meaning?: string;
+    linguistic: string[];
+    literary: string[];
+    intellectual: string;
+    notes?: BeytNote[];
+    exam?: ExamQuestion;
+  }[];
+  wrapUp?: WrapUpTopic[];
+};
+
+export type Lesson = PoemLesson | ProseLesson;
+
+/** The three قلمروs, as the UI needs them: an id, a label, and the token its
+ *  panel is tinted with. Keeping this beside the types means a lesson renderer
+ *  never hard-codes a colour. */
+export const REALMS = [
+  { id: "linguistic", label: "قلمرو زبانی", token: "--color-primary" },
+  { id: "literary", label: "قلمرو ادبی", token: "--color-gold" },
+  { id: "intellectual", label: "قلمرو فکری", token: "--color-lapis-light" },
+] as const;
+
+export type RealmId = (typeof REALMS)[number]["id"];

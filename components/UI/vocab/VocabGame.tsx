@@ -311,25 +311,65 @@ export default function VocabGame() {
     setScreen("result");
   }, [best, bestKey, score]);
 
+  /** The first question still without an answer — where play resumes. */
+  const resumeAt = useMemo(() => {
+    for (let i = 0; i < questions.length; i++) if (picks[i] == null) return i;
+    return -1;
+  }, [questions, picks]);
+
+  /** Which questions the reader may open.
+   *
+   *  Answered ones, always — that is the point of the index. Unanswered ones
+   *  never: skipping ahead to an unseen picture would let someone browse the
+   *  round instead of playing it, and during review a question left blank has
+   *  nothing to show. The single exception is the resume point, so that going
+   *  back to an earlier question does not trap you there. */
+  const canVisit = useCallback(
+    (i: number) =>
+      i >= 0 &&
+      i < questions.length &&
+      (picks[i] != null || (!reviewing && i === resumeAt)),
+    [questions.length, picks, reviewing, resumeAt],
+  );
+
+  const seekVisitable = useCallback(
+    (from: number, step: 1 | -1) => {
+      for (let i = from + step; i >= 0 && i < questions.length; i += step) {
+        if (canVisit(i)) return i;
+      }
+      return -1;
+    },
+    [questions.length, canVisit],
+  );
+
+  const hasPrev = seekVisitable(qi, -1) >= 0;
+  const hasNext = seekVisitable(qi, 1) >= 0;
+
   // Any move between questions closes the modal, so a question you navigate to
   // is actually readable. Only `pick` reopens it.
   const next = () => {
     setModalFor(null);
-    if (qi + 1 >= questions.length) {
-      if (!reviewing) finish();
+    const target = seekVisitable(qi, 1);
+    if (target >= 0) {
+      setQi(target);
       return;
     }
-    setQi((i) => i + 1);
+    // nothing further to visit
+    if (reviewing) setScreen("result");
+    else finish();
   };
 
   const prev = () => {
+    const target = seekVisitable(qi, -1);
+    if (target < 0) return;
     setModalFor(null);
-    setQi((i) => Math.max(0, i - 1));
+    setQi(target);
   };
 
   const jumpTo = (i: number) => {
+    if (!canVisit(i)) return;
     setModalFor(null);
-    setQi(Math.max(0, Math.min(questions.length - 1, i)));
+    setQi(i);
   };
 
   /** Walk the finished round from the first question, modal closed. */
@@ -647,7 +687,7 @@ export default function VocabGame() {
             </button>
             <button
               onClick={prev}
-              disabled={qi === 0}
+              disabled={!hasPrev}
               className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-all enabled:hover:border-primary/50 enabled:hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
@@ -657,7 +697,7 @@ export default function VocabGame() {
             </button>
             {/* Forward is only reachable through the modal during play; an
                 answered question you came back to needs its own way onward. */}
-            {(reviewing || answered) && qi + 1 < questions.length && (
+            {(reviewing || answered) && hasNext && (
               <button
                 onClick={next}
                 className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-primary"
@@ -790,6 +830,8 @@ export default function VocabGame() {
           picks={picks}
           current={qi}
           onJump={jumpTo}
+          canVisit={canVisit}
+          resumeAt={reviewing ? -1 : resumeAt}
         />
 
         {/* learning modal — the heart of the game: see the word & its full meaning */}

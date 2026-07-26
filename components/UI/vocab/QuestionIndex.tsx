@@ -17,6 +17,8 @@ export default function QuestionIndex({
   picks,
   current,
   onJump,
+  canVisit,
+  resumeAt,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +26,10 @@ export default function QuestionIndex({
   picks: Record<number, string>;
   current: number;
   onJump: (index: number) => void;
+  /** answered questions, plus the resume point — never an unseen one */
+  canVisit: (index: number) => boolean;
+  /** the question play resumes at, or -1 while reviewing */
+  resumeAt: number;
 }) {
   const answered = Object.keys(picks).length;
   const correct = questions.reduce(
@@ -76,7 +82,7 @@ export default function QuestionIndex({
             </div>
 
             {/* legend */}
-            <ul className="mb-4 flex flex-wrap gap-3 text-[11px] font-bold">
+            <ul className="mb-3 flex flex-wrap gap-3 text-[11px] font-bold">
               <li className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-green-500" />
                 <span className="text-muted-foreground">درست</span>
@@ -87,9 +93,13 @@ export default function QuestionIndex({
               </li>
               <li className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-muted-foreground/40" />
-                <span className="text-muted-foreground">بی‌پاسخ</span>
+                <span className="text-muted-foreground">هنوز نرسیده‌ای</span>
               </li>
             </ul>
+            <p className="mb-4 text-[11px] leading-relaxed text-muted-foreground">
+              فقط سؤال‌هایی که پاسخ داده‌ای باز می‌شوند؛ نمی‌توانی از سؤالی
+              بی‌پاسخ بپری.
+            </p>
 
             <div className="grid grid-cols-5 gap-2 xs:grid-cols-6 sm:grid-cols-8">
               {questions.map((q, i) => {
@@ -101,21 +111,34 @@ export default function QuestionIndex({
                       ? "correct"
                       : "wrong";
                 const isCurrent = i === current;
+                const open = canVisit(i);
+                const isResume = i === resumeAt;
                 return (
                   <button
                     key={i}
+                    disabled={!open}
                     onClick={() => {
                       onJump(i);
                       onClose();
                     }}
                     aria-current={isCurrent ? "true" : undefined}
-                    title={pick != null ? q.answer.word : undefined}
-                    className={`relative z-20 flex aspect-square items-center justify-center rounded-xl border-2 text-sm font-black transition-all active:scale-95 ${
+                    title={
+                      pick != null
+                        ? q.answer.word
+                        : isResume
+                          ? "ادامه از اینجا"
+                          : "هنوز به این سؤال نرسیده‌ای"
+                    }
+                    className={`relative z-20 flex aspect-square items-center justify-center rounded-xl border-2 text-sm font-black transition-all ${
+                      open ? "active:scale-95" : "cursor-not-allowed opacity-45"
+                    } ${
                       state === "correct"
                         ? "border-green-500 bg-green-500/15 text-green-700 dark:text-green-400"
                         : state === "wrong"
                           ? "border-destructive bg-destructive/15 text-destructive"
-                          : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                          : isResume
+                            ? "border-primary/60 border-dashed bg-primary/5 text-primary"
+                            : "border-border bg-background text-muted-foreground"
                     } ${isCurrent ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : ""}`}
                   >
                     {(i + 1).toLocaleString("fa-IR")}

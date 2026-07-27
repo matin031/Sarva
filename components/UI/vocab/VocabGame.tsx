@@ -29,6 +29,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
+import BookmarkButton from "@/components/UI/BookmarkButton";
 import QuestionIndex from "./QuestionIndex";
 import PreloadScreen from "./PreloadScreen";
 
@@ -765,7 +766,28 @@ export default function VocabGame() {
           )}
         </motion.div>
 
-        <p className="mt-5 text-center text-sm text-muted-foreground">این تصویر، کدام واژه است؟</p>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          {/* flagging before answering would give the word away in the panel,
+              so the button only appears once the answer is known */}
+          <span className="shrink-0">
+            {answered && (
+              <BookmarkButton
+                area="vocab"
+                refId={q.answer.id}
+                title={q.answer.word}
+                subtitle={q.answer.meaning}
+                payload={{
+                  image: q.answer.image,
+                  lesson: lessonOf(q.answer.id) ?? null,
+                  grade: grade?.id ?? null,
+                }}
+              />
+            )}
+          </span>
+          <p className="text-sm text-muted-foreground">
+            این تصویر، کدام واژه است؟
+          </p>
+        </div>
 
         {/* options */}
         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">

@@ -2,19 +2,121 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { PanelAudioPlayer } from "@/components/UI/PanelAudioPlayer";
 import {
   ARUZ_TYPE_LABEL,
+  AUDIO_OPTION_TYPES,
+  type AruzAnswer,
   type AruzAttempt,
+  type AruzOption,
   type AruzQuestionType,
 } from "@/lib/panel/types";
 import { clock, fa, jalaliLong, pct, relativeDay } from "@/lib/panel/format";
-import { Card, ScoreBar } from "@/components/UI/panel/primitives";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-/** Past عروض attempts. Each row expands to the individual answers, grouped by
- *  question type so a long attempt stays readable however many questions it
- *  had. */
+function Beyt({ lines }: { lines: string[] }) {
+  return (
+    <p className="font-serif text-base leading-loose text-foreground">
+      {lines.join(" / ")}
+    </p>
+  );
+}
+
+function optionText(o?: AruzOption): string {
+  if (!o) return "—";
+  if (o.poem?.length) return o.poem.join(" / ");
+  if (o.label) return o.label;
+  return "—";
+}
+
+/** One reviewed question: the prompt as the student saw it, then their answer
+ *  and the right one — as audio when the options were audio, which is the whole
+ *  point of reviewing an ear-training test. */
+function QuestionReview({ answer, n }: { answer: AruzAnswer; n: number }) {
+  const audioOptions = AUDIO_OPTION_TYPES.includes(answer.type ?? "");
+  const chosen = answer.options.find((o) => o.id === answer.selectedOptionId);
+  const right = answer.options.find((o) => o.isCorrect);
+
+  return (
+    <li className="border-t border-border/70 py-5 first:border-t-0 first:pt-0">
+      <div className="mb-3 flex items-center gap-2">
+        <span
+          className={`flex size-5 items-center justify-center rounded-full text-[11px] font-bold ${
+            answer.isCorrect
+              ? "bg-green-500/15 text-green-600 dark:text-green-400"
+              : "bg-destructive/15 text-destructive"
+          }`}
+        >
+          {answer.isCorrect ? "✓" : "✕"}
+        </span>
+        <span className="text-xs text-muted-foreground">سؤال {fa(n)}</span>
+      </div>
+
+      {/* the prompt */}
+      {audioOptions ? (
+        answer.poem?.length ? (
+          <Beyt lines={answer.poem} />
+        ) : (
+          <p className="text-sm text-muted-foreground">صورتِ پرسش</p>
+        )
+      ) : answer.audioUrl ? (
+        <PanelAudioPlayer audioSrc={answer.audioUrl} color="main" />
+      ) : (
+        <p className="text-sm text-muted-foreground">صورتِ پرسش</p>
+      )}
+
+      {/* answers */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-xs text-muted-foreground">پاسخِ تو</p>
+          {!chosen ? (
+            <p className="text-sm text-muted-foreground">پاسخی ثبت نشده</p>
+          ) : audioOptions ? (
+            chosen.audioUrl ? (
+              <PanelAudioPlayer
+                audioSrc={chosen.audioUrl}
+                color={answer.isCorrect ? "green" : "red"}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">—</p>
+            )
+          ) : (
+            <p
+              className={`text-sm leading-relaxed ${
+                answer.isCorrect
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-destructive"
+              }`}
+            >
+              {optionText(chosen)}
+            </p>
+          )}
+        </div>
+
+        {/* only worth showing when they got it wrong */}
+        {!answer.isCorrect && (
+          <div>
+            <p className="mb-2 text-xs text-muted-foreground">پاسخِ درست</p>
+            {audioOptions ? (
+              right?.audioUrl ? (
+                <PanelAudioPlayer audioSrc={right.audioUrl} color="green" />
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )
+            ) : (
+              <p className="text-sm leading-relaxed text-green-600 dark:text-green-400">
+                {optionText(right)}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Past عروض attempts; each expands into its questions. */
 export default function AruzAttemptList({
   attempts,
 }: {
@@ -23,113 +125,72 @@ export default function AruzAttemptList({
   const [openId, setOpenId] = useState<string | null>(null);
 
   return (
-    <ul className="space-y-3">
-      {attempts.map((a, i) => {
+    <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+      {attempts.map((a) => {
         const open = openId === a.id;
-        const groups = new Map<string, typeof a.answers>();
-        for (const ans of a.answers) {
-          const key = ans.type ?? "unknown";
-          groups.set(key, [...(groups.get(key) ?? []), ans]);
-        }
-
         return (
           <li key={a.id}>
-            <Card index={i} className="overflow-hidden">
-              <button
-                onClick={() => setOpenId(open ? null : a.id)}
-                aria-expanded={open}
-                className="flex w-full items-center justify-between gap-4 p-4 text-right"
+            <button
+              onClick={() => setOpenId(open ? null : a.id)}
+              aria-expanded={open}
+              className="flex w-full items-center gap-4 p-4 text-right transition-colors hover:bg-muted/40"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-foreground">
+                  {relativeDay(a.createdAt)}
+                  <span className="ms-2 text-xs font-normal text-muted-foreground">
+                    {jalaliLong(a.createdAt)} · {clock(a.createdAt)}
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {fa(a.correct)} از {fa(a.total)} درست · {pct(a.correct, a.total)}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {open ? "بستن" : "دیدن سؤال‌ها"}
+              </span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                aria-hidden
+                className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="text-sm font-black text-foreground">
-                      {relativeDay(a.createdAt)}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {jalaliLong(a.createdAt)} — ساعت {clock(a.createdAt)}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <ScoreBar correct={a.correct} total={a.total} />
-                    </div>
-                    <span className="shrink-0 text-xs font-bold text-muted-foreground">
-                      {fa(a.correct)}/{fa(a.total)} — {pct(a.correct, a.total)}
-                    </span>
-                  </div>
-                </div>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden
-                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
 
-              <AnimatePresence initial={false}>
-                {open && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.32, ease: EASE }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-4 border-t border-border p-4">
-                      {[...groups.entries()].map(([type, answers]) => (
-                        <div key={type}>
-                          <div className="mb-2 flex items-baseline justify-between gap-2">
-                            <h3 className="text-xs font-black text-primary">
-                              {ARUZ_TYPE_LABEL[type as AruzQuestionType] ??
-                                "نوعِ نامشخص"}
-                            </h3>
-                            <span className="text-[11px] text-muted-foreground">
-                              {fa(answers.filter((x) => x.isCorrect).length)} از{" "}
-                              {fa(answers.length)} درست
-                            </span>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {answers.map((ans, n) => (
-                              <li
-                                key={ans.id}
-                                className={`flex items-start gap-2.5 rounded-xl border px-3 py-2 ${
-                                  ans.isCorrect
-                                    ? "border-green-500/40 bg-green-500/5"
-                                    : "border-destructive/40 bg-destructive/5"
-                                }`}
-                              >
-                                <span
-                                  aria-hidden
-                                  className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
-                                    ans.isCorrect
-                                      ? "bg-green-500/20 text-green-700 dark:text-green-400"
-                                      : "bg-destructive/20 text-destructive"
-                                  }`}
-                                >
-                                  {ans.isCorrect ? "✓" : "✕"}
-                                </span>
-                                <span className="min-w-0 text-xs leading-relaxed text-foreground">
-                                  {ans.poem?.length
-                                    ? ans.poem.join(" / ")
-                                    : `سؤال ${fa(n + 1)}`}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Card>
+            <AnimatePresence initial={false}>
+              {open && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="overflow-hidden"
+                >
+                  <div className="border-t border-border bg-background/40 px-4 pb-5">
+                    {a.answers.length === 0 ? (
+                      <p className="py-5 text-sm text-muted-foreground">
+                        ریزِ سؤال‌های این آزمون ذخیره نشده است.
+                      </p>
+                    ) : (
+                      <ul className="pt-5">
+                        {a.answers.map((ans, i) => (
+                          <QuestionReview key={ans.id} answer={ans} n={i + 1} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </li>
         );
       })}
     </ul>
   );
 }
+
+export { ARUZ_TYPE_LABEL, type AruzQuestionType };

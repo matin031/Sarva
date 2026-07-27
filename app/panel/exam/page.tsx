@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { getExamAttempts, getPanelUser } from "@/lib/panel/queries";
 import { clock, fa, jalaliLong, pct, relativeDay } from "@/lib/panel/format";
 import {
+  BarRow,
+  Block,
   Card,
   EmptyState,
   PanelHeader,
-  ScoreBar,
-  StatTile,
+  StatRow,
 } from "@/components/UI/panel/primitives";
 import ExamAttemptCard from "@/components/UI/panel/ExamAttemptCard";
 
@@ -27,7 +28,6 @@ export default async function ExamPanelPage() {
     <>
       <PanelHeader
         title="امتحان نهایی"
-        subtitle="کارنامهٔ آزمون‌های نهایی، سؤال‌به‌سؤال."
         action={
           <Link
             href="/exam"
@@ -40,7 +40,6 @@ export default async function ExamPanelPage() {
 
       {attempts.length === 0 ? (
         <EmptyState
-          icon="📄"
           title="هنوز امتحان نهایی نداده‌ای"
           body="آزمون‌های نهایی سال‌های گذشته با تصحیحِ خودکار برگزار می‌شوند؛ نمرهٔ هر سؤال همین‌جا نگه داشته می‌شود."
           cta={
@@ -54,56 +53,42 @@ export default async function ExamPanelPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="آزمون‌ها" value={fa(attempts.length)} index={0} />
-            <StatTile
-              label="میانگین"
-              value={pct(scored, maxed)}
-              hint={`${fa(Math.round(scored * 10) / 10)} از ${fa(maxed)}`}
-              index={1}
-            />
-            <StatTile
-              label="بهترین نتیجه"
-              value={`${fa(Math.round(best * 100))}٪`}
-              token="--color-gold"
-              index={2}
-            />
-            <StatTile
-              label="آخرین آزمون"
-              value={relativeDay(attempts[0].createdAt)}
-              token="--color-lapis-light"
-              index={3}
-            />
-          </div>
+          <StatRow
+            items={[
+              { label: "آزمون‌ها", value: fa(attempts.length) },
+              {
+                label: "میانگین",
+                value: pct(scored, maxed),
+                hint: `${fa(Math.round(scored * 10) / 10)} از ${fa(maxed)}`,
+              },
+              {
+                label: "بهترین نتیجه",
+                value: `${fa(Math.round(best * 100))}٪`,
+              },
+              {
+                label: "آخرین آزمون",
+                value: relativeDay(attempts[0].createdAt),
+              },
+            ]}
+          />
 
-          <Card className="mt-6 p-5">
-            <h2 className="mb-4 text-sm font-black text-foreground">
-              روندِ نمره‌ها
-            </h2>
-            <ul className="space-y-3">
+          <Block title="روندِ نمره‌ها">
+            <Card className="space-y-5 p-5">
               {[...attempts]
                 .slice(0, 8)
                 .reverse()
                 .map((a) => (
-                  <li key={a.id}>
-                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                      <span className="truncate text-xs font-bold text-foreground">
-                        {a.examTitle}
-                      </span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {fa(Math.round(a.totalScore * 10) / 10)}/
-                        {fa(a.maxScore)} — {jalaliLong(a.createdAt)}
-                      </span>
-                    </div>
-                    <ScoreBar correct={a.totalScore} total={a.maxScore} />
-                  </li>
+                  <BarRow
+                    key={a.id}
+                    label={`${a.examTitle} · ${jalaliLong(a.createdAt)}`}
+                    correct={a.totalScore}
+                    total={a.maxScore}
+                  />
                 ))}
-            </ul>
-          </Card>
+            </Card>
+          </Block>
 
-          <h2 className="mt-8 mb-3 text-sm font-black text-foreground">
-            کارنامه‌ها
-          </h2>
+          <Block title="کارنامه‌ها">
           <ul className="space-y-3">
             {attempts.map((a, i) => (
               <li key={a.id}>
@@ -122,6 +107,7 @@ export default async function ExamPanelPage() {
               </li>
             ))}
           </ul>
+          </Block>
         </>
       )}
     </>

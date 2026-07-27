@@ -12,14 +12,10 @@ export default async function BookmarksPage() {
 
   return (
     <>
-      <PanelHeader
-        title="نشان‌شده‌ها"
-        subtitle="سؤال‌هایی که در بازی‌ها و آزمون‌ها نشان کرده‌ای."
-      />
+      <PanelHeader title="نشان‌شده‌ها" />
 
       {bookmarks.length === 0 ? (
         <EmptyState
-          icon="🔖"
           title="هنوز چیزی نشان نکرده‌ای"
           body="هرجا سؤالی دیدی که می‌خواهی بعداً مرورش کنی، دکمهٔ «نشان‌کردن» را بزن؛ همه‌شان اینجا جمع می‌شوند."
           cta={

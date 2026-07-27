@@ -144,7 +144,7 @@ export default function VocabPanelClient({
                       </p>
                       <div className="mt-2 flex items-center gap-3">
                         <div className="min-w-0 flex-1">
-                          <ScoreBar correct={right} total={session.length} token="--color-gold" />
+                          <ScoreBar correct={right} total={session.length} />
                         </div>
                         <span className="shrink-0 text-xs font-bold text-muted-foreground">
                           {fa(right)}/{fa(session.length)} — {pct(right, session.length)}

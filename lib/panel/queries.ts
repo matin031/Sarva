@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import type {
   AruzAttempt,
   AruzQuestionType,
@@ -44,19 +45,44 @@ export async function getPanelUser(): Promise<PanelUser | null> {
 
 // ---------------------------------------------------------------- عروض ----
 
+type RawOption = {
+  id: string;
+  label: string | null;
+  poem: string[] | null;
+  audio_url: string | null;
+  is_correct: boolean;
+};
+
 type RawAruzAnswer = {
   id: string;
   is_correct: boolean;
-  questions: { id: string; type: string; poem: string[] | null } | null;
+  selected_option_id: string | null;
+  questions: {
+    id: string;
+    type: string;
+    poem: string[] | null;
+    audio_url: string | null;
+    question_options: RawOption[] | null;
+  } | null;
 };
 
+/** Past عروض attempts, with everything the review needs: the prompt (a بیت or
+ *  an audio clip), every option, which one the student chose and which one was
+ *  right. Without the options there is nothing to listen back to — the whole
+ *  point of reviewing an ear-training test. */
 export async function getAruzAttempts(userId: string): Promise<AruzAttempt[]> {
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase
     .from("quiz_attempts")
     .select(
       `id, total, correct, created_at,
-       quiz_attempt_answers ( id, is_correct, questions ( id, type, poem ) )`,
+       quiz_attempt_answers (
+         id, is_correct, selected_option_id,
+         questions (
+           id, type, poem, audio_url,
+           question_options ( id, label, poem, audio_url, is_correct )
+         )
+       )`,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -72,13 +98,26 @@ export async function getAruzAttempts(userId: string): Promise<AruzAttempt[]> {
     correct: Number(a.correct ?? 0),
     createdAt: a.created_at as string,
     answers: ((a.quiz_attempt_answers ?? []) as unknown as RawAruzAnswer[]).map(
-      (ans) => ({
-        id: ans.id,
-        isCorrect: ans.is_correct,
-        questionId: ans.questions?.id ?? null,
-        type: (ans.questions?.type ?? null) as AruzQuestionType | null,
-        poem: ans.questions?.poem ?? null,
-      }),
+      (ans) => {
+        const q = ans.questions;
+        const options = (q?.question_options ?? []).map((o) => ({
+          id: o.id,
+          label: o.label,
+          poem: o.poem,
+          audioUrl: o.audio_url,
+          isCorrect: o.is_correct,
+        }));
+        return {
+          id: ans.id,
+          isCorrect: ans.is_correct,
+          selectedOptionId: ans.selected_option_id,
+          questionId: q?.id ?? null,
+          type: (q?.type ?? null) as AruzQuestionType | null,
+          poem: q?.poem ?? null,
+          audioUrl: q?.audio_url ?? null,
+          options,
+        };
+      },
     ),
   }));
 }
@@ -161,8 +200,20 @@ export async function getJasoosAnswers(
 
 // ------------------------------------------------------- امتحان نهایی ----
 
+/** `exam_attempts` (and the whole exam bank) deliberately carries no
+ *  authenticated RLS policy — every student-facing write goes through a server
+ *  action on the service-role client. Reading it with the anon client therefore
+ *  fails with "permission denied", so the panel reads it the same way the rest
+ *  of that bank is read: server-side, with the user id taken from the verified
+ *  session rather than from anything a caller could supply. */
 export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
-  const supabase = await createSupabaseServer();
+  let supabase;
+  try {
+    supabase = createSupabaseAdmin();
+  } catch {
+    // service-role key not configured in this environment
+    return [];
+  }
   const { data, error } = await supabase
     .from("exam_attempts")
     .select("id, total_score, max_score, created_at, question_results, exams(title)")

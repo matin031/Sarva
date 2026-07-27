@@ -3,9 +3,16 @@
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
+/** The panel's visual vocabulary, kept deliberately small.
+ *
+ *  One accent colour, one border weight, one radius, flat surfaces. An earlier
+ *  version tinted every block a different colour and put a glow behind each
+ *  number; with six sections on screen that reads as noise rather than as
+ *  hierarchy. Meaning is carried by type weight and whitespace instead, and
+ *  colour is reserved for right/wrong — where it actually means something. */
+
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-/** Section heading with an optional trailing control. */
 export function PanelHeader({
   title,
   subtitle,
@@ -16,13 +23,13 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="relative z-20 mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-black text-foreground sm:text-3xl">
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
       {action}
@@ -30,53 +37,34 @@ export function PanelHeader({
   );
 }
 
-/** A number worth looking at. */
-export function StatTile({
-  label,
-  value,
-  hint,
-  token = "--color-primary",
-  index = 0,
+/** A row of plain numbers. No boxes, no colour — just a hairline between them. */
+export function StatRow({
+  items,
 }: {
-  label: string;
-  value: string;
-  hint?: string;
-  token?: string;
-  index?: number;
+  items: { label: string; value: string; hint?: string }[];
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
+    <motion.dl
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: index * 0.05, ease: EASE }}
-      className="relative z-20 overflow-hidden rounded-2xl border border-border bg-card p-4"
+      transition={{ duration: 0.45, ease: EASE }}
+      className="grid grid-cols-2 gap-y-6 rounded-2xl border border-border bg-card p-6 sm:grid-cols-4"
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -left-8 -top-8 size-24 rounded-full"
-        style={{
-          background: `radial-gradient(closest-side, color-mix(in oklch, var(${token}) 26%, transparent), transparent)`,
-        }}
-      />
-      <p className="relative z-20 text-xs font-bold text-muted-foreground">
-        {label}
-      </p>
-      <p
-        className="relative z-20 mt-1.5 text-2xl font-black"
-        style={{ color: `var(${token})` }}
-      >
-        {value}
-      </p>
-      {hint && (
-        <p className="relative z-20 mt-1 text-[11px] text-muted-foreground">
-          {hint}
-        </p>
-      )}
-    </motion.div>
+      {items.map((s) => (
+        <div key={s.label} className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{s.label}</dt>
+          <dd className="mt-1.5 text-2xl font-bold text-foreground">
+            {s.value}
+          </dd>
+          {s.hint && (
+            <dd className="mt-0.5 text-xs text-muted-foreground">{s.hint}</dd>
+          )}
+        </div>
+      ))}
+    </motion.dl>
   );
 }
 
-/** Generic card used for every list row and panel block. */
 export function Card({
   children,
   className = "",
@@ -88,78 +76,107 @@ export function Card({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.45, delay: Math.min(index, 8) * 0.04, ease: EASE }}
-      className={`relative z-20 rounded-2xl border border-border bg-card ${className}`}
+      transition={{ duration: 0.4, delay: Math.min(index, 6) * 0.03, ease: EASE }}
+      className={`rounded-2xl border border-border bg-card ${className}`}
     >
       {children}
     </motion.div>
   );
 }
 
-/** Correct/total as a thin bar — the panel's one repeated chart idiom. */
+/** A labelled section, without a card around it — most content does not need
+ *  its own frame when it already sits inside one. */
+export function Block({
+  title,
+  hint,
+  children,
+  className = "",
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`mt-6 ${className}`}>
+      <h2 className="text-sm font-bold text-foreground">{title}</h2>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+/** Correct/total as a hairline bar. */
 export function ScoreBar({
   correct,
   total,
-  token = "--color-primary",
 }: {
   correct: number;
   total: number;
-  token?: string;
 }) {
   const p = total ? Math.round((correct / total) * 100) : 0;
   return (
-    <div
-      className="h-2 w-full overflow-hidden rounded-full bg-muted"
-      role="img"
-      aria-label={`${p}٪`}
-    >
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
       <motion.div
         initial={{ width: 0 }}
         whileInView={{ width: `${p}%` }}
         viewport={{ once: true }}
-        transition={{ duration: 0.7, ease: EASE }}
-        className="h-full rounded-full"
-        style={{ background: `var(${token})` }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className="h-full rounded-full bg-primary"
       />
     </div>
   );
 }
 
-/** Shown when a section has nothing yet — never a blank screen. */
+/** A labelled bar — the panel's one repeated chart idiom. */
+export function BarRow({
+  label,
+  correct,
+  total,
+}: {
+  label: string;
+  correct: number;
+  total: number;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <span className="text-sm text-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">
+          {total
+            ? `${correct.toLocaleString("fa-IR")}/${total.toLocaleString("fa-IR")}`
+            : "—"}
+        </span>
+      </div>
+      <ScoreBar correct={correct} total={total} />
+    </div>
+  );
+}
+
 export function EmptyState({
-  icon,
   title,
   body,
   cta,
 }: {
-  icon: string;
   title: string;
   body: string;
   cta?: ReactNode;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: EASE }}
-      className="relative z-20 rounded-3xl border border-dashed border-border bg-card p-10 text-center"
-    >
-      <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-muted text-3xl">
-        {icon}
-      </div>
-      <h2 className="text-lg font-black text-foreground">{title}</h2>
+    <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+      <h2 className="text-base font-bold text-foreground">{title}</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
         {body}
       </p>
       {cta && <div className="mt-6 flex justify-center">{cta}</div>}
-    </motion.div>
+    </div>
   );
 }
 
-/** A day-by-day activity strip. Bars are relative to the busiest day. */
+/** Day-by-day activity. One bar per day, one colour. */
 export function ActivityStrip({
   days,
 }: {
@@ -167,25 +184,18 @@ export function ActivityStrip({
 }) {
   const peak = Math.max(1, ...days.map((d) => d.total));
   return (
-    <div className="flex items-end justify-between gap-1">
+    <div className="flex items-end gap-1.5">
       {days.map((d, i) => (
-        <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-          <div className="flex h-24 w-full items-end justify-center">
+        <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+          <div className="flex h-16 w-full items-end justify-center">
             <motion.div
               initial={{ height: 0 }}
-              whileInView={{ height: `${(d.total / peak) * 100}%` }}
+              whileInView={{ height: `${Math.max((d.total / peak) * 100, d.total ? 8 : 4)}%` }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.03, ease: EASE }}
+              transition={{ duration: 0.5, delay: i * 0.02, ease: EASE }}
               title={`${d.total} پاسخ، ${d.correct} درست`}
-              className="w-full max-w-6 rounded-t-md bg-primary/25"
-            >
-              <div
-                className="w-full rounded-t-md bg-primary"
-                style={{
-                  height: d.total ? `${(d.correct / d.total) * 100}%` : "0%",
-                }}
-              />
-            </motion.div>
+              className={`w-1.5 rounded-full ${d.total ? "bg-primary" : "bg-border"}`}
+            />
           </div>
           <span className="truncate text-[9px] text-muted-foreground">
             {d.label}

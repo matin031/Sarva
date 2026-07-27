@@ -20,13 +20,35 @@ export const ARUZ_TYPE_LABEL: Record<AruzQuestionType, string> = {
   "weight-to-audio": "وزن به صوت",
 };
 
+export type AruzOption = {
+  id: string;
+  label: string | null;
+  poem: string[] | null;
+  audioUrl: string | null;
+  isCorrect: boolean;
+};
+
 export type AruzAnswer = {
   id: string;
   isCorrect: boolean;
+  /** which option the student picked; null if nothing was recorded */
+  selectedOptionId: string | null;
   questionId: string | null;
   type: AruzQuestionType | null;
+  /** the بیت shown as the prompt, when the prompt is text */
   poem: string[] | null;
+  /** the clip played as the prompt, when the prompt is audio */
+  audioUrl: string | null;
+  options: AruzOption[];
 };
+
+/** Question types whose OPTIONS are audio clips — the prompt is then the بیت,
+ *  and reviewing means listening to the options again. */
+export const AUDIO_OPTION_TYPES: readonly string[] = [
+  "poem-to-audio",
+  "pattern-to-audio",
+  "weight-to-audio",
+];
 
 export type AruzAttempt = {
   id: string;

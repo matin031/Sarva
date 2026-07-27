@@ -5,7 +5,7 @@ import { fa, groupIntoSessions, pct } from "@/lib/panel/format";
 import {
   EmptyState,
   PanelHeader,
-  StatTile,
+  StatRow,
 } from "@/components/UI/panel/primitives";
 import VocabPanelClient from "@/components/UI/panel/VocabPanelClient";
 
@@ -29,7 +29,6 @@ export default async function VocabPanelPage() {
     <>
       <PanelHeader
         title="واژه‌یاب"
-        subtitle="هر آزمونی که داده‌ای، با همان سؤال‌هایی که پاسخ دادی."
         action={
           <Link
             href="/game/vocab"
@@ -42,7 +41,6 @@ export default async function VocabPanelPage() {
 
       {answers.length === 0 ? (
         <EmptyState
-          icon="🖼️"
           title="هنوز واژه‌یاب بازی نکرده‌ای"
           body="هر دوری که بازی کنی اینجا ذخیره می‌شود: تاریخش، واژه‌هایش و اینکه کدام را درست زدی."
           cta={
@@ -56,28 +54,22 @@ export default async function VocabPanelPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="دورهای بازی" value={fa(sessions.length)} index={0} />
-            <StatTile
-              label="کلِ پاسخ‌ها"
-              value={fa(answers.length)}
-              hint={`${pct(correct, answers.length)} درست`}
-              index={1}
-            />
-            <StatTile
-              label="واژه‌های دیده‌شده"
-              value={fa(distinctWords)}
-              token="--color-gold"
-              index={2}
-            />
-            <StatTile
-              label="واژه‌های یادگرفته"
-              value={fa(mastered)}
-              hint={`${fa(stillWrong.size)} واژه هنوز مشکل‌دار`}
-              token="--color-lapis-light"
-              index={3}
-            />
-          </div>
+          <StatRow
+            items={[
+              { label: "دورهای بازی", value: fa(sessions.length) },
+              {
+                label: "کلِ پاسخ‌ها",
+                value: fa(answers.length),
+                hint: `${pct(correct, answers.length)} درست`,
+              },
+              { label: "واژه‌های دیده‌شده", value: fa(distinctWords) },
+              {
+                label: "یادگرفته",
+                value: fa(mastered),
+                hint: `${fa(stillWrong.size)} نیاز به مرور`,
+              },
+            ]}
+          />
 
           <VocabPanelClient answers={answers} />
         </>

@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { getJasoosAnswers, getPanelUser } from "@/lib/panel/queries";
 import { fa, groupIntoSessions, pct, relativeDay } from "@/lib/panel/format";
 import {
+  BarRow,
+  Block,
   Card,
   EmptyState,
   PanelHeader,
-  ScoreBar,
-  StatTile,
+  StatRow,
 } from "@/components/UI/panel/primitives";
 
 export default async function JasoosPanelPage() {
@@ -36,7 +37,6 @@ export default async function JasoosPanelPage() {
     <>
       <PanelHeader
         title="جاسوسِ نقش‌ها"
-        subtitle="نقش‌ها و آرایه‌هایی که تشخیص داده‌ای — و آن‌هایی که هنوز نه."
         action={
           <Link
             href="/game/jasoos"
@@ -49,7 +49,6 @@ export default async function JasoosPanelPage() {
 
       {answers.length === 0 ? (
         <EmptyState
-          icon="🕵️"
           title="هنوز جاسوس بازی نکرده‌ای"
           body="در این بازی باید ادعای نادرست دربارهٔ یک بیت را پیدا کنی. هر پاسخ اینجا ثبت می‌شود تا ببینی کدام آرایه‌ها را باید مرور کنی."
           cta={
@@ -63,68 +62,34 @@ export default async function JasoosPanelPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="دورهای بازی" value={fa(sessions.length)} index={0} />
-            <StatTile
-              label="کلِ پاسخ‌ها"
-              value={fa(answers.length)}
-              hint={`${fa(correct)} درست`}
-              index={1}
-            />
-            <StatTile
-              label="دقت"
-              value={pct(correct, answers.length)}
-              token="--color-lapis-light"
-              index={2}
-            />
-            <StatTile
-              label="دسته‌های دیده‌شده"
-              value={fa(byCategory.size)}
-              token="--color-gold"
-              index={3}
-            />
-          </div>
+          <StatRow
+            items={[
+              { label: "دورهای بازی", value: fa(sessions.length) },
+              { label: "کلِ پاسخ‌ها", value: fa(answers.length) },
+              { label: "پاسخ درست", value: fa(correct) },
+              { label: "دقت", value: pct(correct, answers.length) },
+            ]}
+          />
 
-          <Card className="mt-6 p-5">
-            <h2 className="mb-1 text-sm font-black text-foreground">
-              به تفکیکِ دسته
-            </h2>
-            <p className="mb-4 text-[11px] text-muted-foreground">
-              از ضعیف‌ترین به قوی‌ترین مرتب شده — بالای فهرست همان چیزی است که
-              باید مرور کنی.
-            </p>
-            <ul className="space-y-4">
+          <Block
+            title="به تفکیکِ دسته"
+            hint="از ضعیف‌ترین مرتب شده — بالای فهرست همان چیزی است که باید مرور کنی"
+          >
+            <Card className="space-y-5 p-5">
               {categories.map(([cat, row]) => (
-                <li key={cat}>
-                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-bold text-foreground">
-                      {cat}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {fa(row.c)}/{fa(row.t)} — {pct(row.c, row.t)}
-                    </span>
-                  </div>
-                  <ScoreBar
-                    correct={row.c}
-                    total={row.t}
-                    token="--color-lapis-light"
-                  />
-                </li>
+                <BarRow key={cat} label={cat} correct={row.c} total={row.t} />
               ))}
-            </ul>
-          </Card>
+            </Card>
+          </Block>
 
           {wrong.length > 0 && (
-            <>
-              <h2 className="mt-8 mb-3 text-sm font-black text-foreground">
-                اشتباه‌های اخیر
-              </h2>
+            <Block title="اشتباه‌های اخیر">
               <ul className="grid gap-2.5 sm:grid-cols-2">
                 {wrong.map((a, i) => (
                   <li key={a.id}>
                     <Card index={i} className="p-4">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           {a.category}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
@@ -147,7 +112,7 @@ export default async function JasoosPanelPage() {
                   </li>
                 ))}
               </ul>
-            </>
+            </Block>
           )}
         </>
       )}

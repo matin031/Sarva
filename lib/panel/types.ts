@@ -9,14 +9,23 @@
 
 // ---------------------------------------------------------------- عروض ----
 
+/** The same six shapes the quiz page renders (`Question["type"]`). The panel
+ *  has to know all of them, not just the three that happen to be seeded — a
+ *  review that silently drops a question shape is worse than no review. */
 export type AruzQuestionType =
-  | "poem-to-audio"
   | "audio-to-poem"
+  | "audio-to-pattern"
+  | "audio-to-weight"
+  | "poem-to-audio"
+  | "pattern-to-audio"
   | "weight-to-audio";
 
 export const ARUZ_TYPE_LABEL: Record<AruzQuestionType, string> = {
-  "poem-to-audio": "بیت به صوت",
   "audio-to-poem": "صوت به بیت",
+  "audio-to-pattern": "صوت به الگوی هجایی",
+  "audio-to-weight": "صوت به وزن",
+  "poem-to-audio": "بیت به صوت",
+  "pattern-to-audio": "الگوی هجایی به صوت",
   "weight-to-audio": "وزن به صوت",
 };
 

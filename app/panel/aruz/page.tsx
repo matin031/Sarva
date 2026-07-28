@@ -1,8 +1,65 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
-import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
+import AruzAttemptList from "@/components/UI/panel/AruzAttemptList";
+import { loadAruzPanel } from "./actions";
+import { streak } from "@/lib/panel/format";
+import type { AruzAttempt } from "@/lib/panel/types";
 
 function page() {
+  const [attempts, setAttempts] = useState<AruzAttempt[]>([]);
+  const [activity, setActivity] = useState<{ at: string; ok: boolean }[]>([]);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadAruzPanel()
+      .then((data) => {
+        if (cancelled || !data) return;
+        setAttempts(data.attempts);
+        setActivity(data.activity);
+      })
+      .catch((err) => console.error("loadAruzPanel:", err))
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    // `user_answers` is the per-question record, so it is the honest basis for
+    // accuracy; attempts are the fallback for anyone whose answers predate it.
+    const fromAttempts = attempts.reduce(
+      (acc, a) => ({
+        total: acc.total + a.total,
+        correct: acc.correct + a.correct,
+      }),
+      { total: 0, correct: 0 },
+    );
+    const answered = activity.length || fromAttempts.total;
+    const correct = activity.length
+      ? activity.filter((x) => x.ok).length
+      : fromAttempts.correct;
+
+    return {
+      accuracy: answered ? Math.round((correct / answered) * 100) : 0,
+      answered,
+      best: attempts.length
+        ? Math.max(
+            ...attempts.map((a) =>
+              a.total ? Math.round((a.correct / a.total) * 100) : 0,
+            ),
+          )
+        : 0,
+      streak: streak(activity.map((x) => x.at)),
+    };
+  }, [attempts, activity]);
+
+  /** «—» until the real number arrives, so nothing on screen is ever a guess. */
+  const show = (n: number) => (ready ? toFa(n) : "—");
+
   return (
     <div>
       <span
@@ -16,7 +73,7 @@ function page() {
         <div className="  grid grid-cols-2 gap-7 mt-6">
           <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
             <div className=" size-22 rounded-full border-4 border-border flex items-center justify-center text-2xl">
-              {toFa(70)}%
+              {show(stats.accuracy)}%
             </div>
             <span className=" text-lg">دقت عروض سماعی</span>
           </div>
@@ -37,13 +94,13 @@ function page() {
             </svg>
 
             <div className=" text-lg">
-              <span className=" text-gold text-3xl">{toFa(12)}</span> تست پاسخ
-              دادی
+              <span className=" text-gold text-3xl">{show(stats.answered)}</span>{" "}
+              تست پاسخ دادی
             </div>
           </div>
           <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
             <div className=" size-22 rounded-full border-4 border-border flex items-center justify-center text-2xl">
-              {toFa(70)}%
+              {show(stats.best)}%
             </div>
             <span className=" text-lg">بهترین عملکرد</span>
           </div>
@@ -62,8 +119,8 @@ function page() {
             </svg>
 
             <div className=" text-lg">
-              <span className=" text-gold text-3xl">{toFa(12)}</span> روز زنجیرۀ
-              تلاش
+              <span className=" text-gold text-3xl">{show(stats.streak)}</span>{" "}
+              روز زنجیرۀ تلاش
             </div>
           </div>
         </div>
@@ -85,57 +142,14 @@ function page() {
           </svg>
           <h2 className=" text-3xl">آزمون‌های پیشین</h2>
         </div>
-        <div className=" bg-card shadow rounded-xl p-3 ">
-          <div className=" flex items-center justify-between">
-            <div className=" flex items-center flex-row-reverse gap-x-6">
-              <div>
-                <span>۳ از ۵ پاسخ درست</span>
-                <div className=" flex gap-x-1 items-center text-muted-foreground">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="size-4"
-                  >
-                    <path d="M12 11.993a.75.75 0 0 0-.75.75v.006c0 .414.336.75.75.75h.006a.75.75 0 0 0 .75-.75v-.006a.75.75 0 0 0-.75-.75H12ZM12 16.494a.75.75 0 0 0-.75.75v.005c0 .414.335.75.75.75h.005a.75.75 0 0 0 .75-.75v-.005a.75.75 0 0 0-.75-.75H12ZM8.999 17.244a.75.75 0 0 1 .75-.75h.006a.75.75 0 0 1 .75.75v.006a.75.75 0 0 1-.75.75h-.006a.75.75 0 0 1-.75-.75v-.006ZM7.499 16.494a.75.75 0 0 0-.75.75v.005c0 .414.336.75.75.75h.005a.75.75 0 0 0 .75-.75v-.005a.75.75 0 0 0-.75-.75H7.5ZM13.499 14.997a.75.75 0 0 1 .75-.75h.006a.75.75 0 0 1 .75.75v.005a.75.75 0 0 1-.75.75h-.006a.75.75 0 0 1-.75-.75v-.005ZM14.25 16.494a.75.75 0 0 0-.75.75v.006c0 .414.335.75.75.75h.005a.75.75 0 0 0 .75-.75v-.006a.75.75 0 0 0-.75-.75h-.005ZM15.75 14.995a.75.75 0 0 1 .75-.75h.005a.75.75 0 0 1 .75.75v.006a.75.75 0 0 1-.75.75H16.5a.75.75 0 0 1-.75-.75v-.006ZM13.498 12.743a.75.75 0 0 1 .75-.75h2.25a.75.75 0 1 1 0 1.5h-2.25a.75.75 0 0 1-.75-.75ZM6.748 14.993a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z" />
-                    <path
-                      fillRule="evenodd"
-                      d="M18 2.993a.75.75 0 0 0-1.5 0v1.5h-9V2.994a.75.75 0 1 0-1.5 0v1.497h-.752a3 3 0 0 0-3 3v11.252a3 3 0 0 0 3 3h13.5a3 3 0 0 0 3-3V7.492a3 3 0 0 0-3-3H18V2.993ZM3.748 18.743v-7.5a1.5 1.5 0 0 1 1.5-1.5h13.5a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5h-13.5a1.5 1.5 0 0 1-1.5-1.5Z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className=" text-xs pt-0.5">۱۴۰۵/۰۴/۳۱</span>
-                </div>
-              </div>
-              <div
-                className=" size-16 border-4 rounded-full 
-            border-border flex items-center justify-center"
-              >
-                {toFa(60)}%
-              </div>
-            </div>
-            <div className=" flex items-center gap-x-2">
-              <span>{toFa(2)}نادرست</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="size-4"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
+
+        {ready ? (
+          <AruzAttemptList attempts={attempts} />
+        ) : (
+          <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center text-muted-foreground">
+            ...در حال بارگذاری آزمون‌ها
           </div>
-          <div className=" bg-secondary p-4 mt-3 rounded-xl">
-            <div>
-              <OrouzDemo />
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

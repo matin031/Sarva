@@ -17,7 +17,7 @@ import {
   type VocabQuestion,
   type VocabWord,
 } from "@/lib/vocab-data";
-import { fetchGradePicturedWords, logVocabAnswer, type GradeWord } from "@/lib/vocab-db";
+import { fetchGradePicturedWords, type GradeWord } from "@/lib/vocab-db";
 import { vocabImageUrl } from "@/lib/vocab-image";
 import {
   hasFailed,
@@ -288,16 +288,10 @@ export default function VocabGame() {
     if (correct) {
       correctAudio.current?.play().catch(() => {});
     }
-    if (userId && grade) {
-      logVocabAnswer(userId, {
-        grade: grade.id,
-        lesson: lessonOf(q.answer.id) ?? selected[0] ?? 0,
-        word: q.answer.word,
-        meaning: q.answer.meaning,
-        image: q.answer.image,
-        isCorrect: correct,
-      });
-    }
+    // حالتِ یادگیری is practice, not an exam: nothing is written to
+    // `vocab_answers`, so «آزمون‌های پیشین» in the panel stays a record of real
+    // attempts (حالتِ چالش) rather than of browsing. What the student keeps
+    // from this mode is what they choose to flag.
   };
 
   const finish = useCallback(() => {
@@ -862,6 +856,27 @@ export default function VocabGame() {
           isCorrect={!!isCorrect}
           answer={q.answer}
           others={q.options.filter((o) => o.id !== q.answer.id)}
+          /* the moment the student is actually looking at the word is the
+             moment they decide to keep it — so the flag lives here too, not
+             only as a small pill behind the modal */
+          note={
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
+              <p className="text-xs text-muted-foreground">
+                می‌خواهی این واژه را برای مرور بعدی نگه داری؟
+              </p>
+              <BookmarkButton
+                area="vocab"
+                refId={q.answer.id}
+                title={q.answer.word}
+                subtitle={q.answer.meaning}
+                payload={{
+                  image: q.answer.image,
+                  lesson: lessonOf(q.answer.id) ?? null,
+                  grade: grade?.id ?? null,
+                }}
+              />
+            </div>
+          }
           continueLabel={
             reviewing
               ? qi + 1 >= questions.length

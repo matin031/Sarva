@@ -1,6 +1,7 @@
 "use client";
 import SimpleBarChart from "@/components/PanelChart";
 import { toFa } from "@/components/UI/CircularProgress";
+import StatRing from "@/components/UI/panel/StatRing";
 
 function page() {
   return (
@@ -32,9 +33,7 @@ function page() {
         <div>
           <div className="  grid grid-cols-2 gap-7 mt-6">
             <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
-              <div className=" size-22 rounded-full border-4 border-border flex items-center justify-center text-2xl">
-                {toFa(70)}%
-              </div>
+              <StatRing percent={70} />
               <span className=" text-lg">دقت در تمامی بخش‌ها</span>
             </div>
             <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">

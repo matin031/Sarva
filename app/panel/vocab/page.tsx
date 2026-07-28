@@ -4,6 +4,8 @@ import { toFa } from "@/components/UI/CircularProgress";
 import VocabSessionList from "@/components/UI/panel/VocabSessionList";
 import VocabBookmarks from "@/components/UI/panel/VocabBookmarks";
 import VocabTrend from "@/components/UI/panel/VocabTrend";
+import StatRing from "@/components/UI/panel/StatRing";
+import SarvaLoader from "@/components/UI/SarvaLoader";
 import { loadMoreVocabAnswers, loadVocabPanel } from "./actions";
 import { groupIntoSessions, streak } from "@/lib/panel/format";
 import type { Bookmark, VocabAnswer } from "@/lib/panel/types";
@@ -87,9 +89,7 @@ function page() {
       <div className=" glass rounded-xl p-4 sm:p-6">
         <div className=" mt-2 grid grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-7">
           <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <div className=" flex size-18 shrink-0 items-center justify-center rounded-full border-4 border-border text-xl sm:size-22 sm:text-2xl">
-              {show(stats.accuracy)}%
-            </div>
+            <StatRing percent={stats.accuracy} ready={ready} />
             <span className=" text-base sm:text-lg">دقت در واژه‌یاب</span>
           </div>
 
@@ -117,9 +117,7 @@ function page() {
           </div>
 
           <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <div className=" flex size-18 shrink-0 items-center justify-center rounded-full border-4 border-border text-xl sm:size-22 sm:text-2xl">
-              {show(stats.best)}%
-            </div>
+            <StatRing percent={stats.best} ready={ready} />
             <span className=" text-base sm:text-lg">بهترین دست</span>
           </div>
 
@@ -171,8 +169,8 @@ function page() {
         {ready ? (
           <VocabTrend history={history} />
         ) : (
-          <div className=" mt-3 rounded-2xl bg-card p-8 text-center text-muted-foreground shadow">
-            ...در حال بارگذاری
+          <div className=" mt-3 rounded-2xl bg-card p-8 shadow">
+            <SarvaLoader label="در حال بارگذاری" />
           </div>
         )}
       </div>
@@ -203,8 +201,8 @@ function page() {
             onLoadMore={loadMore}
           />
         ) : (
-          <div className=" mt-3 rounded-2xl bg-card p-8 text-center text-muted-foreground shadow">
-            ...در حال بارگذاری آزمون‌ها
+          <div className=" mt-3 rounded-2xl bg-card p-8 shadow">
+            <SarvaLoader label="در حال بارگذاری آزمون‌ها" />
           </div>
         )}
       </div>
@@ -229,8 +227,8 @@ function page() {
         {ready ? (
           <VocabBookmarks bookmarks={bookmarks} />
         ) : (
-          <div className=" mt-3 rounded-2xl bg-card p-8 text-center text-muted-foreground shadow">
-            ...در حال بارگذاری
+          <div className=" mt-3 rounded-2xl bg-card p-8 shadow">
+            <SarvaLoader label="در حال بارگذاری" />
           </div>
         )}
       </div>

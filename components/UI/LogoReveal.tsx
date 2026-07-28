@@ -52,7 +52,11 @@ function LogoReveal() {
         <div ref={markRef} className="lr-mark">
           <div className="lr-clip">
             <MainLogo />
-            <div className="lr-sweep"></div>
+            {/* the sweep is masked to the logo, otherwise the highlight paints
+                the square box around it and the box is what you notice */}
+            <div className="lr-sweep-wrap">
+              <div className="lr-sweep"></div>
+            </div>
           </div>
           <div className="lr-pen">
             <svg

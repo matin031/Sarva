@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
 import AruzAttemptList from "@/components/UI/panel/AruzAttemptList";
+import StatRing from "@/components/UI/panel/StatRing";
+import SarvaLoader from "@/components/UI/SarvaLoader";
 import BookmarkedQuestions from "@/components/UI/panel/BookmarkedQuestions";
 import { loadAruzPanel, loadMoreAruzAttempts } from "./actions";
 import { streak } from "@/lib/panel/format";
@@ -88,22 +90,20 @@ function page() {
       >
         عروض سماعی
       </span>
-      <div className=" glass rounded-xl p-6">
-        <div className="  grid grid-cols-2 gap-7 mt-6">
-          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
-            <div className=" size-22 rounded-full border-4 border-border flex items-center justify-center text-2xl">
-              {show(stats.accuracy)}%
-            </div>
+      <div className=" glass rounded-xl p-4 sm:p-6">
+        <div className=" mt-2 grid grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-7">
+          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
+            <StatRing percent={stats.accuracy} ready={ready} />
             <span className=" text-lg">دقت عروض سماعی</span>
           </div>
-          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
+          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
-              className="size-10"
+              className=" size-9 shrink-0 sm:size-10"
             >
               <path
                 strokeLinecap="round"
@@ -117,18 +117,16 @@ function page() {
               تست پاسخ دادی
             </div>
           </div>
-          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
-            <div className=" size-22 rounded-full border-4 border-border flex items-center justify-center text-2xl">
-              {show(stats.best)}%
-            </div>
+          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
+            <StatRing percent={stats.best} ready={ready} />
             <span className=" text-lg">بهترین عملکرد</span>
           </div>
-          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
+          <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="currentColor"
-              className="size-10"
+              className=" size-9 shrink-0 sm:size-10"
             >
               <path
                 fillRule="evenodd"
@@ -144,13 +142,13 @@ function page() {
           </div>
         </div>
       </div>
-      <div className=" glass mt-6 p-6 rounded-xl">
+      <div className=" glass mt-6 rounded-xl p-4 sm:p-6">
         <div className=" flex items-center gap-x-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="size-10"
+            className=" size-9 shrink-0 sm:size-10"
           >
             <path
               fillRule="evenodd"
@@ -159,7 +157,7 @@ function page() {
             />
             <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
           </svg>
-          <h2 className=" text-3xl">آزمون‌های پیشین</h2>
+          <h2 className=" text-2xl sm:text-3xl">آزمون‌های پیشین</h2>
         </div>
 
         {ready ? (
@@ -170,13 +168,13 @@ function page() {
             onLoadMore={loadMore}
           />
         ) : (
-          <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center text-muted-foreground">
-            ...در حال بارگذاری آزمون‌ها
+          <div className=" bg-card shadow rounded-xl p-8 mt-3">
+            <SarvaLoader label="در حال بارگذاری آزمون‌ها" />
           </div>
         )}
       </div>
 
-      <div className=" glass mt-6 p-6 rounded-xl">
+      <div className=" glass mt-6 rounded-xl p-4 sm:p-6">
         <div className=" flex items-center gap-x-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -190,14 +188,14 @@ function page() {
               clipRule="evenodd"
             />
           </svg>
-          <h2 className=" text-3xl">سؤال‌های نشان‌شده</h2>
+          <h2 className=" text-2xl sm:text-3xl">سؤال‌های نشان‌شده</h2>
         </div>
 
         {ready ? (
           <BookmarkedQuestions bookmarks={bookmarks} />
         ) : (
-          <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center text-muted-foreground">
-            ...در حال بارگذاری
+          <div className=" bg-card shadow rounded-xl p-8 mt-3">
+            <SarvaLoader label="در حال بارگذاری نشان‌شده‌ها" />
           </div>
         )}
       </div>

@@ -686,3 +686,79 @@ button {
     stroke-dashoffset: 0;
   }
 }
+
+/* ---------------------------------------------------------------- سروا mark */
+
+/* Paint anything through the logo's own silhouette. Used by the loader and by
+   the intro sweep: without it a highlight moving across the mark paints the
+   square box it lives in, and the box is what you end up noticing. */
+.sarva-mask,
+.lr-sweep-wrap {
+  -webkit-mask-image: url("/favicon.svg");
+  mask-image: url("/favicon.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.lr-sweep-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* halo behind the loader's mark */
+.sarva-glow {
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--primary) 45%, transparent),
+    transparent
+  );
+}
+
+/* the light that runs up the loader's silhouette */
+.sarva-shine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: linear-gradient(
+    to top,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: sarvaShine 2.4s cubic-bezier(0.45, 0, 0.35, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes sarvaShine {
+  0% {
+    top: 100%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    top: -45%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sarva-shine {
+    animation: none;
+    opacity: 0;
+  }
+}

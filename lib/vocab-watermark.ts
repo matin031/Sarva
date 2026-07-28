@@ -39,22 +39,36 @@ export async function watermarkImage(srcBuf: Buffer): Promise<Buffer> {
     .resize({ width: MAX_WIDTH, withoutEnlargement: true })
     .toBuffer();
 
-  // repeating faint tile — small marks with generous spacing so they read as a
-  // subtle texture, not a busy grid
-  const tileMark = await markPng(48);
+  // the marks are sized against the picture itself, not against a fixed pixel
+  // count: the same photo is shown full-width in the game and inside a small
+  // review card in the panel, and a mark tuned for the big one disappears in
+  // the small one
+  const { width = MAX_WIDTH } = await sharp(base).metadata();
+  const cell = Math.max(120, Math.round(width * 0.26));
+  const tileSize = Math.round(cell * 0.3);
+
+  // repeating tile — small marks with generous spacing so they read as a
+  // texture rather than a busy grid, but dense enough to survive a crop
+  const tileMark = await markPng(tileSize);
   const tile = await sharp({
-    create: { width: 250, height: 250, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: { width: cell, height: cell, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     .composite([{ input: tileMark, gravity: "center" }])
     .png()
     .toBuffer();
-  const tileFaded = await fade(tile, 0.09);
+  const tileFaded = await fade(tile, 0.16);
 
   // clearer corner mark, padded off the very edge
-  const cornerMark = await markPng(38);
-  const cornerFaded = await fade(cornerMark, 0.5);
+  const cornerSize = Math.max(34, Math.round(width * 0.08));
+  const cornerMark = await markPng(cornerSize);
+  const cornerFaded = await fade(cornerMark, 0.62);
   const corner = await sharp({
-    create: { width: 60, height: 60, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: {
+      width: Math.round(cornerSize * 1.6),
+      height: Math.round(cornerSize * 1.6),
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
   })
     .composite([{ input: cornerFaded, gravity: "center" }])
     .png()

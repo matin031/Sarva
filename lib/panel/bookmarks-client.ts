@@ -28,17 +28,28 @@ export async function isBookmarked(
     .eq("area", area)
     .eq("ref_id", refId)
     .maybeSingle();
-  if (error) return false;
+  if (error) {
+    // a failed read must not masquerade as "not bookmarked" in the console —
+    // that is exactly the case that used to end in a mysterious flicker
+    console.error("isBookmarked:", error.message);
+    return false;
+  }
   return Boolean(data);
 }
 
-/** Returns the state after the toggle. */
-export async function toggleBookmark(
+/** Write the flag to a known state.
+ *
+ *  Both branches are idempotent — a delete that matches nothing succeeds, and
+ *  the insert upserts on the (user, area, ref) unique key. The earlier version
+ *  read the current state first and then inserted, so a read that came back
+ *  wrong (RLS, a cold PostgREST schema cache) turned into a duplicate-key
+ *  error, the button reverted, and the flag appeared to switch itself off. */
+export async function setBookmark(
   userId: string,
   input: BookmarkInput,
-): Promise<boolean> {
-  const on = await isBookmarked(userId, input.area, input.refId);
-  if (on) {
+  next: boolean,
+): Promise<void> {
+  if (!next) {
     const { error } = await supabase
       .from("user_bookmarks")
       .delete()
@@ -46,18 +57,21 @@ export async function toggleBookmark(
       .eq("area", input.area)
       .eq("ref_id", input.refId);
     if (error) throw new Error(error.message);
-    return false;
+    return;
   }
-  const { error } = await supabase.from("user_bookmarks").insert({
-    user_id: userId,
-    area: input.area,
-    ref_id: input.refId,
-    title: input.title,
-    subtitle: input.subtitle ?? null,
-    payload: input.payload ?? {},
-  });
+
+  const { error } = await supabase.from("user_bookmarks").upsert(
+    {
+      user_id: userId,
+      area: input.area,
+      ref_id: input.refId,
+      title: input.title,
+      subtitle: input.subtitle ?? null,
+      payload: input.payload ?? {},
+    },
+    { onConflict: "user_id,area,ref_id" },
+  );
   if (error) throw new Error(error.message);
-  return true;
 }
 
 export async function removeBookmark(id: string): Promise<void> {
@@ -65,10 +79,7 @@ export async function removeBookmark(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function setBookmarkNote(
-  id: string,
-  note: string,
-): Promise<void> {
+export async function setBookmarkNote(id: string, note: string): Promise<void> {
   const { error } = await supabase
     .from("user_bookmarks")
     .update({ note: note.trim() || null })

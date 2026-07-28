@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { supabase } from "@/lib/supabase";
-import { isBookmarked, toggleBookmark } from "@/lib/panel/bookmarks-client";
+import { isBookmarked, setBookmark } from "@/lib/panel/bookmarks-client";
 import type { BookmarkArea } from "@/lib/panel/types";
 
 /** Flag a question for later, from anywhere in the site.
@@ -30,6 +30,7 @@ export default function BookmarkButton({
   const [userId, setUserId] = useState<string | null>(null);
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -59,20 +60,23 @@ export default function BookmarkButton({
 
   const click = async () => {
     if (busy) return;
+    const next = !on;
     setBusy(true);
+    setFailed(false);
     // optimistic: the flag should feel instant even on a slow connection
-    setOn((v) => !v);
+    setOn(next);
     try {
-      const next = await toggleBookmark(userId, {
-        area,
-        refId,
-        title,
-        subtitle,
-        payload,
-      });
-      setOn(next);
-    } catch {
-      setOn((v) => !v); // put it back
+      await setBookmark(
+        userId,
+        { area, refId, title, subtitle, payload },
+        next,
+      );
+    } catch (err) {
+      // never fail quietly: a flag that flicks back with no explanation reads
+      // as a bug in the page rather than as a write that did not land
+      console.error("bookmark write failed:", err);
+      setOn(!next);
+      setFailed(true);
     } finally {
       setBusy(false);
     }
@@ -85,11 +89,19 @@ export default function BookmarkButton({
       whileTap={{ scale: 0.9 }}
       aria-pressed={on}
       aria-label={on ? "برداشتنِ نشان" : "نشان‌کردنِ این سؤال"}
-      title={on ? "نشان برداشته شود" : "نشان‌کردن برای مرور بعدی"}
+      title={
+        failed
+          ? "ذخیره نشد — دوباره بزن (جزئیات در کنسول)"
+          : on
+            ? "نشان برداشته شود"
+            : "نشان‌کردن برای مرور بعدی"
+      }
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-        on
-          ? "border-gold bg-gold/15 text-gold"
-          : "border-border bg-card text-muted-foreground hover:border-gold/50 hover:text-gold"
+        failed
+          ? "border-red-500 bg-red-500/10 text-red-500"
+          : on
+            ? "border-gold bg-gold/15 text-gold"
+            : "border-border bg-card text-muted-foreground hover:border-gold/50 hover:text-gold"
       } ${className}`}
     >
       <svg
@@ -106,7 +118,7 @@ export default function BookmarkButton({
           d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
         />
       </svg>
-      {!compact && (on ? "نشان‌شده" : "نشان‌کردن")}
+      {!compact && (failed ? "ذخیره نشد" : on ? "نشان‌شده" : "نشان‌کردن")}
     </motion.button>
   );
 }

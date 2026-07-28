@@ -117,6 +117,11 @@ export default function RootLayout({
     <html
       lang="fa"
       className={`${vazirmatn.variable}  h-full antialiased dark`}
+      /* Browser extensions (dark-mode ones especially) write an inline style
+         onto <html> before React hydrates, which React then reports as a
+         mismatch nobody can act on. This suppresses the warning for this one
+         element only — every component inside is still checked normally. */
+      suppressHydrationWarning
     >
       <body className="text-right  flex flex-col min-h-screen">
         <script

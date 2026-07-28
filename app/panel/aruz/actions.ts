@@ -7,20 +7,15 @@ import {
   getBookmarks,
   getPanelUser,
 } from "@/lib/panel/queries";
-import type { AruzAttempt, Bookmark } from "@/lib/panel/types";
+import type { AruzAttempt, AruzPanelData } from "@/lib/panel/types";
 
 /** How many past attempts arrive per request. Each attempt carries all of its
  *  questions and every option, so this is the one number that decides how heavy
- *  the page is — the rest come from «بارگیری بیشتر». */
-export const PAGE_SIZE = 5;
-
-export type AruzPanelData = {
-  attempts: AruzAttempt[];
-  hasMore: boolean;
-  summary: { attempts: number; best: number; questions: number; correct: number };
-  activity: { at: string; ok: boolean }[];
-  bookmarks: Bookmark[];
-};
+ *  the page is — the rest come from «بارگیری بیشتر».
+ *
+ *  Not exported: a `"use server"` module may only export async functions, so
+ *  anything shared with the page lives in `lib/panel/types` instead. */
+const PAGE_SIZE = 5;
 
 /** Everything `/panel/aruz` needs for the first paint, in one round trip.
  *

@@ -4,9 +4,8 @@ import { toFa } from "@/components/UI/CircularProgress";
 import AruzAttemptList from "@/components/UI/panel/AruzAttemptList";
 import BookmarkedQuestions from "@/components/UI/panel/BookmarkedQuestions";
 import { loadAruzPanel, loadMoreAruzAttempts } from "./actions";
-import type { AruzPanelData } from "./actions";
 import { streak } from "@/lib/panel/format";
-import type { AruzAttempt, Bookmark } from "@/lib/panel/types";
+import type { AruzAttempt, AruzPanelData, Bookmark } from "@/lib/panel/types";
 
 function page() {
   const [attempts, setAttempts] = useState<AruzAttempt[]>([]);

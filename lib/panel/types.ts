@@ -132,3 +132,19 @@ export type PanelUser = {
   fullName: string;
   createdAt: string | null;
 };
+
+/** What `/panel/aruz` loads on first paint. It lives here rather than beside
+ *  the action that returns it because a `"use server"` module may only export
+ *  async functions. */
+export type AruzPanelData = {
+  attempts: AruzAttempt[];
+  hasMore: boolean;
+  summary: {
+    attempts: number;
+    best: number;
+    questions: number;
+    correct: number;
+  };
+  activity: { at: string; ok: boolean }[];
+  bookmarks: Bookmark[];
+};

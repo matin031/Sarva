@@ -9,8 +9,20 @@ import { supabase } from "@/lib/supabase";
 import QuizSettingsModal from "./QuizSettingsModal";
 import GuestLimitModal from "./GuestLimitModal";
 import BookLoader from "../svgs/LoadingIcon";
+import BookmarkButton from "@/components/UI/BookmarkButton";
+import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
 
 const GUEST_QUESTION_LIMIT = 3;
+
+/** A one-line name for a bookmarked question: whatever the student actually
+ *  reads on the card, falling back to the right answer when the prompt is a
+ *  sound rather than text. */
+function bookmarkTitle(q: Question): string {
+  const right = q.options.find((o) => o.isCorrect);
+  return (
+    q.poem?.[0] || right?.label || right?.poem?.[0] || "سؤال عروض سماعی"
+  );
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -421,6 +433,30 @@ function Quiz({ data }: { data: Question[] }) {
       />
 
       <div className="w-full">
+        {/* flag this question for later — it shows up in پنل ← عروض ← نشان‌شده‌ها.
+            The payload carries the whole question so the panel can replay it
+            even if the question bank changes afterwards. */}
+        <div className="mt-4 flex justify-end">
+          <BookmarkButton
+            area="aruz"
+            refId={questions[currentIndex].id}
+            title={bookmarkTitle(questions[currentIndex])}
+            subtitle={ARUZ_TYPE_LABEL[questions[currentIndex].type]}
+            payload={{
+              type: questions[currentIndex].type,
+              poem: questions[currentIndex].poem ?? null,
+              audioUrl: questions[currentIndex].audioSrc ?? null,
+              options: questions[currentIndex].options.map((o) => ({
+                id: o.id,
+                label: o.label ?? null,
+                poem: o.poem ?? null,
+                audioUrl: o.audioSrc ?? null,
+                isCorrect: o.isCorrect,
+              })),
+            }}
+          />
+        </div>
+
         <QuestionCard questions={questions} currentIndex={currentIndex} />
 
         {/* QuestionOptions */}

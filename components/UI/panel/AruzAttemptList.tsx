@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { Question } from "@/app/quiz/page";
-import QuestionCard from "@/components/UI/QuestionCard";
-import QuestionOption from "@/components/UI/QuestionOption";
 import { toFa } from "@/components/UI/CircularProgress";
-import { jalali } from "@/lib/panel/format";
+import QuizStyleQuestion from "@/components/UI/panel/QuizStyleQuestion";
+import { jalali, scoreColor } from "@/lib/panel/format";
 import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
 import type { AruzAnswer, AruzAttempt } from "@/lib/panel/types";
 
@@ -15,16 +13,23 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 /** آزمون‌های پیشینِ عروض.
  *
  *  Each row expands into that attempt's own questions, rendered by the very
- *  components the quiz page uses — `QuestionCard` for the prompt and
- *  `QuestionOption` for the choices — so a بیت prompt, an audio prompt and a
- *  وزن prompt each come back looking exactly as they did during the test, with
- *  the student's pick in red and the right answer in green. Questions are shown
- *  one at a time, like the quiz: it keeps the layout identical and keeps one
- *  WaveSurfer instance per option instead of one per option per question. */
+ *  components the quiz page uses, so a بیت prompt, an audio prompt and a وزن
+ *  prompt each come back looking exactly as they did during the test. Questions
+ *  are shown one at a time, like the quiz: it keeps the layout identical and
+ *  keeps one WaveSurfer instance per option instead of one per option per
+ *  question. Attempts themselves arrive a page at a time — a student with fifty
+ *  tests behind them should not pull fifty tests' worth of audio metadata down
+ *  just to look at the newest one. */
 export default function AruzAttemptList({
   attempts,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   attempts: AruzAttempt[];
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -51,6 +56,40 @@ export default function AruzAttemptList({
           }
         />
       ))}
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          disabled={loadingMore}
+          className={`mx-auto mt-2 inline-flex items-center gap-x-2 rounded-xl border border-border
+            bg-card px-6 py-3 text-sm font-medium transition-all ${
+              loadingMore
+                ? "cursor-not-allowed text-muted-foreground"
+                : "cursor-pointer hover:border-primary/50 hover:text-primary active:scale-95"
+            }`}
+        >
+          {loadingMore ? (
+            "...در حال بارگیری"
+          ) : (
+            <>
+              بارگیری آزمون‌های بیشتر
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="size-4"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -68,6 +107,7 @@ function AttemptRow({
     ? Math.round((attempt.correct / attempt.total) * 100)
     : 0;
   const wrong = Math.max(attempt.total - attempt.correct, 0);
+  const color = scoreColor(percent);
 
   return (
     <div className=" bg-card shadow rounded-xl p-3 ">
@@ -103,8 +143,9 @@ function AttemptRow({
               </div>
             </div>
             <div
+              style={{ borderColor: color, color }}
               className=" size-16 border-4 rounded-full
-            border-border flex items-center justify-center"
+            flex items-center justify-center font-bold transition-colors"
             >
               {toFa(percent)}%
             </div>
@@ -152,7 +193,6 @@ function AttemptRow({
  *  grid, same right/wrong colours. */
 function AttemptQuestions({ answers }: { answers: AruzAnswer[] }) {
   const [index, setIndex] = useState(0);
-  const [playingId, setPlayingId] = useState<number | null>(null);
 
   if (!answers.length) {
     return (
@@ -164,31 +204,8 @@ function AttemptQuestions({ answers }: { answers: AruzAnswer[] }) {
 
   const at = Math.min(index, answers.length - 1);
   const answer = answers[at];
-  const goTo = (i: number) => {
-    setPlayingId(null);
+  const goTo = (i: number) =>
     setIndex(Math.max(0, Math.min(i, answers.length - 1)));
-  };
-
-  const picked = answer.options.findIndex(
-    (o) => o.id === answer.selectedOptionId,
-  );
-  const selectedIndex = picked === -1 ? null : picked;
-
-  // exactly the shape `QuestionCard`/`QuestionOption` get on the quiz page
-  const question: Question = {
-    id: answer.questionId ?? answer.id,
-    type: (answer.type ?? "poem-to-audio") as Question["type"],
-    poem: answer.poem ?? undefined,
-    audioSrc: answer.audioUrl ?? undefined,
-    options: answer.options.map((o) => ({
-      id: o.id,
-      poem: o.poem ?? undefined,
-      label: o.label ?? undefined,
-      audioSrc: o.audioUrl ?? undefined,
-      isCorrect: o.isCorrect,
-      x: 0,
-    })),
-  };
 
   return (
     <div dir="rtl" className=" w-full">
@@ -231,44 +248,54 @@ function AttemptQuestions({ answers }: { answers: AruzAnswer[] }) {
         ))}
       </div>
 
-      {answer.type ? (
-        <>
-          <QuestionCard questions={[question]} currentIndex={0} />
+      <QuizStyleQuestion
+        key={answer.id}
+        question={{
+          id: answer.questionId ?? answer.id,
+          type: answer.type,
+          poem: answer.poem,
+          audioUrl: answer.audioUrl,
+          options: answer.options,
+        }}
+        selectedOptionId={answer.selectedOptionId}
+      />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 *:h-20 md:*:min-h-30 text-muted-foreground">
-            {question.options.map((o, i) => (
-              <QuestionOption
-                key={`${answer.id}-${o.id}`}
-                setSelected={() => {}}
-                selected={selectedIndex}
-                id={i}
-                audioUrl={o.audioSrc || ""}
-                answered
-                isCorrect={o.isCorrect}
-                title={o.label}
-                quizType={question.type}
-                poem={o.poem}
-                whileInView={0}
-                playingId={playingId}
-                setPlayingId={setPlayingId}
-              />
-            ))}
-          </div>
-        </>
-      ) : (
-        <p className=" text-center text-muted-foreground py-10">
-          این پرسش دیگر در بانک سؤال موجود نیست.
-        </p>
-      )}
-
-      {selectedIndex === null && answer.type && (
+      {answer.selectedOptionId === null && answer.type && (
         <p className=" mt-4 text-sm text-muted-foreground">
           به این پرسش پاسخ ندادی؛ گزینهٔ درست با رنگ سبز مشخص شده است.
         </p>
       )}
 
-      {/* prev / next, styled like the quiz's own buttons */}
+      {/* prev on the left, next on the right — the direction the reader moves */}
       <div className="w-full mt-6 flex items-center justify-between gap-x-3">
+        <button
+          type="button"
+          onClick={() => goTo(at - 1)}
+          disabled={at === 0}
+          className={`glass transition-all whitespace-nowrap text-sm md:text-lg
+               h-9 rounded-lg md:rounded-xl px-5 md:px-6 py-3 md:py-6
+              inline-flex items-center justify-between gap-x-2 font-medium ${
+                at === 0
+                  ? "text-black/20 dark:text-white/20 cursor-not-allowed"
+                  : "text-black/70 dark:text-white/70 hover:brightness-110 active:scale-95 cursor-pointer"
+              }`}
+        >
+          سؤال قبلی
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+            />
+          </svg>
+        </button>
         <button
           type="button"
           onClick={() => goTo(at + 1)}
@@ -282,34 +309,6 @@ function AttemptQuestions({ answers }: { answers: AruzAnswer[] }) {
               }`}
         >
           سؤال بعدی
-        </button>
-        <button
-          type="button"
-          onClick={() => goTo(at - 1)}
-          disabled={at === 0}
-          className={`glass transition-all whitespace-nowrap text-sm md:text-lg
-               h-9 rounded-lg md:rounded-xl px-5 md:px-6 py-3 md:py-6
-              inline-flex items-center justify-between gap-x-2 font-medium ${
-                at === 0
-                  ? "text-black/20 dark:text-white/20 cursor-not-allowed"
-                  : "text-black/70 dark:text-white/70 hover:brightness-110 active:scale-95 cursor-pointer"
-              }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-5"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-            />
-          </svg>
-          سؤال قبلی
         </button>
       </div>
     </div>

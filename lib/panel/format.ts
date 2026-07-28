@@ -70,6 +70,23 @@ export function ratio(part: number, whole: number): number {
   return whole ? part / whole : 0;
 }
 
+/** A score's colour, on a continuous red → amber → green ramp.
+ *
+ *  Not three buckets: ۴۰٪ is a red leaning towards amber, ۷۰٪ is a yellow-green
+ *  and ۱۰۰٪ is a full green — the hue moves with every point. Saturation rises
+ *  towards both ends so a perfect score reads as emphatically better than a
+ *  good one, and lightness is kept in a band that stays legible on the light
+ *  and the dark theme alike. */
+export function scoreColor(percent: number): string {
+  const p = Math.max(0, Math.min(100, percent));
+  // the exponent keeps the low half red for longer: ۴۰٪ should read as a red
+  // leaning towards amber, not as a plain yellow
+  const hue = Math.pow(p / 100, 1.35) * 132; // 0 = red, ~60 = amber, 132 = green
+  const sat = 62 + (Math.abs(p - 50) / 50) * 22;
+  const light = 52 - (p / 100) * 8;
+  return `hsl(${hue.toFixed(1)} ${sat.toFixed(0)}% ${light.toFixed(0)}%)`;
+}
+
 /** Group a time-ordered list of events into sessions.
  *
  *  واژه‌یاب and جاسوس write one row per answer with no run id, so a "round"

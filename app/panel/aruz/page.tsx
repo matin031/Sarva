@@ -2,13 +2,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
 import AruzAttemptList from "@/components/UI/panel/AruzAttemptList";
-import { loadAruzPanel } from "./actions";
+import BookmarkedQuestions from "@/components/UI/panel/BookmarkedQuestions";
+import { loadAruzPanel, loadMoreAruzAttempts } from "./actions";
+import type { AruzPanelData } from "./actions";
 import { streak } from "@/lib/panel/format";
-import type { AruzAttempt } from "@/lib/panel/types";
+import type { AruzAttempt, Bookmark } from "@/lib/panel/types";
 
 function page() {
   const [attempts, setAttempts] = useState<AruzAttempt[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [summary, setSummary] = useState<AruzPanelData["summary"]>({
+    attempts: 0,
+    best: 0,
+    questions: 0,
+    correct: 0,
+  });
   const [activity, setActivity] = useState<{ at: string; ok: boolean }[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -17,7 +28,10 @@ function page() {
       .then((data) => {
         if (cancelled || !data) return;
         setAttempts(data.attempts);
+        setHasMore(data.hasMore);
+        setSummary(data.summary);
         setActivity(data.activity);
+        setBookmarks(data.bookmarks);
       })
       .catch((err) => console.error("loadAruzPanel:", err))
       .finally(() => {
@@ -28,34 +42,40 @@ function page() {
     };
   }, []);
 
+  const loadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await loadMoreAruzAttempts(attempts.length);
+      // ids are unique per attempt, so a page fetched twice cannot duplicate a row
+      setAttempts((prev) => {
+        const seen = new Set(prev.map((a) => a.id));
+        return [...prev, ...next.attempts.filter((a) => !seen.has(a.id))];
+      });
+      setHasMore(next.hasMore);
+    } catch (err) {
+      console.error("loadMoreAruzAttempts:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const stats = useMemo(() => {
     // `user_answers` is the per-question record, so it is the honest basis for
-    // accuracy; attempts are the fallback for anyone whose answers predate it.
-    const fromAttempts = attempts.reduce(
-      (acc, a) => ({
-        total: acc.total + a.total,
-        correct: acc.correct + a.correct,
-      }),
-      { total: 0, correct: 0 },
-    );
-    const answered = activity.length || fromAttempts.total;
+    // accuracy; the attempt totals are the fallback for anyone whose answers
+    // predate it. Both describe the whole history, not the loaded page.
+    const answered = activity.length || summary.questions;
     const correct = activity.length
       ? activity.filter((x) => x.ok).length
-      : fromAttempts.correct;
+      : summary.correct;
 
     return {
       accuracy: answered ? Math.round((correct / answered) * 100) : 0,
       answered,
-      best: attempts.length
-        ? Math.max(
-            ...attempts.map((a) =>
-              a.total ? Math.round((a.correct / a.total) * 100) : 0,
-            ),
-          )
-        : 0,
+      best: summary.best,
       streak: streak(activity.map((x) => x.at)),
     };
-  }, [attempts, activity]);
+  }, [summary, activity]);
 
   /** «—» until the real number arrives, so nothing on screen is ever a guess. */
   const show = (n: number) => (ready ? toFa(n) : "—");
@@ -144,10 +164,41 @@ function page() {
         </div>
 
         {ready ? (
-          <AruzAttemptList attempts={attempts} />
+          <AruzAttemptList
+            attempts={attempts}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+          />
         ) : (
           <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center text-muted-foreground">
             ...در حال بارگذاری آزمون‌ها
+          </div>
+        )}
+      </div>
+
+      <div className=" glass mt-6 p-6 rounded-xl">
+        <div className=" flex items-center gap-x-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="size-10 text-gold"
+          >
+            <path
+              fillRule="evenodd"
+              d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <h2 className=" text-3xl">سؤال‌های نشان‌شده</h2>
+        </div>
+
+        {ready ? (
+          <BookmarkedQuestions bookmarks={bookmarks} />
+        ) : (
+          <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center text-muted-foreground">
+            ...در حال بارگذاری
           </div>
         )}
       </div>

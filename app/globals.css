@@ -9,7 +9,7 @@
   --card-foreground: oklch(0.2 0.02 250);
   --popover: oklch(0.99 0.005 85);
   --popover-foreground: oklch(0.2 0.02 250);
-  --primary: oklch(0.55 0.12 195); /* Persian turquoise */
+  --primary: #008687; /* Persian turquoise */
   --primary-foreground: oklch(0.99 0.005 85);
   --secondary: oklch(0.92 0.02 85); /* Paper brown tone */
   --secondary-foreground: oklch(0.25 0.02 250);

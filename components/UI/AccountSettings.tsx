@@ -135,14 +135,13 @@ function AccountSettings() {
 
   return (
     <div
-      className=" sm:p-6 sm:bg-[#fdfcf8b3] dark:sm:bg-[#0b121db3]
-     dark:sm:border-[#22293580] sm:border-[#ded7c980] sm:backdrop-blur-md sm:border 
-     sm:relative z-20 sm:rounded-xl"
+      className="
+    rounded-xl"
     >
-      <div className="flex flex-col sm:flex-row justify-between items-start mt-8 *:w-full gap-10 lg:gap-22">
+      <div className="flex flex-col  justify-between items-start  *:w-full gap-10 lg:gap-22">
         <form
-          className=" glass relative rounded-xl z-20 p-4 sm:p-0 sm:backdrop-blur-none!
-           sm:bg-transparent! sm:border-none! sm:rounded-none! "
+          className=" glass relative rounded-xl z-20 p-4
+           "
           onSubmit={nameForm.handleSubmit(changeNameSubmit)}
         >
           <h3 className="text-lg">تغییر نام</h3>
@@ -190,8 +189,7 @@ function AccountSettings() {
           </div>
         </form>
         <form
-          className=" glass relative rounded-xl z-20 p-4 sm:p-0 sm:backdrop-blur-none!
-           sm:bg-transparent! sm:border-none! sm:rounded-none! "
+          className=" glass relative rounded-xl z-20 p-4 "
           dir="ltr"
           onSubmit={passwordForm.handleSubmit(changePasswordSubmit)}
         >

@@ -1,43 +1,106 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getPanelUser } from "@/lib/panel/queries";
-import PanelSidebar from "@/components/UI/panel/PanelSidebar";
 
-export const metadata: Metadata = {
-  title: "پنل کاربری",
-  robots: { index: false, follow: false },
-};
-
-export default async function PanelLayout({
+export default function PanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getPanelUser();
-  if (!user) redirect("/auth");
-
   return (
-    <div dir="rtl" className="bg-background">
-      <div className="container py-10 lg:py-14">
-        <div className="mb-10 flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-6">
-          <h2 className="text-sm text-muted-foreground">
-            پنل کاربری —{" "}
-            <span className="font-bold text-foreground">{user.fullName}</span>
-          </h2>
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground transition-colors hover:text-primary"
+    <main
+      dir="rtl"
+      className=" container relative z-20 mt-12 mb-80 flex flex-col items-center justify-center"
+    >
+      <div className=" w-2/3 mx-auto glass h-20 rounded-xl flex justify-between px-6 items-center">
+        <Link href="/home">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-6"
           >
-            بازگشت به سایت
-          </Link>
-        </div>
-
-        <div className="grid gap-10 lg:grid-cols-[11rem_1fr]">
-          <PanelSidebar />
-          <main className="min-w-0">{children}</main>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+            />
+          </svg>
+        </Link>
+        <Link href="/test">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+            />
+          </svg>
+        </Link>
+        <Link href="1">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+            />
+          </svg>
+        </Link>
+        <Link href="1">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+            />
+          </svg>
+        </Link>
+        <Link href="1">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+            />
+          </svg>
+        </Link>
       </div>
-    </div>
+      <section className=" w-2/3 mx-auto mt-12">{children}</section>
+    </main>
   );
 }
+// return (
+// <main className=" grid grid-cols-12 container gap-x-6 relative z-20 mt-12">
+//   <section className=" col-span-9  h-200"></section>
+//   <aside className=" col-span-3 glass rounded-xl h-140"></aside>
+// </main>
+
+// );
+// }

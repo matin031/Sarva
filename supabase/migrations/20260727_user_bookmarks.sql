@@ -31,6 +31,14 @@ create index if not exists user_bookmarks_user_idx
 create index if not exists user_bookmarks_user_area_idx
   on public.user_bookmarks (user_id, area, created_at desc);
 
+-- Table privileges. RLS decides *which rows* a student may touch, but Postgres
+-- still has to allow the API role to touch the table at all — without this the
+-- client gets "permission denied for table user_bookmarks" and never reaches
+-- the policies below. `anon` is deliberately left out: every policy requires
+-- auth.uid(), so a signed-out visitor has nothing to read or write here.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.user_bookmarks to authenticated;
+
 alter table public.user_bookmarks enable row level security;
 
 drop policy if exists "own bookmarks readable" on public.user_bookmarks;

@@ -10,7 +10,7 @@ export default function PanelLayout({
       dir="rtl"
       className=" container relative z-20 mt-12 mb-80 flex flex-col items-center justify-center"
     >
-      <div className=" w-2/3 mx-auto glass h-20 rounded-xl flex justify-between px-6 items-center">
+      <div className=" w-full md:w-2/3 mx-auto glass h-20 rounded-xl flex justify-between px-4 sm:px-6 items-center">
         <Link href="/home">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -92,7 +92,9 @@ export default function PanelLayout({
           </svg>
         </Link>
       </div>
-      <section className=" w-2/3 mx-auto mt-12">{children}</section>
+      {/* two thirds on a desktop, the full column on a phone — at 390px a 2/3
+          column leaves the picture cards and the option chips unreadable */}
+      <section className=" w-full md:w-2/3 mx-auto mt-12">{children}</section>
     </main>
   );
 }

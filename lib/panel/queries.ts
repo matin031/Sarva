@@ -189,19 +189,29 @@ export async function getAruzActivity(
 
 // ------------------------------------------------------------ واژه‌یاب ----
 
-export async function getVocabAnswers(userId: string): Promise<VocabAnswer[]> {
+/** A page of answered واژه‌یاب questions, newest first.
+ *
+ *  واژه‌یاب writes one row per answer and no round id, so "a past test" is
+ *  recovered from the timestamps by the caller — which is why this reads a flat
+ *  window rather than whole sessions. */
+export async function getVocabAnswers(
+  userId: string,
+  offset = 0,
+  limit = 150,
+): Promise<{ answers: VocabAnswer[]; hasMore: boolean }> {
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase
     .from("vocab_answers")
     .select("id, grade, lesson, word, meaning, image, is_correct, answered_at")
     .eq("user_id", userId)
     .order("answered_at", { ascending: false })
-    .limit(3000);
+    .range(offset, offset + limit);
   if (error) {
     console.error("getVocabAnswers:", error.message);
-    return [];
+    return { answers: [], hasMore: false };
   }
-  return (data ?? []).map((r) => ({
+  const rows = data ?? [];
+  const answers = rows.slice(0, limit).map((r) => ({
     id: r.id as string,
     grade: (r.grade as string) ?? "",
     lesson: (r.lesson as number | null) ?? null,
@@ -210,6 +220,33 @@ export async function getVocabAnswers(userId: string): Promise<VocabAnswer[]> {
     image: (r.image as string) ?? "",
     isCorrect: Boolean(r.is_correct),
     answeredAt: r.answered_at as string,
+  }));
+  return { answers, hasMore: rows.length > limit };
+}
+
+/** Every واژه‌یاب answer, three columns wide — enough for the accuracy, the
+ *  streak, the day-by-day trend and the per-book breakdown, without dragging
+ *  the words, meanings and picture URLs along for a number. */
+export async function getVocabSummary(userId: string): Promise<{
+  grade: string;
+  ok: boolean;
+  at: string;
+}[]> {
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase
+    .from("vocab_answers")
+    .select("grade, is_correct, answered_at")
+    .eq("user_id", userId)
+    .order("answered_at", { ascending: false })
+    .limit(5000);
+  if (error) {
+    console.error("getVocabSummary:", error.message);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    grade: (r.grade as string) ?? "",
+    ok: Boolean(r.is_correct),
+    at: r.answered_at as string,
   }));
 }
 

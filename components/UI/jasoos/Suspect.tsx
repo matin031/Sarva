@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
-import HandsUpFigure from "@/components/UI/jasoos/HandsUpFigure";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
+import HandsUpFigure, { type FigureMood } from "@/components/UI/jasoos/HandsUpFigure";
+import { usePointer } from "@/components/UI/jasoos/pointer";
 import type { SuspectRole } from "@/lib/jasoos-data";
 
 export type SuspectVisualState = "idle" | "shot-correct" | "shot-wrong" | "dimmed";
@@ -38,57 +39,162 @@ function RevealTag({ text, isSpy }: { text: string; isSpy: boolean }) {
   );
 }
 
+/** Depth for the parallax: suspects sit on slightly different planes so the
+ *  scene's tilt separates them instead of sliding them as one flat sheet. */
+const DEPTH = [26, -10, 14, -22, 6, -16];
+
 function Suspect({
   role,
   state,
   wordInVerse,
   onShoot,
+  index = 0,
+  /** true once an innocent has been shot — the real spy enjoys that */
+  gloat = false,
+  isSpy = false,
 }: {
   role: SuspectRole;
   state: SuspectVisualState;
   wordInVerse?: string;
   onShoot: () => void;
+  index?: number;
+  gloat?: boolean;
+  isSpy?: boolean;
 }) {
   const disabled = state !== "idle";
   const revealed = state !== "idle";
+  const reduced = useReducedMotion();
+  const pointer = usePointer();
+
+  /** true while the crosshair is over this one */
+  const [aimed, setAimed] = useState(false);
+
+  // pupils. The head's centre is cached and only re-read on resize/scroll, so a
+  // pointermove never causes a layout read.
+  const headRef = useRef<HTMLDivElement>(null);
+  const box = useRef<{ cx: number; cy: number } | null>(null);
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const eyeX = useSpring(rawX, { stiffness: 260, damping: 22, mass: 0.4 });
+  const eyeY = useSpring(rawY, { stiffness: 260, damping: 22, mass: 0.4 });
+
+  const measure = useCallback(() => {
+    const el = headRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    box.current = { cx: r.left + r.width / 2, cy: r.top + r.height * 0.22 };
+  }, []);
+
+  useEffect(() => {
+    if (reduced || !pointer) return;
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+
+    const R = 2.6; // pupil travel, in the figure's own viewBox units
+    const apply = () => {
+      const b = box.current;
+      if (!b) return;
+      const dx = pointer.x.get() - b.cx;
+      const dy = pointer.y.get() - b.cy;
+      const d = Math.hypot(dx, dy) || 1;
+      // normalise, then ease off so a far-away pointer does not peg the pupils
+      const k = Math.min(1, d / 260);
+      rawX.set((dx / d) * R * k);
+      rawY.set((dy / d) * R * k);
+    };
+    apply();
+    const unx = pointer.x.on("change", apply);
+    const uny = pointer.y.on("change", apply);
+    return () => {
+      unx();
+      uny();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+    };
+  }, [pointer, reduced, measure, rawX, rawY]);
+
+  const mood: FigureMood =
+    state === "shot-correct"
+      ? "dead"
+      : isSpy && gloat
+        ? "smug"
+        : aimed && state === "idle"
+          ? "scared"
+          : "calm";
+
+  const z = DEPTH[index % DEPTH.length];
 
   return (
     <button
       type="button"
       onClick={onShoot}
+      onPointerEnter={() => {
+        measure();
+        setAimed(true);
+      }}
+      onPointerLeave={() => setAimed(false)}
       disabled={disabled}
       aria-label={`نشانه‌گیری به سمت مظنونِ ${role}`}
-      className={`group relative flex flex-col items-center gap-y-2 shrink-0 ${
+      style={reduced ? undefined : { transform: `translateZ(${z}px)` }}
+      className={`group relative flex shrink-0 flex-col items-center gap-y-2 ${
         state === "dimmed" ? "opacity-75" : ""
       } ${disabled ? "cursor-default" : "cursor-crosshair"}`}
     >
+      {/* a pool of light under the one being aimed at — a gradient, not a blur */}
+      <motion.span
+        aria-hidden
+        className=" pointer-events-none absolute -bottom-3 left-1/2 h-6 w-24 -translate-x-1/2 rounded-[100%]"
+        style={{
+          background:
+            "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 45%, transparent), transparent)",
+        }}
+        animate={{ opacity: aimed && state === "idle" ? 1 : 0 }}
+        transition={{ duration: 0.2 }}
+      />
+
       <motion.div
+        ref={headRef}
         animate={
           state === "shot-correct"
             ? { rotate: 14, y: 46, opacity: 0, filter: "brightness(0.4)" }
             : state === "shot-wrong"
               ? { x: [0, -8, 8, -5, 5, 0] }
-              : { y: [0, -4, 0] }
+              : mood === "smug"
+                ? { y: [0, -3, 0], scale: 1.04 }
+                : aimed
+                  ? { y: -6, scale: 0.97 }
+                  : { y: [0, -4, 0] }
         }
         transition={
           state === "shot-correct"
             ? { duration: 0.55, ease: "easeIn" }
             : state === "shot-wrong"
               ? { duration: 0.5 }
-              : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
+              : mood === "smug"
+                ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                : aimed
+                  ? { type: "spring", stiffness: 320, damping: 18 }
+                  : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
         }
-        className={`w-14 sm:w-20 transition-colors duration-200 ${
+        className={`w-14 transition-colors duration-200 sm:w-20 ${
           state === "shot-correct"
             ? "text-destructive"
             : state === "shot-wrong"
               ? "text-gold"
-              : "text-foreground/85 group-enabled:group-hover:text-primary"
+              : mood === "smug"
+                ? "text-destructive/90"
+                : "text-foreground/85 group-enabled:group-hover:text-primary"
         } drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)]`}
       >
-        <HandsUpFigure />
+        <HandsUpFigure
+          mood={mood}
+          eyeX={reduced ? undefined : eyeX}
+          eyeY={reduced ? undefined : eyeY}
+        />
       </motion.div>
 
-      <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full glass whitespace-nowrap">
+      <span className="glass whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold sm:text-sm">
         {role}
       </span>
 
@@ -97,7 +203,7 @@ function Suspect({
       )}
 
       {state === "shot-wrong" && (
-        <span className="absolute -top-2 -right-1 text-destructive text-lg sm:text-xl font-black">
+        <span className="absolute -right-1 -top-2 text-lg font-black text-destructive sm:text-xl">
           ✕
         </span>
       )}

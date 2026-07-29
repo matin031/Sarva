@@ -717,6 +717,25 @@ export default function VocabGame() {
           />
         </div>
 
+        {/* Flagging before answering would give the word away in the panel, so
+            the button only appears once the answer is known — but it belongs
+            above the picture, where the eye already is. */}
+        <div className="mb-3 flex min-h-9 items-center justify-end">
+          {answered && (
+            <BookmarkButton
+              area="vocab"
+              refId={q.answer.id}
+              title={q.answer.word}
+              subtitle={q.answer.meaning}
+              payload={{
+                image: q.answer.image,
+                lesson: lessonOf(q.answer.id) ?? null,
+                grade: grade?.id ?? null,
+              }}
+            />
+          )}
+        </div>
+
         {/* image — with a guard so a slow or missing picture costs a spinner,
             not a broken round */}
         <motion.div
@@ -760,24 +779,7 @@ export default function VocabGame() {
           )}
         </motion.div>
 
-        <div className="mt-5 flex items-center justify-between gap-3">
-          {/* flagging before answering would give the word away in the panel,
-              so the button only appears once the answer is known */}
-          <span className="shrink-0">
-            {answered && (
-              <BookmarkButton
-                area="vocab"
-                refId={q.answer.id}
-                title={q.answer.word}
-                subtitle={q.answer.meaning}
-                payload={{
-                  image: q.answer.image,
-                  lesson: lessonOf(q.answer.id) ?? null,
-                  grade: grade?.id ?? null,
-                }}
-              />
-            )}
-          </span>
+        <div className="mt-5 flex items-center justify-end gap-3">
           <p className="text-sm text-muted-foreground">
             این تصویر، کدام واژه است؟
           </p>

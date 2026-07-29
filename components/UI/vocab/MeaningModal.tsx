@@ -62,7 +62,7 @@ export default function MeaningModal({
               {headline ?? (isCorrect ? "آفرین! درست بود" : "اشکالی ندارد، یاد بگیر")}
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto p-6">
+            <div className="sarva-scroll max-h-[70vh] overflow-y-auto p-6">
               {/* the word */}
               <div className="flex items-start gap-4">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">

@@ -1,8 +1,16 @@
 "use client";
 import { useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import Suspect, { SuspectVisualState } from "./Suspect";
+import { PointerProvider } from "@/components/UI/jasoos/pointer";
 import Reticle from "./Reticle";
 
 function ShootingScene({
@@ -18,6 +26,18 @@ function ShootingScene({
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const dingRef = useRef<HTMLAudioElement | null>(null);
+  const reduced = useReducedMotion();
+
+  /* Stage tilt. The pointer's position inside the scene is already tracked for
+     the reticle; these springs turn the same numbers into a couple of degrees
+     of rotation, which is enough to read as depth without making the line-up
+     seasick. Only `transform` animates, so it stays on the compositor. */
+  const nx = useMotionValue(0);
+  const ny = useMotionValue(0);
+  const sx = useSpring(nx, { stiffness: 90, damping: 20, mass: 0.7 });
+  const sy = useSpring(ny, { stiffness: 90, damping: 20, mass: 0.7 });
+  const tiltY = useTransform(sx, [-1, 1], [6, -6]);
+  const tiltX = useTransform(sy, [-1, 1], [-4, 4]);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
   const chosen = shotIndex !== null ? level.suspects[shotIndex] : spy;
@@ -25,11 +45,13 @@ function ShootingScene({
   const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setPointer({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      visible: true,
-    });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setPointer({ x, y, visible: true });
+    if (!reduced) {
+      nx.set((x / rect.width) * 2 - 1);
+      ny.set((y / rect.height) * 2 - 1);
+    }
   };
 
   const handleShoot = (suspect: SuspectType, index: number) => {
@@ -50,6 +72,7 @@ function ShootingScene({
   };
 
   return (
+    <PointerProvider>
     <div className="flex flex-col items-center">
       <div
         dir="rtl"
@@ -88,20 +111,39 @@ function ShootingScene({
           </div>
         </div>
 
-        {/* suspects lineup */}
+        {/* suspects lineup — a shallow 3D stage. Each suspect sits at its own
+            translateZ, so the tilt separates the line-up into depth instead of
+            sliding it as one flat sheet. */}
         <div
-          className="mt-6 py-12 inset-x-0 z-30
-       flex items-end justify-center gap-x-3 xs:gap-x-6 sm:gap-x-12 px-2"
+          className="mt-6 py-12 inset-x-0 z-30 px-2"
+          style={{ perspective: "900px" }}
+        >
+        <motion.div
+          className=" flex items-end justify-center gap-x-3 xs:gap-x-6 sm:gap-x-12"
+          style={{ transformStyle: "preserve-3d", rotateX: tiltX, rotateY: tiltY }}
+          animate={
+            result === "wrong"
+              ? { x: [0, -10, 10, -6, 6, 0] }
+              : { x: 0 }
+          }
+          transition={{ duration: 0.45 }}
         >
           {level.suspects.map((s, i) => (
             <Suspect
               key={i}
+              index={i}
               role={s.role}
               state={stateFor(i)}
               wordInVerse={s.wordInVerse}
+              isSpy={s.isSpy}
+              /* the spy only lets the mask slip once someone else has been
+                 shot — before that, giving them a smirk would give the game
+                 away */
+              gloat={result === "wrong"}
               onShoot={() => handleShoot(s, i)}
             />
           ))}
+        </motion.div>
         </div>
 
         <Reticle
@@ -196,6 +238,7 @@ function ShootingScene({
         )}
       </AnimatePresence>
     </div>
+    </PointerProvider>
   );
 }
 

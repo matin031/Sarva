@@ -1,102 +1,196 @@
 import { NextResponse } from "next/server";
 
-/** A random بیت, for the وزن‌یاب's "بیتِ تصادفی" button.
+/** A random بیت from گنجور, for the وزن‌یاب's "بیتِ تصادفی" button.
  *
- *  Ganjoor is called from the server, never from the browser: the endpoint is a
- *  fixed URL (nothing the caller sends is interpolated into it), so this cannot
- *  be turned into a proxy for arbitrary hosts, and the page keeps working when
- *  a school network blocks ganjoor.net.
+ *  Ganjoor is called from the server, never from the browser: the URL is a
+ *  constant (nothing a caller sends is interpolated into it), so this endpoint
+ *  cannot be turned into a proxy for arbitrary hosts, and the browser never
+ *  meets a cross-origin request.
  *
- *  If Ganjoor cannot be reached the route still answers — with a بیت from a
- *  small local shelf, and `source: "local"` so the UI can say so rather than
- *  passing it off as a fresh draw. */
+ *  Ganjoor's payload is not identical across poems — some carry `verses`, some
+ *  nest them under a section, and hemistichs are sometimes marked by
+ *  `versePosition` and sometimes only by their order. Rather than commit to one
+ *  shape, `readVerses` probes for the array and `toCouplets` handles both the
+ *  marked and the unmarked case. When nothing usable comes back the observed
+ *  top-level keys are logged, which is the fastest way to learn about a shape
+ *  this code has not met yet. */
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const GANJOOR = "https://api.ganjoor.net/api/ganjoor/poem/random?poetId=0";
+const RANDOM_POEM_URL = "https://api.ganjoor.net/api/ganjoor/poem/random";
+const MAX_ATTEMPTS = 5;
+const REQUEST_TIMEOUT_MS = 8000;
 
-/** The form only accepts Persian letters, 10–40 characters per hemistich, so a
- *  couplet that would fail validation is no use to us. */
-const OK = /^[؀-ۿ‌‎‏\s]+$/;
-function usable(line: string): boolean {
-  const t = line.trim();
-  return t.length >= 10 && t.length <= 40 && OK.test(t);
+type Couplet = { first: string; second: string };
+
+type RandomBeyt = {
+  poet: string;
+  book: string;
+  poem: string;
+  couplet: Couplet;
+  url: string;
+  poemId: number;
+};
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
 }
 
-const SHELF: { m1: string; m2: string; poet: string; title: string }[] = [
-  {
-    m1: "شهر یاران بود و خاک مهربانان این دیار",
-    m2: "مهربانی کی سر آمد شهریاران را چه شد",
-    poet: "حافظ",
-    title: "غزل",
-  },
-  {
-    m1: "یار بارافتاده را در کاروان بگذاشتند",
-    m2: "بی‌وفا یاران که بربستند بار خویش را",
-    poet: "سعدی",
-    title: "غزل",
-  },
-  {
-    m1: "بشنو این نی چون شکایت می‌کند",
-    m2: "از جدایی‌ها حکایت می‌کند",
-    poet: "مولوی",
-    title: "مثنوی",
-  },
-  {
-    m1: "توانا بود هر که دانا بود",
-    m2: "ز دانش دل پیر برنا بود",
-    poet: "فردوسی",
-    title: "شاهنامه",
-  },
-  {
-    m1: "دل من رای تو دارد سر سودای تو دارد",
-    m2: "رخ فرسوده زردم غم بالای تو دارد",
-    poet: "سعدی",
-    title: "غزل",
-  },
-];
+function str(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-type Verse = { vOrder?: number; versePosition?: number; text?: string };
+/** Follow a dotted path, returning undefined the moment it leaves an object. */
+function at(root: unknown, path: string): unknown {
+  let cur: unknown = root;
+  for (const key of path.split(".")) {
+    if (!isRecord(cur)) return undefined;
+    cur = cur[key];
+  }
+  return cur;
+}
 
-export async function GET() {
-  try {
-    const res = await fetch(GANJOOR, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`ganjoor ${res.status}`);
-    const poem = await res.json();
+function firstString(root: unknown, paths: string[]): string {
+  for (const p of paths) {
+    const v = str(at(root, p));
+    if (v) return v;
+  }
+  return "";
+}
 
-    const verses: Verse[] = Array.isArray(poem?.verses) ? poem.verses : [];
-    const lines = verses
-      .map((v) => (v?.text ?? "").trim())
-      .filter((t) => t.length > 0);
+type RawVerse = { text: string; position: number | null };
 
-    // walk consecutive pairs and take a random couplet that the form will accept
-    const pairs: [string, string][] = [];
-    for (let i = 0; i + 1 < lines.length; i += 2) {
-      if (usable(lines[i]) && usable(lines[i + 1])) {
-        pairs.push([lines[i], lines[i + 1]]);
+/** Ganjoor has moved the verse array around between shapes; look where it has
+ *  actually been seen rather than assuming one. */
+function readVerses(poem: unknown): RawVerse[] {
+  const candidates: unknown[] = [
+    at(poem, "verses"),
+    at(poem, "poem.verses"),
+    at(poem, "sections.0.verses"),
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate) || candidate.length === 0) continue;
+    const verses = candidate
+      .map((v): RawVerse => {
+        const text = firstString(v, ["text", "verseText", "title"]);
+        const rawPos = isRecord(v) ? v.versePosition : undefined;
+        return {
+          text,
+          position: typeof rawPos === "number" ? rawPos : null,
+        };
+      })
+      .filter((v) => v.text.length > 0);
+    if (verses.length) return verses;
+  }
+  return [];
+}
+
+/** The وزن‌یاب form only accepts Persian letters and 10–40 characters per
+ *  hemistich, so a couplet it would reject is no use to us. */
+const PERSIAN_ONLY = /^[؀-ۿ‌‎‏\s]+$/;
+
+function usableHemistich(line: string): boolean {
+  return line.length >= 10 && line.length <= 40 && PERSIAN_ONLY.test(line);
+}
+
+/** Pair hemistichs into couplets.
+ *
+ *  `versePosition` is Ganjoor's own marker — 0 opens a بیت and 1 closes it —
+ *  and when it is present it is the truth, because a poem can carry headings
+ *  and single lines that would break naive pairing. When it is absent the only
+ *  thing left is consecutive order. */
+function toCouplets(verses: RawVerse[]): Couplet[] {
+  const marked = verses.some((v) => v.position !== null);
+  const couplets: Couplet[] = [];
+
+  if (marked) {
+    for (let i = 0; i < verses.length - 1; i++) {
+      if (verses[i].position === 0 && verses[i + 1].position === 1) {
+        couplets.push({ first: verses[i].text, second: verses[i + 1].text });
       }
     }
-    if (!pairs.length) throw new Error("no usable couplet");
-
-    const [m1, m2] = pairs[Math.floor(Math.random() * pairs.length)];
-    return NextResponse.json({
-      source: "ganjoor",
-      m1,
-      m2,
-      poet: poem?.category?.poet?.name ?? poem?.poet?.name ?? "",
-      title: poem?.title ?? "",
-      url: poem?.fullUrl ? `https://ganjoor.net${poem.fullUrl}` : null,
-      // Ganjoor sometimes knows the metre itself — handy as a second opinion
-      rhythm: poem?.sections?.[0]?.ganjoorMetre?.rhythm ?? null,
-    });
-  } catch (err) {
-    console.error("random-beyt: falling back to the local shelf —", err);
-    const pick = SHELF[Math.floor(Math.random() * SHELF.length)];
-    return NextResponse.json({ source: "local", ...pick, url: null, rhythm: null });
+  } else {
+    for (let i = 0; i + 1 < verses.length; i += 2) {
+      couplets.push({ first: verses[i].text, second: verses[i + 1].text });
+    }
   }
+
+  return couplets.filter(
+    (c) => usableHemistich(c.first) && usableHemistich(c.second),
+  );
+}
+
+function buildUrl(poem: unknown): string {
+  const full = firstString(poem, ["fullUrl", "urlSlug"]);
+  if (!full) return "";
+  if (full.startsWith("http")) return full;
+  return `https://ganjoor.net${full.startsWith("/") ? "" : "/"}${full}`;
+}
+
+function toRandomBeyt(poem: unknown): RandomBeyt | null {
+  const couplets = toCouplets(readVerses(poem));
+  if (!couplets.length) return null;
+
+  const couplet = couplets[Math.floor(Math.random() * couplets.length)];
+  const idRaw = at(poem, "id") ?? at(poem, "poemId");
+
+  return {
+    poet: firstString(poem, [
+      "category.poet.name",
+      "poet.name",
+      "poetOrCat.poet.name",
+    ]),
+    book: firstString(poem, [
+      "category.cat.title",
+      "category.title",
+      "cat.title",
+    ]),
+    poem: firstString(poem, ["title", "fullTitle"]),
+    couplet,
+    url: buildUrl(poem),
+    poemId: typeof idRaw === "number" ? idRaw : 0,
+  };
+}
+
+async function fetchRandomPoem(): Promise<unknown> {
+  const res = await fetch(RANDOM_POEM_URL, {
+    headers: { accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`ganjoor responded ${res.status}`);
+  return res.json();
+}
+
+export async function GET() {
+  let lastError: unknown = null;
+  let lastShape: string[] = [];
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const poem = await fetchRandomPoem();
+      const beyt = toRandomBeyt(poem);
+      if (beyt) return NextResponse.json(beyt);
+      // a poem with no complete couplet (a heading, a single line, a قطعه with
+      // long hemistichs) — that is ordinary, so just draw again
+      lastShape = isRecord(poem) ? Object.keys(poem) : [];
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  console.error(
+    `random-beyt: no usable couplet after ${MAX_ATTEMPTS} draws.`,
+    lastError ? `last error: ${String(lastError)}` : "",
+    lastShape.length ? `last payload keys: ${lastShape.join(", ")}` : "",
+  );
+
+  return NextResponse.json(
+    { error: "بیتی از گنجور به دست نیامد. دوباره تلاش کن." },
+    { status: 502 },
+  );
 }

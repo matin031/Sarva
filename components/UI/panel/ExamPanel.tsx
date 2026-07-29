@@ -8,7 +8,179 @@ import StatRing from "@/components/UI/panel/StatRing";
 import { jalali, relativeDay, scoreColor } from "@/lib/panel/format";
 import type { ExamAttempt } from "@/lib/panel/types";
 
+/** Just enough of a paper to caption a stored result: the panel needs the
+ *  صورت‌سؤال, not the whole question tree. */
+export type ExamPaper = {
+  questions: { number: number; section: string; instruction: string }[];
+};
+
+/** One graded part, as `question_results` stores it. */
+type StoredPart = {
+  label?: string;
+  score?: number;
+  maxScore?: number;
+  status?: "correct" | "incorrect" | "partial" | "needs_review";
+  correctAnswerText?: string;
+  feedback?: string;
+  selfGrade?: boolean;
+};
+
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+type Entry = {
+  key: string;
+  n: number;
+  score: number;
+  max: number;
+  parts: StoredPart[];
+};
+
+function kindOf(score: number, max: number): "full" | "partial" | "zero" | "none" {
+  if (max <= 0) return "none";
+  if (score >= max) return "full";
+  return score > 0 ? "partial" : "zero";
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  correct: "درست",
+  incorrect: "نادرست",
+  partial: "نیمه‌درست",
+  needs_review: "خودارزیابی",
+};
+
+/** Render whatever the student put in that box. Answers come back from jsonb,
+ *  so they can be a string, a picked index, or a list. */
+function answerText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(answerText).filter(Boolean).join("، ");
+  return "";
+}
+
+/** One question of a past paper: what was asked, what the student answered and
+ *  what the answer key says — the same shape as the عروض and واژه‌یاب reviews. */
+function QuestionReview({
+  entry,
+  paper,
+  answers,
+}: {
+  entry: Entry;
+  paper?: ExamPaper;
+  answers: Record<string, unknown> | null;
+}) {
+  const meta = paper?.questions.find((q) => q.number === entry.n);
+  const kind = kindOf(entry.score, entry.max);
+
+  return (
+    <div dir="rtl" className=" rounded-2xl border border-border bg-card p-4">
+      <div className=" flex flex-wrap items-center justify-between gap-2">
+        <span className=" text-sm font-bold">
+          سؤال {toFa(entry.n)}
+          {meta?.section ? ` — ${meta.section}` : ""}
+        </span>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${
+            kind === "full"
+              ? "bg-green-500/15 text-green-700 dark:text-green-400"
+              : kind === "partial"
+                ? "bg-gold/15 text-gold"
+                : kind === "zero"
+                  ? "bg-destructive/15 text-destructive"
+                  : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          {toFa(Math.round(entry.score * 100) / 100)} از {toFa(entry.max)}
+        </span>
+      </div>
+
+      {meta?.instruction && (
+        <p className=" mt-3 rounded-xl bg-secondary p-3 text-sm leading-relaxed">
+          {meta.instruction}
+        </p>
+      )}
+
+      {!entry.parts.length ? (
+        <p className=" mt-3 text-sm text-muted-foreground">
+          ریزِ این سؤال ذخیره نشده است؛ فقط نمره‌اش را داریم.
+        </p>
+      ) : (
+        <div className=" mt-3 flex flex-col gap-3">
+          {entry.parts.map((part, i) => {
+            const mine = answerText(answers?.[`${entry.n}:${i}`]);
+            const right = (part.correctAnswerText ?? "").trim();
+            const status = part.status ?? "needs_review";
+            return (
+              <div
+                key={i}
+                className={`rounded-xl border-2 p-3 ${
+                  status === "correct"
+                    ? "border-green-500/60 bg-green-500/5"
+                    : status === "partial"
+                      ? "border-gold/60 bg-gold/5"
+                      : status === "incorrect"
+                        ? "border-destructive/60 bg-destructive/5"
+                        : "border-border"
+                }`}
+              >
+                <div className=" flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className=" font-bold">
+                    {part.label || `بخش ${toFa(i + 1)}`}
+                  </span>
+                  <span className=" flex items-center gap-2">
+                    <span className=" text-muted-foreground">
+                      {toFa(Number(part.score ?? 0))} از{" "}
+                      {toFa(Number(part.maxScore ?? 0))}
+                    </span>
+                    <span
+                      className={
+                        status === "correct"
+                          ? "text-green-600 dark:text-green-400"
+                          : status === "partial"
+                            ? "text-gold"
+                            : status === "incorrect"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                      }
+                    >
+                      {STATUS_LABEL[status] ?? status}
+                    </span>
+                  </span>
+                </div>
+
+                <div className=" mt-2 flex flex-col gap-2 text-sm">
+                  <p className=" rounded-lg bg-secondary p-2.5">
+                    <span className=" text-xs text-muted-foreground">
+                      پاسخِ تو:{" "}
+                    </span>
+                    {mine || (
+                      <span className=" text-muted-foreground">
+                        {answers
+                          ? "بی‌پاسخ"
+                          : "برای این آزمون ذخیره نشده است"}
+                      </span>
+                    )}
+                  </p>
+                  {right && (
+                    <p className=" rounded-lg bg-green-500/10 p-2.5 text-green-800 dark:text-green-300">
+                      <span className=" text-xs opacity-80">پاسخِ درست: </span>
+                      {right}
+                    </p>
+                  )}
+                  {part.feedback && (
+                    <p className=" rounded-lg border border-border p-2.5 text-xs leading-relaxed text-muted-foreground">
+                      {part.feedback}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** کارنامهٔ امتحان‌های نهایی.
  *
@@ -16,7 +188,13 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  half-right, so the review is a grid of marks per question rather than a
  *  right/wrong list. The grid scales — a 12-question paper and a 40-question
  *  one both stay readable because each question is a chip, not a row. */
-export default function ExamPanel({ attempts }: { attempts: ExamAttempt[] }) {
+export default function ExamPanel({
+  attempts,
+  papers = {},
+}: {
+  attempts: ExamAttempt[];
+  papers?: Record<string, ExamPaper>;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const stats = useMemo(() => {
@@ -125,6 +303,7 @@ export default function ExamPanel({ attempts }: { attempts: ExamAttempt[] }) {
               <AttemptCard
                 key={a.id}
                 attempt={a}
+                paper={a.examKey ? papers[a.examKey] : undefined}
                 open={openId === a.id}
                 onToggle={() => setOpenId((id) => (id === a.id ? null : a.id))}
               />
@@ -138,13 +317,16 @@ export default function ExamPanel({ attempts }: { attempts: ExamAttempt[] }) {
 
 function AttemptCard({
   attempt,
+  paper,
   open,
   onToggle,
 }: {
   attempt: ExamAttempt;
+  paper?: ExamPaper;
   open: boolean;
   onToggle: () => void;
 }) {
+  const [at, setAt] = useState(0);
   const percent = attempt.maxScore
     ? Math.round((attempt.totalScore / attempt.maxScore) * 100)
     : 0;
@@ -153,12 +335,30 @@ function AttemptCard({
   const entries = useMemo(
     () =>
       Object.entries(attempt.results)
-        .map(([key, v]) => ({
-          key,
-          n: Number(key),
-          score: Number(v?.score ?? 0),
-          max: Number(v?.max ?? 0),
-        }))
+        .map(([key, v]) => {
+          const raw = v as unknown as {
+            score?: number;
+            max?: number;
+            number?: number;
+            parts?: StoredPart[];
+          };
+          const parts = Array.isArray(raw?.parts) ? raw.parts : [];
+          // older rows stored {score,max}; newer ones store the graded parts,
+          // so the totals are summed from whichever is actually there
+          const score = parts.length
+            ? parts.reduce((t, p) => t + Number(p.score ?? 0), 0)
+            : Number(raw?.score ?? 0);
+          const max = parts.length
+            ? parts.reduce((t, p) => t + Number(p.maxScore ?? 0), 0)
+            : Number(raw?.max ?? 0);
+          return {
+            key,
+            n: Number(raw?.number ?? key),
+            score,
+            max,
+            parts,
+          };
+        })
         .sort((a, b) =>
           Number.isFinite(a.n) && Number.isFinite(b.n) ? a.n - b.n : 0,
         ),
@@ -241,7 +441,7 @@ function AttemptCard({
                 </p>
               ) : (
                 <>
-                  <div className=" mb-3 flex flex-wrap gap-2 text-[11px] font-bold">
+                  <div className=" mb-4 flex flex-wrap gap-2 text-[11px] font-bold">
                     <span className=" rounded-full bg-green-500/15 px-2.5 py-1 text-green-700 dark:text-green-400">
                       کامل: {toFa(full)}
                     </span>
@@ -253,38 +453,64 @@ function AttemptCard({
                     </span>
                   </div>
 
-                  <div className=" grid grid-cols-6 gap-1.5 sm:grid-cols-10">
-                    {entries.map((e) => {
-                      const kind =
-                        e.max <= 0
-                          ? "none"
-                          : e.score >= e.max
-                            ? "full"
-                            : e.score > 0
-                              ? "partial"
-                              : "zero";
+                  {/* jump between questions, same as عروض and واژه‌یاب */}
+                  <div className=" mb-4 flex flex-wrap gap-1.5">
+                    {entries.map((e, i) => {
+                      const kind = kindOf(e.score, e.max);
                       return (
-                        <span
+                        <button
                           key={e.key}
-                          title={`سؤال ${e.n + 1}: ${e.score} از ${e.max}`}
-                          className={`flex aspect-square items-center justify-center rounded-lg border-2 text-[11px] font-black ${
+                          type="button"
+                          onClick={() => setAt(i)}
+                          aria-current={i === at}
+                          className={`size-7 cursor-pointer rounded-lg border-2 text-[11px] font-bold transition-all sm:size-8 ${
                             kind === "full"
-                              ? "border-green-500/60 bg-green-500/15 text-green-700 dark:text-green-400"
+                              ? "border-green-500 bg-green-500/15 text-green-700 dark:text-green-400"
                               : kind === "partial"
-                                ? "border-gold/60 bg-gold/15 text-gold"
+                                ? "border-gold bg-gold/15 text-gold"
                                 : kind === "zero"
-                                  ? "border-destructive/60 bg-destructive/15 text-destructive"
+                                  ? "border-destructive bg-destructive/15 text-destructive"
                                   : "border-border bg-card text-muted-foreground"
-                          }`}
+                          } ${i === at ? "scale-110 ring-2 ring-primary" : "hover:scale-105"}`}
                         >
-                          {toFa(Number.isFinite(e.n) ? e.n + 1 : e.key)}
-                        </span>
+                          {toFa(e.n)}
+                        </button>
                       );
                     })}
                   </div>
-                  <p className=" mt-3 text-[11px] text-muted-foreground">
-                    روی هر خانه نگه دار تا نمرهٔ آن سؤال را ببینی.
-                  </p>
+
+                  <QuestionReview
+                    entry={entries[Math.min(at, entries.length - 1)]}
+                    paper={paper}
+                    answers={attempt.answers ?? null}
+                  />
+
+                  <div className=" mt-5 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAt(Math.max(0, at - 1))}
+                      disabled={at === 0}
+                      className={`rounded-full border border-border bg-card px-4 py-2 text-xs font-bold transition-all ${
+                        at === 0
+                          ? "cursor-not-allowed opacity-40"
+                          : "cursor-pointer hover:border-primary/50 hover:text-primary active:scale-95"
+                      }`}
+                    >
+                      سؤال قبلی
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAt(Math.min(entries.length - 1, at + 1))}
+                      disabled={at + 1 >= entries.length}
+                      className={`rounded-full px-5 py-2 text-xs font-bold text-primary-foreground transition-all ${
+                        at + 1 >= entries.length
+                          ? "cursor-not-allowed bg-primary/50"
+                          : "cursor-pointer bg-primary hover:brightness-90 active:scale-95"
+                      }`}
+                    >
+                      سؤال بعدی
+                    </button>
+                  </div>
                 </>
               )}
             </div>

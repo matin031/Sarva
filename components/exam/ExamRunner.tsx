@@ -182,7 +182,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
       // Fire-and-forget: a signed-in-only stats record, not part of the
       // grading/results the student sees (that's already final at this
       // point). Guests are silently skipped server-side.
-      void submitExamAttempt(examKey, questionResults);
+      void submitExamAttempt(examKey, questionResults, answers);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -229,7 +229,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
     setConfirmKind(null);
     setProgress((prev) => ({ ...prev, showResults: true }));
     // same fire-and-forget stats record as the normal finish in goNext()
-    void submitExamAttempt(examKey, questionResults);
+    void submitExamAttempt(examKey, questionResults, answers);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

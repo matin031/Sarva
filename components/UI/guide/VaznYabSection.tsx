@@ -28,15 +28,18 @@ function VaznYabSection({
 
   /** «بیتِ تصادفی» — a couplet pulled from Ganjoor through our own route. */
   type RandomBeyt = {
-    source: "ganjoor" | "local";
-    m1: string;
-    m2: string;
     poet: string;
-    title: string;
-    url: string | null;
+    book: string;
+    poem: string;
+    couplet: { first: string; second: string };
+    url: string;
+    poemId: number;
   };
   const [beyt, setBeyt] = useState<RandomBeyt | null>(null);
+  const [beytError, setBeytError] = useState<string | null>(null);
   const [loadingBeyt, setLoadingBeyt] = useState(false);
+  /** shown when «پیدا کن» is pressed in استادی mode with an empty guess */
+  const [guessMissing, setGuessMissing] = useState(false);
   /** حالتِ استادی: guess the metre before revealing it. */
   const [masterMode, setMasterMode] = useState(false);
   const [guess, setGuess] = useState("");
@@ -77,6 +80,13 @@ function VaznYabSection({
     },
   });
   const onsubmit = async (data: SerachPoem) => {
+    // in استادی mode the whole point is to commit to a guess first — grading a
+    // blank one would quietly turn the challenge back into a plain lookup
+    if (masterMode && !guess.trim()) {
+      setGuessMissing(true);
+      return;
+    }
+    setGuessMissing(false);
     setLoadingFetch(true);
 
     const result = await submitPoemSearch(data.poem1, data.poem2);
@@ -99,18 +109,30 @@ function VaznYabSection({
     if (loadingBeyt) return;
     setLoadingBeyt(true);
     setVerdict(null);
+    setBeytError(null);
     try {
       const res = await fetch("/api/random-beyt", { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      const data: RandomBeyt = await res.json();
-      setBeyt(data);
-      searchPoemForm.setValue("poem1", data.m1, { shouldValidate: true });
-      searchPoemForm.setValue("poem2", data.m2, { shouldValidate: true });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? String(res.status));
+      const beytData = data as RandomBeyt;
+      setBeyt(beytData);
+      searchPoemForm.setValue("poem1", beytData.couplet.first, {
+        shouldValidate: true,
+      });
+      searchPoemForm.setValue("poem2", beytData.couplet.second, {
+        shouldValidate: true,
+      });
       setAruzFeet("");
       setAruzBahr("");
       setGuess("");
+      setGuessMissing(false);
     } catch (err) {
       console.error("random-beyt:", err);
+      setBeytError(
+        err instanceof Error && err.message
+          ? err.message
+          : "بیتی از گنجور به دست نیامد.",
+      );
     } finally {
       setLoadingBeyt(false);
     }
@@ -207,11 +229,18 @@ function VaznYabSection({
           </div>
         </div>
 
+        {beytError && (
+          <p className=" mt-2 text-[11px] text-destructive sm:text-xs">
+            {beytError}
+          </p>
+        )}
+
         {beyt && (
           <p className=" mt-2 text-[11px] text-muted-foreground sm:text-xs">
-            {beyt.source === "ganjoor" ? "از گنجور" : "از گنجینهٔ سروا"}
+            از گنجور
             {beyt.poet ? ` — ${beyt.poet}` : ""}
-            {beyt.title ? `، ${beyt.title}` : ""}
+            {beyt.book ? `، ${beyt.book}` : ""}
+            {beyt.poem ? `، ${beyt.poem}` : ""}
             {beyt.url && (
               <>
                 {" "}
@@ -271,12 +300,26 @@ function VaznYabSection({
             </label>
             <input
               value={guess}
-              onChange={(e) => setGuess(e.target.value)}
+              onChange={(e) => {
+                setGuess(e.target.value);
+                if (e.target.value.trim()) setGuessMissing(false);
+              }}
               disabled={loadingFetch}
+              aria-invalid={guessMissing}
               placeholder="مثلاً: فاعلاتن فاعلاتن فاعلاتن فاعلن"
-              className=" mt-3 w-full rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm outline-none focus:border-gold sm:text-base"
+              className={`mt-3 w-full rounded-3xl border-2 bg-secondary px-4 py-2 text-right text-sm outline-none sm:text-base ${
+                guessMissing
+                  ? "border-destructive focus:border-destructive"
+                  : "border-border focus:border-gold"
+              }`}
               type="text"
             />
+            {guessMissing && (
+              <p className=" mt-2 text-sm font-bold text-destructive">
+                اول حدست را بنویس، بعد «پیدا کن» را بزن — یا حالتِ استادی را
+                خاموش کن.
+              </p>
+            )}
             {verdict && (
               <p
                 className={`mt-3 text-sm font-bold ${

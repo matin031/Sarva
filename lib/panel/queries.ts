@@ -353,7 +353,9 @@ export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
   }
   const { data, error } = await supabase
     .from("exam_attempts")
-    .select("id, total_score, max_score, created_at, question_results, exams(title)")
+    .select(
+      "id, total_score, max_score, created_at, question_results, answers, exams(title, exam_session)",
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) {
@@ -361,10 +363,15 @@ export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
     return [];
   }
   return (data ?? []).map((r) => {
-    const exam = r.exams as unknown as { title?: string } | null;
+    const exam = r.exams as unknown as {
+      title?: string;
+      exam_session?: string;
+    } | null;
     return {
       id: r.id as string,
       examTitle: exam?.title ?? "آزمون",
+      examKey: exam?.exam_session ?? null,
+      answers: (r.answers as Record<string, unknown> | null) ?? null,
       totalScore: Number(r.total_score ?? 0),
       maxScore: Number(r.max_score ?? 0),
       createdAt: r.created_at as string,

@@ -95,6 +95,11 @@ export type JasoosAnswer = {
 // ------------------------------------------------------- امتحان نهایی ----
 
 export type ExamAttempt = {
+  /** `exams.exam_session` — lets the panel load the paper this attempt was of. */
+  examKey?: string | null;
+  /** What the student typed/chose, keyed "questionNumber:partIndex". Null for
+   *  attempts written before answers were persisted. */
+  answers?: Record<string, unknown> | null;
   id: string;
   examTitle: string;
   totalScore: number;

@@ -81,6 +81,10 @@ export async function submitQuestion(
 export async function submitExamAttempt(
   examKey: string,
   questionResults: Record<number, QuestionResult>,
+  /** What the student actually wrote/chose, keyed "questionNumber:partIndex".
+   *  Stored so the panel can show their answer next to the right one — the
+   *  results alone only ever knew the score. */
+  answers?: Record<string, unknown>,
 ): Promise<void> {
   const supabase = await createSupabaseServer();
   const {
@@ -102,11 +106,26 @@ export async function submitExamAttempt(
   }
   if (maxScore === 0) return;
 
-  await admin.from("exam_attempts").insert({
+  const row = {
     user_id: user.id,
     exam_id: exam.id,
     total_score: totalScore,
     max_score: maxScore,
     question_results: questionResults,
-  });
+  };
+
+  const { error } = await admin
+    .from("exam_attempts")
+    .insert({ ...row, answers: answers ?? {} });
+
+  // `answers` arrived later than this table did. If the column has not been
+  // added yet, the attempt itself still has to be recorded — losing a whole
+  // report card over a missing column would be a poor trade.
+  if (error) {
+    console.error("submitExamAttempt (with answers):", error.message);
+    const retry = await admin.from("exam_attempts").insert(row);
+    if (retry.error) {
+      console.error("submitExamAttempt:", retry.error.message);
+    }
+  }
 }

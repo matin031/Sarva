@@ -13,13 +13,13 @@ function page() {
       >
         پنل کاربری
       </span>
-      <div className="glass rounded-xl p-6">
-        <h1 className=" text-5xl flex items-center  group">
+      <div className="glass rounded-xl p-4 sm:p-6">
+        <h1 className=" flex items-center gap-x-1 text-2xl sm:text-4xl lg:text-5xl group">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="size-12 group-hover:rotate-45 transition-all"
+            className=" size-8 shrink-0 sm:size-10 lg:size-12 group-hover:rotate-45 transition-all"
           >
             <path
               fillRule="evenodd"
@@ -31,17 +31,17 @@ function page() {
         </h1>
         <p>خوش اومدی :)</p>
         <div>
-          <div className="  grid grid-cols-2 gap-7 mt-6">
-            <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
+          <div className=" mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-7">
+            <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
               <StatRing percent={70} />
-              <span className=" text-lg">دقت در تمامی بخش‌ها</span>
+              <span className=" text-base sm:text-lg">دقت در تمامی بخش‌ها</span>
             </div>
-            <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-6">
+            <div className=" shadow bg-card rounded-xl p-4 flex items-center gap-x-4 sm:gap-x-6">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="size-10"
+                className=" size-9 shrink-0 sm:size-10"
               >
                 <path
                   fillRule="evenodd"
@@ -50,8 +50,8 @@ function page() {
                 />
               </svg>
 
-              <div className=" text-lg">
-                <span className=" text-gold text-3xl">{toFa(12)}</span> روز با
+              <div className=" text-base sm:text-lg">
+                <span className=" text-gold text-2xl sm:text-3xl">{toFa(12)}</span> روز با
                 سروا
               </div>
             </div>

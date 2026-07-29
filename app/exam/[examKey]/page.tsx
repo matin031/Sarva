@@ -4,6 +4,10 @@ import ExamRunner from "@/components/exam/ExamRunner";
 import { toClientExam } from "@/lib/exam/client-exam";
 import { getExamByKey } from "@/lib/exam/db-exam";
 
+/** Same reason as the list page: an exam edited in the admin panel must show
+ *  its new content without a redeploy. */
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {

@@ -187,6 +187,62 @@ export async function getAruzActivity(
   }));
 }
 
+/** Accuracy per عروضی metre.
+ *
+ *  Only two of the question shapes actually name a وزن: `weight-to-audio`
+ *  carries it in `poem[0]`, and `audio-to-weight` in the correct option's
+ *  label. A بیت→صوت question is about a couplet and never records which metre
+ *  it belongs to, so those answers are counted in the totals but cannot be
+ *  attributed to a metre — pretending otherwise would invent data. */
+export async function getAruzWeightStats(
+  userId: string,
+): Promise<{ weight: string; total: number; correct: number }[]> {
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase
+    .from("user_answers")
+    .select(
+      `is_correct,
+       questions ( type, poem, question_options ( label, is_correct ) )`,
+    )
+    .eq("user_id", userId)
+    .limit(3000);
+  if (error) {
+    console.error("getAruzWeightStats:", error.message);
+    return [];
+  }
+
+  type Row = {
+    is_correct: boolean;
+    questions: {
+      type: string | null;
+      poem: string[] | null;
+      question_options: { label: string | null; is_correct: boolean }[] | null;
+    } | null;
+  };
+
+  const buckets = new Map<string, { total: number; correct: number }>();
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const q = row.questions;
+    if (!q) continue;
+    let weight: string | null = null;
+    if (q.type === "weight-to-audio") {
+      weight = q.poem?.[0]?.trim() || null;
+    } else if (q.type === "audio-to-weight") {
+      weight =
+        q.question_options?.find((o) => o.is_correct)?.label?.trim() || null;
+    }
+    if (!weight) continue;
+    const b = buckets.get(weight) ?? { total: 0, correct: 0 };
+    b.total += 1;
+    if (row.is_correct) b.correct += 1;
+    buckets.set(weight, b);
+  }
+
+  return [...buckets.entries()]
+    .map(([weight, b]) => ({ weight, ...b }))
+    .sort((a, b) => a.correct / a.total - b.correct / b.total);
+}
+
 // ------------------------------------------------------------ واژه‌یاب ----
 
 /** A page of answered واژه‌یاب questions, newest first.

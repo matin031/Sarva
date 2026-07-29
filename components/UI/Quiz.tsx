@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import QuizSettingsModal from "./QuizSettingsModal";
 import GuestLimitModal from "./GuestLimitModal";
-import BookLoader from "../svgs/LoadingIcon";
+import SarvaLoader from "@/components/UI/SarvaLoader";
 import BookmarkButton from "@/components/UI/BookmarkButton";
 import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
 
@@ -382,8 +382,7 @@ function Quiz({ data }: { data: Question[] }) {
   if (!restoredFromStorage) {
     return (
       <div className=" container my-15 flex flex-col items-center">
-        <BookLoader />
-        <div className=" text-center">...در حال بارگذاری</div>
+        <SarvaLoader size={110} label="در حال آماده‌سازی آزمون" />
       </div>
     );
   }
@@ -392,8 +391,7 @@ function Quiz({ data }: { data: Question[] }) {
     if (user === undefined || (user && answeredIds === null)) {
       return (
         <div className=" container my-15 flex flex-col items-center">
-          <BookLoader />
-          <div className=" text-center">...در حال بارگذاری</div>
+          <SarvaLoader size={110} label="در حال آماده‌سازی آزمون" />
         </div>
       );
     }
@@ -418,7 +416,9 @@ function Quiz({ data }: { data: Question[] }) {
 
   if (!questions.length || !questions[currentIndex]) {
     return (
-      <div className="container my-15 text-center">...در حال بارگذاری</div>
+      <div className=" container my-15 flex flex-col items-center">
+        <SarvaLoader size={110} label="در حال ساختنِ سؤال‌ها" />
+      </div>
     );
   }
 

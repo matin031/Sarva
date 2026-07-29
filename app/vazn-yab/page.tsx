@@ -1,5 +1,6 @@
 import VaznYabSection from "@/components/UI/guide/VaznYabSection";
-import HeroSectionVaznYab from "@/components/UI/HeroSectionVaznYab";
+import VaznYabHero3D from "@/components/UI/vazn-yab/VaznYabHero3D";
+import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
 import { findMeterLocally } from "@/lib/aruz";
 
 
@@ -56,7 +57,11 @@ const submitPoemSearch = async (mesra1: string, mesra2?: string) => {
 function page() {
   return (
     <div dir="rtl" className="container">
-      <HeroSectionVaznYab />
+      {/* the old flat hero is still at components/UI/HeroSectionVaznYab.tsx —
+          swapping these two lines back reverts the redesign */}
+      <VaznYabHero3D />
+
+      <MasterChallenge />
 
       <VaznYabSection submitPoemSearch={submitPoemSearch} />
     </div>

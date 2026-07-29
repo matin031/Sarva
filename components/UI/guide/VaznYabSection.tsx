@@ -25,6 +25,24 @@ function VaznYabSection({
 
   const [showModal, setShowModal] = useState(false);
   const [loadingFetch, setLoadingFetch] = useState<boolean>(false);
+
+  /** «بیتِ تصادفی» — a couplet pulled from Ganjoor through our own route. */
+  type RandomBeyt = {
+    source: "ganjoor" | "local";
+    m1: string;
+    m2: string;
+    poet: string;
+    title: string;
+    url: string | null;
+  };
+  const [beyt, setBeyt] = useState<RandomBeyt | null>(null);
+  const [loadingBeyt, setLoadingBeyt] = useState(false);
+  /** حالتِ استادی: guess the metre before revealing it. */
+  const [masterMode, setMasterMode] = useState(false);
+  const [guess, setGuess] = useState("");
+  const [verdict, setVerdict] = useState<"right" | "close" | "wrong" | null>(
+    null,
+  );
   const searchPoemSchema = z.object({
     poem1: z
       .string()
@@ -63,15 +81,69 @@ function VaznYabSection({
 
     const result = await submitPoemSearch(data.poem1, data.poem2);
     if (!result) setShowModal(true);
-    setAruzFeet(getPureRhythm(result ?? ""));
+    const feet = getPureRhythm(result ?? "");
+    setAruzFeet(feet);
     setAruzBahr(getRhythmDescription(result ?? ""));
 
+    // in استادی mode the answer is also a verdict on what the reader guessed
+    if (masterMode && guess.trim() && feet) {
+      setVerdict(judgeGuess(guess, feet));
+    } else {
+      setVerdict(null);
+    }
+
     setLoadingFetch(false);
+  };
+
+  const fetchRandomBeyt = async () => {
+    if (loadingBeyt) return;
+    setLoadingBeyt(true);
+    setVerdict(null);
+    try {
+      const res = await fetch("/api/random-beyt", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data: RandomBeyt = await res.json();
+      setBeyt(data);
+      searchPoemForm.setValue("poem1", data.m1, { shouldValidate: true });
+      searchPoemForm.setValue("poem2", data.m2, { shouldValidate: true });
+      setAruzFeet("");
+      setAruzBahr("");
+      setGuess("");
+    } catch (err) {
+      console.error("random-beyt:", err);
+    } finally {
+      setLoadingBeyt(false);
+    }
   };
 
   const getPureRhythm = (rhythm: string) => {
     return rhythm?.replace(/\s*\([^)]*\)\s*$/, "").trim();
   };
+  /** Compare a reader's guess with the metre the engine found.
+   *
+   *  Comparison is on the ارکان only, with spaces, نیم‌فاصله and the Arabic/
+   *  Persian ی و ک folded together — a reader who writes «مفاعیلن مفاعیلن» with
+   *  odd spacing has still named the right metre. "close" means every foot is
+   *  right but the count is not. */
+  const judgeGuess = (raw: string, truth: string): "right" | "close" | "wrong" => {
+    const norm = (s: string) =>
+      s
+        .replace(/[\u200c\u200e\u200f]/g, " ")
+        .replace(/ي/g, "ی")
+        .replace(/ك/g, "ک")
+        .replace(/[\u064b-\u0652]/g, "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    const g = norm(raw);
+    const t = norm(truth);
+    if (!g.length || !t.length) return "wrong";
+    if (g.join(" ") === t.join(" ")) return "right";
+    const gset = [...new Set(g)].sort().join("|");
+    const tset = [...new Set(t)].sort().join("|");
+    return gset === tset ? "close" : "wrong";
+  };
+
   const getRhythmDescription = (rhythm: string) => {
     const match = rhythm?.match(/\(([^)]*)\)\s*$/);
     return match ? match[1].trim() : "";
@@ -86,9 +158,75 @@ function VaznYabSection({
         animate="visible"
         className=" mx-auto my-12 sm:my-16 md:max-w-4xl p-4 sm:p-8 relative z-50 rounded-3xl glass"
       >
-        <label className=" text-xs sm:text-sm text-muted-foreground">
-          بیت خود را بنویس — هر مصراع در یک خط
-        </label>
+        <div className=" flex flex-wrap items-center justify-between gap-3">
+          <label className=" text-xs sm:text-sm text-muted-foreground">
+            بیت خود را بنویس — هر مصراع در یک خط
+          </label>
+
+          <div className=" flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMasterMode((v) => !v)}
+              aria-pressed={masterMode}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                masterMode
+                  ? "border-gold bg-gold/15 text-gold"
+                  : "border-border bg-card text-muted-foreground hover:border-gold/50 hover:text-gold"
+              }`}
+            >
+              حالتِ استادی
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchRandomBeyt}
+              disabled={loadingBeyt || loadingFetch}
+              className={`inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-all ${
+                loadingBeyt || loadingFetch
+                  ? "cursor-not-allowed opacity-60"
+                  : "hover:brightness-95 active:scale-95"
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.8}
+                stroke="currentColor"
+                aria-hidden
+                className={`size-4 ${loadingBeyt ? "animate-spin" : ""}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992V4.356m-.001 0-3.181 3.183a8.25 8.25 0 0 0-13.803 3.7M4.031 9.865v4.99m0 0h4.99m-4.99 0 3.181 3.182a8.25 8.25 0 0 0 13.803-3.7"
+                />
+              </svg>
+              {loadingBeyt ? "..." : "بیتِ تصادفی"}
+            </button>
+          </div>
+        </div>
+
+        {beyt && (
+          <p className=" mt-2 text-[11px] text-muted-foreground sm:text-xs">
+            {beyt.source === "ganjoor" ? "از گنجور" : "از گنجینهٔ سروا"}
+            {beyt.poet ? ` — ${beyt.poet}` : ""}
+            {beyt.title ? `، ${beyt.title}` : ""}
+            {beyt.url && (
+              <>
+                {" "}
+                <a
+                  href={beyt.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className=" text-primary underline underline-offset-2"
+                >
+                  دیدنِ شعر
+                </a>
+              </>
+            )}
+          </p>
+        )}
 
         <div className=" relative mt-12 gap-3 sm:gap-x-6 sm:flex-row flex-col items-start flex sm:items-center">
           <span className=" w-18.75 text-center shrink-0 text-xs px-2 py-1 cursor-default  relative z-20 rounded-xl glass border-border! bg-secondary!">
@@ -125,6 +263,39 @@ function VaznYabSection({
             </span>
           )}
         </div>
+
+        {masterMode && (
+          <div className=" relative mt-12 rounded-3xl border-2 border-gold/40 bg-gold/5 p-4">
+            <label className=" text-xs font-bold text-gold sm:text-sm">
+              حدست چیست؟ ارکان را بنویس، بعد «پیدا کن» را بزن.
+            </label>
+            <input
+              value={guess}
+              onChange={(e) => setGuess(e.target.value)}
+              disabled={loadingFetch}
+              placeholder="مثلاً: فاعلاتن فاعلاتن فاعلاتن فاعلن"
+              className=" mt-3 w-full rounded-3xl border-2 border-border bg-secondary px-4 py-2 text-right text-sm outline-none focus:border-gold sm:text-base"
+              type="text"
+            />
+            {verdict && (
+              <p
+                className={`mt-3 text-sm font-bold ${
+                  verdict === "right"
+                    ? "text-green-600 dark:text-green-400"
+                    : verdict === "close"
+                      ? "text-gold"
+                      : "text-destructive"
+                }`}
+              >
+                {verdict === "right"
+                  ? "✓ درست حدس زدی — گوشت تربیت شده است."
+                  : verdict === "close"
+                    ? "ارکان را درست گفتی، ولی تعدادشان نه. یک بار دیگر بشمار."
+                    : "✕ این بار نشد. ارکانِ پیداشده را ببین و دوباره امتحان کن."}
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"

@@ -3,7 +3,6 @@ import VaznYabHero3D from "@/components/UI/vazn-yab/VaznYabHero3D";
 import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
 import { findMeterLocally } from "@/lib/aruz";
 
-
 // ⚠️ نسخهٔ قدیمی: جست‌وجوی عینِ متن در گنجور. فقط برای شعرهایی که از قبل
 // توی گنجور برچسب-خورده‌اند کار می‌کند (شعرِ تازه/دست‌نویس را پیدا نمی‌کند).
 // نگه داشته شده برای برگشتِ احتمالی — الان استفاده نمی‌شود.
@@ -56,7 +55,7 @@ const submitPoemSearch = async (mesra1: string, mesra2?: string) => {
 
 function page() {
   return (
-    <div dir="rtl" className="container">
+    <div dir="rtl" className="container relative z-20">
       {/* the old flat hero is still at components/UI/HeroSectionVaznYab.tsx —
           swapping these two lines back reverts the redesign */}
       <VaznYabHero3D />

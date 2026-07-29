@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
 
 /** وزن‌یاب's hero, built as a shallow 3D stage.
  *
@@ -16,7 +22,10 @@ import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } fro
  *  seeing them lift off the line is the clearest way to say what this page is
  *  for. Falls back to a flat, still hero under reduced motion. */
 
-const BEYT = ["شهر یاران بود و خاک مهربانان این دیار", "مهربانی کی سر آمد؟ شهریاران را چه شد؟"];
+const BEYT = [
+  "شهر یاران بود و خاک مهربانان این دیار",
+  "مهربانی کی سر آمد؟ شهریاران را چه شد؟",
+];
 
 /** فاعلاتن فاعلاتن فاعلاتن فاعلن — the metre of the بیت above. */
 const FEET = ["فاعلاتن", "فاعلاتن", "فاعلاتن", "فاعلن"];
@@ -82,6 +91,40 @@ export default function VaznYabHero3D() {
       dir="rtl"
       className=" relative mx-auto mt-10 w-full max-w-5xl px-1 sm:mt-14"
     >
+      <div className=" flex flex-col items-center">
+        <motion.span
+          initial={reduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          style={reduced ? undefined : layer(60)}
+          className=" relative z-20 rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary sm:text-sm"
+        >
+          وزن‌یاب
+        </motion.span>
+
+        <motion.h1
+          initial={reduced ? false : { opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+          style={reduced ? undefined : layer(45)}
+          className=" relative z-20 mt-3 text-balance text-center text-3xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl"
+        >
+          وزن بیت
+          <span className=" mx-2 inline-block text-primary">دلخواهت</span>
+          را پیدا کن
+        </motion.h1>
+
+        <motion.p
+          initial={reduced ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+          style={reduced ? undefined : layer(30)}
+          className=" relative z-20 mx-auto mt-4 max-w-2xl text-pretty text-center leading-relaxed text-muted-foreground sm:text-lg"
+        >
+          بیت یا مصراعت را بنویس تا وزن عروضی‌اش را بگوید و ریتمش را برایت
+          بنوازد — یا دکمهٔ بیتِ تصادفی را بزن و خودت را بیازما.
+        </motion.p>
+      </div>
       <div
         ref={stageRef}
         className=" relative"
@@ -110,39 +153,6 @@ export default function VaznYabHero3D() {
             />
           </div>
 
-          <motion.span
-            initial={reduced ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            style={reduced ? undefined : layer(60)}
-            className=" relative z-20 rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary sm:text-sm"
-          >
-            وزن‌یاب
-          </motion.span>
-
-          <motion.h1
-            initial={reduced ? false : { opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-            style={reduced ? undefined : layer(45)}
-            className=" relative z-20 mt-3 text-balance text-center text-3xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl"
-          >
-            وزن بیت
-            <span className=" mx-2 inline-block text-primary">دلخواهت</span>
-            را پیدا کن
-          </motion.h1>
-
-          <motion.p
-            initial={reduced ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            style={reduced ? undefined : layer(30)}
-            className=" relative z-20 mx-auto mt-4 max-w-2xl text-pretty text-center leading-relaxed text-muted-foreground sm:text-lg"
-          >
-            بیت یا مصراعت را بنویس تا وزن عروضی‌اش را بگوید و ریتمش را برایت
-            بنوازد — یا دکمهٔ بیتِ تصادفی را بزن و خودت را بیازما.
-          </motion.p>
-
           {/* the slab: a بیت with its scansion lifted above it */}
           <motion.div
             initial={reduced ? false : { opacity: 0, y: 28 }}
@@ -169,12 +179,17 @@ export default function VaznYabHero3D() {
               className=" mt-6 flex flex-wrap items-end justify-center gap-x-3 gap-y-3 sm:gap-x-5"
             >
               {FEET.map((foot, fi) => (
-                <div key={foot + fi} className=" flex flex-col items-center gap-2">
+                <div
+                  key={foot + fi}
+                  className=" flex flex-col items-center gap-2"
+                >
                   <div className=" flex items-center gap-1">
                     {PATTERN[fi].map((sym, si) => (
                       <motion.span
                         key={si}
-                        initial={reduced || !ready ? false : { opacity: 0, y: 10 }}
+                        initial={
+                          reduced || !ready ? false : { opacity: 0, y: 10 }
+                        }
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
                           duration: 0.35,

@@ -198,7 +198,13 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     // last z-index written per label. transform and opacity are compositable,
     // but a z-index change forces the stacking order to be re-sorted and the
     // labels repainted — so it is only written when the integer actually moves.
-    const lastZ = new Int16Array(N).fill(-32768);
+    // Paint order only has to change when two feet actually cross each other.
+    // Writing a quantised z-index every frame invalidated the stage's paint
+    // order ~30 times a second, and each invalidation dragged a re-layerize and
+    // a repaint of every label behind it — the single biggest cost on this page.
+    const order = new Int32Array(N);
+    const rank = new Int32Array(N).fill(-1);
+    const depthOf = new Float32Array(N);
     let nearest = -1;
 
     // pointer rect is cached on enter, so pointermove never reads layout
@@ -249,10 +255,25 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         if (!tag) continue;
         tag.style.transform = `translate(-50%,-50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) scale(${(0.58 + depth * 0.62).toFixed(3)})`;
         tag.style.opacity = (0.3 + depth * 0.7).toFixed(3);
-        const zi = Math.round(z2 * 40) + 200;
-        if (zi !== lastZ[i]) {
-          lastZ[i] = zi;
-          tag.style.zIndex = String(zi);
+        depthOf[i] = z2;
+      }
+
+      // back-to-front ranking; only written when the ordering really changed
+      for (let i = 0; i < N; i++) order[i] = i;
+      order.sort((a, b) => depthOf[a] - depthOf[b]);
+      let orderChanged = false;
+      for (let r = 0; r < N; r++) {
+        if (rank[order[r]] !== r) {
+          orderChanged = true;
+          break;
+        }
+      }
+      if (orderChanged) {
+        for (let r = 0; r < N; r++) {
+          const idx = order[r];
+          rank[idx] = r;
+          const tag = tagRefs.current[idx];
+          if (tag) tag.style.zIndex = String(200 + r);
         }
       }
 
@@ -554,7 +575,13 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       <div
         ref={stageRef}
         className="relative z-20 size-full cursor-grab touch-none active:cursor-grabbing"
-        style={{ perspective: "640px" }}
+        /* `contain` keeps the per-frame style work inside the sphere: without
+           it every frame invalidated style for the whole document, which the
+           trace showed as one full UpdateLayoutTree pass per frame. */
+        /* no `perspective` here: the labels always project at z=0 because the
+           depth scaling is computed by hand, so the only thing a 3D rendering
+           context bought was a layer-sort on every frame. */
+        style={{ contain: "layout style" }}
       >
         {/* wireframe shell — drawn from the same rotation as the labels */}
         <canvas
@@ -570,7 +597,9 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
               tagRefs.current[i] = node;
             }}
             className="absolute left-1/2 top-1/2 rounded-full border border-primary/30 bg-card px-3.5 py-1.5 text-sm font-bold whitespace-nowrap text-foreground shadow-[0_2px_10px_-4px_rgba(0,0,0,0.45)] select-none"
-            style={{ willChange: "transform" }}
+            /* opacity is written every frame too, so it belongs in the hint —
+               otherwise the change is not treated as compositor-only */
+            style={{ willChange: "transform, opacity" }}
           >
             {word}
           </span>

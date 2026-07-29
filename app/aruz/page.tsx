@@ -6,7 +6,15 @@ import { motion, MotionConfig } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
-import OrouzDemo from "@/components/UI/orouz-demo/OrouzDemo";
+import dynamic from "next/dynamic";
+
+/** The demo runs its own canvas + rAF loop and sits well below the fold, so it
+ *  has no business being parsed and mounted during the first paint. Loading it
+ *  on demand takes its evaluation off the critical path. */
+const OrouzDemo = dynamic(() => import("@/components/UI/orouz-demo/OrouzDemo"), {
+  ssr: false,
+  loading: () => <div className="h-[520px]" aria-hidden />,
+});
 import {
   RevealGroup,
   RevealItem,

@@ -207,7 +207,7 @@ function Header() {
         {user ? (
           <>
             <Link
-              href={"/panel"}
+              href={"/panel/home"}
               className="active:scale-95 px-4 py-1 rounded-lg text-sm transition-all
                glass hover:bg-accent/70! overflow-hidden max-w-24 hidden sm:flex"
             >

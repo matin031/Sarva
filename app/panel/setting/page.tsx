@@ -1,4 +1,5 @@
 import AccountSettings from "@/components/UI/AccountSettings";
+import ExitPanelBtn from "@/components/UI/ExitPanelBtn";
 
 function page() {
   return (
@@ -11,6 +12,8 @@ function page() {
         تنظیمات حساب کاربری
       </span>
       <AccountSettings />
+
+      <ExitPanelBtn />
     </div>
   );
 }

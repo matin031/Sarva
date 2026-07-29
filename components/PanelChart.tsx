@@ -12,12 +12,12 @@ import {
 } from "recharts";
 
 const data = [
-  { label: "Jan", y: 45 },
-  { label: "Feb", y: 70 },
-  { label: "Mar", y: 30 },
-  { label: "Apr", y: 90 },
-  { label: "May", y: 60 },
-  { label: "Jun", y: 80 },
+  { label: "1", y: 45 },
+  { label: "2", y: 70 },
+  { label: "3", y: 30 },
+  { label: "5", y: 90 },
+  { label: "6", y: 60 },
+  { label: "7", y: 80 },
 ];
 
 const swipeLeftAnimateItems: AnimationInterpolateFn<

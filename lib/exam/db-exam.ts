@@ -115,6 +115,71 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
  *  lighter-weight query: the exam count is small (a handful, not
  *  hundreds), and this way the landing page automatically picks up any
  *  exam an admin adds later with zero code changes. */
+export type ExamSummary = {
+  examKey: string;
+  title: string;
+  grade: number;
+  subject: string;
+  totalScore: number;
+  questionCount: number;
+  createdAt: string | null;
+};
+
+/** The landing page's list, without loading a single question's body.
+ *
+ *  `listExams` below pulls every exam in full — fine when it was rendering
+ *  three cards, wasteful now that the page groups by پایه and only ever shows
+ *  a title, a score and a count. Postgrest can count the nested rows for us. */
+export async function listExamSummaries(): Promise<ExamSummary[]> {
+  const supabase = createSupabaseAdmin();
+  // The nested aggregate is the whole point of this query, but it is also the
+  // one part that depends on PostgREST's version. If it is rejected, fall back
+  // to the plain columns and simply show no question count — a landing page
+  // that loses a chip is fine; one that throws is not.
+  const withCounts = await supabase
+    .from("exams")
+    .select(
+      "exam_session, title, grade, subject, total_score, created_at, exam_sections(exam_questions(count))",
+    )
+    .order("created_at", { ascending: false });
+
+  let data: unknown[] | null = withCounts.data;
+  if (withCounts.error) {
+    console.error("listExamSummaries (counts):", withCounts.error.message);
+    const plain = await supabase
+      .from("exams")
+      .select("exam_session, title, grade, subject, total_score, created_at")
+      .order("created_at", { ascending: false });
+    if (plain.error) throw new Error(`listExamSummaries: ${plain.error.message}`);
+    data = plain.data;
+  }
+
+  type Row = {
+    exam_session: string | null;
+    title: string | null;
+    grade: number | null;
+    subject: string | null;
+    total_score: number | string | null;
+    created_at: string | null;
+    exam_sections: { exam_questions: { count: number }[] }[] | null;
+  };
+
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => !!r.exam_session)
+    .map((r) => ({
+      examKey: r.exam_session as string,
+      title: r.title ?? "آزمون",
+      grade: Number(r.grade ?? 0),
+      subject: r.subject ?? "",
+      totalScore: Number(r.total_score ?? 20),
+      questionCount: (r.exam_sections ?? []).reduce(
+        (s, sec) => s + (sec.exam_questions?.[0]?.count ?? 0),
+        0,
+      ),
+      createdAt: r.created_at,
+    }));
+}
+
 export async function listExams(): Promise<{ examKey: string; exam: SeedExam }[]> {
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase

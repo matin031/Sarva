@@ -8,6 +8,7 @@ import type {
   BookmarkArea,
   ExamAttempt,
   JasoosAnswer,
+  PanelOverview,
   PanelUser,
   VocabAnswer,
 } from "@/lib/panel/types";
@@ -382,6 +383,92 @@ export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
         >) ?? {},
     };
   });
+}
+
+// ----------------------------------------------------- خلاصهٔ همهٔ بخش‌ها ----
+
+/** One read for the panel's front page.
+ *
+ *  The home page used to draw a chart of invented months. This gathers the real
+ *  thing from every area at once — three narrow queries plus the exam scores —
+ *  so the greeting, the accuracy, the streak and the chart all describe the
+ *  same student rather than a placeholder. */
+export async function getPanelOverview(userId: string): Promise<PanelOverview> {
+  const supabase = await createSupabaseServer();
+
+  const [aruz, vocab, jasoos, bookmarks, exams] = await Promise.all([
+    supabase
+      .from("user_answers")
+      .select("is_correct, answered_at")
+      .eq("user_id", userId)
+      .limit(3000),
+    supabase
+      .from("vocab_answers")
+      .select("is_correct, answered_at")
+      .eq("user_id", userId)
+      .limit(5000),
+    supabase
+      .from("jasoos_answers")
+      .select("is_correct, answered_at")
+      .eq("user_id", userId)
+      .limit(3000),
+    supabase
+      .from("user_bookmarks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    getExamAttempts(userId),
+  ]);
+
+  const activity: PanelOverview["activity"] = [];
+  const counts: PanelOverview["counts"] = {
+    aruz: { total: 0, correct: 0 },
+    vocab: { total: 0, correct: 0 },
+    jasoos: { total: 0, correct: 0 },
+    exam: { total: 0, correct: 0 },
+  };
+
+  const collect = (
+    res: { data: unknown[] | null; error: { message: string } | null },
+    area: BookmarkArea,
+    label: string,
+  ) => {
+    if (res.error) {
+      console.error(`getPanelOverview (${label}):`, res.error.message);
+      return;
+    }
+    for (const row of (res.data ?? []) as {
+      is_correct?: boolean;
+      answered_at?: string;
+    }[]) {
+      if (!row.answered_at) continue;
+      const ok = Boolean(row.is_correct);
+      activity.push({ at: row.answered_at, ok, area });
+      counts[area].total += 1;
+      if (ok) counts[area].correct += 1;
+    }
+  };
+
+  collect(aruz, "aruz", "user_answers");
+  collect(vocab, "vocab", "vocab_answers");
+  collect(jasoos, "jasoos", "jasoos_answers");
+
+  const examScore = exams.reduce((s, a) => s + a.totalScore, 0);
+  const examMax = exams.reduce((s, a) => s + a.maxScore, 0);
+
+  return {
+    activity,
+    counts,
+    bookmarks: bookmarks.count ?? 0,
+    exams: {
+      attempts: exams.length,
+      best: exams.reduce(
+        (m, a) =>
+          Math.max(m, a.maxScore ? Math.round((a.totalScore / a.maxScore) * 100) : 0),
+        0,
+      ),
+      average: examMax ? Math.round((examScore / examMax) * 100) : 0,
+    },
+  };
 }
 
 // --------------------------------------------------------- نشان‌شده‌ها ----

@@ -78,6 +78,13 @@ export async function submitQuestion(
  *  Recomputes the total from the results the client already has (not
  *  re-graded here) since this is a stats record, not a security boundary
  *  — the actual grading already happened server-side in submitQuestion. */
+/** How much of a paper has to be attempted before it counts as a کارنامه. */
+const MIN_ANSWERED_RATIO = 2 / 3;
+
+export type AttemptSaveResult =
+  | { saved: true }
+  | { saved: false; reason: "guest" | "too_few" | "unknown_exam" };
+
 export async function submitExamAttempt(
   examKey: string,
   questionResults: Record<number, QuestionResult>,
@@ -85,16 +92,32 @@ export async function submitExamAttempt(
    *  Stored so the panel can show their answer next to the right one — the
    *  results alone only ever knew the score. */
   answers?: Record<string, unknown>,
-): Promise<void> {
+): Promise<AttemptSaveResult> {
   const supabase = await createSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) return { saved: false, reason: "guest" };
 
   const admin = createSupabaseAdmin();
   const { data: exam } = await admin.from("exams").select("id").eq("exam_session", examKey).maybeSingle();
-  if (!exam) return;
+  if (!exam) return { saved: false, reason: "unknown_exam" };
+
+  /* A کارنامه should describe a paper the student actually sat. Answering three
+     questions and leaving would otherwise land in the panel next to a full
+     attempt and drag the average down for no reason — so the threshold is
+     checked here, on the server, where the real question count lives, rather
+     than trusting whatever the client chose to send. */
+  const paper = await getExamByKey(examKey);
+  const totalQuestions =
+    paper?.sections.reduce((n, s) => n + s.questions.length, 0) ?? 0;
+  const answeredQuestions = Object.keys(questionResults).length;
+  if (
+    totalQuestions > 0 &&
+    answeredQuestions < Math.ceil(totalQuestions * MIN_ANSWERED_RATIO)
+  ) {
+    return { saved: false, reason: "too_few" };
+  }
 
   let totalScore = 0;
   let maxScore = 0;
@@ -104,7 +127,7 @@ export async function submitExamAttempt(
       maxScore += part.maxScore;
     }
   }
-  if (maxScore === 0) return;
+  if (maxScore === 0) return { saved: false, reason: "too_few" };
 
   const row = {
     user_id: user.id,
@@ -126,6 +149,9 @@ export async function submitExamAttempt(
     const retry = await admin.from("exam_attempts").insert(row);
     if (retry.error) {
       console.error("submitExamAttempt:", retry.error.message);
+      return { saved: false, reason: "unknown_exam" };
     }
   }
+
+  return { saved: true };
 }

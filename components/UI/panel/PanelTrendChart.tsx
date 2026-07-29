@@ -8,7 +8,7 @@ import { dailyBuckets, fa } from "@/lib/panel/format";
  *  answered, the darker part is how much was right. */
 export default function PanelTrendChart({
   history,
-  days = 14,
+  days = 30,
 }: {
   history: { at: string; ok: boolean }[];
   days?: number;
@@ -24,7 +24,7 @@ export default function PanelTrendChart({
     return (
       <div className=" mt-3 rounded-2xl bg-card p-6 text-center shadow sm:p-8">
         <p className=" text-muted-foreground">
-          در دو هفتهٔ گذشته پاسخی ثبت نشده است.
+          در این بازه پاسخی ثبت نشده است.
         </p>
       </div>
     );
@@ -32,7 +32,7 @@ export default function PanelTrendChart({
 
   return (
     <div className=" mt-3 rounded-2xl bg-card p-3 shadow sm:p-4">
-      <div className=" h-56 w-full sm:h-72">
+      <div className=" h-64 w-full sm:h-80 lg:h-96">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.25} />

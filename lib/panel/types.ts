@@ -138,6 +138,13 @@ export type PanelUser = {
   createdAt: string | null;
 };
 
+export type PanelOverview = {
+  activity: { at: string; ok: boolean; area: BookmarkArea }[];
+  counts: Record<BookmarkArea, { total: number; correct: number }>;
+  bookmarks: number;
+  exams: { attempts: number; best: number; average: number };
+};
+
 /** What `/panel/aruz` loads on first paint. It lives here rather than beside
  *  the action that returns it because a `"use server"` module may only export
  *  async functions. */

@@ -6,6 +6,8 @@ import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 import {
   submitExamAttempt,
   submitQuestion,
@@ -18,6 +20,15 @@ type Props = {
 };
 
 type FlatQuestion = { sectionTitle: string; question: ClientQuestion };
+
+/** How far a guest may get before the paper asks them to sign in. Their answers
+ *  are already in localStorage, so signing in and coming back resumes exactly
+ *  where they stopped. */
+const GUEST_QUESTION_LIMIT = 3;
+
+type SaveOutcome =
+  | { saved: true }
+  | { saved: false; reason: "guest" | "too_few" | "unknown_exam" | "early_exit" };
 
 type Progress = {
   currentIndex: number;
@@ -116,6 +127,25 @@ export default function ExamRunner({ examKey, exam }: Props) {
   }
 
   const { currentIndex, answers, questionResults, showResults } = progress;
+
+  /** undefined = still checking, null = guest, string = signed in */
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [saveResult, setSaveResult] = useState<SaveOutcome | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (alive) setUserId(data.user?.id ?? null);
+      })
+      .catch(() => {
+        if (alive) setUserId(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const { sectionTitle, question } = flatQuestions[currentIndex];
   const isLast = currentIndex === flatQuestions.length - 1;
   const isRevealed = question.number in questionResults;
@@ -179,10 +209,17 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const goNext = () => {
     if (isLast) {
       setProgress((prev) => ({ ...prev, showResults: true }));
-      // Fire-and-forget: a signed-in-only stats record, not part of the
-      // grading/results the student sees (that's already final at this
-      // point). Guests are silently skipped server-side.
-      void submitExamAttempt(examKey, questionResults, answers);
+      // The only place a کارنامه is recorded: the student reached the end and
+      // pressed «پایان آزمون». The server still checks that enough of the paper
+      // was attempted, and reports back so the results screen can say what
+      // happened instead of leaving them guessing.
+      void submitExamAttempt(examKey, questionResults, answers).then(
+        (res) => setSaveResult(res),
+        (err) => {
+          console.error("submitExamAttempt:", err);
+          setSaveResult(null);
+        },
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -228,20 +265,92 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const doFinish = () => {
     setConfirmKind(null);
     setProgress((prev) => ({ ...prev, showResults: true }));
-    // same fire-and-forget stats record as the normal finish in goNext()
-    void submitExamAttempt(examKey, questionResults, answers);
+    // Deliberately NOT recorded. Ending early shows the student their score,
+    // but a کارنامه is for a paper that was actually sat to the end — an abandoned
+    // run in the panel is worse than no row at all.
+    setSaveResult({ saved: false, reason: "early_exit" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const answeredCount = Object.keys(questionResults).length;
+  const totalQuestions = flatQuestions.length;
+  const needed = Math.ceil(totalQuestions * (2 / 3));
+
+  /* A guest may sit the first few questions, then has to sign in. The gate is
+     shown instead of the question, never over the results, and their answers
+     are already saved locally so coming back finishes the sentence. */
+  if (!showResults && userId === null && answeredCount >= GUEST_QUESTION_LIMIT) {
+    return (
+      <div dir="rtl" className=" container mx-auto my-16 max-w-xl">
+        <div className=" glass rounded-3xl p-6 text-center sm:p-10">
+          <span className=" mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/15 text-3xl">
+            🔐
+          </span>
+          <h2 className=" mt-4 text-xl font-bold sm:text-2xl">
+            برای ادامهٔ آزمون وارد شو
+          </h2>
+          <p className=" mx-auto mt-3 max-w-md leading-relaxed text-muted-foreground">
+            {answeredCount.toLocaleString("fa-IR")} سؤال را جواب دادی. برای ادامه و برای
+            اینکه کارنامه‌ات در پنل بماند، باید وارد حساب شوی.
+            <br />
+            پاسخ‌هایت ذخیره شده‌اند — بعد از ورود از همین سؤال ادامه می‌دهی.
+          </p>
+          <div className=" mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/auth"
+              className=" rounded-2xl bg-primary px-6 py-3 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+            >
+              ورود / ثبت‌نام
+            </Link>
+            <Link
+              href="/exam"
+              className=" rounded-2xl border border-border bg-card px-6 py-3 font-medium text-muted-foreground transition-all hover:border-primary/50"
+            >
+              بازگشت به آزمون‌ها
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showResults) {
     return (
-      <ExamResults
-        exam={exam}
-        questionResults={questionResults}
-        onRetry={handleRetry}
-      />
+      <>
+        {saveResult && !saveResult.saved && (
+          <div dir="rtl" className=" mx-auto mt-8 max-w-xl px-4 xs:px-5">
+            <p className=" rounded-2xl border border-gold/40 bg-gold/10 p-4 text-sm leading-relaxed text-foreground">
+              {saveResult.reason === "early_exit" ? (
+                <>
+                  این آزمون را زودتر تمام کردی، پس در کارنامه‌های پنل ثبت نشد.
+                  کارنامه فقط برای آزمونی صادر می‌شود که تا آخرین سؤال بروی و
+                  دست‌کم {needed.toLocaleString("fa-IR")} سؤال از{" "}
+                  {totalQuestions.toLocaleString("fa-IR")} را پاسخ داده باشی.
+                </>
+              ) : saveResult.reason === "too_few" ? (
+                <>
+                  کارنامه ثبت نشد: از {totalQuestions.toLocaleString("fa-IR")}{" "}
+                  سؤال، {answeredCount.toLocaleString("fa-IR")} سؤال را پاسخ
+                  دادی و برای صدور کارنامه دست‌کم{" "}
+                  {needed.toLocaleString("fa-IR")} سؤال لازم است.
+                </>
+              ) : saveResult.reason === "guest" ? (
+                <>
+                  نتیجه‌ات را می‌بینی، ولی چون وارد حساب نشده‌ای کارنامه‌ای در پنل
+                  ذخیره نشد.
+                </>
+              ) : (
+                <>کارنامه ذخیره نشد. دوباره تلاش کن.</>
+              )}
+            </p>
+          </div>
+        )}
+        <ExamResults
+          exam={exam}
+          questionResults={questionResults}
+          onRetry={handleRetry}
+        />
+      </>
     );
   }
 

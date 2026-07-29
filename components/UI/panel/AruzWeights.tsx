@@ -1,23 +1,15 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { motion } from "motion/react";
 import { fa, scoreColor } from "@/lib/panel/format";
 
-/** کارنامهٔ وزن‌ها — one horizontal bar per metre, worst first.
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+/** Where the ear is strong and where it is not, metre by metre.
  *
- *  Horizontal on purpose: a metre's name is «مفاعیلن مفاعیلن مفاعیلن مفاعیلن»,
- *  and no vertical axis label survives that. Sorted weakest-first so the row a
- *  student actually needs is the first one they read, and coloured on the same
- *  red→amber→green scale as every other score in the panel. */
+ *  Sorted worst first on purpose: the row a student needs is the one they keep
+ *  missing, and burying it under four green bars is how progress pages end up
+ *  being decorative. */
 export default function AruzWeights({
   weights,
 }: {
@@ -34,74 +26,54 @@ export default function AruzWeights({
     );
   }
 
-  const data = weights
-    .map((w) => ({
-      name: w.weight,
-      percent: Math.round((w.correct / w.total) * 100),
-      correct: w.correct,
-      total: w.total,
-    }))
-    .sort((a, b) => a.percent - b.percent);
-
-  // each bar needs room to breathe; the chart grows with the number of metres
-  const height = Math.max(180, data.length * 56 + 40);
-
   return (
-    <div className=" mt-3 rounded-2xl bg-card p-3 shadow sm:p-4">
-      <div style={{ height }} className=" w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 6, right: 8, left: 48, bottom: 6 }}
+    <div className=" mt-3 flex flex-col gap-3">
+      {weights.map((w, i) => {
+        const percent = Math.round((w.correct / w.total) * 100);
+        const color = scoreColor(percent);
+        const verdict =
+          percent >= 80
+            ? "خیلی خوب"
+            : percent >= 60
+              ? "قابل قبول"
+              : percent >= 35
+                ? "بیشتر تمرین کن"
+                : "نیاز به تلاش";
+        return (
+          <motion.div
+            key={w.weight}
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.35, delay: Math.min(i, 8) * 0.03, ease: EASE }}
+            className=" rounded-2xl bg-card p-4 shadow"
           >
-            <XAxis type="number" domain={[0, 100]} hide />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={172}
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 11 }}
-              tickMargin={6}
-              orientation="right"
-            />
-            <Tooltip
-              cursor={{ opacity: 0.08 }}
-              contentStyle={{
-                borderRadius: 12,
-                border: "1px solid var(--border)",
-                background: "var(--card)",
-                fontSize: 12,
-                direction: "rtl",
-              }}
-              formatter={(value, _name, item) => {
-                const d = item?.payload as (typeof data)[number] | undefined;
-                return [
-                  `${fa(Number(value ?? 0))}٪ — ${fa(d?.correct ?? 0)} از ${fa(d?.total ?? 0)}`,
-                  "درست",
-                ];
-              }}
-            />
-            <Bar dataKey="percent" radius={[6, 6, 6, 6]} barSize={18}>
-              {data.map((d) => (
-                <Cell key={d.name} fill={scoreColor(d.percent)} />
-              ))}
-              <LabelList
-                dataKey="percent"
-                position="left"
-                formatter={(v: unknown) => `${fa(Number(v ?? 0))}٪`}
-                style={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            <div className=" mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className=" font-bold" dir="rtl">
+                {w.weight}
+              </span>
+              <span className=" flex items-center gap-x-2 text-xs text-muted-foreground">
+                <span>
+                  {fa(w.correct)} از {fa(w.total)}
+                </span>
+                <span style={{ color }} className=" font-bold">
+                  {fa(percent)}٪ — {verdict}
+                </span>
+              </span>
+            </div>
+            <div className=" h-2 w-full overflow-hidden rounded-full bg-muted">
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: `${percent}%` }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: EASE }}
+                style={{ backgroundColor: color }}
+                className=" h-full rounded-full"
               />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <p className=" mt-1 px-2 text-[11px] text-muted-foreground sm:text-xs">
-        از ضعیف‌ترین وزن به قوی‌ترین. روی هر میله نگه دار تا تعداد درست‌ها را
-        ببینی.
-      </p>
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

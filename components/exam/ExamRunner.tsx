@@ -79,6 +79,31 @@ export default function ExamRunner({ examKey, exam }: Props) {
   const [confirmKind, setConfirmKind] = useState<null | "finish" | "reset">(null);
   const [isPending, startTransition] = useTransition();
 
+  /** undefined = still checking, null = guest, string = signed in.
+   *
+   *  Declared up here with the rest of the state on purpose: below this point
+   *  the component returns early while the saved progress is still being read,
+   *  and a hook after that return is only called on some renders — which is
+   *  exactly the "rendered more hooks than during the previous render" crash. */
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [saveResult, setSaveResult] = useState<SaveOutcome | null>(null);
+
+  /** Who is playing. Also above the early return, for the same reason. */
+  useEffect(() => {
+    let alive = true;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (alive) setUserId(data.user?.id ?? null);
+      })
+      .catch(() => {
+        if (alive) setUserId(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Restoring persisted progress on mount is a one-time sync with an
   // external system (localStorage), not a derived-state update — the
   // sanctioned exception to "don't setState in effects".
@@ -128,24 +153,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
 
   const { currentIndex, answers, questionResults, showResults } = progress;
 
-  /** undefined = still checking, null = guest, string = signed in */
-  const [userId, setUserId] = useState<string | null | undefined>(undefined);
-  const [saveResult, setSaveResult] = useState<SaveOutcome | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (alive) setUserId(data.user?.id ?? null);
-      })
-      .catch(() => {
-        if (alive) setUserId(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
   const { sectionTitle, question } = flatQuestions[currentIndex];
   const isLast = currentIndex === flatQuestions.length - 1;
   const isRevealed = question.number in questionResults;

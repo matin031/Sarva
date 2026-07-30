@@ -39,9 +39,6 @@ function RevealTag({ text, isSpy }: { text: string; isSpy: boolean }) {
   );
 }
 
-/** Depth for the parallax: suspects sit on slightly different planes so the
- *  scene's tilt separates them instead of sliding them as one flat sheet. */
-const DEPTH = [26, -10, 14, -22, 6, -16];
 
 function Suspect({
   role,
@@ -123,8 +120,6 @@ function Suspect({
           ? "scared"
           : "calm";
 
-  const z = DEPTH[index % DEPTH.length];
-
   return (
     <button
       type="button"
@@ -136,8 +131,11 @@ function Suspect({
       onPointerLeave={() => setAimed(false)}
       disabled={disabled}
       aria-label={`نشانه‌گیری به سمت مظنونِ ${role}`}
-      style={reduced ? undefined : { transform: `translateZ(${z}px)` }}
-      className={`group relative flex shrink-0 flex-col items-center gap-y-2 ${
+      /* No per-suspect translateZ: the figures are oversized SVGs with
+         overflow-visible, and pushing some of them backwards in the shared 3D
+         context let a nearer neighbour's box swallow their clicks. Depth now
+         comes from the stage tilt alone, which costs nothing in hit-testing. */
+      className={`group relative z-20 flex shrink-0 flex-col items-center gap-y-2 ${
         state === "dimmed" ? "opacity-75" : ""
       } ${disabled ? "cursor-default" : "cursor-crosshair"}`}
     >

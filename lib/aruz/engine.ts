@@ -183,6 +183,9 @@ export const PEN_MAX = 7; // هرسِ بی‌خطر
 // ویژگیِ spen بین دو موتور واگرا می‌شود و وزن‌های آموخته بی‌معنا می‌شوند.
 export const BEAM = 2000;
 type ExpItem = [Tok[], number];
+/** خوانش در حینِ ساخت: [توکن‌ها، جریمه، کلیدِ مسیر] — کلید فقط برای مرتب‌سازیِ
+ *  قطعی است و در خروجی نمی‌آید. */
+type ExpWork = [Tok[], number, string];
 const EXP_CACHE = new Map<string, ExpItem[]>();
 
 // جدول‌های گونه‌سازی — یک‌بار در بارگذاریِ ماژول ساخته می‌شوند (نه هر فراخوانی)
@@ -279,49 +282,54 @@ export function expandAmbiguous(toks: Tok[], full = false): ExpItem[] {
   const cached = EXP_CACHE.get(key);
   if (cached) return cached;
 
-  let res: ExpItem[] = [[[], 0]];
+  // ★ کلیدِ مسیر: در هر انشعاب شمارهٔ گزینه به کلید اضافه می‌شود. هرسِ زیر با
+  //   slice(0, BEAM) می‌بُرد و میانِ خوانش‌های هم‌جریمه، ترتیبِ ساخت تعیین
+  //   می‌کرد کدام بماند — و شاخهٔ S این‌جا ترتیبی داشت که با arooz.py یکی
+  //   نبود، پس دو موتور روی ۶۵۰ خوانش از ۲۰۰۰ اختلاف داشتند بی آن‌که خطایی
+  //   رخ بدهد. مرتب‌سازی روی (جریمه، کلیدِ مسیر) این وابستگی را برمی‌دارد.
+  const byPenThenKey = (a: ExpWork, b: ExpWork) =>
+    a[1] - b[1] || (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0);
+
+  let res: ExpWork[] = [[[], 0, ""]];
   for (const t of toks) {
     const s = t[0];
     if (s === "C" || s === "V" || s === "v" || s === "B") {
-      res = res.map(([r, p]) => [[...r, t], p]);
-    } else if (s === "Z") {
-      const key2 = t[1] === "ی" ? "Zy" : "Z";
-      const next: ExpItem[] = [];
-      for (const [r, p] of res) {
-        for (const [o, q] of MULTI[key2]) next.push([[...r, ...o], p + q]);
-      }
-      res = next;
-    } else if (s in MULTI) {
-      const next: ExpItem[] = [];
-      for (const [r, p] of res) {
-        for (const [o, q] of MULTI[s]) next.push([[...r, ...o], p + q]);
-      }
-      res = next;
-    } else if (s === "S") {
-      const next: ExpItem[] = [];
-      for (const [r, p] of res) {
-        next.push([[...r, ["V", t[1]]], p]);
-        next.push([[...r, ["v", ""]], p + 1]);
-      }
-      res = next;
+      res = res.map(([r, p, k]) => [[...r, t], p, k]);
     } else {
-      const next: ExpItem[] = [];
-      for (const [r, p] of res) {
-        for (const [o, q] of OPT[s]) next.push([[...r, o], p + q]);
+      // گزینه‌ها به‌صورتِ [توکن‌های افزودنی، جریمه] یکسان‌سازی می‌شوند تا همهٔ
+      //  شاخه‌ها یک حلقهٔ واحد داشته باشند (حلقهٔ بیرونی روی خوانش‌ها، مثلِ پایتون)
+      let opts: [Tok[], number][];
+      if (s === "Z") opts = MULTI[t[1] === "ی" ? "Zy" : "Z"];
+      else if (s in MULTI) opts = MULTI[s];
+      else if (s === "S")
+        opts = [
+          [[["V", t[1]]], 0],
+          [[["v", ""]], 1],
+        ];
+      else opts = OPT[s].map(([o, q]) => [[o], q] as [Tok[], number]);
+
+      const next: ExpWork[] = [];
+      for (const [r, p, k] of res) {
+        for (let i = 0; i < opts.length; i++) {
+          const [o, q] = opts[i];
+          next.push([[...r, ...o], p + q, k + i]);
+        }
       }
       res = next;
     }
     if (res.length > 4000) {
-      res.sort((a, b) => a[1] - b[1]);
+      res.sort(byPenThenKey);
       const mn = res[0][1];
       res = res.filter((x) => x[1] <= mn + PEN_MAX).slice(0, BEAM);
     }
   }
-  res.sort((a, b) => a[1] - b[1]);
+  res.sort(byPenThenKey);
   const mn = res.length ? res[0][1] : 0;
-  res = res.filter((x) => x[1] <= mn + PEN_MAX);
-  EXP_CACHE.set(key, res);
-  return res;
+  const out: ExpItem[] = res
+    .filter((x) => x[1] <= mn + PEN_MAX)
+    .map(([r, p]) => [r, p]);
+  EXP_CACHE.set(key, out);
+  return out;
 }
 
 // ==================================== ۴) هجابندی + وزن (تجزیه‌گرِ مرزآگاه)

@@ -37,9 +37,26 @@ export interface DetectResult {
 
 // ═══════════ رتبه‌بندِ آموخته ═══════════
 // امتیازِ دستی (c1+c2+prior+rare) جمعِ ضرایبی بود که روی چند ده بیت کوک شده
-// بودند. وزن‌های زیر از پیکرهٔ برچسب‌خورده آموخته شده‌اند: روی مجموعهٔ آزمونِ
-// کنارگذاشته ۷۵.۵٪ در برابر ۶۸.۵٪ فرمولِ دستی.
-const RANKER = rankerData as { bias: number; w: Record<string, number> };
+// بودند. وزن‌ها از پیکرهٔ برچسب‌خورده آموخته می‌شوند. روی مجموعهٔ آزمونِ
+// کنارگذاشته: فرمولِ دستی ۶۸.۵٪ → رتبه‌بندِ خطی ۷۵.۵٪ → شبکهٔ کوچکِ غیرخطی.
+//
+// دو شکلِ ranker.json پشتیبانی می‌شود:
+//   خطی   {bias, w:{ویژگی: وزن}}
+//   غیرخطی {kind:"mlp", feats, mu, sd, W1, b1, w2, b2}   ۲۱→۳۲→۱ با tanh
+// در هر دو حالت «کمترین امتیاز = بهترین»؛ علامت هنگامِ ذخیره وارونه شده است.
+type LinearRanker = { bias: number; w: Record<string, number> };
+type MlpRanker = {
+  kind: "mlp";
+  feats: string[];
+  mu: number[];
+  sd: number[];
+  W1: number[][]; // [ویژگی][نهفته]
+  b1: number[];
+  w2: number[];
+  b2: number;
+};
+const RANKER = rankerData as unknown as LinearRanker | MlpRanker;
+const MLP = (RANKER as MlpRanker).kind === "mlp" ? (RANKER as MlpRanker) : null;
 const COST_CAP = 20.0;
 
 /** ویژگی‌های یک نامزد — باید *دقیقاً* مثلِ _feats در arooz.py باشد،
@@ -88,10 +105,22 @@ function baseScore(
   d1: CostDetail,
   d2: CostDetail,
 ): number {
-  if (RANKER && RANKER.w) {
+  if (MLP) {
     const ft = feats(name, ark, pat, freq, d1, d2);
-    let s = RANKER.bias ?? 0;
-    for (const k in RANKER.w) if (k in ft) s += RANKER.w[k] * ft[k];
+    const { feats: fs, mu, sd, W1, b1, w2 } = MLP;
+    let s = MLP.b2;
+    for (let h = 0; h < b1.length; h++) {
+      let z = b1[h];
+      for (let k = 0; k < fs.length; k++) z += ((ft[fs[k]] - mu[k]) / sd[k]) * W1[k][h];
+      s += w2[h] * Math.tanh(z);
+    }
+    return s;
+  }
+  const lin = RANKER as LinearRanker;
+  if (lin && lin.w) {
+    const ft = feats(name, ark, pat, freq, d1, d2);
+    let s = lin.bias ?? 0;
+    for (const k in lin.w) if (k in ft) s += lin.w[k] * ft[k];
     return s;
   }
   const prior = -MU * Math.log10(freq + 0.05);

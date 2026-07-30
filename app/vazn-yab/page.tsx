@@ -2,55 +2,20 @@ import VaznYabSection from "@/components/UI/guide/VaznYabSection";
 import VaznYabHero3D from "@/components/UI/vazn-yab/VaznYabHero3D";
 import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
 import { findMeterLocally } from "@/lib/aruz";
+import { findMeterOnGanjoor } from "@/lib/ganjoor";
 
-// ⚠️ نسخهٔ قدیمی: جست‌وجوی عینِ متن در گنجور. فقط برای شعرهایی که از قبل
-// توی گنجور برچسب-خورده‌اند کار می‌کند (شعرِ تازه/دست‌نویس را پیدا نمی‌کند).
-// نگه داشته شده برای برگشتِ احتمالی — الان استفاده نمی‌شود.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const submitPoemSearchGanjoor = async (mesra1: string, mesra2?: string) => {
-  "use server";
-  const searchTerm = mesra2 ? `${mesra1} ${mesra2}` : mesra1;
-  const normalize = (str: string) =>
-    str
-      .replace(/[\u200c\u200f\u200e]/g, " ")
-      .replace(/[،؛؟!»«”“"'`.,:;?!()\[\]{}\-_–—…]/g, " ")
-      .replace(/\s+/g, "")
-      .trim();
-
-  try {
-    const searchRes = await fetch(
-      `https://api.ganjoor.net/api/ganjoor/poems/search?term=${searchTerm}`,
-    );
-
-    if (!searchRes.ok) throw new Error();
-
-    const data = await searchRes.json();
-    console.log("رسیدم اینجا، الان می‌خوام فیلتر کنم");
-    const poemSearchId = data.filter((i: any) =>
-      normalize(i.plainText).includes(normalize(searchTerm)),
-    )[0].id;
-
-    if (!poemSearchId) throw new Error();
-
-    try {
-      const poemRes = await fetch(
-        `https://api.ganjoor.net/api/ganjoor/poem/${poemSearchId}`,
-      );
-      const poem = await poemRes.json();
-      console.log("poemSearchId");
-      console.log(poem);
-      return poem.sections?.[0]?.ganjoorMetre?.rhythm;
-    } catch {}
-  } catch {
-    console.log(";;");
-  }
-};
-// موتورِ محلیِ عروض (arpy): مصراع‌ها را مستقیماً تقطیع و وزن‌یابی می‌کند —
-// نیازی به اینترنت/گنجور ندارد و برای شعرِ تازه هم کار می‌کند.
+// وزن‌یابی دو مرحله‌ای:
+//   ۱) گنجور — برچسبِ انسانی. برای شعرِ کلاسیکِ ثبت‌شده عملاً بی‌خطا و
+//      تقریباً بی‌هزینهٔ CPU (فقط یک درخواستِ شبکه).
+//   ۲) موتورِ محلی — برای شعرِ تازه/دست‌نویس که در گنجور نیست. روی مجموعهٔ
+//      آزمونِ کنارگذاشته ۷۵.۵٪ دقت و ۱.۹ ثانیه CPU در هر جست‌وجو.
+// چون بیشترِ جست‌وجوهای کاربران شعرِ معروف است، این ترتیب هم دقتِ محسوس را
+// بالا می‌برد هم بارِ CPU سرور را پایین می‌آورد.
 const submitPoemSearch = async (mesra1: string, mesra2?: string) => {
   "use server";
-  const guess = findMeterLocally(mesra1, mesra2);
-  return guess?.rhythm;
+  const fromGanjoor = await findMeterOnGanjoor(mesra1, mesra2);
+  if (fromGanjoor) return fromGanjoor;
+  return findMeterLocally(mesra1, mesra2)?.rhythm;
 };
 
 function page() {

@@ -11,7 +11,13 @@ export const LEXICON: Record<string, LexEntry> = lexiconData as Record<
 
 export const LEX_W = 0.8;
 export const LEX_MIN = 5000;
-export const LEX_TOPK = 12;
+// ★ بازرتبه‌بندیِ واژه‌نامه‌ای برای هر نامزد یک align صدا می‌زند که گران است:
+//   اندازه‌گیری روی مجموعهٔ آزمون → با واژه‌نامه ۱.۸۸ ثانیه CPU در هر جست‌وجو،
+//   بدونش ۰.۵۶ ثانیه (۳.۴ برابر)، در برابر تنها +۱ واحد دقت (۷۵.۵٪ به ۷۴.۵٪).
+//   برای سرویسِ وب معاملهٔ بدی است، پس از ۱۲ به ۴ کم شد: یک‌سومِ فراخوانی‌های
+//   align، و چون نامزدِ درست تقریباً همیشه در ۳ تای اول است، بخشِ عمدهٔ سودِ
+//   واژه‌نامه حفظ می‌شود.
+export const LEX_TOPK = 4;
 
 export function lexScore(line: string, pat: string, name?: string): number {
   if (Object.keys(LEXICON).length === 0) return 0.0;

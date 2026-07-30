@@ -334,7 +334,7 @@ const RUBAI = [
   "مفعولن مفعول مفاعیلن فع",
 ];
 const FAMILY: Record<string, string[]> = { "وزن رباعی": RUBAI };
-const FAM_PAT: Record<string, Record<string, number>> = {};
+export const FAM_PAT: Record<string, Record<string, number>> = {};
 for (const [name, arks] of Object.entries(FAMILY)) {
   const table: Record<string, number> = {};
   arks.forEach((a, i) => {
@@ -393,21 +393,59 @@ export function meterVariants(
   return out;
 }
 
+export interface CostDetail {
+  cost: number;
+  hard: number; // ناهم‌خوانیِ سخت (بلند در جایگاهِ کوتاه)
+  soft: number; // کوتاه در جایگاهِ بلند = اختیارِ زبانی، نیم‌بها
+  spen: number; // نابـاورپذیریِ خوانش
+  vpen: number; // جریمهٔ گونهٔ وزنی
+  vlen: number;
+  vid: string; // کدام گونه برنده شد
+  fit: number; // ۱ اگر گونه‌ای با طولِ سازگار پیدا شد
+}
+
+const NO_FIT: CostDetail = {
+  cost: 999.0, hard: 99.0, soft: 99.0, spen: 9.0,
+  vpen: 9.0, vlen: 0, vid: "", fit: 0.0,
+};
+
+/** مثلِ meterCost ولی اجزای هزینه را هم برمی‌گرداند.
+ *  meterCost چهار سیگنالِ جدا را در یک عدد می‌کوبد و دور می‌ریزد کدام گونه
+ *  برنده شد؛ رتبه‌بند بدونِ این تفکیک نمی‌تواند بین نامزدهای نزدیک داوری کند. */
+export function meterCostDetail(
+  scans: Map<string, number>,
+  pat: string,
+  name?: string,
+): CostDetail {
+  let best: CostDetail | null = null;
+  const variants = meterVariants(pat, name);
+  for (const [v, vp] of Object.entries(variants)) {
+    for (const [x, sp] of scans) {
+      if (x.length !== v.length) continue;
+      let hard = 0;
+      let soft = 0;
+      for (let i = 0; i < x.length - 1; i++) {
+        const a = x[i];
+        const b = v[i];
+        if (a === b || b === "x") continue;
+        if (a === "U" && b === "-") soft += 1;
+        else hard += 1;
+      }
+      const cost = 0.5 * soft + 1.0 * hard + LAMBDA * sp + vp;
+      if (best === null || cost < best.cost) {
+        best = { cost, hard, soft, spen: sp, vpen: vp, vlen: v.length, vid: v, fit: 1.0 };
+      }
+    }
+  }
+  return best ?? { ...NO_FIT };
+}
+
 export function meterCost(
   scans: Map<string, number>,
   pat: string,
   name?: string,
 ): number {
-  let best = 999.0;
-  const variants = meterVariants(pat, name);
-  for (const [v, vp] of Object.entries(variants)) {
-    for (const [x, sp] of scans) {
-      if (x.length !== v.length) continue;
-      const c = matchCost(x, v) + LAMBDA * sp + vp;
-      if (c < best) best = c;
-    }
-  }
-  return best;
+  return meterCostDetail(scans, pat, name).cost;
 }
 
 export function bestScan(

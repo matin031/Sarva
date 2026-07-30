@@ -2,14 +2,17 @@
 import { scanLine } from "./engine";
 import {
   METERS,
-  meterCost,
+  meterCostDetail,
   bestScan,
   altArkan,
   MU,
   RARE_TAIL_PENALTY,
   RARE_TAIL_FREQ,
+  FAM_PAT,
+  type CostDetail,
 } from "./meters";
 import { LEXICON, LEX_MIN, LEX_TOPK, lexScore } from "./lexicon";
+import rankerData from "./ranker.json";
 
 export interface MeterRow {
   name: string;
@@ -32,15 +35,79 @@ export interface DetectResult {
   s2: Map<string, number> | null;
 }
 
+// ═══════════ رتبه‌بندِ آموخته ═══════════
+// امتیازِ دستی (c1+c2+prior+rare) جمعِ ضرایبی بود که روی چند ده بیت کوک شده
+// بودند. وزن‌های زیر از پیکرهٔ برچسب‌خورده آموخته شده‌اند: روی مجموعهٔ آزمونِ
+// کنارگذاشته ۷۵.۵٪ در برابر ۶۸.۵٪ فرمولِ دستی.
+const RANKER = rankerData as { bias: number; w: Record<string, number> };
+const COST_CAP = 20.0;
+
+/** ویژگی‌های یک نامزد — باید *دقیقاً* مثلِ _feats در arooz.py باشد،
+ *  وگرنه وزن‌های آموخته بی‌معنا می‌شوند. */
+function feats(
+  name: string,
+  ark: string,
+  pat: string,
+  freq: number,
+  d1: CostDetail,
+  d2: CostDetail,
+): Record<string, number> {
+  const q1 = Math.min(d1.cost, COST_CAP);
+  const q2 = Math.min(d2.cost, COST_CAP);
+  return {
+    c1: q1,
+    c2: q2,
+    cmin: Math.min(q1, q2),
+    cmax: Math.max(q1, q2),
+    cdiff: Math.abs(q1 - q2),
+    lfreq: Math.log10(freq + 0.05),
+    rare: freq < RARE_TAIL_FREQ ? 1.0 : 0.0,
+    generic: name === ark ? 1.0 : 0.0,
+    nfeet: ark.split(/\s+/).length,
+    plen: pat.length,
+    fam: name in FAM_PAT ? 1.0 : 0.0,
+    hard1: Math.min(d1.hard, COST_CAP),
+    hard2: Math.min(d2.hard, COST_CAP),
+    soft1: Math.min(d1.soft, COST_CAP),
+    soft2: Math.min(d2.soft, COST_CAP),
+    spen1: Math.min(d1.spen, COST_CAP),
+    spen2: Math.min(d2.spen, COST_CAP),
+    vpen: Math.max(d1.vpen, d2.vpen),
+    // بیتِ واقعی باید در هر دو مصراع همان گونهٔ وزنی را بگیرد
+    samevar: d1.vid !== "" && d1.vid === d2.vid ? 1.0 : 0.0,
+    nofit: 1.0 - d1.fit + (1.0 - d2.fit),
+    vlen: d1.vlen || d2.vlen,
+  };
+}
+
+function baseScore(
+  name: string,
+  ark: string,
+  pat: string,
+  freq: number,
+  d1: CostDetail,
+  d2: CostDetail,
+): number {
+  if (RANKER && RANKER.w) {
+    const ft = feats(name, ark, pat, freq, d1, d2);
+    let s = RANKER.bias ?? 0;
+    for (const k in RANKER.w) if (k in ft) s += RANKER.w[k] * ft[k];
+    return s;
+  }
+  const prior = -MU * Math.log10(freq + 0.05);
+  const rare = freq < RARE_TAIL_FREQ ? RARE_TAIL_PENALTY : 0;
+  return d1.cost + d2.cost + prior + rare;
+}
+
 export function detect(mesra1: string, mesra2?: string): DetectResult {
   const s1 = scanLine(mesra1);
   const s2 = mesra2 !== undefined ? scanLine(mesra2) : null;
 
   let rows: MeterRow[] = METERS.map((m) => {
-    const c1 = meterCost(s1, m.pat, m.name);
-    const c2 = s2 !== null ? meterCost(s2, m.pat, m.name) : c1;
-    const prior = -MU * Math.log10(m.freq + 0.05);
-    const rare = m.freq < RARE_TAIL_FREQ ? RARE_TAIL_PENALTY : 0;
+    const d1 = meterCostDetail(s1, m.pat, m.name);
+    const d2 = s2 !== null ? meterCostDetail(s2, m.pat, m.name) : d1;
+    const c1 = d1.cost;
+    const c2 = d2.cost;
     return {
       name: m.name,
       ark: m.ark,
@@ -49,7 +116,7 @@ export function detect(mesra1: string, mesra2?: string): DetectResult {
       c1,
       c2,
       summ: c1 + c2,
-      score: c1 + c2 + prior + rare,
+      score: baseScore(m.name, m.ark, m.pat, m.freq, d1, d2),
     };
   });
 

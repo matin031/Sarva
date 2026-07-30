@@ -177,6 +177,11 @@ export function tokenizeLine(line: string): Tok[] {
 
 // ==================================== ۳) گسترشِ ابهام (W/Y/A/E) → قطعی
 export const PEN_MAX = 7; // هرسِ بی‌خطر
+// پهنای پرتو: بیشینهٔ خوانشِ نگه‌داشته‌شده (به ترتیبِ باورپذیری).
+// جاروب نشان داد دقت از ۵۰۰ تا ۴۰۰۰۰ ثابت است ولی زمان ۸ برابر فرق می‌کند.
+// باید با BEAM در arooz.py یکی بماند، وگرنه مجموعهٔ خوانش‌ها و در نتیجه
+// ویژگیِ spen بین دو موتور واگرا می‌شود و وزن‌های آموخته بی‌معنا می‌شوند.
+export const BEAM = 2000;
 type ExpItem = [Tok[], number];
 const EXP_CACHE = new Map<string, ExpItem[]>();
 
@@ -309,7 +314,7 @@ export function expandAmbiguous(toks: Tok[], full = false): ExpItem[] {
     if (res.length > 4000) {
       res.sort((a, b) => a[1] - b[1]);
       const mn = res[0][1];
-      res = res.filter((x) => x[1] <= mn + PEN_MAX).slice(0, 40000);
+      res = res.filter((x) => x[1] <= mn + PEN_MAX).slice(0, BEAM);
     }
   }
   res.sort((a, b) => a[1] - b[1]);

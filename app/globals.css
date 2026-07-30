@@ -795,34 +795,30 @@ button {
 
 /* ------------------------------------------------ underlined Persian words */
 
-/* Persian needs the rule drawn from the *bottom of the inline box*, not from the
-   baseline. `text-underline-offset` measures down from the baseline, and the
-   descenders of ج، ی، ک، گ، ر، ز and the کسره reach further down than any offset
-   small enough to still read as an underline — so the line kept landing inside
-   the letters.
+/* The descenders of ج، ی، ک، گ، ر، ز and the کسره hang well below the baseline,
+   so a default underline runs straight through them. The offset below is the
+   whole fix — but it has to be measured from the right reference.
 
-   A background gradient sits at `100%` of the box instead, and `padding-bottom`
-   opens a gap under the glyphs for it. That distance is measured from the box
-   edge, so it clears every descender by construction rather than by a number
-   that happens to work for one font size. `box-decoration-break: clone` keeps
-   the rule drawn on each line when a phrase wraps.
+   Two earlier attempts drew the rule from the *bottom of the box* instead
+   (a background gradient pinned to `100%`, padded open with `padding-bottom`).
+   That reads as font-independent and isn't: the box bottom comes from the
+   font's declared descent metric, and Persian glyphs routinely overflow it.
+   With Vazirmatn loaded the clearance measured 6.25–9px, but with any fallback
+   (Tahoma, Arial, the generic sans) it collapsed to 1.5px and the rule went
+   back to touching the letters — which is what users saw whenever the webfont
+   failed to load.
 
-   `inline-block` + `line-height: normal` is what makes the gap the *same*
-   everywhere. RichPassageView puts these spans in a flex row, which blockifies
-   them and stretches the box to the inherited line-height (36px at text-lg) —
-   so the rule fell to the bottom of the line box, ~11px under the word, while
-   the same class inside a plain paragraph sat ~5px under it. Pinning the box to
-   the font's own line height detaches it from `leading-loose` and lands both at
-   3.6px. */
+   The baseline is the stable reference, because descender depth is defined
+   from it and scales with font-size. Measured across Vazirmatn/Tahoma/Arial/
+   sans/serif at 20px, `0.58em` clears the deepest ink (including the کسره) by
+   4.25–7.5px in every one. `skip-ink: none` keeps the rule continuous rather
+   than letting the browser notch it around descenders, and staying `display:
+   inline` means a highlight long enough to wrap gets a rule on every line —
+   which the inline-block version could not do. */
 .fa-underline {
-  display: inline-block;
-  line-height: normal;
-  text-decoration: none;
-  padding-bottom: 0.2em;
-  background-image: linear-gradient(var(--primary), var(--primary));
-  background-repeat: no-repeat;
-  background-size: 100% 1.5px;
-  background-position: 0 100%;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.58em;
+  text-decoration-skip-ink: none;
 }

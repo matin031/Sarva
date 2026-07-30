@@ -1,13 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-  useTransform,
-} from "motion/react";
+import { motion, AnimatePresence, useMotionValue } from "motion/react";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import Suspect, { SuspectVisualState } from "./Suspect";
 import { PointerProvider } from "@/components/UI/jasoos/pointer";
@@ -21,23 +14,18 @@ function ShootingScene({
   onResult: (correct: boolean, spy: SuspectType, chosen: SuspectType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pointer, setPointer] = useState({ x: 0, y: 0, visible: false });
   const [shotIndex, setShotIndex] = useState<number | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const dingRef = useRef<HTMLAudioElement | null>(null);
-  const reduced = useReducedMotion();
 
-  /* Stage tilt. The pointer's position inside the scene is already tracked for
-     the reticle; these springs turn the same numbers into a couple of degrees
-     of rotation, which is enough to read as depth without making the line-up
-     seasick. Only `transform` animates, so it stays on the compositor. */
-  const nx = useMotionValue(0);
-  const ny = useMotionValue(0);
-  const sx = useSpring(nx, { stiffness: 90, damping: 20, mass: 0.7 });
-  const sy = useSpring(ny, { stiffness: 90, damping: 20, mass: 0.7 });
-  const tiltY = useTransform(sx, [-1, 1], [6, -6]);
-  const tiltX = useTransform(sy, [-1, 1], [-4, 4]);
+
+  /* The crosshair's position is a pair of MotionValues, so moving the mouse
+     writes a transform instead of re-rendering the scene and all four
+     suspects. `visible` stays state — it flips twice a session, not per pixel. */
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const [aiming, setAiming] = useState(false);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
   const chosen = shotIndex !== null ? level.suspects[shotIndex] : spy;
@@ -45,13 +33,9 @@ function ShootingScene({
   const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setPointer({ x, y, visible: true });
-    if (!reduced) {
-      nx.set((x / rect.width) * 2 - 1);
-      ny.set((y / rect.height) * 2 - 1);
-    }
+    rx.set(e.clientX - rect.left);
+    ry.set(e.clientY - rect.top);
+    if (!aiming) setAiming(true);
   };
 
   const handleShoot = (suspect: SuspectType, index: number) => {
@@ -78,7 +62,7 @@ function ShootingScene({
         dir="rtl"
         ref={containerRef}
         onMouseMove={handleMove}
-        onMouseLeave={() => setPointer((p) => ({ ...p, visible: false }))}
+        onMouseLeave={() => setAiming(false)}
         className={`relative z-20 w-full rounded-2xl overflow-hidden glass bg-popover! shadow-sm select-none ${
           result ? "" : "sm:cursor-none"
         }`}
@@ -116,11 +100,14 @@ function ShootingScene({
             sliding it as one flat sheet. */}
         <div
           className="mt-6 py-12 inset-x-0 z-30 px-2"
-          style={{ perspective: "900px" }}
         >
+        {/* No pointer-driven tilt here. Rotating the whole line-up with the
+            mouse moved every suspect — including the fixed hit layer inside
+            each one — so the figure under the crosshair slid out from under it
+            and the enter/leave pair fired forever. A stable hit target is
+            worthless if its container is the thing that moves. */}
         <motion.div
           className=" flex items-end justify-center gap-x-3 xs:gap-x-6 sm:gap-x-12"
-          style={{ transformStyle: "preserve-3d", rotateX: tiltX, rotateY: tiltY }}
           animate={
             result === "wrong"
               ? { x: [0, -10, 10, -6, 6, 0] }
@@ -146,11 +133,7 @@ function ShootingScene({
         </motion.div>
         </div>
 
-        <Reticle
-          x={pointer.x}
-          y={pointer.y}
-          visible={pointer.visible && !result}
-        />
+        <Reticle x={rx} y={ry} visible={aiming && !result} />
 
         {/* feedback overlay — user must close it themselves */}
         <AnimatePresence>

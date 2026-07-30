@@ -795,19 +795,24 @@ button {
 
 /* ------------------------------------------------ underlined Persian words */
 
-/* A plain `underline` cuts straight through Persian text. The descenders of
-   ر، ی، ک، گ، ج and the کسره all sit well below the baseline, so a 4px offset
-   lands the rule *inside* the letters and reads as a strike-through. Pushing it
-   clear in em (so it scales with the type) and telling the browser not to break
-   the line around the ink is what turns it back into an underline.
-
-   `skip-ink: none` matters as much as the offset: with `auto`, Chrome punches a
-   gap wherever a descender crosses the rule, which in Persian means a dotted,
-   broken line rather than one stroke. */
+/* Persian needs the rule drawn from the *bottom of the inline box*, not from the
+   baseline. `text-underline-offset` measures down from the baseline, and the
+   descenders of ج، ی، ک، گ، ر، ز and the کسره reach further down than any offset
+   small enough to still read as an underline — so the line kept landing inside
+   the letters.
+ 
+   A background gradient sits at `100%` of the box instead, and `padding-bottom`
+   opens a gap under the glyphs for it. That distance is measured from the box
+   edge, so it clears every descender by construction rather than by a number
+   that happens to work for one font size. `box-decoration-break: clone` keeps
+   the rule drawn on each line when a phrase wraps. */
 .fa-underline {
-  text-decoration-line: underline;
-  text-decoration-color: var(--primary);
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.42em;
-  text-decoration-skip-ink: none;
+  text-decoration: none;
+  padding-bottom: 0.2em;
+  background-image: linear-gradient(var(--primary), var(--primary));
+  background-repeat: no-repeat;
+  background-size: 100% 1.5px;
+  background-position: 0 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }

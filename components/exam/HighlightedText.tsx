@@ -16,7 +16,7 @@ export default function HighlightedText({ text }: { text: string }) {
         const match = /^\{\{([^}]+)\}\}$/.exec(part);
         if (!match) return <span key={i}>{part}</span>;
         return (
-          <span key={i} className="underline decoration-primary decoration-2 underline-offset-4">
+          <span key={i} className="fa-underline">
             {match[1]}
           </span>
         );

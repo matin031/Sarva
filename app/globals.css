@@ -792,3 +792,22 @@ button {
 .sarva-scroll::-webkit-scrollbar-thumb:hover {
   background: color-mix(in oklch, var(--primary) 80%, transparent);
 }
+
+/* ------------------------------------------------ underlined Persian words */
+
+/* A plain `underline` cuts straight through Persian text. The descenders of
+   ر، ی، ک، گ، ج and the کسره all sit well below the baseline, so a 4px offset
+   lands the rule *inside* the letters and reads as a strike-through. Pushing it
+   clear in em (so it scales with the type) and telling the browser not to break
+   the line around the ink is what turns it back into an underline.
+
+   `skip-ink: none` matters as much as the offset: with `auto`, Chrome punches a
+   gap wherever a descender crosses the rule, which in Persian means a dotted,
+   broken line rather than one stroke. */
+.fa-underline {
+  text-decoration-line: underline;
+  text-decoration-color: var(--primary);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.42em;
+  text-decoration-skip-ink: none;
+}

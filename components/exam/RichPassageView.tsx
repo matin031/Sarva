@@ -51,7 +51,7 @@ export default function RichPassageView({
           return <span key={i}>{token.value}</span>;
         case "highlight":
           return (
-            <span key={i} className="underline decoration-primary decoration-2 underline-offset-4">
+            <span key={i} className="fa-underline">
               {token.value}
             </span>
           );
@@ -74,7 +74,7 @@ export default function RichPassageView({
         case "select":
           return (
             <span key={i} className="mx-1 inline-flex items-center gap-1.5 align-middle">
-              <span className="underline decoration-primary decoration-2 underline-offset-4">{token.value}</span>
+              <span className="fa-underline">{token.value}</span>
               <select
                 disabled={disabled}
                 value={selectValues[token.blankId] ?? ""}

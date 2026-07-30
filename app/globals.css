@@ -800,13 +800,23 @@ button {
    descenders of ج، ی، ک، گ، ر، ز and the کسره reach further down than any offset
    small enough to still read as an underline — so the line kept landing inside
    the letters.
- 
+
    A background gradient sits at `100%` of the box instead, and `padding-bottom`
    opens a gap under the glyphs for it. That distance is measured from the box
    edge, so it clears every descender by construction rather than by a number
    that happens to work for one font size. `box-decoration-break: clone` keeps
-   the rule drawn on each line when a phrase wraps. */
+   the rule drawn on each line when a phrase wraps.
+
+   `inline-block` + `line-height: normal` is what makes the gap the *same*
+   everywhere. RichPassageView puts these spans in a flex row, which blockifies
+   them and stretches the box to the inherited line-height (36px at text-lg) —
+   so the rule fell to the bottom of the line box, ~11px under the word, while
+   the same class inside a plain paragraph sat ~5px under it. Pinning the box to
+   the font's own line height detaches it from `leading-loose` and lands both at
+   3.6px. */
 .fa-underline {
+  display: inline-block;
+  line-height: normal;
   text-decoration: none;
   padding-bottom: 0.2em;
   background-image: linear-gradient(var(--primary), var(--primary));

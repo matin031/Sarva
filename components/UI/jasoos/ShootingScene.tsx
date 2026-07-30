@@ -1,19 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
-import dynamic from "next/dynamic";
-
-/** three.js is ~500kB of parse work; the line-up is the only thing that needs
- *  it, so it loads with the round rather than with the page. */
-const Lineup3D = dynamic(() => import("@/components/UI/jasoos/Lineup3D"), {
-  ssr: false,
-  loading: () => (
-    <div className=" flex h-[340px] w-full items-center justify-center rounded-2xl bg-[#0b1620] sm:h-[420px]">
-      <span className=" size-8 animate-spin rounded-full border-2 border-white/20 border-t-primary" />
-    </div>
-  ),
-});
+import Suspect, { SuspectVisualState } from "./Suspect";
+import { PointerProvider } from "@/components/UI/jasoos/pointer";
+import Reticle from "./Reticle";
 
 function ShootingScene({
   level,
@@ -23,13 +21,38 @@ function ShootingScene({
   onResult: (correct: boolean, spy: SuspectType, chosen: SuspectType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [pointer, setPointer] = useState({ x: 0, y: 0, visible: false });
   const [shotIndex, setShotIndex] = useState<number | null>(null);
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const dingRef = useRef<HTMLAudioElement | null>(null);
+  const reduced = useReducedMotion();
+
+  /* Stage tilt. The pointer's position inside the scene is already tracked for
+     the reticle; these springs turn the same numbers into a couple of degrees
+     of rotation, which is enough to read as depth without making the line-up
+     seasick. Only `transform` animates, so it stays on the compositor. */
+  const nx = useMotionValue(0);
+  const ny = useMotionValue(0);
+  const sx = useSpring(nx, { stiffness: 90, damping: 20, mass: 0.7 });
+  const sy = useSpring(ny, { stiffness: 90, damping: 20, mass: 0.7 });
+  const tiltY = useTransform(sx, [-1, 1], [6, -6]);
+  const tiltX = useTransform(sy, [-1, 1], [-4, 4]);
 
   const spy = level.suspects.find((s) => s.isSpy)!;
   const chosen = shotIndex !== null ? level.suspects[shotIndex] : spy;
+
+  const handleMove: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setPointer({ x, y, visible: true });
+    if (!reduced) {
+      nx.set((x / rect.width) * 2 - 1);
+      ny.set((y / rect.height) * 2 - 1);
+    }
+  };
 
   const handleShoot = (suspect: SuspectType, index: number) => {
     if (result) return;
@@ -42,12 +65,23 @@ function ShootingScene({
     }
   };
 
+  const stateFor = (index: number): SuspectVisualState => {
+    if (!result) return "idle";
+    if (index !== shotIndex) return "dimmed";
+    return result === "correct" ? "shot-correct" : "shot-wrong";
+  };
+
   return (
+    <PointerProvider>
     <div className="flex flex-col items-center">
       <div
         dir="rtl"
         ref={containerRef}
-        className={`relative z-20 w-full rounded-2xl overflow-hidden glass bg-popover! shadow-sm select-none`}
+        onMouseMove={handleMove}
+        onMouseLeave={() => setPointer((p) => ({ ...p, visible: false }))}
+        className={`relative z-20 w-full rounded-2xl overflow-hidden glass bg-popover! shadow-sm select-none ${
+          result ? "" : "sm:cursor-none"
+        }`}
       >
         {/* verse card */}
         <div className="w-[98%] xs:w-[90%] mt-6 mx-auto bg-secondary z-20 rounded-xl">
@@ -77,22 +111,46 @@ function ShootingScene({
           </div>
         </div>
 
-        {/* the line-up, in three dimensions: real geometry, a spotlight, dust
-            in the beam, and aiming by raycast — so no figure can be blocked by
-            a neighbour's box the way the flat version could be */}
-        <div className=" mt-6 px-2 pb-4">
-          <Lineup3D
-            suspects={level.suspects.map((s) => ({
-              role: s.role,
-              isSpy: s.isSpy,
-              wordInVerse: s.wordInVerse,
-            }))}
-            shotIndex={shotIndex}
-            result={result}
-            onShoot={(i) => handleShoot(level.suspects[i], i)}
-          />
+        {/* suspects lineup — a shallow 3D stage. Each suspect sits at its own
+            translateZ, so the tilt separates the line-up into depth instead of
+            sliding it as one flat sheet. */}
+        <div
+          className="mt-6 py-12 inset-x-0 z-30 px-2"
+          style={{ perspective: "900px" }}
+        >
+        <motion.div
+          className=" flex items-end justify-center gap-x-3 xs:gap-x-6 sm:gap-x-12"
+          style={{ transformStyle: "preserve-3d", rotateX: tiltX, rotateY: tiltY }}
+          animate={
+            result === "wrong"
+              ? { x: [0, -10, 10, -6, 6, 0] }
+              : { x: 0 }
+          }
+          transition={{ duration: 0.45 }}
+        >
+          {level.suspects.map((s, i) => (
+            <Suspect
+              key={i}
+              index={i}
+              role={s.role}
+              state={stateFor(i)}
+              wordInVerse={s.wordInVerse}
+              isSpy={s.isSpy}
+              /* the spy only lets the mask slip once someone else has been
+                 shot — before that, giving them a smirk would give the game
+                 away */
+              gloat={result === "wrong"}
+              onShoot={() => handleShoot(s, i)}
+            />
+          ))}
+        </motion.div>
         </div>
 
+        <Reticle
+          x={pointer.x}
+          y={pointer.y}
+          visible={pointer.visible && !result}
+        />
 
         {/* feedback overlay — user must close it themselves */}
         <AnimatePresence>
@@ -180,6 +238,7 @@ function ShootingScene({
         )}
       </AnimatePresence>
     </div>
+    </PointerProvider>
   );
 }
 

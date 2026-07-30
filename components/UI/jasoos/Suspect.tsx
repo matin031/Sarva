@@ -121,23 +121,16 @@ function Suspect({
           : "calm";
 
   return (
-    <button
-      type="button"
-      onClick={onShoot}
-      onPointerEnter={() => {
-        measure();
-        setAimed(true);
-      }}
-      onPointerLeave={() => setAimed(false)}
-      disabled={disabled}
-      aria-label={`نشانه‌گیری به سمت مظنونِ ${role}`}
-      /* No per-suspect translateZ: the figures are oversized SVGs with
-         overflow-visible, and pushing some of them backwards in the shared 3D
-         context let a nearer neighbour's box swallow their clicks. Depth now
-         comes from the stage tilt alone, which costs nothing in hit-testing. */
+    /* The wrapper is the stable part: it never transforms, so the hit area
+       below cannot move. The artwork animates inside it and takes no pointer
+       events at all — when the figure *was* the button, flinching upward slid
+       it out from under the cursor, which fired pointerleave, which settled it
+       back, which fired pointerenter again. That is the jitter. */
+    <div
+      data-aimed={aimed ? "1" : "0"}
       className={`group relative z-20 flex shrink-0 flex-col items-center gap-y-2 ${
         state === "dimmed" ? "opacity-75" : ""
-      } ${disabled ? "cursor-default" : "cursor-crosshair"}`}
+      }`}
     >
       {/* a pool of light under the one being aimed at — a gradient, not a blur */}
       <motion.span
@@ -175,7 +168,7 @@ function Suspect({
                   ? { type: "spring", stiffness: 320, damping: 18 }
                   : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
         }
-        className={`w-14 transition-colors duration-200 sm:w-20 ${
+        className={`pointer-events-none w-14 transition-colors duration-200 sm:w-20 ${
           state === "shot-correct"
             ? "text-destructive"
             : state === "shot-wrong"
@@ -201,11 +194,27 @@ function Suspect({
       )}
 
       {state === "shot-wrong" && (
-        <span className="absolute -right-1 -top-2 text-lg font-black text-destructive sm:text-xl">
+        <span className=" pointer-events-none absolute -right-1 -top-2 text-lg font-black text-destructive sm:text-xl">
           ✕
         </span>
       )}
-    </button>
+
+      {/* the aim/shoot surface: fixed to the wrapper, never animated */}
+      <button
+        type="button"
+        onClick={onShoot}
+        onPointerEnter={() => {
+          measure();
+          setAimed(true);
+        }}
+        onPointerLeave={() => setAimed(false)}
+        disabled={disabled}
+        aria-label={`نشانه‌گیری به سمت مظنونِ ${role}`}
+        className={`absolute inset-0 z-30 ${
+          disabled ? "cursor-default" : "cursor-crosshair"
+        }`}
+      />
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@
 import type { ClientQuestion } from "@/lib/exam/client-exam";
 import type { PartResult } from "@/app/exam/[examKey]/actions";
 import QuestionPartRenderer from "@/components/exam/QuestionPartRenderer";
+import MarkedText from "@/components/exam/MarkedText";
 
 type Props = {
   question: ClientQuestion;
@@ -85,7 +86,7 @@ export default function ExamQuestionCard({
 
       {question.instruction && (
         <p className="mb-3 text-base leading-relaxed text-foreground xs:text-lg">
-          {question.instruction}
+          <MarkedText text={question.instruction} />
         </p>
       )}
 

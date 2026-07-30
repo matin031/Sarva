@@ -21,7 +21,10 @@ export type SeedPart = {
   score: number;
   content: QuestionPartContent;
   correctAnswer: unknown; // validated per-type against correctAnswerSchemaByType
-  acceptedAnswers?: string[];
+  /* jsonb. The seed files happen to use plain string lists, but rows coming
+     back from exam_question_parts carry per-type shapes ({"accepted":[…]},
+     {"optionKeys":[…]}, {"i1":[…]}), and db-exam.ts assigns those straight in. */
+  acceptedAnswers?: unknown;
   gradingMode: "exact_match" | "ai_semantic" | "ai_partial_credit" | "manual";
   aiGradingHint?: string;
   options?: SeedOption[];

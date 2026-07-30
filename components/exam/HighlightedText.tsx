@@ -1,3 +1,5 @@
+import MarkedText from "@/components/exam/MarkedText";
+
 /**
  * MCQ option text is a plain string (not a RichPassage), but some
  * questions need to underline one word/phrase inside an option (e.g. "کدام
@@ -14,7 +16,8 @@ export default function HighlightedText({ text }: { text: string }) {
     <>
       {parts.map((part, i) => {
         const match = /^\{\{([^}]+)\}\}$/.exec(part);
-        if (!match) return <span key={i}>{part}</span>;
+        // no `{{}}` here, but the text may still mark its words with U+0332
+        if (!match) return <MarkedText key={i} text={part} />;
         return (
           <span key={i} className="fa-underline">
             {match[1]}

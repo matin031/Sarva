@@ -61,6 +61,17 @@ export function partFormToInput(state: PartFormState): PartFormResult {
   const score = Number(state.score);
   if (!score || score <= 0) errors.push("نمره باید عددی بزرگ‌تر از صفر باشد.");
 
+  let acceptedAnswers: unknown;
+  const acceptedRaw = state.acceptedAnswers.trim();
+  if (acceptedRaw) {
+    try {
+      acceptedAnswers = JSON.parse(acceptedRaw);
+    } catch {
+      errors.push("پاسخ‌های پذیرفته‌شده (acceptedAnswers) یک JSON معتبر نیست.");
+    }
+  }
+  if (errors.length > 0) return { ok: false, errors };
+
   const part: AdminPartInput = {
     label: state.label || undefined,
     pageRef: state.pageRef ? Number(state.pageRef) : undefined,
@@ -68,9 +79,7 @@ export function partFormToInput(state: PartFormState): PartFormResult {
     score,
     content: content as AdminPartInput["content"],
     correctAnswer,
-    acceptedAnswers: state.acceptedAnswers
-      ? state.acceptedAnswers.split(",").map((s) => s.trim()).filter(Boolean)
-      : undefined,
+    acceptedAnswers,
     gradingMode: state.gradingMode,
     aiGradingHint: state.aiGradingHint || undefined,
     options: NEEDS_OPTIONS.includes(state.type)
@@ -213,13 +222,19 @@ export default function ExamPartEditor({ index, state, onChange, onRemove }: Pro
         />
       </div>
 
-      <input
-        dir="rtl"
-        value={state.acceptedAnswers}
-        onChange={(e) => set("acceptedAnswers", e.target.value)}
-        placeholder="پاسخ‌های جایگزین با کاما جدا کنید (اختیاری)"
-        className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted-foreground">
+          پاسخ‌های پذیرفته‌شده (JSON، اختیاری) — مثلاً {`{"accepted":["گریبان","یقه"]}`}
+        </label>
+        <textarea
+          dir="ltr"
+          value={state.acceptedAnswers}
+          onChange={(e) => set("acceptedAnswers", e.target.value)}
+          rows={3}
+          placeholder='{"accepted":[]}'
+          className="w-full rounded-xl border border-border bg-card px-3 py-2 font-mono text-xs outline-none focus:border-primary"
+        />
+      </div>
 
       {needsOptions && (
         <div className="flex flex-col gap-2">

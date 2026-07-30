@@ -1,6 +1,7 @@
 "use client";
 
 import type { RichPassage } from "@/lib/exam/content-schemas";
+import MarkedText from "@/components/exam/MarkedText";
 
 type Props = {
   passage: RichPassage;
@@ -48,7 +49,9 @@ export default function RichPassageView({
     tokens.map((token, i) => {
       switch (token.kind) {
         case "text":
-          return <span key={i}>{token.value}</span>;
+          // text tokens can carry U+0332 marks instead of a `highlight` token —
+          // that is how the imported exam papers mark their words
+          return <MarkedText key={i} text={token.value} />;
         case "highlight":
           return (
             <span key={i} className="fa-underline">

@@ -23,7 +23,8 @@ function detailToPartForm(detail: AdminQuestionDetail["parts"][number]): PartFor
     gradingMode: detail.gradingMode,
     contentJson: JSON.stringify(detail.content, null, 2),
     correctAnswerJson: JSON.stringify(detail.correctAnswer, null, 2),
-    acceptedAnswers: detail.acceptedAnswers?.join(", ") ?? "",
+    acceptedAnswers:
+      detail.acceptedAnswers == null ? "" : JSON.stringify(detail.acceptedAnswers, null, 2),
     aiGradingHint: detail.aiGradingHint ?? "",
     options: (detail.options ?? []).map((o) => ({ optionKey: o.optionKey ?? "", text: o.text, isCorrect: o.isCorrect })),
   };

@@ -22,7 +22,12 @@ export type AdminPartInput = {
   score: number;
   content: QuestionPartContent;
   correctAnswer: unknown;
-  acceptedAnswers?: string[];
+  /* jsonb, not a string list. Real rows hold shapes keyed by what the part
+     needs — {"accepted":[…]} for free text, {"optionKeys":[…]} for MCQ,
+     {"i1":[…],"i5":[…]} for find-the-errors — so this stays `unknown` and the
+     admin form edits it as JSON. Typing it `string[]` is what made the editor
+     call .join() on an object and crash the page. */
+  acceptedAnswers?: unknown;
   gradingMode: "exact_match" | "ai_semantic" | "ai_partial_credit" | "manual";
   aiGradingHint?: string;
   options?: SeedOption[];

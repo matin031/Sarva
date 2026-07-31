@@ -186,7 +186,23 @@ type ExpItem = [Tok[], number];
 /** خوانش در حینِ ساخت: [توکن‌ها، جریمه، کلیدِ مسیر] — کلید فقط برای مرتب‌سازیِ
  *  قطعی است و در خروجی نمی‌آید. */
 type ExpWork = [Tok[], number, string];
+
+// ★ کشِ بی‌سقف نشتیِ حافظه بود. هر ورودی تا BEAM خوانش نگه می‌دارد و هر خوانش
+//   ده‌ها توکن دارد، پس هر مدخل چند مگابایت است. روی سرور هر مصراعِ *تازه‌ای*
+//   که کاربر می‌نویسد یک مدخلِ ماندگار می‌ساخت: در ۶۰ جست‌وجوی متفاوت heap از
+//   ۱۵.۷ به ۳۲.۲ مگابایت رفت و برنگشت. سرویسی که روزها بالاست تا OOM می‌رفت.
+//   سقف کوچک است چون سودِ کش فقط برای پرس‌وجوهای تکراری است، نه درونِ یک پرس‌وجو.
+const EXP_CACHE_MAX = 32;
 const EXP_CACHE = new Map<string, ExpItem[]>();
+
+function cacheSet(key: string, val: ExpItem[]) {
+  if (EXP_CACHE.size >= EXP_CACHE_MAX) {
+    // Map ترتیبِ درج را نگه می‌دارد، پس اولین کلید قدیمی‌ترین است
+    const oldest = EXP_CACHE.keys().next().value;
+    if (oldest !== undefined) EXP_CACHE.delete(oldest);
+  }
+  EXP_CACHE.set(key, val);
+}
 
 // جدول‌های گونه‌سازی — یک‌بار در بارگذاریِ ماژول ساخته می‌شوند (نه هر فراخوانی)
 const OPT: Record<string, [Tok, number][]> = {
@@ -328,7 +344,7 @@ export function expandAmbiguous(toks: Tok[], full = false): ExpItem[] {
   const out: ExpItem[] = res
     .filter((x) => x[1] <= mn + PEN_MAX)
     .map(([r, p]) => [r, p]);
-  EXP_CACHE.set(key, out);
+  cacheSet(key, out);
   return out;
 }
 

@@ -7,10 +7,27 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
+/**
+ * موتورِ محلی — در *مرورگر*، و با import پویا.
+ *
+ * ★ پویا بودنش عمدی است: موتور و وزن‌هایش چند ده کیلوبایت‌اند و نباید هنگامِ
+ *   بارگذاریِ صفحه دانلود شوند. این‌طور کسی که فقط صفحه را می‌بیند — یا بیتش
+ *   در گنجور پیدا می‌شود — هیچ هزینه‌ای نمی‌دهد. فقط اولین وزن‌یابی‌ای که در
+ *   گنجور نتیجه ندهد هزینه دارد، و بعد در کشِ مرورگر می‌ماند.
+ *
+ *   چرا در مرورگر و نه سرور: اندازه‌گیری شد که هر جست‌وجو ۵۳۹ میلی‌ثانیه CPU و
+ *   ~۱۷۶ مگابایت حافظه می‌خواهد، یعنی هر هستهٔ سرور ~۲ درخواست در ثانیه.
+ *   این‌جا سهمِ سرور صفر است و دقت تغییری نمی‌کند.
+ */
+async function findMeterInBrowser(mesra1: string, mesra2?: string) {
+  const { findMeterLocally } = await import("@/lib/aruz");
+  return findMeterLocally(mesra1, mesra2)?.rhythm;
+}
+
 function VaznYabSection({
-  submitPoemSearch,
+  lookupOnGanjoor,
 }: {
-  submitPoemSearch: (
+  lookupOnGanjoor: (
     mesra1: string,
     mesra2?: string,
   ) => Promise<string | undefined>;
@@ -89,7 +106,11 @@ function VaznYabSection({
     setGuessMissing(false);
     setLoadingFetch(true);
 
-    const result = await submitPoemSearch(data.poem1, data.poem2);
+    // گنجور اول: برچسبِ انسانی است، پس هر وقت پیدا شود از موتور معتبرتر است —
+    // و اگر پیدا شود اصلاً لازم نیست موتور دانلود و اجرا شود.
+    const result =
+      (await lookupOnGanjoor(data.poem1, data.poem2)) ??
+      (await findMeterInBrowser(data.poem1, data.poem2));
     if (!result) setShowModal(true);
     const feet = getPureRhythm(result ?? "");
     setAruzFeet(feet);

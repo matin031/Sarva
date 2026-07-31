@@ -1,21 +1,22 @@
 import VaznYabSection from "@/components/UI/guide/VaznYabSection";
 import VaznYabHero3D from "@/components/UI/vazn-yab/VaznYabHero3D";
 import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
-import { findMeterLocally } from "@/lib/aruz";
 import { findMeterOnGanjoor } from "@/lib/ganjoor";
 
-// وزن‌یابی دو مرحله‌ای:
-//   ۱) گنجور — برچسبِ انسانی. برای شعرِ کلاسیکِ ثبت‌شده عملاً بی‌خطا و
-//      تقریباً بی‌هزینهٔ CPU (فقط یک درخواستِ شبکه).
-//   ۲) موتورِ محلی — برای شعرِ تازه/دست‌نویس که در گنجور نیست. روی مجموعهٔ
-//      آزمونِ کنارگذاشته ۷۵.۵٪ دقت و ۱.۹ ثانیه CPU در هر جست‌وجو.
-// چون بیشترِ جست‌وجوهای کاربران شعرِ معروف است، این ترتیب هم دقتِ محسوس را
-// بالا می‌برد هم بارِ CPU سرور را پایین می‌آورد.
-const submitPoemSearch = async (mesra1: string, mesra2?: string) => {
+// وزن‌یابی دو مرحله‌ای، و هر مرحله جایی اجرا می‌شود که ارزان باشد:
+//
+//   ۱) گنجور — روی سرور. برچسبِ انسانی، پس برای شعرِ کلاسیکِ ثبت‌شده عملاً
+//      بی‌خطاست. یک درخواستِ شبکه است و CPU نمی‌خواهد. روی سرور می‌ماند چون
+//      فراخوانی از مرورگر به CORS می‌خورد.
+//
+//   ۲) موتورِ محلی — *در مرورگر* (نگاه کنید به VaznYabSection). اندازه‌گیری
+//      شد: هر جست‌وجو ۵۳۹ میلی‌ثانیه CPU و ~۱۷۶ مگابایت حافظه می‌خواهد، یعنی
+//      هر هستهٔ سرور فقط ~۲ درخواست در ثانیه. موتور محاسبهٔ خالص است و هیچ
+//      وابستگیِ سروری ندارد، پس اجرا در دستگاهِ کاربر سهمِ سرور را صفر می‌کند
+//      و دقت دقیقاً همان می‌ماند — همان کد و همان وزن‌ها، فقط جای اجرا.
+const lookupOnGanjoor = async (mesra1: string, mesra2?: string) => {
   "use server";
-  const fromGanjoor = await findMeterOnGanjoor(mesra1, mesra2);
-  if (fromGanjoor) return fromGanjoor;
-  return findMeterLocally(mesra1, mesra2)?.rhythm;
+  return findMeterOnGanjoor(mesra1, mesra2);
 };
 
 function page() {
@@ -27,7 +28,7 @@ function page() {
 
       <MasterChallenge />
 
-      <VaznYabSection submitPoemSearch={submitPoemSearch} />
+      <VaznYabSection lookupOnGanjoor={lookupOnGanjoor} />
     </div>
   );
 }

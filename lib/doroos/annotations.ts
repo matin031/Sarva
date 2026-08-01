@@ -136,6 +136,39 @@ function locate(words: string[], phrase: string, skip: (h: Hit) => boolean = () 
   return best;
 }
 
+/** The words of a phrase, in any order and with gaps: «زنخدان به جیب
+ *  فروبردن» is all present in «زنخدان فرو برد چندی به جیب», just not
+ *  consecutively, and a کنایه worded as an infinitive almost never matches the
+ *  بیت word for word. The span returned covers from the first content word to
+ *  the last, which is what a reader would underline anyway. */
+function locateScattered(words: string[], phrase: string): Hit | null {
+  const parts = norm(phrase)
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !STOP.has(w));
+  if (parts.length < 2) return null;
+  const n = words.map(norm);
+
+  const at: number[] = [];
+  for (const part of parts) {
+    let best = -1;
+    let bestScore = 0;
+    for (let i = 0; i < n.length; i++) {
+      const sc = score(n[i], part);
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = i;
+      }
+    }
+    if (best < 0) return null;
+    at.push(best);
+  }
+  const from = Math.min(...at);
+  const to = Math.max(...at);
+  // a window wider than the line itself is not an annotation, it is a shrug
+  if (to - from > 7) return null;
+  return { from, to, score: 1.2 + parts.length * 0.3 };
+}
+
 /** Searches both مصراع and keeps the stronger of the two, instead of taking
  *  whichever line happened to come first. `taken` lets the caller resolve the
  *  two halves of «روز، روزی» to two *different* words: without it both score
@@ -147,6 +180,12 @@ function findSpan(hemis: string[][], phrase: string, taken: Span[] = []): Span |
       taken.some((t) => t.h === h && t.from === c.from && t.to === c.to),
     );
     if (hit && (!best || hit.score > best.score)) best = { ...hit, h: h as 0 | 1 };
+  }
+  if (!best) {
+    for (let h = 0; h < hemis.length; h++) {
+      const hit = locateScattered(hemis[h], phrase);
+      if (hit && (!best || hit.score > best.score)) best = { ...hit, h: h as 0 | 1 };
+    }
   }
   return best ? { h: best.h, from: best.from, to: best.to } : null;
 }
@@ -179,6 +218,30 @@ const ROLE_SPLIT = /\s*\+\s*/;
  *  of the parenthesis, the words they belong to on the right, in the same
  *  order. Both halves have to line up or the note is left alone. */
 function parseRoles(note: string, hemis: string[][], realm: Realm, id: string): Mark | null {
+  const head = /^الگوی\s+جمله[^:]*:\s*(.+)$/.exec(note);
+  if (head && !/^[^(]+\([^)]+\)\s*$/.test(head[1])) {
+    /* «نهاد (مرد، حذف به قرینهٔ لفظی) + مفعول (زنخدان) + فعل (فرو برد)» — each
+       role brings its own parenthesis rather than the whole list arriving at
+       the end. The first item inside each is the word it belongs to. */
+    const which = /دوم|سوم/.test(note.slice(0, 24)) ? 1 : 0;
+    const spans: Span[] = [];
+    const roleLabels: string[] = [];
+    for (const chunk of head[1].split(ROLE_SPLIT)) {
+      const c = /^\s*([^(]+?)\s*\(([^)]*)\)/.exec(chunk);
+      if (!c) continue;
+      const role = c[1].trim();
+      const word = c[2].split("،")[0].trim();
+      if (!role || !word) continue;
+      const hit = locate(hemis[which], word);
+      if (!hit) continue;
+      spans.push({ h: which as 0 | 1, from: hit.from, to: hit.to });
+      roleLabels.push(role);
+    }
+    if (spans.length >= 2) {
+      return { id, realm, kind: "roles", spans, label: "الگوی جمله", roleLabels };
+    }
+  }
+
   const m = /^الگوی\s+جملهٔ?\s*(\S+)\s*:\s*([^(]+)\(([^)]+)\)/.exec(note);
   if (!m) return null;
   const which = m[1];
@@ -228,7 +291,10 @@ function parseNote(note: string, hemis: string[][], realm: Realm, id: string): M
       if (all.length > 1) return { id, realm, kind: "link", spans: all, label: right };
     }
 
-    const span = findSpan(hemis, left);
+    /* «که» در آغاز بیت: حرف ربط — the phrase names its target in guillemets and
+       then describes where it is. The quoted word is what to point at. */
+    const quoted = /[«"']([^»"']{1,20})[»"']/.exec(left);
+    const span = findSpan(hemis, left) ?? (quoted ? findSpan(hemis, quoted[1]) : null);
     if (span) {
       const isDevice = DEVICE.test(right) || GRAMMAR.test(right);
       return {

@@ -21,6 +21,15 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
 
+/** A degree or so of tilt, fixed per label. Type set dead level next to a
+ *  handwriting face reads as type; a hair off level reads as written. Seeded
+ *  from the id so it never wobbles between renders. */
+function tilt(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ((h % 200) / 100 - 1) * 1.2;
+}
+
 function sameRects(a: Map<string, Rect> | null, b: Map<string, Rect>): boolean {
   if (!a || a.size !== b.size) return false;
   for (const [k, v] of b) {
@@ -62,13 +71,22 @@ function rule(x1: number, y: number, x2: number, frac = 1): string {
   return `M ${(mid - half).toFixed(1)} ${y.toFixed(1)} L ${(mid + half).toFixed(1)} ${y.toFixed(1)}`;
 }
 
-/** The arc that joins two words of the same مصراع, dipping below both so its
- *  apex is free for the term. A symmetric quadratic, so it reads as drawn with
- *  one confident stroke. */
-function arc(x1: number, y1: number, x2: number, y2: number, drop: number): string {
-  const mx = (x1 + x2) / 2;
-  const my = Math.max(y1, y2) + drop * 1.6;
-  return `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+/** The connector that joins words of one مصراع: a short stub down from each
+ *  word to this mark's own lane, then one line along the lane between them.
+ *
+ *  It used to be a single arc plunging from word to word. With three or four
+ *  links under one line — «چو چنگش رگ و استخوان ماند و پوست» has four — every
+ *  arc started at the same height and dipped to a different depth, so they all
+ *  crossed each other and the labels underneath. Because a lane belongs to one
+ *  mark alone, nothing in it can be crossed by anything else. */
+function connector(xs: number[], top: number, laneY: number): string {
+  const f = (n: number) => n.toFixed(1);
+  const lo = Math.min(...xs);
+  const hi = Math.max(...xs);
+  const sag = 2;
+  let d = `M ${f(lo)} ${f(laneY)} Q ${f((lo + hi) / 2)} ${f(laneY + sag)} ${f(hi)} ${f(laneY)}`;
+  for (const x of xs) d += ` M ${f(x)} ${f(top)} L ${f(x)} ${f(laneY - 0.5)}`;
+  return d;
 }
 
 /** A leader from the middle of a word's rule down to its label: a short drop,
@@ -128,7 +146,16 @@ function heightOf(m: Mark, labelH = LABEL_H): number {
   return h + 8;
 }
 
-type Item = { id: string; x1: number; x2: number; h: number; pri: number };
+type Item = {
+  id: string;
+  x1: number;
+  x2: number;
+  h: number;
+  pri: number;
+  /** a link's stubs run from the line down to its lane, so it occupies every
+   *  depth on the way — not just the strip its own label sits in */
+  fromTop?: boolean;
+};
 
 /** Stacks annotations under a line the way a typesetter stacks footnotes:
  *  each one drops to the shallowest depth where its *own* horizontal extent
@@ -149,14 +176,24 @@ function stack(items: Item[]): Map<string, number> {
   const sorted = [...items].sort((a, b) => a.pri - b.pri || a.x1 - b.x1);
   for (const it of sorted) {
     let y = 0;
-    for (;;) {
-      const clash = placedBoxes.find(
-        (o) => it.x1 < o.x2 + 10 && o.x1 < it.x2 + 10 && y < o.y2 && o.y1 < y + it.h,
-      );
-      if (!clash) break;
-      y = clash.y2 + 2;
+    if (it.fromTop) {
+      /* Its stubs cover every depth from the line downwards, so it cannot dodge
+         anything by moving further down — searching for a free slot the way the
+         others do would spin forever. It simply goes below everything it
+         overlaps horizontally. */
+      for (const o of placedBoxes) {
+        if (it.x1 < o.x2 + 10 && o.x1 < it.x2 + 10) y = Math.max(y, o.y2 + 2);
+      }
+    } else {
+      for (;;) {
+        const clash = placedBoxes.find(
+          (o) => it.x1 < o.x2 + 10 && o.x1 < it.x2 + 10 && y < o.y2 && o.y1 < y + it.h,
+        );
+        if (!clash) break;
+        y = clash.y2 + 2;
+      }
     }
-    placedBoxes.push({ x1: it.x1, x2: it.x2, y1: y, y2: y + it.h });
+    placedBoxes.push({ x1: it.x1, x2: it.x2, y1: it.fromTop ? 0 : y, y2: y + it.h });
     out.set(it.id, y);
   }
   return out;
@@ -361,7 +398,12 @@ export default function HandwrittenBeyt({
         h: cross ? Math.max(LABEL_H, lb?.h ?? 0) + 8 : heightOf(m, lb?.h),
         // a gloss borrowed from the next مصراع takes whatever room is left at
         // the bottom of the gap
-        pri: borrowed ? 3 : m.kind === "link" ? 2 : 1,
+        /* Links are laid down before the plain labels. Their stubs run the
+           whole way from the line to their lane, so a label placed first simply
+           ends up with a connector drawn through it — reserving the corridor
+           only keeps out whatever comes after. */
+        pri: borrowed ? 3 : m.kind === "link" ? 1 : 2,
+        fromTop: m.kind === "link" && !cross,
       };
       if (above) aboveItems.push(item);
       else byHemi[borrowed ? h - 1 : h].push(item);
@@ -598,20 +640,18 @@ export default function HandwrittenBeyt({
               );
             }
 
-            // link: one arc per consecutive pair, dipping to this mark's depth
-            const drop = GAP + off + ARC_DEPTH;
+            // link: everything happens in this mark's own lane
+            const laneY = Math.max(...bs.map((r) => r.y + r.h)) + GAP + off + ARC_DEPTH;
             return (
               <g key={mark.id} data-lead={mark.id}>
-                {bs.slice(0, -1).map((b, i) => {
-                  const c = bs[i + 1];
-                  return (
-                    <path
-                      key={i}
-                      d={arc(b.x + b.w / 2, b.y + b.h, c.x + c.w / 2, c.y + c.h, drop)}
-                      {...common}
-                    />
-                  );
-                })}
+                <path
+                  d={connector(
+                    bs.map((r) => r.x + r.w / 2),
+                    Math.max(...bs.map((r) => r.y + r.h)) + 3,
+                    laneY,
+                  )}
+                  {...common}
+                />
               </g>
             );
           })}
@@ -636,7 +676,7 @@ export default function HandwrittenBeyt({
                     style={{
                       left: roleCentre(mark, b, i),
                       top: b.y + b.h + GAP + (roleOffs?.[i] ?? 0),
-                      transform: "translateX(-50%)",
+                      transform: `translateX(-50%) rotate(${tilt(`${mark.id}#${i}`).toFixed(2)}deg)`,
                       animationDelay: `${delay + i * 0.05}s`,
                     }}
                   >
@@ -679,7 +719,7 @@ export default function HandwrittenBeyt({
                 left: cx,
                 top,
                 maxWidth: W > 0 ? Math.min(240, W - 10) : 240,
-                transform: "translateX(-50%)",
+                transform: `translateX(-50%) rotate(${tilt(mark.id).toFixed(2)}deg)`,
                 animationDelay: `${delay}s`,
               }}
             >
@@ -689,16 +729,42 @@ export default function HandwrittenBeyt({
         })}
       </div>
 
-      {/* notes with no single word to point at */}
+      {/* Notes with no single word to point at — واج‌آرایی across a whole
+          مصراع, a تلمیح to a verse. They cannot be drawn on the line, but a
+          bulleted list under the poem reads like leftovers. A brace down the
+          margin says the same thing a student's does: this belongs to the
+          whole بیت. */}
       {notes.length > 0 && (
-        <ul className="mt-6 space-y-2 border-t border-dashed border-border pt-4">
-          {notes.map((n) => (
-            <li key={n.id} className="flex gap-2 text-sm text-muted-foreground">
-              <span className={`hand shrink-0 ${style.text}`}>◂</span>
-              <span className="hand leading-relaxed">{n.label}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="relative mt-7 flex gap-3">
+          <svg
+            aria-hidden
+            width="16"
+            className="shrink-0 self-stretch overflow-visible"
+            preserveAspectRatio="none"
+            viewBox="0 0 16 100"
+          >
+            <path
+              d="M14 2 C6 2, 10 46, 2 50 C10 54, 6 98, 14 98"
+              fill="none"
+              stroke={style.stroke}
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              opacity="0.75"
+            />
+          </svg>
+          <ul className="flex-1 space-y-1.5 py-0.5">
+            {notes.map((n) => (
+              <li
+                key={n.id}
+                className={`hand text-[0.86rem] leading-relaxed ${style.text} opacity-90`}
+                style={{ transform: `rotate(${tilt(n.id).toFixed(2)}deg)` }}
+              >
+                {n.label}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

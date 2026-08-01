@@ -10,28 +10,24 @@ import z from "zod";
 /**
  * موتورِ محلی — در *مرورگر*، و با import پویا.
  *
- * ★ پویا بودنش عمدی است: موتور و وزن‌هایش چند ده کیلوبایت‌اند و نباید هنگامِ
- *   بارگذاریِ صفحه دانلود شوند. این‌طور کسی که فقط صفحه را می‌بیند — یا بیتش
- *   در گنجور پیدا می‌شود — هیچ هزینه‌ای نمی‌دهد. فقط اولین وزن‌یابی‌ای که در
- *   گنجور نتیجه ندهد هزینه دارد، و بعد در کشِ مرورگر می‌ماند.
+ * ★ پویا بودنش عمدی است: موتور و وزن‌هایش حدودِ ۹۵ کیلوبایتِ فشرده‌اند و نباید
+ *   هنگامِ بارگذاریِ صفحه دانلود شوند. کسی که صفحه را باز می‌کند و وزن‌یابی
+ *   نمی‌کند هیچ هزینه‌ای نمی‌دهد؛ فقط اولین جست‌وجو هزینه دارد و بعد در کشِ
+ *   مرورگر می‌ماند. (روی build تولیدی سنجیده شد: بازکردنِ صفحه صفر بایت،
+ *   اولین جست‌وجو ۹۵.۴ کیلوبایت در دقیقاً یک چانک.)
  *
  *   چرا در مرورگر و نه سرور: اندازه‌گیری شد که هر جست‌وجو ۵۳۹ میلی‌ثانیه CPU و
  *   ~۱۷۶ مگابایت حافظه می‌خواهد، یعنی هر هستهٔ سرور ~۲ درخواست در ثانیه.
- *   این‌جا سهمِ سرور صفر است و دقت تغییری نمی‌کند.
+ *   این‌جا سهمِ سرور صفر است و دقت تغییری نمی‌کند — همان کد، همان وزن‌ها.
+ *
+ *   دقت روی ۶۰۰۰ بیتِ کنارگذاشته: ۸۴.۵٪ برای رتبهٔ ۱، ۹۴.۲٪ برای سه نامزدِ اول.
  */
 async function findMeterInBrowser(mesra1: string, mesra2?: string) {
   const { findMeterLocally } = await import("@/lib/aruz");
   return findMeterLocally(mesra1, mesra2)?.rhythm;
 }
 
-function VaznYabSection({
-  lookupOnGanjoor,
-}: {
-  lookupOnGanjoor: (
-    mesra1: string,
-    mesra2?: string,
-  ) => Promise<string | undefined>;
-}) {
+function VaznYabSection() {
   const rhythmToAudioUrl = (rhythm: string) => {
     const clean = rhythm.trim().replace(/\s+/g, "-");
     return `/audio/${clean}.mp3`;
@@ -106,11 +102,7 @@ function VaznYabSection({
     setGuessMissing(false);
     setLoadingFetch(true);
 
-    // گنجور اول: برچسبِ انسانی است، پس هر وقت پیدا شود از موتور معتبرتر است —
-    // و اگر پیدا شود اصلاً لازم نیست موتور دانلود و اجرا شود.
-    const result =
-      (await lookupOnGanjoor(data.poem1, data.poem2)) ??
-      (await findMeterInBrowser(data.poem1, data.poem2));
+    const result = await findMeterInBrowser(data.poem1, data.poem2);
     if (!result) setShowModal(true);
     const feet = getPureRhythm(result ?? "");
     setAruzFeet(feet);

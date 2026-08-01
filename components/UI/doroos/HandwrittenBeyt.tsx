@@ -74,13 +74,25 @@ function arc(x1: number, y1: number, x2: number, y2: number, drop: number): stri
 /** A leader from the middle of a word's rule down to its label: a short drop,
  *  then the arrowhead. This is what makes it unambiguous which handwriting
  *  belongs to which word once several are stacked under one line. */
-function leader(x: number, y1: number, y2: number): string {
-  return `M ${x.toFixed(1)} ${y1.toFixed(1)} L ${x.toFixed(1)} ${y2.toFixed(1)}`;
+function leader(x0: number, y0: number, x1: number, y1: number, detour?: number): string {
+  const f = (n: number) => n.toFixed(1);
+  if (detour === undefined && Math.abs(x1 - x0) < 0.5) {
+    return `M ${f(x0)} ${f(y0)} L ${f(x1)} ${f(y1)}`;
+  }
+  /* A leader that stops short of its label is worse than no leader: with two
+     notes stacked under one word, a stub above the lower label reads as if it
+     came out of the upper one. So the line always runs from the word to its own
+     handwriting, and bends around anything in the way instead of being cut. */
+  const mid = detour ?? (x0 + x1) / 2;
+  const a = y0 + (y1 - y0) * 0.32;
+  const b = y0 + (y1 - y0) * 0.68;
+  return `M ${f(x0)} ${f(y0)} C ${f(x0)} ${f(a)}, ${f(mid)} ${f(a)}, ${f(mid)} ${f((a + b) / 2)} C ${f(mid)} ${f(b)}, ${f(x1)} ${f(b)}, ${f(x1)} ${f(y1)}`;
 }
 
 /** Arrowhead pointing straight down, at the end of a leader. */
-function arrowDown(x: number, y: number, size = 4.5): string {
-  return `M ${(x - size).toFixed(1)} ${(y - size).toFixed(1)} L ${x.toFixed(1)} ${y.toFixed(1)} L ${(x + size).toFixed(1)} ${(y - size).toFixed(1)}`;
+function arrowDown(x: number, y: number, size = 4.5, up = false): string {
+  const d = up ? -size : size;
+  return `M ${(x - size).toFixed(1)} ${(y - d).toFixed(1)} L ${x.toFixed(1)} ${y.toFixed(1)} L ${(x + size).toFixed(1)} ${(y - d).toFixed(1)}`;
 }
 
 /* ------------------------------------------------------------- geometry */
@@ -384,6 +396,44 @@ export default function HandwrittenBeyt({
   const style = REALM_STYLE[realm];
   const host = hostRef.current;
   const W = host?.clientWidth ?? 0;
+
+  /* One source of truth for where a label ends up, used by the labels
+     themselves and by the leaders that have to reach and avoid them. When these
+     two disagreed, arrows pointed at empty space. */
+  const clampX = (c: number, w: number) =>
+    W > 0 && w > 0 ? Math.min(Math.max(c, w / 2 + 2), W - w / 2 - 2) : c;
+
+  const labelCentre = (m: Mark, bs: Rect[], _top?: number) => {
+    const first = bs[0];
+    const last = bs[bs.length - 1];
+    const raw =
+      m.kind === "link"
+        ? (first.x + first.w / 2 + (last.x + last.w / 2)) / 2
+        : first.x + first.w / 2;
+    return clampX(raw, labelBox.get(m.id)?.w ?? 0);
+  };
+
+  const roleCentre = (m: Mark, b: Rect, i: number) =>
+    clampX(b.x + b.w / 2, labelBox.get(`${m.id}#${i}`)?.w ?? 0);
+
+  /** every piece of handwriting on the page, as a box a leader must not cross */
+  const labelBoxes = placed.flatMap((o) => {
+    if (o.mark.kind === "roles") {
+      return o.boxes.map((r, i) => {
+        const sz = labelBox.get(`${o.mark.id}#${i}`);
+        const top = r.y + r.h + GAP + (o.roleOffs?.[i] ?? 0);
+        const w = sz?.w ?? r.w;
+        const c = roleCentre(o.mark, r, i);
+        return { id: `${o.mark.id}#${i}`, x1: c - w / 2, x2: c + w / 2, y1: top, y2: top + (sz?.h ?? LABEL_H) };
+      });
+    }
+    const sz = labelBox.get(o.mark.id);
+    const top = labelTopOf({ ...o, labelH: sz?.h }, hemiBottom);
+    const w = sz?.w ?? 0;
+    const c = labelCentre(o.mark, o.boxes);
+    return [{ id: o.mark.id, x1: c - w / 2, x2: c + w / 2, y1: top, y2: top + (sz?.h ?? LABEL_H) }];
+  });
+
   const H = host?.clientHeight ?? 0;
 
   return (
@@ -437,61 +487,73 @@ export default function HandwrittenBeyt({
               className: reduced ? undefined : "hb-ink",
               style: reduced ? undefined : { animationDelay: `${delay}s` },
             };
-            /* Every rule gets a leader down to the handwriting it belongs to.
-               With three or four annotations stacked under one line, a rule on
-               its own leaves the reader guessing which label is which; the
-               arrow removes the guess. */
-            const lead = (b: Rect, top: number) => {
+            /* Every mark's handwriting is joined to its own word by a line
+               that starts at the word and ends at the label. Where something
+               else is in the way the line bends around it — cutting it short
+               instead, as the first version did, made a note look as though it
+               came out of whichever label happened to sit above it. */
+            const myIds = new Set(
+              mark.kind === "roles" ? bs.map((_, i) => `${mark.id}#${i}`) : [mark.id],
+            );
+            const lead = (b: Rect, toX: number, fromY: number, toY: number, key: string) => {
+              if (Math.abs(toY - fromY) < 3) return null;
               const x = b.x + b.w / 2;
-              const y1 = b.y + b.h + 3;
-              const y2 = top - 3;
-              if (y2 - y1 < 6) return null;
-              /* A leader may not be drawn through somebody else's writing. If
-                 another label already occupies the corridor between this word
-                 and its own label, the long line is replaced by a short stub
-                 just above the text — still an arrow pointing at it, without a
-                 stroke ruled across the words in between. */
-              const blocked = placed.some((o) => {
-                if (o.mark.id === mark.id || o.boxes.length === 0) return false;
-                const oTop = labelTopOf(o, hemiBottom);
-                if (!(oTop > y1 - 2 && oTop < y2 - 2)) return false;
-                // a roles mark writes one short label per word rather than one
-                // wide one, so each of its boxes has to be tested separately
-                if (o.mark.kind === "roles") {
-                  return o.boxes.some((r, i) => {
-                    const rTop = r.y + r.h + GAP + (o.roleOffs?.[i] ?? 0);
-                    if (!(rTop > y1 - 2 && rTop < y2 - 2)) return false;
-                    const rw = labelBox.get(`${o.mark.id}#${i}`)?.w ?? r.w;
-                    const rc = r.x + r.w / 2;
-                    return Math.abs(rc - x) < rw / 2 + 6;
-                  });
-                }
-                const ow = labelBox.get(o.mark.id)?.w ?? 0;
-                const oc =
-                  (Math.min(...o.boxes.map((r) => r.x)) +
-                    Math.max(...o.boxes.map((r) => r.x + r.w))) /
-                  2;
-                return Math.abs(oc - x) < ow / 2 + 6;
-              });
-              const from = blocked ? Math.max(y1, y2 - 12) : y1;
+              const lo = Math.min(fromY, toY);
+              const hi = Math.max(fromY, toY);
+              const inWay = labelBoxes.filter(
+                (o) =>
+                  !myIds.has(o.id) &&
+                  o.y2 > lo + 1 &&
+                  o.y1 < hi - 1 &&
+                  o.x2 > Math.min(x, toX) - 6 &&
+                  o.x1 < Math.max(x, toX) + 6,
+              );
+              let detour: number | undefined;
+              if (inWay.length) {
+                const left = Math.min(...inWay.map((o) => o.x1)) - 11;
+                const right = Math.max(...inWay.map((o) => o.x2)) + 11;
+                const fits = (v: number) => v > 6 && v < W - 6;
+                const cand = [left, right].filter(fits);
+                detour = cand.length
+                  ? cand.reduce((a, v) => (Math.abs(v - x) < Math.abs(a - x) ? v : a))
+                  : undefined;
+              }
+              const up = toY < fromY;
               return (
-                <g key={`lead-${b.x}`}>
-                  <path d={leader(x, from, y2)} {...common} strokeWidth={1.2} />
-                  <path d={arrowDown(x, y2)} {...common} strokeWidth={1.2} />
+                <g key={key} data-lead={key === "g" || key.startsWith("r") ? `${mark.id}:${key}` : mark.id}>
+                  <path d={leader(x, fromY, toX, toY, detour)} {...common} strokeWidth={1.2} />
+                  <path d={arrowDown(toX, toY, 4.5, up)} {...common} strokeWidth={1.2} />
                 </g>
               );
             };
+            /** down from the word to a label sitting under it */
+            const leadDown = (b: Rect, top: number, key = `d${b.x}`) =>
+              lead(b, labelCentre(mark, bs, top), b.y + b.h + 3, top - 3, key);
 
             if (mark.kind === "underline" || mark.kind === "gloss") {
               const b = bs[0];
               if (mark.kind === "gloss") {
-                return <path key={mark.id} d={rule(b.x, b.y - GAP * 0.6, b.x + b.w)} {...common} />;
+                /* the meaning is written above the word, so its line runs the
+                   other way — from under the handwriting down onto the word it
+                   explains. Without it a meaning for a word on the second
+                   مصراع just floated in the gap, belonging to neither line. */
+                const top = labelTopOf(
+                  { mark, off, cross, boxes: bs, labelH: labelBox.get(mark.id)?.h },
+                  hemiBottom,
+                );
+                const lh = labelBox.get(mark.id)?.h ?? LABEL_H;
+                return (
+                  <g key={mark.id}>
+                    <path d={rule(b.x, b.y - GAP * 0.6, b.x + b.w)} {...common} />
+                    {lead(b, labelCentre(mark, bs, top), top + lh + 2, b.y - GAP * 0.6 - 4, "g")}
+                  </g>
+                );
               }
               const top = b.y + b.h + GAP + off + 4;
               return (
                 <g key={mark.id}>
                   <path d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
-                  {lead(b, top)}
+                  {leadDown(b, top)}
                 </g>
               );
             }
@@ -502,8 +564,14 @@ export default function HandwrittenBeyt({
                   {bs.map((b, i) => (
                     <g key={i}>
                       <path d={rule(b.x, b.y + b.h + 3, b.x + b.w, 0.62)} {...common} />
-                      {(roleOffs?.[i] ?? 0) > 6
-                        ? lead(b, b.y + b.h + GAP + (roleOffs?.[i] ?? 0))
+                      {(roleOffs?.[i] ?? 0) > 0
+                        ? lead(
+                            b,
+                            roleCentre(mark, b, i),
+                            b.y + b.h + 3,
+                            b.y + b.h + GAP + (roleOffs?.[i] ?? 0) - 3,
+                            `r${i}`,
+                          )
                         : null}
                     </g>
                   ))}
@@ -525,7 +593,7 @@ export default function HandwrittenBeyt({
                   {bs.map((b, i) => (
                     <path key={i} d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
                   ))}
-                  {lead(bs[bs.length - 1], top)}
+                  {leadDown(bs[bs.length - 1], top, "x")}
                 </g>
               );
             }
@@ -533,7 +601,7 @@ export default function HandwrittenBeyt({
             // link: one arc per consecutive pair, dipping to this mark's depth
             const drop = GAP + off + ARC_DEPTH;
             return (
-              <g key={mark.id}>
+              <g key={mark.id} data-lead={mark.id}>
                 {bs.slice(0, -1).map((b, i) => {
                   const c = bs[i + 1];
                   return (
@@ -566,13 +634,7 @@ export default function HandwrittenBeyt({
                     }}
                     className={`hand pointer-events-none absolute z-20 whitespace-nowrap text-xs ${style.text} ${anim ?? ""}`}
                     style={{
-                      left: (() => {
-                        const w = labelBox.get(`${mark.id}#${i}`)?.w ?? 0;
-                        const c = b.x + b.w / 2;
-                        return W > 0 && w > 0
-                          ? Math.min(Math.max(c, w / 2 + 2), W - w / 2 - 2)
-                          : c;
-                      })(),
+                      left: roleCentre(mark, b, i),
                       top: b.y + b.h + GAP + (roleOffs?.[i] ?? 0),
                       transform: "translateX(-50%)",
                       animationDelay: `${delay + i * 0.05}s`,
@@ -592,9 +654,7 @@ export default function HandwrittenBeyt({
              word near the margin put half its handwriting outside the card. The
              leader still drops on the word itself, so nudging the text sideways
              costs nothing in clarity. */
-          const rawCx = isLink ? (b.x + b.w / 2 + (last.x + last.w / 2)) / 2 : b.x + b.w / 2;
-          const lw = labelBox.get(mark.id)?.w ?? 0;
-          const cx = W > 0 && lw > 0 ? Math.min(Math.max(rawCx, lw / 2 + 2), W - lw / 2 - 2) : rawCx;
+          const cx = labelCentre(mark, bs);
           const bottom = Math.max(...bs.map((r) => r.y + r.h));
           /* An underline hugs its word and writes just below it; a link's
              label hangs under the apex of its arc, which is already ARC_DEPTH

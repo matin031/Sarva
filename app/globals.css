@@ -805,6 +805,73 @@ button {
   background: color-mix(in oklch, var(--primary) 80%, transparent);
 }
 
+/* ------------------------------------------- handwriting for lesson notes */
+
+/* Aref Ruqaa is the Ruqʿah style — the script Arabic and Persian speakers
+   actually write by hand, as opposed to the Naskh and Nastaliq used for
+   setting text. That is what makes an annotation read as something a student
+   scribbled in the margin rather than as more typeset UI.
+   Self-hosted (38 kB, Arabic subset only): it is decorative, so it must never
+   block the بیت itself from rendering, and a third-party request on a page
+   this content-heavy is a needless dependency. */
+@font-face {
+  font-family: "Hand";
+  src: url("/fonts/aref-ruqaa-arabic-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200D;
+}
+
+.hand {
+  font-family: "Hand", var(--font-sans);
+  /* Ruqʿah sits small on the em; nudging the size up keeps it level with the
+     surrounding UI text instead of looking like a footnote */
+  font-size: 1.12em;
+  line-height: 1.35;
+}
+
+/* The strokes draw themselves in, the way a pen lays ink down, instead of
+   appearing all at once. dasharray is set to a length longer than any stroke
+   here, so one keyframe covers every path. */
+.hb-ink {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: hbInk 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes hbInk {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* the words arrive just after the stroke that points at them */
+.hb-write {
+  opacity: 0;
+  animation: hbWrite 0.4s ease-out forwards;
+}
+@keyframes hbWrite {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) rotate(-1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) rotate(-1.2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-ink {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .hb-write {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* ------------------------------------------------------- decorative glows */
 
 /* `blur-3xl` is `filter: blur(64px)`. A 64px gaussian over a 288px box is one

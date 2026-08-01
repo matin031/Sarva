@@ -27,12 +27,12 @@ const GalaxyScene = dynamic(
 const STOPS: Stop[] = [
   {
     index: "۰۱",
-    tag: "نقش‌ها و آرایه‌ها",
-    title: "جاسوسِ نقش‌ها",
-    desc: "یک بیت باز می‌شود و چهار مظنون دربارهٔ آن ادعا می‌کنند؛ یکی‌شان نقشی دستوری یا آرایه‌ای می‌گوید که اصلاً در بیت نیست.",
+    tag: "نقش‌ها",
+    title: "دروغگو کیست؟",
+    desc: "یک بیت، چهار نفر،چهار ادعا!کی داره دروغ میگه؟ بکشش",
     steps: [
-      "پشتِ هر در یک بیت و چهار ادعا منتظرِ توست",
-      "ادعاها را با خودِ بیت بسنج",
+      "وارد سالن جاسوس‌یاب شو",
+      "یک *در* را انتخاب کن",
       "جاسوسِ دروغگو را نشانه بگیر و شلیک کن",
     ],
     href: "/game/jasoos",
@@ -42,13 +42,13 @@ const STOPS: Stop[] = [
   },
   {
     index: "۰۲",
-    tag: "دسته‌های دستوری",
-    title: "نینجای دستور زبان",
-    desc: "یک دستهٔ دستوری می‌گیری — قید، صفت، حرف ربط یا ضمیر — و ده‌ها کلمه در هوا پرتاب می‌شوند.",
+    tag: "دستور زبان یا آب خوردن؟",
+    title: "فِرز باش",
+    desc: "فقط کلماتی که نقش مورد نظر را دارن بُرِش بزن",
     steps: [
-      "دسته‌ای که باید شکار کنی را ببین",
-      "کلمه‌ها را در پرواز تشخیص بده",
-      "فقط کلمه‌های همان دسته را برش بزن",
+      "دسته‌ای از کلماتی که باید برش بزنی را ببین",
+      "مثلا قید؛کلمات پر تکرار قید را در خاطر بسپار",
+      "حالا از بین کلماتی که به بالا پرتاب می‌شوند؛فقط قید ها رو برش بزن",
     ],
     href: "/game/ninja",
     cta: "شروعِ نینجای دستور",
@@ -57,9 +57,9 @@ const STOPS: Stop[] = [
   },
   {
     index: "۰۳",
-    tag: "آثار و پدیدآورندگان",
-    title: "جفت‌های ادبی",
-    desc: "اول آثار و نویسنده‌هایشان را مرور می‌کنی، بعد کارت‌ها برمی‌گردند و باید از حافظه‌ات کمک بگیری.",
+    tag: "یادگیری تاریخ ادبیات",
+    title: "کتاب و نویسنده رو جور کن",
+    desc: "چند کارت برعکس هستند و باید با تعداد حرکات کمتر کارت ها را برگردانی و کتاب و نویسنده را جفت کنی",
     steps: [
       "آثار و پدیدآورندگان را مرور کن",
       "کارت‌ها برمی‌گردند؛ جای هرکدام را به یاد بسپار",
@@ -72,7 +72,7 @@ const STOPS: Stop[] = [
   },
   {
     index: "۰۴",
-    tag: "واژگانِ درس‌ها",
+    tag: "حفظ واژگان با تصویر",
     title: "واژه‌یاب",
     desc: "تصویر را می‌بینی و از میان سه واژه، واژهٔ درست را انتخاب می‌کنی؛ بعد معنیِ کاملش را یاد می‌گیری.",
     steps: [
@@ -162,7 +162,7 @@ export default function GamesGalaxy() {
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
                     <span className="relative inline-flex size-2 rounded-full bg-primary" />
                   </span>
-                  کهکشانِ بازی‌های سروا
+                  کهکشانِ سروا
                 </span>
               </RevealItem>
 
@@ -177,24 +177,9 @@ export default function GamesGalaxy() {
 
               <RevealItem>
                 <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  چهار بازی برای یادگیریِ ادبیات و دستورِ زبان، بدونِ حفظ‌کردن. یک
-                  سیمِ نوری همه را به هم وصل کرده؛ اسکرول کن و سیاره‌ای را که
-                  می‌خواهی انتخاب کن.
+                  اینجا خبری از کتاب نیست! فقط با بازی کردن می‌توانی مهارت‌هایی
+                  را کسب کنی که نیازمند ساعت‌ها مطالعست:)
                 </p>
-              </RevealItem>
-
-              <RevealItem>
-                <div className="mt-9 flex flex-col items-center gap-3">
-                  <Link
-                    href="/game/vocab"
-                    className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-7 font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
-                  >
-                    آغازِ بازی
-                  </Link>
-                  <span className="text-sm text-muted-foreground">
-                    ۴ بازی · سیمِ نوری راهنمایت می‌کند ↓
-                  </span>
-                </div>
               </RevealItem>
             </RevealGroup>
           </section>
@@ -238,8 +223,7 @@ export default function GamesGalaxy() {
                 <RevealWords text="امتیازت را ثبت کن" />
               </h2>
               <p className="relative z-20 mx-auto mt-4 max-w-lg text-muted-foreground">
-                حساب بساز تا رکوردها و واژه‌هایی که اشتباه زده‌ای ذخیره شوند و
-                بتوانی مرورشان کنی.
+                برای پیگیری عملکردت در سایت ثبت نام کن
               </p>
               <div className="relative z-20 mt-8 flex flex-wrap justify-center gap-3">
                 <Link
@@ -247,12 +231,6 @@ export default function GamesGalaxy() {
                   className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
                 >
                   ساختِ حساب
-                </Link>
-                <Link
-                  href="/panel"
-                  className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-card px-8 font-bold text-foreground transition-all hover:border-primary/40 active:scale-95"
-                >
-                  پنلِ کاربری
                 </Link>
               </div>
             </motion.div>

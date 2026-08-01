@@ -158,21 +158,13 @@ function Header() {
   ];
 
   const menUItemsPc = [
-    { id: 1, title: "آزمون‌نهایی", src: "/exam" },
-    { id: 2, title: "درسنامه", src: "/doroos" },
-    { id: 3, title: "بازی", src: "/game" },
-    { id: 4, title: "عروض", src: "/aruz" },
-    { id: 5, title: "درباره", src: "/about" },
+    // { id: 3, title: "بازی", src: "/game" },
+    // { id: 4, title: "عروض", src: "/aruz" },
     { id: 6, title: "راهنما", src: "/guide" },
   ];
 
   return (
     <nav className="mt-4 flex justify-between items-center flex-row-reverse container">
-      {/* `animate`, not `whileInView`: the header sits at the very top, so on a
-          long page a reader who scrolls immediately can leave the viewport
-          before the in-view observer fires. The entrance then never runs and
-          the logo stays stuck at its initial state — invisible, and 40px past
-          the right edge, which shows up as a horizontal scrollbar on mobile. */}
       <motion.div
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}
@@ -255,7 +247,51 @@ function Header() {
           </>
         )}
         |
-        <div className=" text-muted-foreground hidden gap-x-5 md:flex text-lg flex-row-reverse">
+        <div className=" text-muted-foreground items-center  gap-x-5 flex text-lg flex-row">
+          <div className=" block z-200 relative">
+            <button
+              className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2 flex-row-reverse"
+              onClick={() => {
+                setOpenMenuMobile((prev) => !prev);
+              }}
+            >
+              فهرست
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className={`size-4 transition-all ${!openMenuMobile && " rotate-180"}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
+                />
+              </svg>
+            </button>
+
+            <div
+              className={`${openMenuMobile ? " translate-y-2 visible opacity-100" : " -translate-y-7 invisible opacity-0"} 
+             transition-transform duration-150 ease-in-out absolute bg-menu-mobile border-border border py-5 px-4 rounded-lg gap-x-6 flex 
+              items-center -left-30 max-h-22`}
+            >
+              {menuItemsMobile.map((l) => (
+                <Link
+                  key={l.id}
+                  onClick={() => {
+                    setOpenMenuMobile(false);
+                  }}
+                  className=" text-xs text-muted-foreground hover:gap-y-0.5 transition-all  sm:text-base flex items-center flex-col"
+                  href={l.src}
+                >
+                  {l.icon}
+                  {l.title}
+                </Link>
+              ))}
+            </div>
+          </div>
           {menUItemsPc.map((l) => (
             <Link
               key={l.id}
@@ -266,56 +302,6 @@ function Header() {
             </Link>
           ))}
         </div>
-        <div className=" block md:hidden z-200 relative">
-          <button
-            className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2 flex-row-reverse"
-            onClick={() => {
-              setOpenMenuMobile((prev) => !prev);
-            }}
-          >
-            فهرست
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className={`size-4 transition-all ${!openMenuMobile && " rotate-180"}`}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.5 8.25-7.5 7.5-7.5-7.5"
-              />
-            </svg>
-          </button>
-
-          <div
-            className={`${openMenuMobile ? " translate-y-2 visible opacity-100" : " -translate-y-7 invisible opacity-0"} 
-             transition-transform duration-150 ease-in-out absolute bg-menu-mobile border-border border py-5 px-4 rounded-lg gap-x-6 flex 
-              items-center -left-30 max-h-22`}
-          >
-            {menuItemsMobile.map((l) => (
-              <Link
-                key={l.id}
-                onClick={() => {
-                  setOpenMenuMobile(false);
-                }}
-                className=" text-xs text-muted-foreground hover:gap-y-0.5 transition-all  sm:text-base flex items-center flex-col"
-                href={l.src}
-              >
-                {l.icon}
-                {l.title}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <Link
-          className=" md:hidden  text-muted-foreground text-sm xs:text-base"
-          href={"/guide"}
-        >
-          راهنما
-        </Link>
       </motion.div>
       <div
         onClick={() => {

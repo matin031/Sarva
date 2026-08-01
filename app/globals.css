@@ -580,6 +580,18 @@ button {
   background-clip: text;
   color: transparent;
   animation: aruzHueShift 6s ease-in-out infinite;
+  /* `background-position` is not a compositable property, so this shimmer
+     repaints the text on every frame it runs — forever, since it loops. That
+     repaint is tiny in itself; the damage was where it landed. Painting into
+     the page's root layer, it marked the whole 1280x3810 document dirty, and a
+     trace of five idle seconds showed 236 full-document repaints plus the hero
+     column re-rastered alongside it.
+     Promoting the span gives the shimmer its own layer, so the repaint is
+     confined to the width of the words and nothing above it is touched.
+     `inline-block` is what makes it promotable; `contain: paint` is
+     deliberately not used, because it would clip Persian descenders. */
+  display: inline-block;
+  will-change: transform;
 }
 @keyframes aruzHueShift {
   0%,

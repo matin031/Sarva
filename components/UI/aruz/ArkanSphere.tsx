@@ -140,7 +140,12 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     let RS = 0; // sphere-surface radius (dust + orbits)
     let PERSP = 0;
 
-    const dprCap = window.matchMedia("(pointer: coarse)").matches ? 1.5 : 2;
+    /* 1.5, not 2. The labels are DOM text and stay crisp at any ratio; this
+       canvas only ever draws soft dust dots and hairline rings, which have no
+       hard edges to alias. At dpr 2 on a HiDPI screen the surface is 880x880 =
+       774k pixels redrawn every frame — 1.78x the pixels of 1.5 — and that
+       redraw is the page's steadiest per-frame cost. */
+    const dprCap = window.matchMedia("(pointer: coarse)").matches ? 1.25 : 1.5;
 
     // ---- theme colours, read only when they can actually have changed ----
     let colorPrimary = FALLBACK_PRIMARY;

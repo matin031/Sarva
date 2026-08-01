@@ -101,8 +101,8 @@ export default function AruzFeatures({ reduced }: { reduced: boolean }) {
               {/* accent glow that reveals on hover */}
               <div
                 aria-hidden
-                className="absolute -right-16 -top-16 size-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-60"
-                style={{ background: f.accent }}
+                className="glow-soft absolute -right-16 -top-16 size-40 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-60"
+                style={{ "--glow": f.accent } as React.CSSProperties}
               />
               <div
                 className="relative mb-6 flex size-14 items-center justify-center rounded-2xl border border-border bg-background/70"

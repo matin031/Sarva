@@ -14,7 +14,12 @@ export default function Starfield({ reduced = false }: { reduced?: boolean }) {
     const ctx = cv.getContext("2d");
     if (!ctx) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    /* Capped at 1, not 1.5. This is a fixed, fullscreen layer that repaints
+       every frame, so its pixel count is pure fill rate — and at 1.5 that is
+       2.25x the pixels of the viewport. The content is soft, sub-pixel dots
+       with no edges to alias, so the extra resolution buys nothing visible
+       while making the most expensive layer on the page the largest one. */
+    const dpr = 1;
     let W = 0;
     let H = 0;
 

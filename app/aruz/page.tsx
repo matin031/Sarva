@@ -71,7 +71,13 @@ export default function AruzPage() {
             {/* glow behind the frame */}
             <div
               aria-hidden
-              className="absolute inset-0 -z-10 rounded-[2rem] bg-primary/20 blur-3xl"
+              className="glow-soft absolute inset-0 -z-10 rounded-[2rem]"
+              style={
+                {
+                  "--glow":
+                    "color-mix(in oklch, var(--color-primary) 26%, transparent)",
+                } as React.CSSProperties
+              }
             />
             <div className="relative bg-card z-20 rounded-[2rem] border border-border bg-card/50 p-4 shadow-2xl backdrop-blur-md sm:p-8">
               {/* faux window chrome */}
@@ -100,11 +106,23 @@ export default function AruzPage() {
           >
             <div
               aria-hidden
-              className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/25 blur-3xl"
+              className="glow-soft absolute -right-24 -top-24 size-72 rounded-full"
+              style={
+                {
+                  "--glow":
+                    "color-mix(in oklch, var(--color-primary) 32%, transparent)",
+                } as React.CSSProperties
+              }
             />
             <div
               aria-hidden
-              className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/20 blur-3xl"
+              className="glow-soft absolute -bottom-24 -left-24 size-72 rounded-full"
+              style={
+                {
+                  "--glow":
+                    "color-mix(in oklch, var(--color-gold) 26%, transparent)",
+                } as React.CSSProperties
+              }
             />
             <h2 className="relative text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
               <RevealWords text="سماعی شدن؛دست‌یافتنی تر از همیشه" />

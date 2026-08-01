@@ -793,6 +793,26 @@ button {
   background: color-mix(in oklch, var(--primary) 80%, transparent);
 }
 
+/* ------------------------------------------------------- decorative glows */
+
+/* `blur-3xl` is `filter: blur(64px)`. A 64px gaussian over a 288px box is one
+   of the most expensive things a page can ask a compositor for, and these
+   glows are pure decoration that never animates — the browser re-rasterises
+   them whenever the layer they sit on is repainted, which on these pages is
+   every frame the canvas behind them moves.
+   A radial gradient paints the same soft falloff in one pass with no filter
+   step, so the look survives and the per-frame cost does not. Drive it with
+   `--glow` (any colour) and, optionally, `--glow-stop` for the falloff. */
+.glow-soft {
+  background-image: radial-gradient(
+    closest-side,
+    var(--glow),
+    color-mix(in oklch, var(--glow) 35%, transparent) 45%,
+    transparent var(--glow-stop, 78%)
+  );
+  filter: none;
+}
+
 /* ------------------------------------------------ underlined Persian words */
 
 /* The descenders of ج، ی، ک، گ، ر، ز and the کسره hang well below the baseline,

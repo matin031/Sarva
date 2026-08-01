@@ -21,46 +21,33 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 /* ------------------------------------------------------------- hand-drawn */
 
-/** Deterministic jitter. A random wobble regenerated on every render would make
- *  the ink crawl on each state change; seeding from the mark's identity keeps
- *  each stroke the same shape for its whole life. */
-function rng(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
+/** A rule under a word. Straight, and drawn once — the earlier version added
+ *  a hand-drawn wobble to every stroke, which read as sloppy rather than
+ *  hand-made next to a real handwriting face. The handwriting carries the
+ *  "written by a person" feeling; the rules just have to be clean. */
+function rule(x1: number, y: number, x2: number): string {
+  return `M ${x1.toFixed(1)} ${y.toFixed(1)} L ${x2.toFixed(1)} ${y.toFixed(1)}`;
 }
 
-/** A straight run drawn as if by hand: a few segments, each nudged off the
- *  ideal line, with the ends pulled in slightly the way a pen overshoots. */
-function inkLine(x1: number, y: number, x2: number, seed: number, amp = 1.4): string {
-  const r = rng(seed);
-  const n = Math.max(3, Math.round(Math.abs(x2 - x1) / 26));
-  let d = `M ${x1.toFixed(1)} ${(y + (r() - 0.5) * amp).toFixed(1)}`;
-  for (let i = 1; i <= n; i++) {
-    const t = i / n;
-    const x = x1 + (x2 - x1) * t;
-    const yy = y + (r() - 0.5) * amp * 2 + Math.sin(t * Math.PI) * amp * 0.5;
-    d += ` L ${x.toFixed(1)} ${yy.toFixed(1)}`;
-  }
-  return d;
-}
-
-/** The arc that joins two words. It dips below both, so the apex is a natural
- *  place to hang the term without colliding with either end. */
-function inkArc(x1: number, y1: number, x2: number, y2: number, drop: number, seed: number): string {
-  const r = rng(seed);
-  const mx = (x1 + x2) / 2 + (r() - 0.5) * 6;
-  const my = Math.max(y1, y2) + drop;
+/** The arc that joins two words of the same مصراع, dipping below both so its
+ *  apex is free for the term. A symmetric quadratic, so it reads as drawn with
+ *  one confident stroke. */
+function arc(x1: number, y1: number, x2: number, y2: number, drop: number): string {
+  const mx = (x1 + x2) / 2;
+  const my = Math.max(y1, y2) + drop * 1.6;
   return `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
 }
 
-/** A small arrowhead at the end of a leader line. */
-function arrowHead(x: number, y: number, angle: number, size = 7): string {
-  const a1 = angle + 2.5;
-  const a2 = angle - 2.5;
-  return `M ${x} ${y} L ${(x + Math.cos(a1) * size).toFixed(1)} ${(y + Math.sin(a1) * size).toFixed(1)} M ${x} ${y} L ${(x + Math.cos(a2) * size).toFixed(1)} ${(y + Math.sin(a2) * size).toFixed(1)}`;
+/** A leader from the middle of a word's rule down to its label: a short drop,
+ *  then the arrowhead. This is what makes it unambiguous which handwriting
+ *  belongs to which word once several are stacked under one line. */
+function leader(x: number, y1: number, y2: number): string {
+  return `M ${x.toFixed(1)} ${y1.toFixed(1)} L ${x.toFixed(1)} ${y2.toFixed(1)}`;
+}
+
+/** Arrowhead pointing straight down, at the end of a leader. */
+function arrowDown(x: number, y: number, size = 4.5): string {
+  return `M ${(x - size).toFixed(1)} ${(y - size).toFixed(1)} L ${x.toFixed(1)} ${y.toFixed(1)} L ${(x + size).toFixed(1)} ${(y - size).toFixed(1)}`;
 }
 
 /* ------------------------------------------------------------- geometry */
@@ -116,6 +103,19 @@ function stack(items: Item[]): Map<string, number> {
     out.set(it.id, y);
   }
   return out;
+}
+
+/** Where a mark's handwriting sits, measured from the top of the host. Shared
+ *  so the leader logic and the labels themselves can never disagree. */
+function labelTopOf(p: Placed, hemiBottom: number[] = []): number {
+  const b = p.boxes[0];
+  const bottom = Math.max(...p.boxes.map((r) => r.y + r.h));
+  if (p.mark.kind === "gloss") {
+    const h = p.mark.spans[0].h;
+    return h > 0 ? hemiBottom[h - 1] + GAP + p.off : b.y - GAP - LABEL_H;
+  }
+  if (p.mark.kind === "link" && !p.cross) return bottom + GAP + p.off + ARC_DEPTH + 2;
+  return bottom + GAP + p.off + 4;
 }
 
 /* ------------------------------------------------------------ component */
@@ -318,28 +318,74 @@ export default function HandwrittenBeyt({
           height={H}
         >
           {placed.map(({ mark, off, cross, boxes: bs }, idx) => {
-            const seed = idx * 977 + mark.id.length * 31;
             const delay = reduced ? 0 : idx * 0.09;
             const common = {
               stroke: style.stroke,
-              strokeWidth: 1.7,
+              strokeWidth: 1.6,
               fill: "none",
               strokeLinecap: "round" as const,
+              strokeLinejoin: "round" as const,
               className: reduced ? undefined : "hb-ink",
               style: reduced ? undefined : { animationDelay: `${delay}s` },
+            };
+            /* Every rule gets a leader down to the handwriting it belongs to.
+               With three or four annotations stacked under one line, a rule on
+               its own leaves the reader guessing which label is which; the
+               arrow removes the guess. */
+            const lead = (b: Rect, top: number) => {
+              const x = b.x + b.w / 2;
+              const y1 = b.y + b.h + 3;
+              const y2 = top - 3;
+              if (y2 - y1 < 6) return null;
+              /* A leader may not be drawn through somebody else's writing. If
+                 another label already occupies the corridor between this word
+                 and its own label, the long line is replaced by a short stub
+                 just above the text — still an arrow pointing at it, without a
+                 stroke ruled across the words in between. */
+              const blocked = placed.some((o) => {
+                if (o.mark.id === mark.id || o.boxes.length === 0) return false;
+                const oTop = labelTopOf(o, hemiBottom);
+                if (!(oTop > y1 - 2 && oTop < y2 - 2)) return false;
+                // a roles mark writes one short label per word rather than one
+                // wide one, so each of its boxes has to be tested separately
+                if (o.mark.kind === "roles") {
+                  return o.boxes.some((r) => x > r.x - 8 && x < r.x + r.w + 8);
+                }
+                const ow = labelW.get(o.mark.id) ?? 0;
+                const oc =
+                  (Math.min(...o.boxes.map((r) => r.x)) +
+                    Math.max(...o.boxes.map((r) => r.x + r.w))) /
+                  2;
+                return Math.abs(oc - x) < ow / 2 + 6;
+              });
+              const from = blocked ? Math.max(y1, y2 - 12) : y1;
+              return (
+                <g key={`lead-${b.x}`}>
+                  <path d={leader(x, from, y2)} {...common} strokeWidth={1.2} />
+                  <path d={arrowDown(x, y2)} {...common} strokeWidth={1.2} />
+                </g>
+              );
             };
 
             if (mark.kind === "underline" || mark.kind === "gloss") {
               const b = bs[0];
-              const y = mark.kind === "gloss" ? b.y - GAP * 0.6 : b.y + b.h + 2;
-              return <path key={mark.id} d={inkLine(b.x, y, b.x + b.w, seed)} {...common} />;
+              if (mark.kind === "gloss") {
+                return <path key={mark.id} d={rule(b.x, b.y - GAP * 0.6, b.x + b.w)} {...common} />;
+              }
+              const top = b.y + b.h + GAP + off + 4;
+              return (
+                <g key={mark.id}>
+                  <path d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
+                  {lead(b, top)}
+                </g>
+              );
             }
 
             if (mark.kind === "roles") {
               return (
                 <g key={mark.id}>
                   {bs.map((b, i) => (
-                    <path key={i} d={inkLine(b.x, b.y + b.h + 2, b.x + b.w, seed + i * 13)} {...common} />
+                    <path key={i} d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
                   ))}
                 </g>
               );
@@ -352,35 +398,30 @@ export default function HandwrittenBeyt({
                each end underlined, the term written once — and only same-line
                pairs get the joining arc. */
             if (cross) {
+              const bottom = Math.max(...bs.map((r) => r.y + r.h));
+              const top = bottom + GAP + off + 4;
               return (
                 <g key={mark.id}>
                   {bs.map((b, i) => (
-                    <path
-                      key={i}
-                      d={inkLine(b.x, b.y + b.h + 2, b.x + b.w, seed + i * 19)}
-                      {...common}
-                    />
+                    <path key={i} d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
                   ))}
+                  {lead(bs[bs.length - 1], top)}
                 </g>
               );
             }
 
-            // link: join consecutive targets with an arc that dips into this
-            // mark's own depth, so the label can hang just under the apex
+            // link: one arc per consecutive pair, dipping to this mark's depth
             const drop = GAP + off + ARC_DEPTH;
             return (
               <g key={mark.id}>
                 {bs.slice(0, -1).map((b, i) => {
                   const c = bs[i + 1];
-                  const ax = b.x + b.w / 2;
-                  const cx = c.x + c.w / 2;
-                  const ay = b.y + b.h;
-                  const cy = c.y + c.h;
                   return (
-                    <g key={i}>
-                      <path d={inkArc(ax, ay, cx, cy, drop, seed + i * 7)} {...common} />
-                      <path d={arrowHead(cx, cy + 2, cx > ax ? -1.0 : -2.1)} {...common} strokeWidth={1.4} />
-                    </g>
+                    <path
+                      key={i}
+                      d={arc(b.x + b.w / 2, b.y + b.h, c.x + c.w / 2, c.y + c.h, drop)}
+                      {...common}
+                    />
                   );
                 })}
               </g>
@@ -423,14 +464,7 @@ export default function HandwrittenBeyt({
              label hangs under the apex of its arc, which is already ARC_DEPTH
              deeper. Both start from the depth the packer gave this mark, so
              neither can land on another mark's ink. */
-          const top =
-            mark.kind === "gloss"
-              ? mark.spans[0].h > 0
-                ? hemiBottom[mark.spans[0].h - 1] + GAP + off
-                : b.y - GAP - LABEL_H
-              : isLink
-                ? bottom + (cross ? GAP + off + 4 : GAP + off + ARC_DEPTH + 2)
-                : bottom + GAP + off + 4;
+          const top = labelTopOf({ mark, off, cross, boxes: bs }, hemiBottom);
 
           return (
             <span

@@ -6,6 +6,8 @@ import type { Beyt } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
+import HandwrittenBeyt from "@/components/UI/doroos/HandwrittenBeyt";
+import { marksForBeyt, type Realm } from "@/lib/doroos/annotations";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -15,6 +17,18 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  reads the answer before the question. */
 export default function BeytCard({ beyt }: { beyt: Beyt }) {
   const [showAnswer, setShowAnswer] = useState(false);
+
+  /** Two ways to read the same notes: as the three قلمرو lists, or drawn onto
+   *  the بیت itself. The handwritten view replaces the زبانی and ادبی panels
+   *  rather than sitting beside them — the marks *are* those notes, and showing
+   *  both would print every one of them twice. قلمرو فکری has nothing to point
+   *  at, so it stays either way. */
+  const [hand, setHand] = useState(false);
+  const [realm, setRealm] = useState<Realm>("literary");
+
+  // a بیت whose notes never resolved to words has nothing to draw, so it is
+  // not offered the toggle at all
+  const drawable = marksForBeyt(beyt).some((m) => m.kind !== "line");
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
@@ -44,24 +58,76 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
         />
 
         <div className="relative z-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
-            بیت {faNum(beyt.n)}
-          </span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+              بیت {faNum(beyt.n)}
+            </span>
 
-          <div className="mt-6 space-y-3 text-center">
-            {beyt.hemistichs.map((h, i) => (
-              <motion.p
-                key={i}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
-                className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
-              >
-                {h}
-              </motion.p>
-            ))}
+            {drawable && (
+              <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1">
+                {([false, true] as const).map((v) => (
+                  <button
+                    key={String(v)}
+                    type="button"
+                    onClick={() => setHand(v)}
+                    aria-pressed={hand === v}
+                    className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                      hand === v
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {v ? "دست‌نویس" : "فهرست"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {hand ? (
+            <div className="mt-6">
+              <div className="mb-5 flex justify-center gap-2">
+                {(
+                  [
+                    ["linguistic", "قلمرو زبانی"],
+                    ["literary", "قلمرو ادبی"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setRealm(id)}
+                    aria-pressed={realm === id}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-bold transition-colors ${
+                      realm === id
+                        ? id === "linguistic"
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-gold bg-gold/15 text-gold"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <HandwrittenBeyt key={realm} beyt={beyt} realm={realm} />
+            </div>
+          ) : (
+            <div className="mt-6 space-y-3 text-center">
+              {beyt.hemistichs.map((h, i) => (
+                <motion.p
+                  key={i}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.6 }}
+                  transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
+                  className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
+                >
+                  {h}
+                </motion.p>
+              ))}
+            </div>
+          )}
 
           {/* معنی و مفهوم */}
           <div className="mt-7 grid gap-3 sm:grid-cols-5">
@@ -86,24 +152,28 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
       </motion.div>
 
       {/* ---------- the three قلمروs ---------- */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <RealmPanel
-          label={REALMS[0].label}
-          token={REALMS[0].token}
-          items={beyt.linguistic}
-          delay={0}
-        />
-        <RealmPanel
-          label={REALMS[1].label}
-          token={REALMS[1].token}
-          items={beyt.literary}
-          delay={0.08}
-        />
+      <div className={`mt-4 grid gap-4 ${hand ? "" : "lg:grid-cols-3"}`}>
+        {!hand && (
+          <>
+            <RealmPanel
+              label={REALMS[0].label}
+              token={REALMS[0].token}
+              items={beyt.linguistic}
+              delay={0}
+            />
+            <RealmPanel
+              label={REALMS[1].label}
+              token={REALMS[1].token}
+              items={beyt.literary}
+              delay={0.08}
+            />
+          </>
+        )}
         <RealmPanel
           label={REALMS[2].label}
           token={REALMS[2].token}
           body={beyt.intellectual}
-          delay={0.16}
+          delay={hand ? 0 : 0.16}
         />
       </div>
 

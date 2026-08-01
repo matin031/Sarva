@@ -67,12 +67,16 @@ type Placed = {
   boxes: Rect[];
 };
 
-/** How deep each kind draws before its handwriting starts. */
+/** How deep each kind draws before its handwriting starts. `labelH` is the
+ *  label's *measured* height: on a narrow screen a term like «کنایه از حیرت و
+ *  تعجب» wraps to three lines, and reserving one line's worth pushed it
+ *  straight through the notes underneath. */
 const ARC_DEPTH = 16;
-function heightOf(m: Mark): number {
-  if (m.kind === "link") return ARC_DEPTH + LABEL_H + 8;
-  if (m.kind === "gloss") return LABEL_H + 6;
-  return LABEL_H + 8;
+function heightOf(m: Mark, labelH = LABEL_H): number {
+  const h = Math.max(LABEL_H, labelH);
+  if (m.kind === "link") return ARC_DEPTH + h + 8;
+  if (m.kind === "gloss") return h + 6;
+  return h + 8;
 }
 
 type Item = { id: string; x1: number; x2: number; h: number };
@@ -146,7 +150,7 @@ export default function HandwrittenBeyt({
   const wordRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const labelRefs = useRef<Map<string, HTMLElement>>(new Map());
   const [boxes, setBoxes] = useState<Map<string, Rect> | null>(null);
-  const [labelW, setLabelW] = useState<Map<string, number>>(new Map());
+  const [labelBox, setLabelBox] = useState<Map<string, { w: number; h: number }>>(new Map());
 
   const hemis = beyt.hemistichs.map(tokenize);
   const marks = marksForBeyt(beyt).filter((m) => m.realm === realm);
@@ -165,10 +169,14 @@ export default function HandwrittenBeyt({
       next.set(key, { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
     }
     setBoxes(next);
-    // the handwriting's own width decides how much room it needs sideways
-    const widths = new Map<string, number>();
-    for (const [id, el] of labelRefs.current) widths.set(id, el.getBoundingClientRect().width);
-    setLabelW(widths);
+    // the handwriting's own box decides how much room it needs, both sideways
+    // and — once it wraps — downwards
+    const sizes = new Map<string, { w: number; h: number }>();
+    for (const [id, el] of labelRefs.current) {
+      const r = el.getBoundingClientRect();
+      sizes.set(id, { w: r.width, h: r.height });
+    }
+    setLabelBox(sizes);
   }, []);
 
   useLayoutEffect(() => {
@@ -238,7 +246,8 @@ export default function HandwrittenBeyt({
       const wordX1 = Math.min(...bs.map((b) => b.x));
       const wordX2 = Math.max(...bs.map((b) => b.x + b.w));
       const centre = (wordX1 + wordX2) / 2;
-      const lw = labelW.get(m.id) ?? 0;
+      const lb = labelBox.get(m.id);
+      const lw = lb?.w ?? 0;
       // whichever is wider — the words, or the handwriting under them
       const x1 = Math.min(wordX1, centre - lw / 2);
       const x2 = Math.max(wordX2, centre + lw / 2);
@@ -257,7 +266,7 @@ export default function HandwrittenBeyt({
         id: m.id,
         x1,
         x2,
-        h: cross ? LABEL_H + 8 : heightOf(m),
+        h: cross ? Math.max(LABEL_H, lb?.h ?? 0) + 8 : heightOf(m, lb?.h),
       });
     }
 
@@ -351,7 +360,7 @@ export default function HandwrittenBeyt({
                 if (o.mark.kind === "roles") {
                   return o.boxes.some((r) => x > r.x - 8 && x < r.x + r.w + 8);
                 }
-                const ow = labelW.get(o.mark.id) ?? 0;
+                const ow = labelBox.get(o.mark.id)?.w ?? 0;
                 const oc =
                   (Math.min(...o.boxes.map((r) => r.x)) +
                     Math.max(...o.boxes.map((r) => r.x + r.w))) /

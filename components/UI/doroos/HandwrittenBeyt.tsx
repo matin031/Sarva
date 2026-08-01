@@ -19,14 +19,47 @@ import { marksForBeyt, tokenize, type Mark, type Realm, type Span } from "@/lib/
 
 type Rect = { x: number; y: number; w: number; h: number };
 
+const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+
+function sameRects(a: Map<string, Rect> | null, b: Map<string, Rect>): boolean {
+  if (!a || a.size !== b.size) return false;
+  for (const [k, v] of b) {
+    const o = a.get(k);
+    if (!o || !near(o.x, v.x) || !near(o.y, v.y) || !near(o.w, v.w) || !near(o.h, v.h))
+      return false;
+  }
+  return true;
+}
+
+function sameSizes(
+  a: Map<string, { w: number; h: number }>,
+  b: Map<string, { w: number; h: number }>,
+): boolean {
+  if (a.size !== b.size) return false;
+  for (const [k, v] of b) {
+    const o = a.get(k);
+    if (!o || !near(o.w, v.w) || !near(o.h, v.h)) return false;
+  }
+  return true;
+}
+
 /* ------------------------------------------------------------- hand-drawn */
 
 /** A rule under a word. Straight, and drawn once — the earlier version added
  *  a hand-drawn wobble to every stroke, which read as sloppy rather than
  *  hand-made next to a real handwriting face. The handwriting carries the
  *  "written by a person" feeling; the rules just have to be clean. */
-function rule(x1: number, y: number, x2: number): string {
-  return `M ${x1.toFixed(1)} ${y.toFixed(1)} L ${x2.toFixed(1)} ${y.toFixed(1)}`;
+/** Pulled in at both ends. Two annotated words sitting next to each other —
+ *  «چون» and «زندگانی» — drew two rules that met exactly, and the pair read as
+ *  one long underline covering both, so the reader could not tell which label
+ *  belonged to which word. The inset guarantees a visible gap. `frac` shortens
+ *  the rule further, used for sentence-pattern marks where every single word of
+ *  the مصراع is underlined at once. */
+function rule(x1: number, y: number, x2: number, frac = 1): string {
+  const mid = (x1 + x2) / 2;
+  const half = ((x2 - x1) / 2) * frac - 2.5;
+  if (half <= 1) return `M ${mid.toFixed(1)} ${y.toFixed(1)} L ${(mid + 1).toFixed(1)} ${y.toFixed(1)}`;
+  return `M ${(mid - half).toFixed(1)} ${y.toFixed(1)} L ${(mid + half).toFixed(1)} ${y.toFixed(1)}`;
 }
 
 /** The arc that joins two words of the same مصراع, dipping below both so its
@@ -63,6 +96,10 @@ type Placed = {
   off: number;
   /** its two halves sit on different مصراع, so it is drawn as two underlines */
   cross: boolean;
+  /** roles only: one depth per word, because each label is packed on its own */
+  roleOffs?: number[];
+  /** measured height of this mark's handwriting, once it is known */
+  labelH?: number;
   /** the union box of everything the mark points at, per span */
   boxes: Rect[];
 };
@@ -79,7 +116,7 @@ function heightOf(m: Mark, labelH = LABEL_H): number {
   return h + 8;
 }
 
-type Item = { id: string; x1: number; x2: number; h: number };
+type Item = { id: string; x1: number; x2: number; h: number; pri: number };
 
 /** Stacks annotations under a line the way a typesetter stacks footnotes:
  *  each one drops to the shallowest depth where its *own* horizontal extent
@@ -93,7 +130,11 @@ type Item = { id: string; x1: number; x2: number; h: number };
 function stack(items: Item[]): Map<string, number> {
   const placedBoxes: { x1: number; x2: number; y1: number; y2: number }[] = [];
   const out = new Map<string, number>();
-  const sorted = [...items].sort((a, b) => b.h - a.h || a.x1 - b.x1);
+  /* Order decides depth, so it decides what looks attached to what. A
+     sentence-pattern label has to sit against its own مصراع — pushed two rows
+     down by an unrelated note it floated between the lines and looked like it
+     belonged to neither. Priority first, then position. */
+  const sorted = [...items].sort((a, b) => a.pri - b.pri || a.x1 - b.x1);
   for (const it of sorted) {
     let y = 0;
     for (;;) {
@@ -116,7 +157,11 @@ function labelTopOf(p: Placed, hemiBottom: number[] = []): number {
   const bottom = Math.max(...p.boxes.map((r) => r.y + r.h));
   if (p.mark.kind === "gloss") {
     const h = p.mark.spans[0].h;
-    return h > 0 ? hemiBottom[h - 1] + GAP + p.off : b.y - GAP - LABEL_H;
+    // above its own word on the first line, in the gap under the line before
+    // it otherwise; either way `off` is a depth away from the poem, not toward it
+    return h > 0
+      ? hemiBottom[h - 1] + GAP + p.off
+      : b.y - GAP - p.off - (p.labelH ?? LABEL_H);
   }
   if (p.mark.kind === "link" && !p.cross) return bottom + GAP + p.off + ARC_DEPTH + 2;
   return bottom + GAP + p.off + 4;
@@ -168,7 +213,6 @@ export default function HandwrittenBeyt({
       const r = el.getBoundingClientRect();
       next.set(key, { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
     }
-    setBoxes(next);
     // the handwriting's own box decides how much room it needs, both sideways
     // and — once it wraps — downwards
     const sizes = new Map<string, { w: number; h: number }>();
@@ -176,17 +220,25 @@ export default function HandwrittenBeyt({
       const r = el.getBoundingClientRect();
       sizes.set(id, { w: r.width, h: r.height });
     }
-    setLabelBox(sizes);
+    /* Only publish a change. Placement moves the labels, moving them can
+       re-wrap them, re-wrapping resizes them, and a resize brings us back here
+       — so without this guard the observer below feeds itself forever. */
+    setBoxes((prev) => (sameRects(prev, next) ? prev : next));
+    setLabelBox((prev) => (sameSizes(prev, sizes) ? prev : sizes));
   }, []);
 
   useLayoutEffect(() => {
     measure();
     const host = hostRef.current;
     if (!host) return;
+    // the labels are observed too, not just the host: clamping one against the
+    // edge of the card can make it wrap onto another line, and the space it
+    // needs has to be recomputed from the size it actually ended up
     const ro = new ResizeObserver(measure);
     ro.observe(host);
+    for (const el of labelRefs.current.values()) ro.observe(el);
     return () => ro.disconnect();
-  }, [measure, beyt.n]);
+  });
 
   // a webfont landing after first paint moves every word, so re-measure then
   useEffect(() => {
@@ -233,9 +285,15 @@ export default function HandwrittenBeyt({
 
   const placed: Placed[] = [];
   const depthPerHemi = [0, 0];
+  /** room a gloss on the *first* مصراع needs above it. It is written over its
+   *  word, but there is no line before it to borrow the gap from, so the space
+   *  has to be reserved at the top of the whole block — otherwise a two-line
+   *  meaning is drawn straight through the poem. */
+  let topDepth = 0;
   if (boxes) {
     const cache = new Map<string, Rect[]>();
     const byHemi: Item[][] = [[], []];
+    const aboveItems: Item[] = [];
     const crossIds = new Set<string>();
 
     for (const m of drawn) {
@@ -262,15 +320,47 @@ export default function HandwrittenBeyt({
          under the line before it — so that is the stack it has to compete in,
          not its own. Otherwise the meaning of a word on line two lands on top
          of an annotation hanging off line one. */
-      byHemi[m.kind === "gloss" ? Math.max(0, h - 1) : h].push({
+      const borrowed = m.kind === "gloss" && h > 0;
+      const above = m.kind === "gloss" && h === 0;
+
+      /* A sentence pattern is not one annotation but one per word, and its
+         labels are wider than the words they sit under — «نهاد مفعول فعل» over
+         three short adjacent words ran straight into each other. Packing each
+         label separately lets a crowded one drop to the next row. */
+      if (m.kind === "roles") {
+        bs.forEach((b, i) => {
+          const w = labelBox.get(`${m.id}#${i}`)?.w ?? b.w;
+          const c = b.x + b.w / 2;
+          byHemi[h].push({
+            id: `${m.id}#${i}`,
+            x1: Math.min(b.x, c - w / 2),
+            x2: Math.max(b.x + b.w, c + w / 2),
+            h: LABEL_H + 8,
+            pri: 0,
+          });
+        });
+        continue;
+      }
+
+      const item: Item = {
         id: m.id,
         x1,
         x2,
         h: cross ? Math.max(LABEL_H, lb?.h ?? 0) + 8 : heightOf(m, lb?.h),
-      });
+        // a gloss borrowed from the next مصراع takes whatever room is left at
+        // the bottom of the gap
+        pri: borrowed ? 3 : m.kind === "link" ? 2 : 1,
+      };
+      if (above) aboveItems.push(item);
+      else byHemi[borrowed ? h - 1 : h].push(item);
     }
 
     const offOf = new Map<string, number>();
+    if (aboveItems.length) {
+      const sAbove = stack(aboveItems);
+      sAbove.forEach((v, k) => offOf.set(k, v));
+      topDepth = aboveItems.reduce((a, it) => Math.max(a, (sAbove.get(it.id) ?? 0) + it.h), 0);
+    }
     byHemi.forEach((items, h) => {
       const s = stack(items);
       s.forEach((v, k) => offOf.set(k, v));
@@ -284,6 +374,9 @@ export default function HandwrittenBeyt({
         mark: m,
         off: offOf.get(m.id) ?? 0,
         cross: crossIds.has(m.id),
+        roleOffs:
+          m.kind === "roles" ? bs.map((_, i) => offOf.get(`${m.id}#${i}`) ?? 0) : undefined,
+        labelH: labelBox.get(m.id)?.h,
         boxes: bs,
       });
     }
@@ -295,13 +388,20 @@ export default function HandwrittenBeyt({
 
   return (
     <div className="relative" dir="rtl">
-      <div ref={hostRef} className="relative">
+      {/* flow-root, not plain block: the room each مصراع reserves for its
+          annotations is its bottom margin, and the last one's margin collapses
+          out of a plain block — which left the deepest labels of every بیت
+          hanging 30–70px below the box everything else is measured against. */}
+      <div ref={hostRef} className="relative flow-root">
         {hemis.map((words, h) => (
           <div
             key={h}
             data-hemi={h}
             className="relative z-10 text-center text-lg leading-loose text-foreground xs:text-xl"
-            style={{ marginBottom: depthPerHemi[h] + GAP * 2 }}
+            style={{
+              marginBottom: depthPerHemi[h] + GAP * 2,
+              marginTop: h === 0 && topDepth ? topDepth + GAP : undefined,
+            }}
           >
             {words.map((w, i) => (
               <span
@@ -326,7 +426,7 @@ export default function HandwrittenBeyt({
           width={W}
           height={H}
         >
-          {placed.map(({ mark, off, cross, boxes: bs }, idx) => {
+          {placed.map(({ mark, off, cross, roleOffs, boxes: bs }, idx) => {
             const delay = reduced ? 0 : idx * 0.09;
             const common = {
               stroke: style.stroke,
@@ -358,7 +458,13 @@ export default function HandwrittenBeyt({
                 // a roles mark writes one short label per word rather than one
                 // wide one, so each of its boxes has to be tested separately
                 if (o.mark.kind === "roles") {
-                  return o.boxes.some((r) => x > r.x - 8 && x < r.x + r.w + 8);
+                  return o.boxes.some((r, i) => {
+                    const rTop = r.y + r.h + GAP + (o.roleOffs?.[i] ?? 0);
+                    if (!(rTop > y1 - 2 && rTop < y2 - 2)) return false;
+                    const rw = labelBox.get(`${o.mark.id}#${i}`)?.w ?? r.w;
+                    const rc = r.x + r.w / 2;
+                    return Math.abs(rc - x) < rw / 2 + 6;
+                  });
                 }
                 const ow = labelBox.get(o.mark.id)?.w ?? 0;
                 const oc =
@@ -394,7 +500,12 @@ export default function HandwrittenBeyt({
               return (
                 <g key={mark.id}>
                   {bs.map((b, i) => (
-                    <path key={i} d={rule(b.x, b.y + b.h + 3, b.x + b.w)} {...common} />
+                    <g key={i}>
+                      <path d={rule(b.x, b.y + b.h + 3, b.x + b.w, 0.62)} {...common} />
+                      {(roleOffs?.[i] ?? 0) > 6
+                        ? lead(b, b.y + b.h + GAP + (roleOffs?.[i] ?? 0))
+                        : null}
+                    </g>
                   ))}
                 </g>
               );
@@ -439,7 +550,7 @@ export default function HandwrittenBeyt({
         </svg>
 
         {/* the handwriting — real HTML so Persian shapes correctly */}
-        {placed.map(({ mark, off, cross, boxes: bs }, idx) => {
+        {placed.map(({ mark, off, cross, roleOffs, boxes: bs }, idx) => {
           const delay = reduced ? 0 : idx * 0.09 + 0.25;
           const anim = reduced ? undefined : "hb-write";
           if (mark.kind === "roles") {
@@ -448,11 +559,21 @@ export default function HandwrittenBeyt({
                 {bs.map((b, i) => (
                   <span
                     key={i}
+                    ref={(el) => {
+                      const k = `${mark.id}#${i}`;
+                      if (el) labelRefs.current.set(k, el);
+                      else labelRefs.current.delete(k);
+                    }}
                     className={`hand pointer-events-none absolute z-20 whitespace-nowrap text-xs ${style.text} ${anim ?? ""}`}
                     style={{
-                      right: undefined,
-                      left: b.x + b.w / 2,
-                      top: b.y + b.h + GAP + off,
+                      left: (() => {
+                        const w = labelBox.get(`${mark.id}#${i}`)?.w ?? 0;
+                        const c = b.x + b.w / 2;
+                        return W > 0 && w > 0
+                          ? Math.min(Math.max(c, w / 2 + 2), W - w / 2 - 2)
+                          : c;
+                      })(),
+                      top: b.y + b.h + GAP + (roleOffs?.[i] ?? 0),
                       transform: "translateX(-50%)",
                       animationDelay: `${delay + i * 0.05}s`,
                     }}
@@ -467,13 +588,22 @@ export default function HandwrittenBeyt({
           const b = bs[0];
           const last = bs[bs.length - 1];
           const isLink = mark.kind === "link";
-          const cx = isLink ? (b.x + b.w / 2 + (last.x + last.w / 2)) / 2 : b.x + b.w / 2;
+          /* Centred on its word, but never past the edge of the box. On a phone a
+             word near the margin put half its handwriting outside the card. The
+             leader still drops on the word itself, so nudging the text sideways
+             costs nothing in clarity. */
+          const rawCx = isLink ? (b.x + b.w / 2 + (last.x + last.w / 2)) / 2 : b.x + b.w / 2;
+          const lw = labelBox.get(mark.id)?.w ?? 0;
+          const cx = W > 0 && lw > 0 ? Math.min(Math.max(rawCx, lw / 2 + 2), W - lw / 2 - 2) : rawCx;
           const bottom = Math.max(...bs.map((r) => r.y + r.h));
           /* An underline hugs its word and writes just below it; a link's
              label hangs under the apex of its arc, which is already ARC_DEPTH
              deeper. Both start from the depth the packer gave this mark, so
              neither can land on another mark's ink. */
-          const top = labelTopOf({ mark, off, cross, boxes: bs }, hemiBottom);
+          const top = labelTopOf(
+            { mark, off, cross, boxes: bs, labelH: labelBox.get(mark.id)?.h },
+            hemiBottom,
+          );
 
           return (
             <span
@@ -482,8 +612,16 @@ export default function HandwrittenBeyt({
                 if (el) labelRefs.current.set(mark.id, el);
                 else labelRefs.current.delete(mark.id);
               }}
-              className={`hand pointer-events-none absolute z-20 max-w-[15rem] text-center text-[0.82rem] leading-tight ${style.text} ${anim ?? ""}`}
-              style={{ left: cx, top, transform: "translateX(-50%)", animationDelay: `${delay}s` }}
+              className={`hand pointer-events-none absolute z-20 text-center text-[0.82rem] leading-tight ${style.text} ${anim ?? ""}`}
+              /* the cap is the box, not a fixed 15rem: on a 320px card a
+                 240px label cannot be centred anywhere without hanging out */
+              style={{
+                left: cx,
+                top,
+                maxWidth: W > 0 ? Math.min(240, W - 10) : 240,
+                transform: "translateX(-50%)",
+                animationDelay: `${delay}s`,
+              }}
             >
               {mark.label}
             </span>

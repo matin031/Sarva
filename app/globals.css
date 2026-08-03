@@ -111,7 +111,7 @@
 
 @theme inline {
   --font-sans: "Vazirmatn", "Geist", sans-serif;
-  --font-serif: "Noto Naskh Arabic", "Geist", serif;
+  --font-serif: var(--font-naskh), "Noto Naskh Arabic", "Vazirmatn", serif;
   --font-mono: "Geist Mono", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -803,45 +803,6 @@ button {
 
 .sarva-scroll::-webkit-scrollbar-thumb:hover {
   background: color-mix(in oklch, var(--primary) 80%, transparent);
-}
-
-/* ------------------------------------------- handwriting for lesson notes */
-
-/* Digi Sarvenaz — a Persian hand, supplied by the author of the lessons. It
-   covers every Persian letter, the ZWNJ and Persian digits, which matters here
-   because annotations carry things like «۰٫۲۵ نمره» and «بی‌دست».
-   Self-hosted at 32 kB: the marks are decoration, so they must never hold up
-   the بیت itself, and a third-party request on a page this content-heavy is a
-   dependency with nothing to gain. */
-@font-face {
-  font-family: "Hand";
-  src: url("/fonts/digi-sarvenaz.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-.hand {
-  font-family: "Hand", var(--font-sans);
-  /* the face draws small on the em and its descent is deep (-450/1000), so it
-     needs both a size nudge and room under the baseline to sit level with the
-     rest of the UI */
-  font-size: 1.15em;
-  line-height: 1.4;
-}
-
-/* a wrong guess in the lesson's practice mode */
-@keyframes hbShake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-3px);
-  }
-  75% {
-    transform: translateX(3px);
-  }
 }
 
 /* ------------------------------------------------------- decorative glows */

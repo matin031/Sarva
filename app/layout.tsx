@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Vazirmatn } from "next/font/google";
+import { Vazirmatn, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
@@ -10,6 +10,17 @@ import { ToastContainer } from "react-toastify";
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
   variable: "--font-vazirmatn",
+  display: "swap",
+});
+
+/* The poem is set in `font-serif`, which pointed at "Noto Naskh Arabic" — a
+   font nothing ever loaded. On a machine without it installed (i.e. almost
+   every one) the بیت fell all the way through to the OS serif. Self-host it
+   so the couplet is set in the face it was designed for. */
+const naskh = Noto_Naskh_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-naskh",
   display: "swap",
 });
 
@@ -116,7 +127,7 @@ export default function RootLayout({
   return (
     <html
       lang="fa"
-      className={`${vazirmatn.variable}  h-full antialiased dark`}
+      className={`${vazirmatn.variable} ${naskh.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
          mismatch nobody can act on. This suppresses the warning for this one

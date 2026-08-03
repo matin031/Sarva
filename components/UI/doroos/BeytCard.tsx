@@ -6,7 +6,6 @@ import type { Beyt } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
-import BeytExplorer from "@/components/UI/doroos/BeytExplorer";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -19,76 +18,92 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
+      {/* ---------- the couplet ---------- */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 34 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
+        viewport={{ once: true, amount: 0.35 }}
         transition={{ duration: 0.7, ease: EASE }}
-        className="group relative z-20 overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-lg transition-colors duration-500 hover:border-primary/30"
+        className="relative z-20 overflow-hidden rounded-3xl border border-primary/25 bg-card p-6 shadow-xl sm:p-9"
       >
-        {/* a single wash from the top corner rather than two competing blobs:
-            quieter, and it leaves the poem the brightest thing on the card */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-40"
+          className="pointer-events-none absolute -left-20 -top-20 size-56 rounded-full"
           style={{
             background:
-              "radial-gradient(120% 100% at 85% 0%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 70%)",
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 22%, transparent), transparent)",
           }}
         />
-        {/* hairline of light along the top edge */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-l from-transparent via-primary/40 to-transparent"
+          className="pointer-events-none absolute -bottom-24 -right-16 size-56 rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 16%, transparent), transparent)",
+          }}
         />
 
-        <div className="relative z-20 p-6 sm:p-9">
-          <div className="mb-7 flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full border border-primary/35 bg-primary/10 text-sm font-black text-primary">
-              {faNum(beyt.n)}
-            </span>
-            <div
-              aria-hidden
-              className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-transparent"
-            />
+        <div className="relative z-20">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+            بیت {faNum(beyt.n)}
+          </span>
+
+          <div className="mt-6 space-y-3 text-center">
+            {beyt.hemistichs.map((h, i) => (
+              <motion.p
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.6 }}
+                transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
+                className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
+              >
+                {h}
+              </motion.p>
+            ))}
           </div>
 
-          <BeytExplorer beyt={beyt}>
-            <div className="grid gap-3 sm:grid-cols-5">
-              <div className="rounded-2xl border border-border/70 bg-background/60 p-4 sm:col-span-3">
-                <h3 className="mb-1.5 text-[0.72rem] font-black tracking-wide text-muted-foreground">
-                  معنی
-                </h3>
-                <p className="text-sm leading-relaxed text-foreground">{beyt.meaning}</p>
-              </div>
-              <div
-                className="rounded-2xl border p-4 sm:col-span-2"
-                style={{
-                  borderColor: "color-mix(in oklch, var(--color-gold) 30%, transparent)",
-                  background: "color-mix(in oklch, var(--color-gold) 7%, transparent)",
-                }}
-              >
-                <h3 className="mb-1.5 text-[0.72rem] font-black tracking-wide text-gold">
-                  مفهوم
-                </h3>
-                <p className="text-sm leading-relaxed font-bold text-foreground">
-                  {beyt.concept}
-                </p>
-              </div>
+          {/* معنی و مفهوم */}
+          <div className="mt-7 grid gap-3 sm:grid-cols-5">
+            <div className="relative z-20 rounded-2xl border border-border bg-background p-4 sm:col-span-3">
+              <h3 className="mb-1.5 text-xs font-black tracking-wide text-muted-foreground">
+                معنی
+              </h3>
+              <p className="text-sm leading-relaxed text-foreground">
+                {beyt.meaning}
+              </p>
             </div>
-          </BeytExplorer>
+            <div className="relative z-20 rounded-2xl border border-gold/30 bg-background p-4 sm:col-span-2">
+              <h3 className="mb-1.5 text-xs font-black tracking-wide text-gold">
+                مفهوم
+              </h3>
+              <p className="text-sm leading-relaxed font-bold text-foreground">
+                {beyt.concept}
+              </p>
+            </div>
+          </div>
         </div>
       </motion.div>
 
       {/* ---------- the three قلمروs ---------- */}
-      {/* قلمرو فکری stays a panel: it is a paragraph about the بیت as a
-          whole, with no words to point at, so there is nothing for the
-          explorer to do with it. */}
-      <div className="mt-4">
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <RealmPanel
+          label={REALMS[0].label}
+          token={REALMS[0].token}
+          items={beyt.linguistic}
+          delay={0}
+        />
+        <RealmPanel
+          label={REALMS[1].label}
+          token={REALMS[1].token}
+          items={beyt.literary}
+          delay={0.08}
+        />
         <RealmPanel
           label={REALMS[2].label}
           token={REALMS[2].token}
           body={beyt.intellectual}
+          delay={0.16}
         />
       </div>
 

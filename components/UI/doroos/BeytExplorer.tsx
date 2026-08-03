@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Beyt } from "@/lib/doroos/types";
 import { marksForBeyt, tokenize, type Mark, type Realm } from "@/lib/doroos/annotations";
+import { useLessonMode } from "@/components/UI/doroos/lesson-mode";
 
 /** The بیت as the interface.
  *
@@ -41,7 +42,11 @@ export default function BeytExplorer({
   const hemis = useMemo(() => beyt.hemistichs.map(tokenize), [beyt]);
   const marks = useMemo(() => marksForBeyt(beyt), [beyt]);
 
-  const [mode, setMode] = useState<Mode>("explore");
+  /* The mode belongs to the lesson, not to this بیت. Falling back to local
+     state keeps the component usable on its own. */
+  const lesson = useLessonMode();
+  const [localMode, setLocalMode] = useState<Mode>("explore");
+  const mode: Mode = lesson ? (lesson.mode === "practice" ? "practice" : "explore") : localMode;
   const [realms, setRealms] = useState<Realm[]>(["linguistic", "literary"]);
   /** the word the reader is pointing at, as "h:i" */
   const [activeWord, setActiveWord] = useState<string | null>(null);
@@ -107,38 +112,24 @@ export default function BeytExplorer({
     setMissed(null);
   }
 
+  // the header adds these up across the whole درس
+  const token = lesson?.resetToken ?? 0;
+  const seenToken = useRef(token);
+  if (seenToken.current !== token) {
+    seenToken.current = token;
+    if (found.size || missed) {
+      setFound(new Set());
+      setMissed(null);
+    }
+  }
+  useEffect(() => {
+    if (mode === "practice") lesson?.report(beyt.n, found.size, total);
+  }, [mode, found.size, total, beyt.n, lesson]);
+
   return (
     <div dir="rtl" className="relative z-20">
       {/* ---------- controls ---------- */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-full border border-border bg-background p-1">
-          {(
-            [
-              ["explore", "کاوش"],
-              ["practice", "تمرین"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => {
-                setMode(v);
-                setActiveWord(null);
-                setActiveMark(null);
-                resetPractice();
-              }}
-              aria-pressed={mode === v}
-              className={`min-h-9 rounded-full px-4 text-xs font-bold transition-colors ${
-                mode === v
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
           {(Object.keys(REALM_META) as Realm[]).map((r) => {
             const on = realms.includes(r);
@@ -225,6 +216,18 @@ export default function BeytExplorer({
           </p>
         ))}
       </div>
+
+      {!lesson && (
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setLocalMode((m) => (m === "practice" ? "explore" : "practice"))}
+            className="rounded-full border border-border px-3 py-1 text-xs font-bold text-muted-foreground"
+          >
+            {localMode === "practice" ? "کاوش" : "تمرین"}
+          </button>
+        </div>
+      )}
 
       {/* ---------- practice progress ---------- */}
       {mode === "practice" && (

@@ -11,6 +11,8 @@ import {
   RevealLine,
 } from "@/components/UI/aruz/reveal";
 import BeytCard from "@/components/UI/doroos/BeytCard";
+import { LessonModeProvider } from "@/components/UI/doroos/lesson-mode";
+import LessonModeBar from "@/components/UI/doroos/LessonModeBar";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
 import { REALMS } from "@/lib/doroos/types";
 
@@ -37,6 +39,7 @@ export default function LessonView({
     lesson.kind === "poem" ? lesson.beyts.length : lesson.passages.length;
 
   return (
+    <LessonModeProvider>
     <MotionConfig reducedMotion="user">
       <div className="relative z-20 overflow-hidden bg-background">
         {/* reading progress */}
@@ -126,6 +129,7 @@ export default function LessonView({
 
         {/* ---------- the analysis ---------- */}
         <section dir="rtl" className="relative z-20 container space-y-14 pb-20">
+          {lesson.kind === "poem" && <LessonModeBar />}
           {lesson.kind === "poem"
             ? lesson.beyts.map((b) => <BeytCard key={b.n} beyt={b} />)
             : lesson.passages.map((p) => (
@@ -246,5 +250,6 @@ export default function LessonView({
         </section>
       </div>
     </MotionConfig>
+    </LessonModeProvider>
   );
 }

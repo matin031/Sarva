@@ -19,59 +19,64 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
-      {/* ---------- the couplet ---------- */}
       <motion.div
-        initial={{ opacity: 0, y: 34 }}
+        initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
+        viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.7, ease: EASE }}
-        className="relative z-20 overflow-hidden rounded-3xl border border-primary/25 bg-card p-6 shadow-xl sm:p-9"
+        className="group relative z-20 overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-lg transition-colors duration-500 hover:border-primary/30"
       >
+        {/* a single wash from the top corner rather than two competing blobs:
+            quieter, and it leaves the poem the brightest thing on the card */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-20 -top-20 size-56 rounded-full"
+          className="pointer-events-none absolute inset-x-0 top-0 h-40"
           style={{
             background:
-              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 22%, transparent), transparent)",
+              "radial-gradient(120% 100% at 85% 0%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 70%)",
           }}
         />
+        {/* hairline of light along the top edge */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-24 -right-16 size-56 rounded-full"
-          style={{
-            background:
-              "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 16%, transparent), transparent)",
-          }}
+          className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-l from-transparent via-primary/40 to-transparent"
         />
 
-        <div className="relative z-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
-            بیت {faNum(beyt.n)}
-          </span>
+        <div className="relative z-20 p-6 sm:p-9">
+          <div className="mb-7 flex items-center gap-3">
+            <span className="flex size-9 items-center justify-center rounded-full border border-primary/35 bg-primary/10 text-sm font-black text-primary">
+              {faNum(beyt.n)}
+            </span>
+            <div
+              aria-hidden
+              className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-transparent"
+            />
+          </div>
 
-          <div className="mt-6">
-            <BeytExplorer beyt={beyt}>
-              {/* معنی و مفهوم */}
-          <div className="mt-7 grid gap-3 sm:grid-cols-5">
-            <div className="relative z-20 rounded-2xl border border-border bg-background p-4 sm:col-span-3">
-              <h3 className="mb-1.5 text-xs font-black tracking-wide text-muted-foreground">
-                معنی
-              </h3>
-              <p className="text-sm leading-relaxed text-foreground">
-                {beyt.meaning}
-              </p>
+          <BeytExplorer beyt={beyt}>
+            <div className="grid gap-3 sm:grid-cols-5">
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-4 sm:col-span-3">
+                <h3 className="mb-1.5 text-[0.72rem] font-black tracking-wide text-muted-foreground">
+                  معنی
+                </h3>
+                <p className="text-sm leading-relaxed text-foreground">{beyt.meaning}</p>
+              </div>
+              <div
+                className="rounded-2xl border p-4 sm:col-span-2"
+                style={{
+                  borderColor: "color-mix(in oklch, var(--color-gold) 30%, transparent)",
+                  background: "color-mix(in oklch, var(--color-gold) 7%, transparent)",
+                }}
+              >
+                <h3 className="mb-1.5 text-[0.72rem] font-black tracking-wide text-gold">
+                  مفهوم
+                </h3>
+                <p className="text-sm leading-relaxed font-bold text-foreground">
+                  {beyt.concept}
+                </p>
+              </div>
             </div>
-            <div className="relative z-20 rounded-2xl border border-gold/30 bg-background p-4 sm:col-span-2">
-              <h3 className="mb-1.5 text-xs font-black tracking-wide text-gold">
-                مفهوم
-              </h3>
-              <p className="text-sm leading-relaxed font-bold text-foreground">
-                {beyt.concept}
-              </p>
-            </div>
-          </div>
-            </BeytExplorer>
-          </div>
+          </BeytExplorer>
         </div>
       </motion.div>
 

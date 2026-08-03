@@ -830,6 +830,20 @@ button {
   line-height: 1.4;
 }
 
+/* a wrong guess in the lesson's practice mode */
+@keyframes hbShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
 /* ------------------------------------------------------- decorative glows */
 
 /* `blur-3xl` is `filter: blur(64px)`. A 64px gaussian over a 288px box is one

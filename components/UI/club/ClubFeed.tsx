@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import PoemCard from "@/components/UI/club/PoemCard";
 import PoemComposer from "@/components/UI/club/PoemComposer";
+import { motion, useReducedMotion } from "motion/react";
 import { loadMoreClubPosts } from "@/app/sarvaclub/actions";
 import type { ClubFeedSort, ClubPost } from "@/lib/club/types";
 
@@ -31,6 +32,7 @@ export default function ClubFeed({
   viewerName: string | null;
   filters: { sort: ClubFeedSort; form?: string; tag?: string };
 }) {
+  const reduced = useReducedMotion();
   const [posts, setPosts] = useState(initialPosts);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [page, setPage] = useState(0);
@@ -143,9 +145,24 @@ export default function ClubFeed({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
-          {posts.map((p) => (
-            <PoemCard key={p.id} post={p} signedIn={!!viewerName} onNeedsAuth={setNotice} />
+        // Staggered on mount rather than on scroll. The site's RevealGroup
+        // waits for 40% of an element to be in view, and a poem card can be
+        // most of a phone screen — a سروده must never be the thing that fails
+        // to appear because an observer did not fire.
+        <div className="flex flex-col gap-6">
+          {posts.map((p, i) => (
+            <motion.div
+              key={p.id}
+              initial={reduced ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.55,
+                ease: [0.16, 1, 0.3, 1],
+                delay: Math.min(i, 6) * 0.06,
+              }}
+            >
+              <PoemCard post={p} signedIn={!!viewerName} onNeedsAuth={setNotice} />
+            </motion.div>
           ))}
         </div>
       )}

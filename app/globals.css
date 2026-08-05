@@ -854,3 +854,93 @@ button {
   text-underline-offset: 0.58em;
   text-decoration-skip-ink: none;
 }
+
+/* ============================================================
+   سروا کلاب
+   ============================================================ */
+
+/* An ink line rising and settling under the hero's floating verses. Only
+   `transform` and `opacity` move, so the whole ambience stays on the
+   compositor — the same rule the عروض hero above is built on. */
+@keyframes clubFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--club-tilt, 0deg));
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) rotate(var(--club-tilt, 0deg));
+  }
+}
+
+/* The gold ring that travels around a برگزیده card.
+   The mask that turns a filled shape into a 1px ring must sit on a *still*
+   element: rotating the element that carries the mask rotates the mask with
+   it, and the ring tears open into a diagonal wedge. So the ring lives on the
+   parent and the conic gradient spins on an oversized child inside it, which
+   keeps the two in step and still costs exactly one composited transform. */
+@keyframes clubHalo {
+  to {
+    transform: translate(-50%, -50%) rotate(1turn);
+  }
+}
+
+.club-halo {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  /* draws whatever is inside as a border only, leaving the card's face alone */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.club-halo::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* square and oversized, so a corner never sweeps inside the card's edge */
+  width: 160%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklch, var(--color-gold) 90%, transparent) 30deg,
+    transparent 110deg,
+    transparent 360deg
+  );
+  animation: clubHalo 6s linear infinite;
+  will-change: transform;
+}
+
+/* A quill stroke that draws itself once, under the hero title. */
+@keyframes clubDraw {
+  from {
+    stroke-dashoffset: var(--club-len, 400);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Paper grain for the poem slabs — a single tiled data-URI, no extra request
+   and no blur pass. */
+.club-paper {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-halo::before {
+    animation: none;
+  }
+}

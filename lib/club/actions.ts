@@ -234,9 +234,11 @@ export async function createClubComment(
   if ((count ?? 0) >= DAILY_COMMENT_LIMIT)
     return { ok: false, error: "امروز دیدگاه‌های زیادی نوشته‌ای. فردا ادامه بده." };
 
-  // one level of nesting: a reply to a reply is attached to its grandparent so
-  // the thread cannot walk off the right edge of a phone
+  // You may reply to a reply, but the thread still only indents once: the new
+  // row hangs off the same root and remembers *who* it answered, which is what
+  // YouTube and Instagram do too. A third indent is unreadable on a phone.
   let parent: string | null = null;
+  let replyTo: string | null = null;
   if (parentId) {
     const { data } = await supabase
       .from("club_comments")
@@ -245,6 +247,8 @@ export async function createClubComment(
       .maybeSingle();
     if (data && data.post_id === postId && data.status === "approved") {
       parent = (data.parent_id as string | null) ?? (data.id as string);
+      // only worth labelling when it is not simply the head of the thread
+      replyTo = parent === data.id ? null : (data.id as string);
     }
   }
 
@@ -255,6 +259,7 @@ export async function createClubComment(
     // signed with the account's own name; there is no anonymous option here.
     author_name: viewer.name,
     parent_id: parent,
+    reply_to_id: replyTo,
     body: text,
     status: "pending",
   });

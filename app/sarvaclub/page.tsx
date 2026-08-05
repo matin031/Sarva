@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import ClubFeed from "@/components/UI/club/ClubFeed";
-import { getClubFeed, getClubViewer } from "@/lib/club/queries";
+import ClubHero from "@/components/UI/club/ClubHero";
+import { getClubFeed, getClubStats, getClubViewer } from "@/lib/club/queries";
 import { POST_FORMS, POST_TAGS, type ClubFeedSort } from "@/lib/club/types";
 
 export const metadata: Metadata = {
@@ -39,39 +39,28 @@ export default async function Page({
   const tag = POST_TAGS.some((t) => t.id === rawTag) ? rawTag : undefined;
 
   const viewer = await getClubViewer();
-  const { posts, hasMore } = await getClubFeed(viewer, { sort, form, tag });
+  const [{ posts, hasMore }, stats] = await Promise.all([
+    getClubFeed(viewer, { sort, form, tag }),
+    getClubStats(),
+  ]);
 
   return (
-    <div dir="rtl" className="container relative z-20 mx-auto mt-10 mb-32 max-w-3xl px-4">
-      <header className="mb-8 rounded-3xl border border-border bg-card p-6 text-center sm:p-10">
-        <span className="mb-3 inline-block rounded-full bg-primary/12 px-3 py-1 text-xs font-semibold text-primary">
-          سروا کلاب
-        </span>
-        <h1 className="text-2xl font-bold sm:text-3xl">
-          طبع شعر داری؟ اینجا بخوانش.
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-8 text-muted-foreground">
-          خیلی‌ها می‌سرایند و به کسی نشان نمی‌دهند. سروا کلاب برای همان‌هاست:
-          بیتی که گفته‌ای را بفرست — اگر خجالت می‌کشی، بی‌نام — بقیه زیرش
-          می‌نویسند. هر سروده و هر دیدگاه پیش از نمایش به‌دست مدیران سایت بررسی
-          می‌شود، تا اینجا جای امنی برای شعر گفتن بماند.
-        </p>
-        {viewer && (
-          <Link
-            href="/panel/club"
-            className="mt-5 inline-block text-sm font-semibold text-primary hover:underline"
-          >
-            سروده‌ها و دیدگاه‌های من ←
-          </Link>
-        )}
-      </header>
+    <div dir="rtl" className="relative z-20 mt-6 mb-32">
+      {/* The hero gets a wider stage than the feed on purpose: the verse leaves
+          float in the margins beside the copy, and inside a max-w-3xl column
+          there are no margins for them to float in. */}
+      <div className="container mx-auto max-w-6xl px-4">
+        <ClubHero signedIn={!!viewer} stats={stats} />
+      </div>
 
-      <ClubFeed
-        initialPosts={posts}
-        initialHasMore={hasMore}
-        viewerName={viewer?.name ?? null}
-        filters={{ sort, form, tag }}
-      />
+      <div className="container mx-auto max-w-3xl px-4">
+        <ClubFeed
+          initialPosts={posts}
+          initialHasMore={hasMore}
+          viewerName={viewer?.name ?? null}
+          filters={{ sort, form, tag }}
+        />
+      </div>
     </div>
   );
 }

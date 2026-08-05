@@ -110,7 +110,11 @@ export type ClubPost = {
 export type ClubComment = {
   id: string;
   postId: string;
+  /** the thread this belongs to; replies never nest past this one level */
   parentId: string | null;
+  /** the comment this reply actually answers — may be another reply in the
+   *  same thread. The «در پاسخ به …» label reads its name from that row. */
+  replyToId: string | null;
   authorName: string;
   body: string;
   status: ClubStatus;

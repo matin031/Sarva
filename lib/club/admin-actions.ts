@@ -175,7 +175,7 @@ export async function clubAdminListComments(
   let query = supabase
     .from("club_comments")
     .select(
-      "id, post_id, user_id, parent_id, author_name, body, status, review_note, created_at, club_posts ( title, body )",
+      "id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at, club_posts ( title, body )",
     );
   if (status !== "all") query = query.eq("status", status);
   const { data, error } = await query
@@ -188,6 +188,7 @@ export async function clubAdminListComments(
     post_id: string;
     user_id: string;
     parent_id: string | null;
+    reply_to_id: string | null;
     author_name: string;
     body: string;
     status: string;
@@ -205,6 +206,7 @@ export async function clubAdminListComments(
     id: r.id,
     postId: r.post_id,
     parentId: r.parent_id,
+    replyToId: r.reply_to_id,
     authorName: r.author_name,
     body: r.body,
     status: r.status as ClubStatus,
@@ -226,7 +228,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("club_comments")
-    .select("id, post_id, user_id, parent_id, author_name, body, status, review_note, created_at")
+    .select("id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(`clubAdminPostComments: ${error.message}`);
@@ -234,6 +236,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
     id: r.id as string,
     postId: r.post_id as string,
     parentId: (r.parent_id as string | null) ?? null,
+    replyToId: (r.reply_to_id as string | null) ?? null,
     authorName: r.author_name as string,
     body: r.body as string,
     status: r.status as ClubStatus,

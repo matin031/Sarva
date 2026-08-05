@@ -73,9 +73,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
-      <article className="rounded-3xl border border-border bg-card p-5 sm:p-8">
-        <header className="mb-6 flex items-center gap-3">
-          <NameAvatar name={post.authorName} size={44} />
+      <article className="relative overflow-hidden rounded-[2rem] border border-border bg-card/85 p-5 backdrop-blur-sm sm:p-9">
+        {/* the poem's own weather: a warm wash above, paper grain over it, and
+            a gold ring when the piece is a برگزیده */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-32 h-64"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent)",
+          }}
+        />
+        <span aria-hidden className="club-paper pointer-events-none absolute inset-0 opacity-[0.03]" />
+        {post.featured && <span aria-hidden className="club-halo" />}
+
+        <header className="relative mb-6 flex items-center gap-3">
+          <span className="rounded-full ring-2 ring-primary/25">
+            <NameAvatar name={post.authorName} size={44} />
+          </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">
               {post.authorName}
@@ -95,14 +110,25 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </header>
 
         {post.title && (
-          <h1 className="mb-5 text-center font-serif text-xl font-bold sm:text-2xl">
+          <h1 className="relative mb-5 text-center font-serif text-xl font-bold sm:text-2xl">
             {post.title}
           </h1>
         )}
 
-        <PoemBody body={post.body} className="sm:text-lg" />
+        {/* the poem on its own slab, between two hairline folds */}
+        <div className="relative rounded-2xl bg-gradient-to-b from-muted/40 via-transparent to-muted/25 px-4 py-8 sm:px-8">
+          <span
+            aria-hidden
+            className="absolute inset-y-6 right-1 w-px bg-gradient-to-b from-transparent via-primary/25 to-transparent"
+          />
+          <span
+            aria-hidden
+            className="absolute inset-y-6 left-1 w-px bg-gradient-to-b from-transparent via-primary/25 to-transparent"
+          />
+          <PoemBody body={post.body} className="sm:text-lg" />
+        </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[11px]">
+        <div className="relative mt-6 flex flex-wrap items-center justify-center gap-2 text-[11px]">
           <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary">
             {formLabel(post.form)}
           </span>
@@ -121,7 +147,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ))}
         </div>
 
-        <div className="mt-6 border-t border-border pt-4">
+        <div className="relative mt-6 border-t border-border/70 pt-4">
           <PoemActions post={post} signedIn={!!viewer} />
         </div>
       </article>

@@ -179,6 +179,7 @@ type CommentRow = {
   post_id: string;
   user_id: string;
   parent_id: string | null;
+  reply_to_id: string | null;
   author_name: string;
   body: string;
   status: string;
@@ -187,13 +188,14 @@ type CommentRow = {
 };
 
 const COMMENT_COLUMNS =
-  "id, post_id, user_id, parent_id, author_name, body, status, review_note, created_at";
+  "id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at";
 
 function toComment(row: CommentRow, viewerId: string | null): ClubComment {
   return {
     id: row.id,
     postId: row.post_id,
     parentId: row.parent_id,
+    replyToId: row.reply_to_id,
     authorName: row.author_name,
     body: row.body,
     status: row.status as ClubStatus,
@@ -268,6 +270,37 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
       postExcerpt: poemExcerpt(row.club_posts?.body ?? ""),
     };
   });
+}
+
+/** The three numbers under the hero.
+ *
+ *  Counted through the same RLS the feed reads, so they can only ever describe
+ *  published work — the queue is nobody's business but the moderator's. The
+ *  poet tally comes from a column of ids rather than a `count(distinct)`,
+ *  which PostgREST has no way to express; at this size that is a few hundred
+ *  uuids, not a table scan worth optimising. */
+export async function getClubStats(): Promise<{
+  poems: number;
+  poets: number;
+  comments: number;
+}> {
+  const supabase = await createSupabaseServer();
+  const [poems, authors, comments] = await Promise.all([
+    supabase
+      .from("club_posts")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase.from("club_posts").select("author_name").eq("status", "approved"),
+    supabase
+      .from("club_comments")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "approved"),
+  ]);
+  return {
+    poems: poems.count ?? 0,
+    poets: new Set((authors.data ?? []).map((r) => r.author_name as string)).size,
+    comments: comments.count ?? 0,
+  };
 }
 
 /** The reader's own liked poems, for the «پسندیده‌های من» tab. */

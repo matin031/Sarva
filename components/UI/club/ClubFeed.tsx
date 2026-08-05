@@ -5,12 +5,7 @@ import { useState, useTransition } from "react";
 import PoemCard from "@/components/UI/club/PoemCard";
 import PoemComposer from "@/components/UI/club/PoemComposer";
 import { loadMoreClubPosts } from "@/app/sarvaclub/actions";
-import {
-  POST_FORMS,
-  POST_TAGS,
-  type ClubFeedSort,
-  type ClubPost,
-} from "@/lib/club/types";
+import type { ClubFeedSort, ClubPost } from "@/lib/club/types";
 
 const SORTS: { id: ClubFeedSort; label: string }[] = [
   { id: "recent", label: "تازه‌ترین" },
@@ -112,35 +107,20 @@ export default function ClubFeed({
         </div>
       )}
 
-      {/* filters */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          {SORTS.map((s) => (
-            <Link key={s.id} href={href({ sort: s.id })} className={chip(filters.sort === s.id)}>
-              {s.label}
-            </Link>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={href({ form: undefined })} className={chip(!filters.form)}>
-            همهٔ قالب‌ها
+      {/* Ordering only. A wall of قالب and موضوع chips outshouted the poems it
+          was meant to organise; both still work as URL parameters for anyone
+          who wants /sarvaclub?form=ghazal, and both still label each card. */}
+      <div className="flex flex-wrap gap-2">
+        {SORTS.map((s) => (
+          <Link key={s.id} href={href({ sort: s.id })} className={chip(filters.sort === s.id)}>
+            {s.label}
           </Link>
-          {POST_FORMS.map((f) => (
-            <Link key={f.id} href={href({ form: f.id })} className={chip(filters.form === f.id)}>
-              {f.label}
-            </Link>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={href({ tag: undefined })} className={chip(!filters.tag)}>
-            همهٔ موضوع‌ها
+        ))}
+        {(filters.form || filters.tag) && (
+          <Link href="/sarvaclub" className={chip(false)}>
+            برداشتن فیلتر ✕
           </Link>
-          {POST_TAGS.map((t) => (
-            <Link key={t.id} href={href({ tag: t.id })} className={chip(filters.tag === t.id)}>
-              {t.label}
-            </Link>
-          ))}
-        </div>
+        )}
       </div>
 
       {notice && (

@@ -27,6 +27,31 @@ async function findMeterInBrowser(mesra1: string, mesra2?: string) {
   return findMeterLocally(mesra1, mesra2)?.rhythm;
 }
 
+/** Resolve once the browser has actually put a frame on the screen.
+ *
+ *  Since the engine moved into the browser it runs *synchronously* on the main
+ *  thread — about half a second of solid work. `setLoadingFetch(true)` right
+ *  before it therefore never reached the screen: React queued the re-render,
+ *  the engine seized the thread, and by the time the browser was free to paint
+ *  the search was already over. That is why the button and the two result
+ *  cards stopped showing any loading state at all.
+ *
+ *  A single rAF is not enough — it runs *before* the frame is painted. rAF
+ *  followed by a task hands control back only after the paint has happened. */
+const afterPaint = () =>
+  new Promise<void>((done) =>
+    requestAnimationFrame(() => setTimeout(done, 0)),
+  );
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** below this the loading state is a flash rather than an animation */
+const MIN_LOADING_MS = 550;
+
+/** identifies the couplet an answer belongs to */
+const coupletKey = (a: string, b: string) =>
+  `${(a ?? "").trim()}\n${(b ?? "").trim()}`;
+
 function VaznYabSection() {
   const rhythmToAudioUrl = (rhythm: string) => {
     const clean = rhythm.trim().replace(/\s+/g, "-");
@@ -35,6 +60,8 @@ function VaznYabSection() {
 
   const [aruzFeet, setAruzFeet] = useState("");
   const [aruzBahr, setAruzBahr] = useState("");
+  /** the couplet the answer on screen belongs to */
+  const [answeredFor, setAnsweredFor] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [loadingFetch, setLoadingFetch] = useState<boolean>(false);
@@ -102,11 +129,21 @@ function VaznYabSection() {
     setGuessMissing(false);
     setLoadingFetch(true);
 
+    // let the loading state reach the screen before the engine blocks the thread
+    await afterPaint();
+    const startedAt = performance.now();
+
     const result = await findMeterInBrowser(data.poem1, data.poem2);
-    if (!result) setShowModal(true);
     const feet = getPureRhythm(result ?? "");
+
+    // and keep it there long enough to be seen — on a fast machine the whole
+    // search can be over in under 100ms
+    await sleep(Math.max(0, MIN_LOADING_MS - (performance.now() - startedAt)));
+
+    if (!result) setShowModal(true);
     setAruzFeet(feet);
     setAruzBahr(getRhythmDescription(result ?? ""));
+    setAnsweredFor(coupletKey(data.poem1, data.poem2));
 
     // in استادی mode the answer is also a verdict on what the reader guessed
     if (masterMode && guess.trim() && feet) {
@@ -117,6 +154,31 @@ function VaznYabSection() {
 
     setLoadingFetch(false);
   };
+
+  /** «دوباره» — clear the couplet and everything derived from it, so the next
+   *  بیت starts from a blank form rather than the previous one's answer */
+  const startOver = () => {
+    searchPoemForm.reset({ poem1: "", poem2: "" });
+    setAruzFeet("");
+    setAruzBahr("");
+    setGuess("");
+    setVerdict(null);
+    setGuessMissing(false);
+    setBeyt(null);
+    setBeytError(null);
+    setAnsweredFor("");
+    searchPoemForm.setFocus("poem1");
+  };
+
+  /** The button turns into «دوباره» once *this* بیت has been scanned. Tying it
+   *  to the couplet rather than to "a result exists" matters: type a new بیت
+   *  over the old one and the button goes back to «پیدا کن» on its own, instead
+   *  of making the reader clear the form first. */
+  const hasResult =
+    Boolean(aruzFeet || aruzBahr) &&
+    answeredFor !== "" &&
+    answeredFor ===
+      coupletKey(searchPoemForm.watch("poem1"), searchPoemForm.watch("poem2"));
 
   const fetchRandomBeyt = async () => {
     if (loadingBeyt) return;
@@ -137,6 +199,7 @@ function VaznYabSection() {
       });
       setAruzFeet("");
       setAruzBahr("");
+      setAnsweredFor("");
       setGuess("");
       setGuessMissing(false);
     } catch (err) {
@@ -353,27 +416,66 @@ function VaznYabSection() {
           </div>
         )}
 
+        {/* one button, three jobs: search, then show it is working, then offer
+            a clean slate for the next بیت */}
         <button
-          type="submit"
+          type={hasResult && !loadingFetch ? "button" : "submit"}
+          onClick={hasResult && !loadingFetch ? startOver : undefined}
           disabled={loadingFetch}
           className={`text-secondary font-bold brightness-85 hover:brightness-100 transition-all
-         mt-8 flex items-center rounded-3xl bg-primary sm:text-lg px-4 py-1 gap-x-2  ${loadingFetch && "animate-pulse cursor-not-allowed!"}`}
+         mt-8 flex items-center rounded-3xl bg-primary sm:text-lg px-4 py-1 gap-x-2 ${loadingFetch ? "cursor-not-allowed!" : ""}`}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className={`size-5 `}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
-            />
-          </svg>
-          {loadingFetch ? "درحال جستجو" : "پیدا کن"}
+          {loadingFetch ? (
+            /* the sparkles spin while the engine works, so the button itself
+               says something is happening even before the cards below do */
+            <motion.svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-5"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+              />
+            </motion.svg>
+          ) : hasResult ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.8}
+              stroke="currentColor"
+              className="size-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.023 9.348h4.992V4.356m-4.992 4.992-2.036-2.036A7.5 7.5 0 1 0 19.5 12M16.023 9.348h.008"
+              />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+              />
+            </svg>
+          )}
+          {loadingFetch ? "درحال جستجو" : hasResult ? "دوباره" : "پیدا کن"}
         </button>
       </motion.form>
 

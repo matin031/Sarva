@@ -5,6 +5,7 @@ export type NavLink = { href: string; label: string };
 // navs stay in sync instead of drifting apart.
 export const MORE_NAV_LINKS: NavLink[] = [
   { href: "/exam", label: "امتحانات نهایی" },
+  { href: "/sarvaclub", label: "سروا کلاب" },
   { href: "/vazn-yab", label: "وزن‌یاب" },
   { href: "/game", label: "بازی" },
   { href: "/about", label: "درباره" },

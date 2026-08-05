@@ -22,5 +22,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
+    {
+      // the club's feed changes whenever a سروده is approved; individual poems
+      // are not listed here because they are user content that comes and goes
+      url: `${baseUrl}/sarvaclub`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
   ];
 }

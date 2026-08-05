@@ -5,6 +5,7 @@ import { quizAdminList } from "@/lib/quiz/admin-actions";
 import { adminListUsers } from "@/lib/admin/user-actions";
 import { adminQuizStatsOverview } from "@/lib/admin/quiz-stats-actions";
 import { adminExamStatsOverview } from "@/lib/admin/exam-stats-actions";
+import { clubAdminStats } from "@/lib/club/admin-actions";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 
 export const metadata: Metadata = {
@@ -13,12 +14,13 @@ export const metadata: Metadata = {
 };
 
 async function loadStats() {
-  const [exams, quizList, users, quizActivity, examActivity] = await Promise.all([
+  const [exams, quizList, users, quizActivity, examActivity, club] = await Promise.all([
     adminListExams(),
     quizAdminList({ limit: 1 }),
     adminListUsers(),
     adminQuizStatsOverview(),
     adminExamStatsOverview(),
+    clubAdminStats(),
   ]);
   return {
     examCount: exams.length,
@@ -27,6 +29,7 @@ async function loadStats() {
     adminCount: users.filter((u) => u.role === "admin").length,
     quizActivity,
     examActivity,
+    club,
   };
 }
 
@@ -75,11 +78,21 @@ export default async function Page() {
       desc: "افزودن و ویرایش واژگانِ درس‌های فارسی دهم، یازدهم و دوازدهم.",
     },
     {
+      href: "/admin/club",
+      title: "سروا کلاب",
+      desc: "بررسی و تأیید سروده‌ها و دیدگاه‌های کاربران، و رسیدگی به گزارش‌ها.",
+    },
+    {
       href: "/admin/users",
       title: "کاربران",
       desc: "مشاهدهٔ کاربران و تغییر نقش (دانش‌آموز/مدیر).",
     },
   ];
+
+  // A queue that nobody looks at is the one way this feature fails, so the
+  // number of unreviewed سروده‌ها sits on the dashboard rather than one click
+  // away inside /admin/club.
+  const clubQueue = stats.club.pendingPosts + stats.club.pendingComments;
 
   return (
     <div dir="rtl" className="flex max-w-4xl flex-col gap-8 p-4 xs:p-6">
@@ -101,6 +114,26 @@ export default async function Page() {
           </div>
         ))}
       </div>
+
+      {(clubQueue > 0 || stats.club.openReports > 0) && (
+        <Link
+          href="/admin/club"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-gold/50 bg-gold/10 p-5 transition-colors hover:bg-gold/15"
+        >
+          <div>
+            <h3 className="font-semibold">سروا کلاب منتظر بررسی است</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {clubQueue > 0 && `${clubQueue.toLocaleString("fa-IR")} سروده و دیدگاه بررسی‌نشده`}
+              {clubQueue > 0 && stats.club.openReports > 0 && " · "}
+              {stats.club.openReports > 0 &&
+                `${stats.club.openReports.toLocaleString("fa-IR")} گزارش باز`}
+            </p>
+          </div>
+          <span className="text-2xl font-bold text-gold">
+            {(clubQueue + stats.club.openReports).toLocaleString("fa-IR")}
+          </span>
+        </Link>
+      )}
 
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">فعالیت کاربران</h2>

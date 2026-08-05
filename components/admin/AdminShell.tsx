@@ -50,6 +50,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/club",
+    label: "سروا کلاب",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9a2.5 2.5 0 0 1 2.5 2.5V15a2.5 2.5 0 0 1-2.5 2.5h-6L5 21v-3.5A2.5 2.5 0 0 1 4 15V5.5Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 8h6M8 11.5h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/users",
     label: "کاربران",
     icon: (

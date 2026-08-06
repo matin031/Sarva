@@ -4,19 +4,21 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
-import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
+import { RevealItem, RevealGroup } from "@/components/UI/aruz/reveal";
 
-/** سروا کلاب's hero: the invitation, beside the club's own book.
+/** سروا کلاب's hero: the book alone, centre stage.
  *
- *  The book is a real 3D object (see SarvaBook3D) and is loaded only when this
- *  page is, so three.js never lands in the bundle of a page that has no use for
- *  it. The copy stays plain HTML rather than being drawn into the scene —
- *  text rendered into a canvas is blurry, unselectable and invisible to search
- *  engines, and this page's whole purpose is words.
+ *  The invitation is written across its two pages rather than set beside it, so
+ *  nothing competes with the object — the sides of the book are deliberately
+ *  empty. Only what you can press lives below it.
+ *
+ *  Because the words are inside the scene, they are repeated here in a visually
+ *  hidden heading: a canvas texture is invisible to a screen reader and to a
+ *  search engine, and this page's whole subject is words.
  *
  *  The entrance waits for the site's logo intro. `LogoReveal` covers the screen
  *  for 3.1s on the first load of a session; without the gate the book would
- *  swing in behind the splash and be still by the time anyone could see it. */
+ *  open behind the splash and be still by the time anyone could see it. */
 
 const SarvaBook3D = dynamic(() => import("@/components/UI/club/SarvaBook3D"), {
   ssr: false,
@@ -50,24 +52,30 @@ export default function ClubHero({
   }, []);
 
   return (
-    <section dir="rtl" className="relative mb-12">
+    <section dir="rtl" className="relative mb-10">
+      {/* the words carved into the pages, for readers who cannot see a canvas */}
+      <h1 className="sr-only">
+        سروا کلاب — اینجا می‌توانی شعرت را به دست بقیه برسانی. با نام خودت یا
+        بی‌نام؛ بقیه زیرش می‌نویسند؛ پیش از انتشار بررسی می‌شود.
+      </h1>
+
       {/* ---------- ambience ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="absolute -right-32 -top-28 size-[520px] rounded-full"
+          className="absolute left-1/2 top-4 size-[620px] -translate-x-1/2 rounded-full"
           style={{
             background:
-              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 24%, transparent), transparent 66%)",
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 22%, transparent), transparent 68%)",
             ...(reduced
               ? null
               : { animation: "aruzDrift 18s ease-in-out infinite", willChange: "transform, opacity" }),
           }}
         />
         <div
-          className="absolute -left-28 top-1/4 size-[460px] rounded-full"
+          className="absolute -left-24 top-1/3 size-[420px] rounded-full"
           style={{
             background:
-              "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 18%, transparent), transparent 66%)",
+              "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 16%, transparent), transparent 68%)",
             ...(reduced
               ? null
               : { animation: "aruzDrift2 22s ease-in-out infinite", willChange: "transform, opacity" }),
@@ -75,101 +83,49 @@ export default function ClubHero({
         />
       </div>
 
-      <div className="grid items-center gap-6 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
-        {/* ---------- the words ---------- */}
-        <RevealGroup stagger={0.12} className="text-center lg:text-right">
-          <RevealItem>
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm sm:text-sm">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-primary" />
-              </span>
-              سروا کلاب
-            </span>
-          </RevealItem>
+      {/* ---------- the book, alone ---------- */}
+      <div className="relative mx-auto h-[300px] w-full max-w-4xl xs:h-[360px] sm:h-[460px] lg:h-[560px]">
+        {ready && <SarvaBook3D intro={!reduced} className="h-full w-full" />}
+      </div>
 
-          <h1 className="mt-5 text-3xl leading-[1.3] font-black sm:text-4xl xl:text-5xl">
-            <RevealLine className="text-foreground" delay={0.08}>
-              اینجا می‌توانی شعرت را
-            </RevealLine>
-            <RevealLine className="aruz-gradient-text" delay={0.2}>
-              به دست بقیه برسانی
-            </RevealLine>
-          </h1>
-
-          <RevealItem>
-            <p className="mx-auto mt-5 max-w-lg text-sm leading-8 text-muted-foreground sm:text-base lg:mx-0">
-              خیلی‌ها می‌سرایند و به کسی نشان نمی‌دهند. سروا کلاب برای همان‌هاست:
-              بیتی که گفته‌ای را بفرست — اگر خجالت می‌کشی، بی‌نام — بقیه زیرش
-              می‌نویسند.
-            </p>
-          </RevealItem>
-
-          <RevealItem>
-            <ul className="mx-auto mt-6 flex max-w-lg flex-col items-center gap-2.5 text-sm text-muted-foreground lg:mx-0 lg:items-start">
-              {["با نام خودت، یا بی‌نام", "بقیه زیرش می‌نویسند", "پیش از انتشار بررسی می‌شود"].map(
-                (line) => (
-                  <li key={line} className="flex items-center gap-2.5">
-                    <span className="inline-block size-1.5 shrink-0 rounded-full bg-primary" />
-                    {line}
-                  </li>
-                ),
-              )}
-            </ul>
-          </RevealItem>
-
-          <RevealItem>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+      {/* ---------- below it, the parts you can press ---------- */}
+      <RevealGroup stagger={0.1} className="mt-2 flex flex-col items-center gap-5">
+        <RevealItem>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="#club-composer"
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+            >
+              {signedIn ? "سرودهٔ تازه بفرست" : "سروده‌ات را بفرست"}
+            </Link>
+            {signedIn && (
               <Link
-                href="#club-composer"
-                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+                href="/panel/club"
+                className="rounded-xl border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
               >
-                {signedIn ? "سرودهٔ تازه بفرست" : "سروده‌ات را بفرست"}
+                سروده‌ها و دیدگاه‌های من
               </Link>
-              {signedIn && (
-                <Link
-                  href="/panel/club"
-                  className="rounded-xl border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                >
-                  سروده‌ها و دیدگاه‌های من
-                </Link>
-              )}
+            )}
+          </div>
+        </RevealItem>
+
+        {stats.poems > 0 && (
+          <RevealItem>
+            <div className="flex items-center gap-6 text-xs text-muted-foreground">
+              {[
+                { v: stats.poems, l: "سروده" },
+                { v: stats.poets, l: "شاعر" },
+                { v: stats.comments, l: "دیدگاه" },
+              ].map((s) => (
+                <span key={s.l} className="flex items-baseline gap-1.5">
+                  <b className="text-base font-black text-primary">{fa(s.v)}</b>
+                  {s.l}
+                </span>
+              ))}
             </div>
           </RevealItem>
-
-          {stats.poems > 0 && (
-            <RevealItem>
-              <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground lg:justify-start">
-                {[
-                  { v: stats.poems, l: "سروده" },
-                  { v: stats.poets, l: "شاعر" },
-                  { v: stats.comments, l: "دیدگاه" },
-                ].map((s) => (
-                  <span key={s.l} className="flex items-baseline gap-1.5">
-                    <b className="text-base font-black text-primary">{fa(s.v)}</b>
-                    {s.l}
-                  </span>
-                ))}
-              </div>
-            </RevealItem>
-          )}
-        </RevealGroup>
-
-        {/* ---------- the book ---------- */}
-        <div className="relative order-first h-[300px] w-full sm:h-[380px] lg:order-none lg:h-[520px]">
-          {/* a pool of light for it to stand in */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 70%)",
-            }}
-          />
-          {/* mounted only once the splash is gone, so the swing-in is seen */}
-          {ready && <SarvaBook3D intro={!reduced} className="h-full w-full" />}
-        </div>
-      </div>
+        )}
+      </RevealGroup>
     </section>
   );
 }

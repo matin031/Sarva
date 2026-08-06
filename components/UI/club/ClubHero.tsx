@@ -1,72 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
+import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
 
-/** سروا کلاب's hero: a book the width of the page that riffles its leaves the
- *  moment the page is ready and settles open on the invitation.
+/** سروا کلاب's hero: the invitation, beside the club's own book.
  *
- *  The mechanics live in `app/globals.css` (`.club-*`) — one preserve-3d scene
- *  and six staggered `transform` animations, no library and no rAF loop.
+ *  The book is a real 3D object (see SarvaBook3D) and is loaded only when this
+ *  page is, so three.js never lands in the bundle of a page that has no use for
+ *  it. The copy stays plain HTML rather than being drawn into the scene —
+ *  text rendered into a canvas is blurry, unselectable and invisible to search
+ *  engines, and this page's whole purpose is words.
  *
- *  Two things this component is responsible for:
- *
- *  • Waiting for the site's logo intro. `LogoReveal` covers the whole screen
- *    for 3.1s on the first load of a session, which is longer than the whole
- *    riffle — without this gate the book would finish under the splash and the
- *    reader would only ever meet an already-open book.
- *
- *  • Keeping every click target outside the book. Nothing rotated in 3D has to
- *    behave as a button; the call to action sits underneath. */
+ *  The entrance waits for the site's logo intro. `LogoReveal` covers the screen
+ *  for 3.1s on the first load of a session; without the gate the book would
+ *  swing in behind the splash and be still by the time anyone could see it. */
 
-/** What is glimpsed as the leaves go past.
- *
- *  Each leaf carries a whole بیت: the first مصراع on the face lying on the
- *  left, the second on the back that lands on the right. So the riffle reads
- *  as a couplet completing itself every time a page turns, and no two visible
- *  pages ever repeat a line — which is what happened when fronts and backs
- *  were drawn from the same list. */
-const RIFFLE: { front: string; back: string }[] = [
-  { front: "بشنو این نی چون شکایت می‌کند", back: "از جدایی‌ها حکایت می‌کند" },
-  { front: "هر که را اسرار حق آموختند", back: "مُهر کردند و دهانش دوختند" },
-  { front: "بنی‌آدم اعضای یک پیکرند", back: "که در آفرینش ز یک گوهرند" },
-  { front: "توانا بود هر که دانا بود", back: "ز دانش دل پیر برنا بود" },
-  { front: "…و این یکی هنوز امضا ندارد", back: "" },
-];
-
-const LEAF_COUNT = RIFFLE.length;
-const FIRST_DELAY = 0.3;
-const STAGGER = 0.13;
-const TURN = 0.62;
-/** the moment the last leaf has finished landing */
-const SETTLED = FIRST_DELAY + (LEAF_COUNT - 1) * STAGGER + TURN;
-
-function Verse({
-  text,
-  side,
-  under,
-}: {
-  text: string;
-  side: "left" | "right";
-  /** the page the turned leaves pile on top of */
-  under?: boolean;
-}) {
-  return (
-    <div
-      dir="rtl"
-      className={`club-sheet club-sheet--${side} ${under ? "club-sheet--under" : ""}`}
-    >
-      <span className="club-paper pointer-events-none absolute inset-0 opacity-[0.05]" />
-      <p
-        className="font-serif text-muted-foreground/60"
-        style={{ fontSize: "clamp(9px, 1.9cqw, 19px)" }}
-      >
-        {text}
-      </p>
-    </div>
-  );
-}
+const SarvaBook3D = dynamic(() => import("@/components/UI/club/SarvaBook3D"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full" />,
+});
 
 export default function ClubHero({
   signedIn,
@@ -76,26 +31,26 @@ export default function ClubHero({
   stats: { poems: number; poets: number; comments: number };
 }) {
   const reduced = useReducedMotion();
-  const [waiting, setWaiting] = useState(true);
+  const [ready, setReady] = useState(false);
   const fa = (n: number) => n.toLocaleString("fa-IR");
 
   useEffect(() => {
     // A zero timeout, not a direct read: LogoReveal marks the document in its
     // own mount effect, and every effect of the initial commit flushes before
-    // any timer fires — so by now the flag is either set or the intro is not
+    // any timer fires — so by now the flag is either set, or the intro is not
     // playing at all (a repeat visit in the same session).
     const t = setTimeout(() => {
       if (document.documentElement.dataset.sarvaIntro !== "playing") {
-        setWaiting(false);
+        setReady(true);
         return;
       }
-      window.addEventListener("sarva:intro-done", () => setWaiting(false), { once: true });
+      window.addEventListener("sarva:intro-done", () => setReady(true), { once: true });
     }, 0);
     return () => clearTimeout(t);
   }, []);
 
   return (
-    <section dir="rtl" className="relative mb-10">
+    <section dir="rtl" className="relative mb-12">
       {/* ---------- ambience ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
@@ -120,159 +75,100 @@ export default function ClubHero({
         />
       </div>
 
-      {/* ---------- the book ----------
-          `dir="ltr"` on the scene is load-bearing: RTL reverses flex order,
-          which swaps the halves and hinges every leaf on its outer edge. */}
-      <div className={`club-book relative ${waiting ? "club-book--waiting" : ""}`}>
-        <div className="club-spread" dir="ltr">
-          <div className="club-board" aria-hidden />
-
-          {/* ---- left half: the page uncovered as the leaves depart ---- */}
-          <div className="club-half">
-            <div dir="rtl" className="club-sheet club-sheet--left">
-              <span className="club-paper pointer-events-none absolute inset-0 opacity-[0.05]" />
-              <div
-                className={`flex flex-col items-center ${waiting ? "" : "club-settle"}`}
-                style={{
-                  ["--club-delay" as string]: `${SETTLED - 0.15}s`,
-                  gap: "2cqw",
-                  opacity: waiting ? 0 : undefined,
-                }}
-              >
-                {["با نام خودت، یا بی‌نام", "بقیه زیرش می‌نویسند", "پیش از انتشار بررسی می‌شود"].map(
-                  (line) => (
-                    <p
-                      key={line}
-                      className="flex items-center gap-[1.4cqw] text-muted-foreground"
-                      style={{ fontSize: "clamp(8px, 1.75cqw, 17px)" }}
-                    >
-                      <span
-                        className="inline-block shrink-0 rounded-full bg-primary"
-                        style={{ width: "0.75cqw", height: "0.75cqw" }}
-                      />
-                      {line}
-                    </p>
-                  ),
-                )}
-              </div>
-            </div>
-
-            {/* ---- the leaves that riffle across the spine ---- */}
-            {RIFFLE.map((beyt, i) => {
-              const last = i === LEAF_COUNT - 1;
-              const delay = `${FIRST_DELAY + i * STAGGER}s`;
-              return (
-                <div
-                  key={beyt.front}
-                  aria-hidden={!last}
-                  className="club-leaf"
-                  style={{
-                    // nearest the reader at rest, farthest once turned
-                    ["--club-d" as string]: `${(LEAF_COUNT - i) * 0.7}px`,
-                    ["--club-delay" as string]: delay,
-                  }}
-                >
-                  <div className="club-face">
-                    <Verse text={beyt.front} side="left" />
-                    <div className="club-leaf-shade" style={{ ["--club-delay" as string]: delay }} />
-                  </div>
-
-                  {/* The back of the last leaf is the page the book stops on:
-                      it is the surface facing the reader once everything has
-                      turned, so the invitation is written there. */}
-                  <div className="club-face club-face--back">
-                    {last ? (
-                      <div dir="rtl" className="club-sheet club-sheet--right">
-                        <span className="club-paper pointer-events-none absolute inset-0 opacity-[0.05]" />
-                        <div
-                          className={waiting ? "" : "club-settle"}
-                          style={{
-                            ["--club-delay" as string]: `${SETTLED - 0.2}s`,
-                            opacity: waiting ? 0 : undefined,
-                          }}
-                        >
-                          <span
-                            className="inline-block rounded-full bg-primary/12 font-semibold text-primary"
-                            style={{ fontSize: "clamp(8px, 1.5cqw, 15px)", padding: "0.6cqw 2cqw" }}
-                          >
-                            سروا کلاب
-                          </span>
-                          <h1
-                            className="text-balance font-black leading-[1.6]"
-                            style={{ fontSize: "clamp(13px, 3.2cqw, 35px)", marginTop: "2cqw" }}
-                          >
-                            اینجا می‌توانی شعرت را
-                            <br />
-                            <span className="aruz-gradient-text">به دست بقیه برسانی</span>
-                          </h1>
-                          <p
-                            className="mx-auto leading-[2] text-muted-foreground"
-                            style={{
-                              fontSize: "clamp(8px, 1.75cqw, 17px)",
-                              marginTop: "2cqw",
-                              maxWidth: "82%",
-                            }}
-                          >
-                            خیلی‌ها می‌سرایند و به کسی نشان نمی‌دهند. این صفحه برای
-                            همان‌هاست.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <Verse text={beyt.back} side="right" />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ---- right half: what lies under the turned leaves ---- */}
-          <div className="club-half">
-            <Verse text="دفتری که هنوز نوشته نشده" side="right" under />
-          </div>
-        </div>
-      </div>
-
-      {/* ---------- below the book: the parts you can actually press ---------- */}
-      <div
-        className={`mt-8 flex flex-col items-center gap-5 ${waiting ? "" : "club-settle"}`}
-        style={{
-          ["--club-delay" as string]: `${SETTLED + 0.05}s`,
-          opacity: waiting ? 0 : undefined,
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="#club-composer"
-            className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
-          >
-            {signedIn ? "سرودهٔ تازه بفرست" : "سروده‌ات را بفرست"}
-          </Link>
-          {signedIn && (
-            <Link
-              href="/panel/club"
-              className="rounded-xl border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-            >
-              سروده‌ها و دیدگاه‌های من
-            </Link>
-          )}
-        </div>
-
-        {stats.poems > 0 && (
-          <div className="flex items-center gap-5 text-xs text-muted-foreground sm:gap-7">
-            {[
-              { v: stats.poems, l: "سروده" },
-              { v: stats.poets, l: "شاعر" },
-              { v: stats.comments, l: "دیدگاه" },
-            ].map((s) => (
-              <span key={s.l} className="flex items-baseline gap-1.5">
-                <b className="text-base font-black text-primary">{fa(s.v)}</b>
-                {s.l}
+      <div className="grid items-center gap-6 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
+        {/* ---------- the words ---------- */}
+        <RevealGroup stagger={0.12} className="text-center lg:text-right">
+          <RevealItem>
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm sm:text-sm">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
               </span>
-            ))}
-          </div>
-        )}
+              سروا کلاب
+            </span>
+          </RevealItem>
+
+          <h1 className="mt-5 text-3xl leading-[1.3] font-black sm:text-4xl xl:text-5xl">
+            <RevealLine className="text-foreground" delay={0.08}>
+              اینجا می‌توانی شعرت را
+            </RevealLine>
+            <RevealLine className="aruz-gradient-text" delay={0.2}>
+              به دست بقیه برسانی
+            </RevealLine>
+          </h1>
+
+          <RevealItem>
+            <p className="mx-auto mt-5 max-w-lg text-sm leading-8 text-muted-foreground sm:text-base lg:mx-0">
+              خیلی‌ها می‌سرایند و به کسی نشان نمی‌دهند. سروا کلاب برای همان‌هاست:
+              بیتی که گفته‌ای را بفرست — اگر خجالت می‌کشی، بی‌نام — بقیه زیرش
+              می‌نویسند.
+            </p>
+          </RevealItem>
+
+          <RevealItem>
+            <ul className="mx-auto mt-6 flex max-w-lg flex-col items-center gap-2.5 text-sm text-muted-foreground lg:mx-0 lg:items-start">
+              {["با نام خودت، یا بی‌نام", "بقیه زیرش می‌نویسند", "پیش از انتشار بررسی می‌شود"].map(
+                (line) => (
+                  <li key={line} className="flex items-center gap-2.5">
+                    <span className="inline-block size-1.5 shrink-0 rounded-full bg-primary" />
+                    {line}
+                  </li>
+                ),
+              )}
+            </ul>
+          </RevealItem>
+
+          <RevealItem>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <Link
+                href="#club-composer"
+                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+              >
+                {signedIn ? "سرودهٔ تازه بفرست" : "سروده‌ات را بفرست"}
+              </Link>
+              {signedIn && (
+                <Link
+                  href="/panel/club"
+                  className="rounded-xl border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  سروده‌ها و دیدگاه‌های من
+                </Link>
+              )}
+            </div>
+          </RevealItem>
+
+          {stats.poems > 0 && (
+            <RevealItem>
+              <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground lg:justify-start">
+                {[
+                  { v: stats.poems, l: "سروده" },
+                  { v: stats.poets, l: "شاعر" },
+                  { v: stats.comments, l: "دیدگاه" },
+                ].map((s) => (
+                  <span key={s.l} className="flex items-baseline gap-1.5">
+                    <b className="text-base font-black text-primary">{fa(s.v)}</b>
+                    {s.l}
+                  </span>
+                ))}
+              </div>
+            </RevealItem>
+          )}
+        </RevealGroup>
+
+        {/* ---------- the book ---------- */}
+        <div className="relative order-first h-[300px] w-full sm:h-[380px] lg:order-none lg:h-[520px]">
+          {/* a pool of light for it to stand in */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 70%)",
+            }}
+          />
+          {/* mounted only once the splash is gone, so the swing-in is seen */}
+          {ready && <SarvaBook3D intro={!reduced} className="h-full w-full" />}
+        </div>
       </div>
     </section>
   );

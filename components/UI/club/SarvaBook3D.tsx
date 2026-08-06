@@ -42,7 +42,7 @@ const LOGO = 0x16d3d8;
 
 /** How far the board swings, in radians — a little past square, so the open
  *  book reads as open without the board sailing off the side of the frame. */
-const OPEN_ANGLE = THREE.MathUtils.degToRad(122);
+const OPEN_ANGLE = THREE.MathUtils.degToRad(148);
 /** the page block's face, in model units */
 const PAGE_TOP_Z = 0.234;
 /** anything in front of this is front board, not spine or back cover */
@@ -148,8 +148,9 @@ function Book({
   setOpen: (v: boolean) => void;
 }) {
   const gltf = useGLTF(MODEL);
-  const swing = useRef<THREE.Group>(null);
   const stage = useRef<THREE.Group>(null);
+  // held in a ref: the frame loop must not reach into the memo and mutate it
+  const hinge = useRef<THREE.Group | null>(null);
   const progress = useRef(0);
   const [pageTexture, setPageTexture] = useState<THREE.CanvasTexture | null>(null);
 
@@ -217,10 +218,20 @@ function Book({
     emblem.forEach((m) => m.parent?.remove(m));
     model.updateMatrixWorld(true);
 
-    const spineX = new THREE.Box3().setFromObject(model).max.x;
+    // The crease, not the bounding box's corner: the cover bends where it meets
+    // the page block, and its board lies in a plane of its own out at the front
+    // of the book. Hinging on (outer edge, z = 0) swung the board through the
+    // middle of the book and parked it a finger's width off the page.
+    const pageBox = new THREE.Box3();
+    model.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && !/Cube012/.test(mesh.name)) pageBox.expandByObject(mesh);
+    });
+    const spineX = pageBox.max.x;
 
     // ---- cut the front board out of the cover ----
     const boards: THREE.Mesh[] = [];
+    const boardZ: number[] = [];
     const a = new THREE.Vector3();
     const b = new THREE.Vector3();
     const c = new THREE.Vector3();
@@ -265,31 +276,44 @@ function Book({
       };
       mesh.geometry = make(keepP, keepN);
       if (frontP.length) {
-        const board = new THREE.Mesh(make(frontP, frontN), mesh.material);
-        board.position.set(-spineX, 0, 0); // cancels the hinge's own offset
-        boards.push(board);
+        boards.push(new THREE.Mesh(make(frontP, frontN), mesh.material));
+        for (let i = 2; i < frontP.length; i += 3) boardZ.push(frontP[i]);
       }
     }
 
-    const logo = buildLogo();
-    logo.position.set(-spineX, 0.05, 0.4);
+    // the board's own plane, averaged over the triangles that make it up
+    const hingeZ = boardZ.reduce((a, b) => a + b, 0) / Math.max(1, boardZ.length);
 
-    return { model, spineX, boards, logo };
+    // `attach` re-parents while preserving the world transform, so none of the
+    // offsets have to be cancelled by hand — doing that arithmetic myself is
+    // what kept putting the board on the wrong edge or in the wrong plane.
+    const swing = new THREE.Group();
+    swing.position.set(spineX, 0, hingeZ);
+    const stage = new THREE.Group();
+    stage.add(model, swing);
+    for (const board of boards) {
+      stage.add(board);
+      swing.attach(board);
+    }
+
+    const logo = buildLogo();
+    logo.position.set(0, 0.05, 0.42); // on the cover's face, in stage space
+    stage.add(logo);
+    swing.attach(logo);
+
+    return { stage, swing };
   }, [gltf.scene]);
 
   useEffect(() => {
-    const { model, boards, logo } = built;
+    hinge.current = built.swing;
+    const { stage: owned } = built;
     return () => {
-      const drop = (o: THREE.Object3D) =>
-        o.traverse((child) => {
-          const mesh = child as THREE.Mesh;
-          if (!mesh.isMesh) return;
-          mesh.geometry.dispose();
-          (mesh.material as THREE.Material).dispose();
-        });
-      drop(model);
-      boards.forEach(drop);
-      drop(logo);
+      owned.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      });
     };
   }, [built]);
 
@@ -306,7 +330,7 @@ function Book({
     const t = progress.current;
     // ease-out so it lands softly rather than snapping at the end
     const eased = 1 - Math.pow(1 - t, 3);
-    if (swing.current) swing.current.rotation.y = eased * OPEN_ANGLE;
+    if (hinge.current) hinge.current.rotation.y = eased * OPEN_ANGLE;
     if (stage.current) stage.current.position.x = -eased * 0.62;
   });
 
@@ -320,15 +344,7 @@ function Book({
       onPointerOver={() => (document.body.style.cursor = "pointer")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
-      <primitive object={built.model} />
-
-      {/* the hinge, on the spine */}
-      <group ref={swing} position={[built.spineX, 0, 0]}>
-        {built.boards.map((board, i) => (
-          <primitive key={i} object={board} />
-        ))}
-        <primitive object={built.logo} />
-      </group>
+      <primitive object={built.stage} />
 
       {/* the writing, on the page the board was covering */}
       {pageTexture && (
@@ -400,7 +416,7 @@ export default function SarvaBook3D({
           damping={0.22}
         >
           <Float speed={1.1} rotationIntensity={0.12} floatIntensity={0.3}>
-            <group rotation={[-0.5, 0, 0]} scale={0.78}>
+            <group rotation={[-0.45, 0, 0]} scale={1.05}>
               <Suspense fallback={null}>
                 <Book autoOpen={autoOpen} open={open} setOpen={setOpen} />
               </Suspense>

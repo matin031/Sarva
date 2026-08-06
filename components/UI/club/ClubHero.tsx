@@ -83,9 +83,9 @@ export default function ClubHero({
         />
       </div>
 
-      {/* ---------- the book, alone ---------- */}
-      <div className="relative mx-auto h-[300px] w-full max-w-4xl xs:h-[360px] sm:h-[460px] lg:h-[560px]">
-        {ready && <SarvaBook3D intro={!reduced} className="h-full w-full" />}
+      {/* ---------- the book, alone and large ---------- */}
+      <div className="relative mx-auto h-[340px] w-full max-w-5xl xs:h-[400px] sm:h-[520px] lg:h-[640px]">
+        {ready && <SarvaBook3D autoOpen={!reduced} className="h-full w-full" />}
       </div>
 
       {/* ---------- below it, the parts you can press ---------- */}

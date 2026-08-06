@@ -1,87 +1,89 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Float, PresentationControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { sarvaLogoSvg } from "@/lib/club/sarva-logo";
 
-/** سروا کلاب's hero: an open book, centre stage, with this page's own words
- *  written across its two pages.
+/** سروا کلاب's hero: the club's own book, which opens itself.
  *
- *  About the model. It arrives as a 12.5MB Sketchfab scan with six 2048²
- *  PNGs and an emissive pass at strength 4.2 that blows the whole book out to
- *  flat white. It was re-authored offline with glTF-Transform — emissive maps
- *  dropped (they are switched off here anyway), the rest resized to 1024 and
- *  re-encoded as WebP — which took it to 548KB, a twenty-third of the original,
- *  without a visible difference at the size it is shown.
+ *  It arrives closed, wearing the سروا mark, and a moment after the page
+ *  settles the front board swings back and the invitation is there on the page
+ *  underneath. Clicking it closes and opens it again.
  *
- *  About the writing. The pages are not axis-aligned: the model carries a baked
- *  rotation, and an open book's leaves fall away from the spine in a shallow V.
- *  So the text is not laid on a flat card in front of the book — each page gets
- *  its own plane, tilted to match that page's slope and floated a hair above
- *  the paper, carrying a canvas texture. The measurements below came from
- *  raycasting the levelled model, not from guesswork. */
+ *  The model is a *closed* book — one cover shell, one solid page block, no
+ *  animation and no seam to open along. So the cover is cut open here: every
+ *  triangle of the cover in front of the page block is lifted out into a hinge
+ *  group placed on the spine, and that group is what rotates. The rest of the
+ *  cover, the spine and the pages stay where they are.
+ *
+ *  Two details that cost me the most:
+ *
+ *  • The model is bound on the left; a Persian book opens the other way. The
+ *    MODEL is therefore mirrored (`scale.x = -1`) — its materials are already
+ *    double-sided and three flips normals for a negative-determinant matrix,
+ *    so nothing else has to change. Everything added afterwards hangs off the
+ *    stage, never off the model, so no emblem or writing inherits the mirror.
+ *
+ *  • The cut-out triangles are baked into stage space rather than re-parented
+ *    with a copied transform: the meshes sit under intermediate nodes with
+ *    transforms of their own, and carrying only the mesh's own position put
+ *    the hinge on the wrong edge of the book entirely. */
 
 const MODEL = "/models/sarva-book.glb";
 
-/** The page normal, measured off the geometry (area-weighted over every
- *  up-facing face). Rotating this onto +Y lays the spread flat. */
-const PAGE_NORMAL = new THREE.Vector3(0.004, 0.369, 0.93).normalize();
+const COVER = 0x0c2030;
+const GOLD = 0xd9a94f;
+const PAGES = 0xf4ece0;
+const LOGO = 0x16d3d8;
 
-type PageText = { title?: string; lines: string[] };
+/** How far the board swings, in radians — a little past square, so the open
+ *  book reads as open without the board sailing off the side of the frame. */
+const OPEN_ANGLE = THREE.MathUtils.degToRad(122);
+/** the page block's face, in model units */
+const PAGE_TOP_Z = 0.234;
+/** anything in front of this is front board, not spine or back cover */
+const FRONT_Z = 0.16;
 
-const RIGHT_PAGE: PageText = {
-  title: "سروا کلاب",
-  lines: ["اینجا می‌توانی", "شعرت را به دست", "بقیه برسانی"],
-};
-
-const LEFT_PAGE: PageText = {
-  lines: ["با نام خودت، یا بی‌نام", "بقیه زیرش می‌نویسند", "پیش از انتشار بررسی می‌شود"],
-};
-
-/** Draws one page's words into a canvas.
- *
- *  Waits on `document.fonts.ready` before the caller uses it: drawn any earlier
- *  the browser paints Persian in a fallback face and bakes that into a texture
- *  that never repaints. */
-function drawPage(text: PageText, ink: string, accent: string) {
-  // wide enough for the longest line at this size: at 700 the text ran off
-  // the canvas and was clipped mid-word
-  const W = 960;
-  const H = 1220;
+/** Draws the page. Waits on `document.fonts.ready` before it is used: drawn any
+ *  earlier the browser paints Persian in a fallback face and bakes that into a
+ *  texture that never repaints. */
+function drawPage() {
+  const W = 860;
+  const H = 1160;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  ctx.clearRect(0, 0, W, H);
   ctx.direction = "rtl";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  let y = H / 2 - (text.lines.length - 1) * 58 - (text.title ? 90 : 0);
+  ctx.fillStyle = "#0b6f72";
+  ctx.font = "600 48px Vazirmatn, sans-serif";
+  ctx.fillText("سروا کلاب", W / 2, 250);
+  const w = ctx.measureText("سروا کلاب").width;
+  ctx.strokeStyle = "#0b6f72";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - w / 2, 292);
+  ctx.lineTo(W / 2 + w / 2, 292);
+  ctx.stroke();
 
-  if (text.title) {
-    ctx.fillStyle = accent;
-    ctx.font = "600 52px Vazirmatn, sans-serif";
-    ctx.fillText(text.title, W / 2, y);
-    // a rule under the heading, the width of the word
-    const w = ctx.measureText(text.title).width;
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(W / 2 - w / 2, y + 40);
-    ctx.lineTo(W / 2 + w / 2, y + 40);
-    ctx.stroke();
-    y += 165;
-  }
+  ctx.fillStyle = "#2f261b";
+  ctx.font = "700 62px Vazirmatn, sans-serif";
+  ["اینجا می‌توانی", "شعرت را به دست", "بقیه برسانی"].forEach((line, i) =>
+    ctx.fillText(line, W / 2, 400 + i * 104),
+  );
 
-  ctx.fillStyle = ink;
-  ctx.font = "700 64px Vazirmatn, sans-serif";
-  for (const line of text.lines) {
-    ctx.fillText(line, W / 2, y);
-    y += 116;
-  }
+  ctx.fillStyle = "#6a6152";
+  ctx.font = "400 40px Vazirmatn, sans-serif";
+  ["با نام خودت، یا بی‌نام", "بقیه زیرش می‌نویسند", "پیش از انتشار بررسی می‌شود"].forEach(
+    (line, i) => ctx.fillText(line, W / 2, 800 + i * 74),
+  );
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -89,98 +91,258 @@ function drawPage(text: PageText, ink: string, accent: string) {
   return texture;
 }
 
-type Placement = { position: THREE.Vector3; quaternion: THREE.Quaternion };
+/** The سروا mark, extruded into a raised emblem for the cover. */
+function buildLogo() {
+  const parsed = new SVGLoader().parse(sarvaLogoSvg());
+  const material = new THREE.MeshStandardMaterial({
+    color: LOGO,
+    metalness: 0.5,
+    roughness: 0.22,
+    emissive: 0x0a4b4d,
+    emissiveIntensity: 0.55,
+  });
 
-/** Where a page actually is, found by feeling for it.
- *
- *  Every constant I measured by hand was wrong in some way — the model carries
- *  a baked rotation, the leaves curl up towards the fore-edge, and the "page
- *  surface" is not a plane at all. So the writing is not placed from numbers:
- *  a fan of rays is dropped onto each page, the hits are averaged into a point
- *  and a normal, and the text is laid on *that*. It re-derives itself from the
- *  geometry, so it cannot drift out of agreement with the model. */
-function fitPage(pageMesh: THREE.Mesh, side: "left" | "right"): Placement | null {
-  const dir = side === "left" ? -1 : 1;
-  const raycaster = new THREE.Raycaster();
-  const down = new THREE.Vector3(0, -1, 0);
-  const point = new THREE.Vector3();
-  const normal = new THREE.Vector3();
-  let hits = 0;
-
-  // a wide fan across the whole half; the flatness test below is what decides
-  // which of these are actually page, so the centre lands itself
-  for (const ax of [0.35, 0.5, 0.65, 0.8, 0.95, 1.1]) {
-    for (const z of [-0.25, 0, 0.25]) {
-      raycaster.set(new THREE.Vector3(dir * ax, 12, z), down);
-      const hit = raycaster.intersectObject(pageMesh, true)[0];
-      if (!hit?.face) continue;
-      const n = hit.face.normal.clone().transformDirection(pageMesh.matrixWorld).normalize();
-      // a ray from above can land on a face pointing away from it (the mesh is
-      // double-sided); flip those rather than let them cancel the average out
-      if (n.y < 0) n.negate();
-      // the gutter and the curled fore-edge are steep; only the flat middle
-      // of the leaf can be written on
-      if (n.y < 0.78) continue;
-      point.add(hit.point);
-      normal.add(n);
-      hits++;
+  const meshes: THREE.Mesh[] = [];
+  for (const path of parsed.paths) {
+    for (const shape of path.toShapes()) {
+      meshes.push(
+        new THREE.Mesh(
+          new THREE.ExtrudeGeometry(shape, {
+            depth: 16,
+            bevelEnabled: true,
+            bevelThickness: 4,
+            bevelSize: 3,
+            bevelSegments: 2,
+          }),
+          material,
+        ),
+      );
     }
   }
-  if (hits < 3) return null;
 
-  point.divideScalar(hits);
-  normal.divideScalar(hits).normalize();
-  // lift a hair clear of the paper along its own normal
-  point.addScaledVector(normal, 0.012);
+  // Centre in the geometry's OWN units: Box3.setFromObject reports world space,
+  // and subtracting that from local positions puts the emblem off the cover.
+  const box = new THREE.Box3();
+  for (const m of meshes) {
+    m.geometry.computeBoundingBox();
+    box.union(m.geometry.boundingBox!);
+  }
+  const centre = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  for (const m of meshes) m.geometry.translate(-centre.x, -centre.y, -centre.z);
 
-  return {
-    position: point,
-    quaternion: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal),
-  };
+  const group = new THREE.Group();
+  meshes.forEach((m) => group.add(m));
+  const k = 1.2 / Math.max(size.x, size.y);
+  group.scale.set(k, -k, k); // SVG's Y grows downward, three's grows up
+  return group;
 }
 
-function PageWriting({ side, placement }: { side: "left" | "right"; placement: Placement }) {
-  const [texture, setTexture] = useState<THREE.CanvasTexture | null>(null);
+function Book({
+  autoOpen,
+  open,
+  setOpen,
+}: {
+  autoOpen: boolean;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}) {
+  const gltf = useGLTF(MODEL);
+  const swing = useRef<THREE.Group>(null);
+  const stage = useRef<THREE.Group>(null);
+  const progress = useRef(0);
+  const [pageTexture, setPageTexture] = useState<THREE.CanvasTexture | null>(null);
+
+  // The beat closed has to start here, not in the parent: `useGLTF` suspends,
+  // so the parent mounts while the model is still downloading — and on a slow
+  // connection the cover would have swung open before the book ever appeared,
+  // which is the one moment the سروا mark on it is there to be seen.
+  useEffect(() => {
+    if (!autoOpen) return;
+    // long enough that the cover, and the mark on it, actually register
+    const t = setTimeout(() => setOpen(true), 1600);
+    return () => clearTimeout(t);
+  }, [autoOpen, setOpen]);
 
   useEffect(() => {
     let alive = true;
     let made: THREE.CanvasTexture | null = null;
     const build = () => {
       if (!alive) return;
-      made = drawPage(side === "right" ? RIGHT_PAGE : LEFT_PAGE, "#2f261b", "#0b6f72");
-      setTexture(made);
+      made = drawPage();
+      setPageTexture(made);
     };
-    // the webfont must be in before the text is baked into a texture
     if (document.fonts?.ready) document.fonts.ready.then(build);
     else build();
     return () => {
       alive = false;
       made?.dispose();
     };
-  }, [side]);
-
-  // a plane already facing +Y, so the fitted quaternion is all the rotation it
-  // needs; the page is roughly 1.05 x 1.35 of the levelled spread
-  const geometry = useMemo(() => {
-    const g = new THREE.PlaneGeometry(0.8, 1.02);
-    g.rotateX(-Math.PI / 2);
-    return g;
   }, []);
-  useEffect(() => () => geometry.dispose(), [geometry]);
 
-  if (!texture) return null;
+  const built = useMemo(() => {
+    const model = gltf.scene.clone(true);
+    model.scale.x = -1; // a Persian book is bound on the right
+
+    const covers: THREE.Mesh[] = [];
+    const emblem: THREE.Object3D[] = [];
+    model.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      if (/Circle010|Star003/.test(mesh.name)) {
+        emblem.push(mesh); // the crescent and the star: this book is not that book
+        return;
+      }
+      const source = mesh.material as THREE.MeshStandardMaterial;
+      const isCover = /Cube012/.test(mesh.name);
+      const mat = source.clone();
+      if (source.name === "Gold") {
+        mat.color.setHex(GOLD);
+        mat.roughness = 0.28;
+        mat.metalness = 0.9;
+      } else if (isCover) {
+        mat.color.setHex(COVER);
+        mat.roughness = 0.85;
+        mat.metalness = 0.05;
+      } else {
+        // Colour by MESH, not material: the page block wears the same cloth as
+        // the cover, so keying off the material painted the first page navy.
+        mat.color.setHex(PAGES);
+        mat.roughness = 0.95;
+        mat.metalness = 0;
+      }
+      mesh.material = mat;
+      if (isCover) covers.push(mesh);
+    });
+    emblem.forEach((m) => m.parent?.remove(m));
+    model.updateMatrixWorld(true);
+
+    const spineX = new THREE.Box3().setFromObject(model).max.x;
+
+    // ---- cut the front board out of the cover ----
+    const boards: THREE.Mesh[] = [];
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const v = new THREE.Vector3();
+    const n = new THREE.Vector3();
+
+    for (const mesh of covers) {
+      mesh.updateMatrixWorld(true);
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+      const geo = mesh.geometry.toNonIndexed();
+      const pos = geo.attributes.position;
+      const nor = geo.attributes.normal;
+      const keepP: number[] = [];
+      const keepN: number[] = [];
+      const frontP: number[] = [];
+      const frontN: number[] = [];
+
+      for (let i = 0; i < pos.count; i += 3) {
+        a.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        b.fromBufferAttribute(pos, i + 1).applyMatrix4(mesh.matrixWorld);
+        c.fromBufferAttribute(pos, i + 2).applyMatrix4(mesh.matrixWorld);
+        const front = (a.z + b.z + c.z) / 3 > FRONT_Z;
+        for (let j = 0; j < 3; j++) {
+          if (front) {
+            // baked into stage space, so the board needs no transform of its own
+            v.fromBufferAttribute(pos, i + j).applyMatrix4(mesh.matrixWorld);
+            n.fromBufferAttribute(nor, i + j).applyMatrix3(normalMatrix).normalize();
+            frontP.push(v.x, v.y, v.z);
+            frontN.push(n.x, n.y, n.z);
+          } else {
+            keepP.push(pos.getX(i + j), pos.getY(i + j), pos.getZ(i + j));
+            keepN.push(nor.getX(i + j), nor.getY(i + j), nor.getZ(i + j));
+          }
+        }
+      }
+
+      const make = (P: number[], N: number[]) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+        g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+        return g;
+      };
+      mesh.geometry = make(keepP, keepN);
+      if (frontP.length) {
+        const board = new THREE.Mesh(make(frontP, frontN), mesh.material);
+        board.position.set(-spineX, 0, 0); // cancels the hinge's own offset
+        boards.push(board);
+      }
+    }
+
+    const logo = buildLogo();
+    logo.position.set(-spineX, 0.05, 0.4);
+
+    return { model, spineX, boards, logo };
+  }, [gltf.scene]);
+
+  useEffect(() => {
+    const { model, boards, logo } = built;
+    return () => {
+      const drop = (o: THREE.Object3D) =>
+        o.traverse((child) => {
+          const mesh = child as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        });
+      drop(model);
+      boards.forEach(drop);
+      drop(logo);
+    };
+  }, [built]);
+
+  /** Eases towards whichever state was asked for, and slides the stage as it
+   *  goes: the open book is wider than the closed one, and without this the
+   *  whole thing drifts off centre the moment the board lifts. */
+  useFrame((_, delta) => {
+    const target = open ? 1 : 0;
+    if (progress.current !== target) {
+      const step = Math.min(1, delta / 0.85);
+      progress.current += (target - progress.current) * step * 2.2;
+      if (Math.abs(target - progress.current) < 0.001) progress.current = target;
+    }
+    const t = progress.current;
+    // ease-out so it lands softly rather than snapping at the end
+    const eased = 1 - Math.pow(1 - t, 3);
+    if (swing.current) swing.current.rotation.y = eased * OPEN_ANGLE;
+    if (stage.current) stage.current.position.x = -eased * 0.62;
+  });
 
   return (
-    <mesh
-      geometry={geometry}
-      position={placement.position}
-      quaternion={placement.quaternion}
-      // drawn after the book and without writing depth: ink sitting on paper,
-      // not a second surface fighting it for the same pixels
-      renderOrder={10}
+    <group
+      ref={stage}
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpen(!open);
+      }}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
     >
-      <meshBasicMaterial map={texture} transparent depthWrite={false} toneMapped={false} />
-    </mesh>
+      <primitive object={built.model} />
+
+      {/* the hinge, on the spine */}
+      <group ref={swing} position={[built.spineX, 0, 0]}>
+        {built.boards.map((board, i) => (
+          <primitive key={i} object={board} />
+        ))}
+        <primitive object={built.logo} />
+      </group>
+
+      {/* the writing, on the page the board was covering */}
+      {pageTexture && (
+        <mesh position={[0, 0, PAGE_TOP_Z + 0.012]} renderOrder={10}>
+          <planeGeometry args={[1.66, 2.24]} />
+          <meshBasicMaterial
+            map={pageTexture}
+            transparent
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
+    </group>
   );
 }
 
@@ -203,97 +365,16 @@ function StudioEnvironment() {
   return <primitive attach="environment" object={env} />;
 }
 
-function Book({ intro }: { intro: boolean }) {
-  const gltf = useGLTF(MODEL);
-  const group = useRef<THREE.Group>(null);
-  const opened = useRef(0);
-
-  const built = useMemo(() => {
-    const root = gltf.scene.clone(true);
-
-    root.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-      // the scan's emissive pass is what washes the book out
-      mat.emissiveIntensity = 0;
-      mat.envMapIntensity = 0.7;
-      mesh.material = mat;
-    });
-
-    // level the spread: measured page normal onto +Y
-    root.quaternion.premultiply(
-      new THREE.Quaternion().setFromUnitVectors(PAGE_NORMAL, new THREE.Vector3(0, 1, 0)),
-    );
-    root.updateMatrixWorld(true);
-
-    // scale FIRST, then centre — position is not affected by scale, so centring
-    // before scaling leaves the model off-centre by (1-scale) of its old offset
-    let box = new THREE.Box3().setFromObject(root);
-    const size = box.getSize(new THREE.Vector3());
-    root.scale.setScalar(3 / Math.max(size.x, size.z));
-    root.updateMatrixWorld(true);
-    box = new THREE.Box3().setFromObject(root);
-    root.position.sub(box.getCenter(new THREE.Vector3()));
-    root.updateMatrixWorld(true);
-
-    // the page block is the one carrying the book's own material
-    let pageMesh: THREE.Mesh | null = null;
-    root.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (mesh.isMesh && (mesh.material as THREE.Material).name === "MeshSG") pageMesh = mesh;
-    });
-
-    const pages = pageMesh
-      ? { left: fitPage(pageMesh, "left"), right: fitPage(pageMesh, "right") }
-      : { left: null, right: null };
-
-    return { root, pages };
-  }, [gltf.scene]);
-
-  const { root: model, pages } = built;
-
-  useEffect(() => {
-    const owned = model;
-    return () => {
-      owned.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (mesh.isMesh) (mesh.material as THREE.Material).dispose();
-      });
-    };
-  }, [model]);
-
-  /** Tips up towards the reader on first load, then holds. */
-  useFrame((_, delta) => {
-    if (!group.current) return;
-    if (!intro) {
-      group.current.rotation.x = 0;
-      return;
-    }
-    if (opened.current >= 1) return;
-    opened.current = Math.min(1, opened.current + delta / 1.1);
-    const t = 1 - Math.pow(1 - opened.current, 3);
-    group.current.rotation.x = (1 - t) * 0.55;
-    group.current.position.y = (1 - t) * -0.35;
-  });
-
-  return (
-    <group ref={group} rotation={[0.55, 0, 0]} position={[0, -0.35, 0]}>
-      <primitive object={model} />
-      {pages.right && <PageWriting side="right" placement={pages.right} />}
-      {pages.left && <PageWriting side="left" placement={pages.left} />}
-    </group>
-  );
-}
-
 export default function SarvaBook3D({
-  intro = true,
+  autoOpen = true,
   className = "",
 }: {
-  /** false plays no entrance — used under prefers-reduced-motion */
-  intro?: boolean;
+  /** false starts it open and still — used under prefers-reduced-motion */
+  autoOpen?: boolean;
   className?: string;
 }) {
+  const [open, setOpen] = useState(!autoOpen);
+
   return (
     <div className={className}>
       <Canvas
@@ -301,35 +382,33 @@ export default function SarvaBook3D({
         // surface without showing anything new
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
-        camera={{ position: [0, 2.15, 2.75], fov: 34 }}
-        onCreated={({ gl, camera }) => {
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.05;
-          camera.lookAt(0, -0.25, 0);
-        }}
+        camera={{ position: [0, 1.5, 6.2], fov: 32 }}
       >
         <StudioEnvironment />
-        <hemisphereLight args={[0xcfe8ff, 0x0a1420, 1.0]} />
-        <directionalLight position={[2, 5, 3]} intensity={2.2} color={0xfff2e0} />
-        <directionalLight position={[-4, 2, -2]} intensity={1.4} color={0x35d0d6} />
+        <hemisphereLight args={[0xcfe8ff, 0x0a1420, 1.1]} />
+        <directionalLight position={[2, 5, 4]} intensity={2.4} color={0xfff2e0} />
+        <directionalLight position={[-4, 2, -2]} intensity={1.6} color={0x35d0d6} />
         <directionalLight position={[0, -2, 4]} intensity={0.5} color={0xffd9a0} />
 
-        {/* the book answers the pointer, and can be picked up and turned */}
         <PresentationControls
           global
           snap
-          cursor
+          cursor={false}
           speed={1.1}
-          polar={[-0.35, 0.15]}
-          azimuth={[-0.45, 0.45]}
+          polar={[-0.3, 0.2]}
+          azimuth={[-0.4, 0.4]}
           damping={0.22}
         >
-          <Float speed={1.2} rotationIntensity={0.14} floatIntensity={0.35}>
-            <Book intro={intro} />
+          <Float speed={1.1} rotationIntensity={0.12} floatIntensity={0.3}>
+            <group rotation={[-0.5, 0, 0]} scale={0.78}>
+              <Suspense fallback={null}>
+                <Book autoOpen={autoOpen} open={open} setOpen={setOpen} />
+              </Suspense>
+            </group>
           </Float>
         </PresentationControls>
 
-        <ContactShadows position={[0, -1.1, 0]} opacity={0.4} scale={7} blur={2.8} far={3} />
+        <ContactShadows position={[0, -1.6, 0]} opacity={0.35} scale={8} blur={2.8} far={3} />
       </Canvas>
     </div>
   );

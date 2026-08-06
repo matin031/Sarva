@@ -18,6 +18,12 @@ function LogoReveal() {
   useEffect(() => {
     if (sessionStorage.getItem(SEEN_KEY)) return; // already played this session
     sessionStorage.setItem(SEEN_KEY, "1");
+    // Announce that the screen is about to be covered. A page whose own
+    // entrance animation is longer than a blink has no other way to know it
+    // would be playing behind this overlay — سروا کلاب's book waits on it.
+    // Set here rather than in the render effect below so it is in place before
+    // any timer of this commit fires.
+    document.documentElement.dataset.sarvaIntro = "playing";
     // one-time sync with sessionStorage on mount, not derived state
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShow(true);
@@ -40,7 +46,12 @@ function LogoReveal() {
       }
     }
 
-    const timeout = setTimeout(() => setShow(false), reduceMotion ? 900 : TOTAL_MS);
+    const done = () => {
+      setShow(false);
+      delete document.documentElement.dataset.sarvaIntro;
+      window.dispatchEvent(new Event("sarva:intro-done"));
+    };
+    const timeout = setTimeout(done, reduceMotion ? 900 : TOTAL_MS);
     return () => clearTimeout(timeout);
   }, [show]);
 

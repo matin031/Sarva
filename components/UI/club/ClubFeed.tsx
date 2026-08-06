@@ -68,7 +68,9 @@ export default function ClubFeed({
     }`;
 
   return (
-    <div dir="rtl" className="flex flex-col gap-6">
+    // the hero's «سرودهٔ تازه بفرست» button jumps here — the book itself holds
+    // no click targets, so the call to action lands on the real composer
+    <div id="club-composer" dir="rtl" className="flex scroll-mt-24 flex-col gap-6">
       {/* composer */}
       {viewerName ? (
         composing ? (

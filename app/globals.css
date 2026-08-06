@@ -38,6 +38,12 @@
   --gold-light: oklch(0.88 0.08 85);
   --cream: oklch(0.97 0.01 85);
   --paper: oklch(0.92 0.02 85);
+
+  /* سروا کلاب's book. The sheets need their own tone rather than --card:
+     a book has to sit *above* the page it lies on, and in the dark theme
+     --card is darker than the background, which sank it instead. */
+  --club-paper-a: oklch(0.995 0.006 85);
+  --club-paper-b: oklch(0.955 0.014 85);
 }
 
 .dark {
@@ -76,6 +82,11 @@
   --gold-light: oklch(0.65 0.1 85);
   --cream: oklch(0.95 0.01 85);
   --paper: oklch(0.22 0.025 260);
+
+  /* lifted well clear of the 0.14 background, so the book reads as an object
+     lying on the page rather than a hole cut into it */
+  --club-paper-a: oklch(0.27 0.03 258);
+  --club-paper-b: oklch(0.205 0.028 258);
 }
 #nprogress .bar {
   background: var(--color-primary) !important;
@@ -856,28 +867,229 @@ button {
 }
 
 /* ============================================================
-   سروا کلاب
+   سروا کلاب — the book
    ============================================================ */
 
-/* An ink line rising and settling under the hero's floating verses. Only
-   `transform` and `opacity` move, so the whole ambience stays on the
-   compositor — the same rule the عروض hero above is built on. */
-@keyframes clubFloat {
+/* A real 3D book, the width of the page, that riffles its leaves on load and
+   settles open on the one carrying the invitation.
+ *
+ * One `preserve-3d` scene and a handful of CSS animations — no library, no
+ * WebGL, no rAF loop. Two things carry the illusion:
+ *
+ * 1. Stacking is depth, not z-index. Inside a preserve-3d scene the browser
+ *    sorts by 3D position and ignores z-index entirely, so each leaf carries
+ *    `rotateY(θ) translateZ(d)`. The translate is applied in the leaf's own
+ *    space: at rest the top leaf sits nearest the reader, and once it has swung
+ *    180° around the spine that same offset points the other way and it lands
+ *    at the *bottom* of the far pile. Which is what paper does, for free.
+ *
+ * 2. The scene is laid out `ltr` even on this RTL page. `dir: rtl` reverses
+ *    flex order, which silently swaps the two halves and leaves every leaf
+ *    hinged on its outer edge instead of the spine. The text inside each sheet
+ *    gets its own `dir="rtl"` back.
+ *
+ * Sizes are in `cqw` against the book's own width, so one set of rules holds
+ * from 390px to a desktop with no breakpoints. */
+
+.club-book {
+  container-type: inline-size;
+  perspective: 2600px;
+  perspective-origin: 50% 40%;
+}
+
+.club-spread {
+  position: relative;
+  display: flex;
+  width: 100%;
+  aspect-ratio: 2.15 / 1;
+  transform-style: preserve-3d;
+  /* lying on a desk, tipped away from the reader */
+  transform: rotateX(9deg);
+}
+
+/* On a phone a 2.15:1 spread is 170px tall and the invitation has nowhere to
+   go. Taller pages give it room — and a near-square spread is closer to what a
+   real book of poetry looks like anyway. */
+@media (max-width: 640px) {
+  .club-spread {
+    aspect-ratio: 1.45 / 1;
+    transform: rotateX(6deg);
+  }
+}
+
+/* the cover boards the leaves are bound into, sitting just behind them */
+.club-board {
+  position: absolute;
+  inset: -1.4% -1.1%;
+  border-radius: 1.6cqw;
+  transform: translateZ(-16px);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklch, var(--color-primary) 55%, var(--color-lapis)),
+    color-mix(in oklch, var(--color-lapis) 80%, black)
+  );
+  box-shadow: 0 3cqw 6cqw -1.5cqw rgba(0, 0, 0, 0.55);
+}
+
+.club-half {
+  position: relative;
+  flex: 1 1 50%;
+  transform-style: preserve-3d;
+}
+
+.club-sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6cqw;
+  padding: 4cqw 4.5cqw;
+  overflow: hidden;
+  text-align: center;
+  background: linear-gradient(160deg, var(--club-paper-a) 0%, var(--club-paper-b) 100%);
+  border: 1px solid color-mix(in oklch, var(--color-border) 60%, transparent);
+}
+
+/* The page lying under the pile.
+   A leaf's `translateZ(d)` reverses as it turns, so once it has crossed the
+   spine it sits at -d — *behind* a base sheet left at z:0, which is why the
+   book used to settle showing this page instead of the one that just landed
+   on top of it. Pushing it deeper than the deepest leaf puts the pile back in
+   front, where paper goes. */
+.club-sheet--under {
+  transform: translateZ(-9px);
+}
+
+/* An RTL book is bound on the right, so its leaves travel left to right across
+   the spine; the outer corners are the rounded ones. */
+.club-sheet--left {
+  border-radius: 1.4cqw 0.3cqw 0.3cqw 1.4cqw;
+}
+.club-sheet--right {
+  border-radius: 0.3cqw 1.4cqw 1.4cqw 0.3cqw;
+}
+
+/* paper darkening as it dives into the binding */
+.club-sheet::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 11%;
+  pointer-events: none;
+}
+.club-sheet--left::after {
+  right: 0;
+  background: linear-gradient(to right, transparent, color-mix(in oklch, var(--color-foreground) 20%, transparent));
+}
+.club-sheet--right::after {
+  left: 0;
+  background: linear-gradient(to left, transparent, color-mix(in oklch, var(--color-foreground) 20%, transparent));
+}
+
+.club-leaf {
+  position: absolute;
+  inset: 0;
+  /* the spine: the inner edge of the left half */
+  transform-origin: 100% 50%;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg) translateZ(var(--club-d, 0px));
+  animation: clubPageTurn 0.62s cubic-bezier(0.42, 0.02, 0.28, 1) var(--club-delay, 0s) forwards;
+  will-change: transform;
+}
+
+@keyframes clubPageTurn {
+  from {
+    transform: rotateY(0deg) translateZ(var(--club-d, 0px));
+  }
+  to {
+    transform: rotateY(180deg) translateZ(var(--club-d, 0px));
+  }
+}
+
+.club-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.club-face--back {
+  transform: rotateY(180deg);
+}
+
+/* the shadow a lifting leaf throws across the page beneath it */
+.club-leaf-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.34), transparent 55%);
+  opacity: 0;
+  animation: clubLeafShade 0.62s ease-in-out var(--club-delay, 0s) forwards;
+}
+@keyframes clubLeafShade {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) rotate(var(--club-tilt, 0deg));
+    opacity: 0;
   }
-  50% {
-    transform: translate3d(0, -18px, 0) rotate(var(--club-tilt, 0deg));
+  45% {
+    opacity: 1;
   }
+}
+
+/* whatever the book settles on, arriving as the last leaf lands */
+.club-settle {
+  opacity: 0;
+  animation: clubSettle 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--club-delay, 0s) forwards;
+}
+@keyframes clubSettle {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The site plays a full-screen logo intro on the first load of a session. The
+   book waits behind it rather than riffling where nobody can see it; this class
+   holds every animation at frame zero until the intro is gone. */
+.club-book--waiting .club-leaf,
+.club-book--waiting .club-leaf-shade,
+.club-book--waiting .club-settle {
+  animation-play-state: paused;
+}
+
+/* Reduced motion: the book is simply already open on the right page. */
+@media (prefers-reduced-motion: reduce) {
+  .club-leaf {
+    animation: none;
+    transform: rotateY(180deg) translateZ(var(--club-d, 0px));
+  }
+  .club-leaf-shade {
+    animation: none;
+    opacity: 0;
+  }
+  .club-settle {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Paper grain for the sheets — one tiled data-URI, no extra request. */
+.club-paper {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
 }
 
 /* The gold ring that travels around a برگزیده card.
    The mask that turns a filled shape into a 1px ring must sit on a *still*
    element: rotating the element that carries the mask rotates the mask with
    it, and the ring tears open into a diagonal wedge. So the ring lives on the
-   parent and the conic gradient spins on an oversized child inside it, which
-   keeps the two in step and still costs exactly one composited transform. */
+   parent and the conic gradient spins on an oversized child inside it. */
 @keyframes clubHalo {
   to {
     transform: translate(-50%, -50%) rotate(1turn);
@@ -891,7 +1103,6 @@ button {
   padding: 1px;
   overflow: hidden;
   pointer-events: none;
-  /* draws whatever is inside as a border only, leaving the card's face alone */
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -907,7 +1118,6 @@ button {
   position: absolute;
   top: 50%;
   left: 50%;
-  /* square and oversized, so a corner never sweeps inside the card's edge */
   width: 160%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
@@ -920,23 +1130,6 @@ button {
   );
   animation: clubHalo 6s linear infinite;
   will-change: transform;
-}
-
-/* A quill stroke that draws itself once, under the hero title. */
-@keyframes clubDraw {
-  from {
-    stroke-dashoffset: var(--club-len, 400);
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Paper grain for the poem slabs — a single tiled data-URI, no extra request
-   and no blur pass. */
-.club-paper {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {

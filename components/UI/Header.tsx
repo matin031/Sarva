@@ -136,7 +136,7 @@ function Header() {
     },
     {
       id: 6,
-      title: "سروا کلاب",
+      title: "کلاب",
       src: "/sarvaclub",
       icon: (
         <svg
@@ -152,7 +152,11 @@ function Header() {
             strokeLinejoin="round"
             d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9a2.5 2.5 0 0 1 2.5 2.5V15a2.5 2.5 0 0 1-2.5 2.5h-6L5 21v-3.5A2.5 2.5 0 0 1 4 15V5.5Z"
           />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 8h6M8 11.5h4" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8 8h6M8 11.5h4"
+          />
         </svg>
       ),
     },
@@ -296,8 +300,9 @@ function Header() {
 
             <div
               className={`${openMenuMobile ? " translate-y-2 visible opacity-100" : " -translate-y-7 invisible opacity-0"} 
-             transition-transform duration-150 ease-in-out absolute bg-menu-mobile border-border border py-5 px-4 rounded-lg gap-x-6 flex 
-              items-center -left-30 max-h-22`}
+             transition-transform duration-150 ease-in-out absolute bg-menu-mobile 
+             border-border border py-5 px-4 rounded-lg gap-x-6 flex 
+              items-center -left-30 justify-between gap-y-6 w-50 sm:w-62.5 flex-wrap`}
             >
               {menuItemsMobile.map((l) => (
                 <Link
@@ -305,7 +310,7 @@ function Header() {
                   onClick={() => {
                     setOpenMenuMobile(false);
                   }}
-                  className=" text-xs text-muted-foreground hover:gap-y-0.5 transition-all  sm:text-base flex items-center flex-col"
+                  className=" text-xs text-muted-foreground hover:text-primary transition-all  sm:text-base flex items-center flex-col"
                   href={l.src}
                 >
                   {l.icon}

@@ -35,6 +35,24 @@ export type BeytNote = { label: string; body: string };
 
 export type ExamQuestion = { q: string; a: string };
 
+/** One labelled span in the نقشِ دستوری diagram.
+ *
+ *  `words` are indices into `hemistichs[h].split(/\s+/)`, so a role can cover a
+ *  phrase («بی‌دست و پای») as easily as a single word. They are written out by
+ *  hand rather than matched from the prose notes: a diagram that points at the
+ *  wrong word is worse than no diagram, and matching prose was exactly how the
+ *  earlier attempt went wrong. */
+export type SyntaxRole = {
+  /** 0 = مصراع اول, 1 = مصراع دوم */
+  h: 0 | 1;
+  /** word indices this role covers, in order */
+  words: number[];
+  /** what to write in the box, e.g. «نهاد» or «فعل، ماضی ساده» */
+  label: string;
+  /** which جمله of the مصراع this belongs to — only used to group, may be omitted */
+  clause?: number;
+};
+
 export type Beyt = {
   /** 1-based index within the poem */
   n: number;
@@ -50,6 +68,10 @@ export type Beyt = {
   literary: string[];
   /** قلمرو فکری — one paragraph, not a list */
   intellectual: string;
+  /** نقشِ دستوریِ واژه‌ها, drawn as a diagram over the بیت. Omitted where the
+   *  analysis has not been written yet — the diagram is then simply not shown,
+   *  which is honest in a way that a guessed one would not be. */
+  syntax?: SyntaxRole[];
   notes?: BeytNote[];
   /** قرابت معنایی — lines from elsewhere that carry the same idea */
   affinity?: string[];

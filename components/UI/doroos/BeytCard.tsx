@@ -6,6 +6,7 @@ import type { Beyt } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
+import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -15,6 +16,7 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  reads the answer before the question. */
 export default function BeytCard({ beyt }: { beyt: Beyt }) {
   const [showAnswer, setShowAnswer] = useState(false);
+  const [showSyntax, setShowSyntax] = useState(true);
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
@@ -44,24 +46,55 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
         />
 
         <div className="relative z-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
-            بیت {faNum(beyt.n)}
-          </span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+              بیت {faNum(beyt.n)}
+            </span>
 
-          <div className="mt-6 space-y-3 text-center">
-            {beyt.hemistichs.map((h, i) => (
-              <motion.p
-                key={i}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
-                className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
+            {/* the diagram is on by default — the point is to see the roles the
+                moment you look at the بیت — but it is a lot to take in, so the
+                plain couplet stays one click away */}
+            {beyt.syntax?.length ? (
+              <button
+                type="button"
+                onClick={() => setShowSyntax((v) => !v)}
+                aria-pressed={showSyntax}
+                className={`rounded-full border px-3 py-1 text-[0.7rem] font-bold transition-colors ${
+                  showSyntax
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {h}
-              </motion.p>
-            ))}
+                نقش دستوری
+              </button>
+            ) : null}
           </div>
+
+          {beyt.syntax?.length && showSyntax ? (
+            <div className="mt-8 overflow-x-auto pb-1">
+              {/* the wires need the couplet's real width; on a narrow screen
+                  that is wider than the card, so the diagram scrolls rather
+                  than reflowing into something the arrows no longer match */}
+              <div className="min-w-[30rem]">
+                <BeytSyntaxMap beyt={beyt} />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-3 text-center">
+              {beyt.hemistichs.map((h, i) => (
+                <motion.p
+                  key={i}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.6 }}
+                  transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
+                  className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
+                >
+                  {h}
+                </motion.p>
+              ))}
+            </div>
+          )}
 
           {/* معنی و مفهوم */}
           <div className="mt-7 grid gap-3 sm:grid-cols-5">

@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { JASOOS_LEVELS, pickJasoosLevels } from "@/lib/jasoos-data";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
-import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { apiPost } from "@/lib/api/client";
 import SchoolMap from "./SchoolMap";
 import ShootingScene from "./ShootingScene";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
@@ -51,7 +51,10 @@ function JasoosGame() {
   const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
   const [timeLeftDisplay, setTimeLeftDisplay] = useState<number | null>(null);
   // undefined = still checking auth, null = guest, object = logged in
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  // undefined یعنی «هنوز نمی‌دانیم» و پایین‌تر از null (مهمان) تفکیک می‌شود —
+  // بازیِ ذخیره‌شده تا وقتی معلوم نشده صاحبش کیست بازیابی نمی‌شود.
+  const { user: currentUser, loading: userLoading } = useCurrentUser();
+  const user = userLoading ? undefined : currentUser;
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
   // who the restored (localStorage) session belongs to: "guest" | user id | null
@@ -99,13 +102,6 @@ function JasoosGame() {
     setRestoredFromStorage(true);
   }, []);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   // if the restored session belongs to a different user than the one now
   // signed in, don't trust it — reset to a clean intro screen
@@ -227,41 +223,27 @@ function JasoosGame() {
     beginRun(settings);
   };
 
-  const logAttempt = (
-    lvl: JasoosLevel,
-    chosenRole: string,
-    correctRole: string,
-    isCorrect: boolean,
-  ) => {
+  /** درستی پاسخ عمداً پارامتر نیست: سرور خودش chosenRole را با correctRole
+   *  مقایسه می‌کند، پس فرستادنش از اینجا فقط یک مقدار بی‌اثر بود. */
+  const logAttempt = (lvl: JasoosLevel, chosenRole: string, correctRole: string) => {
     if (!user) return;
-    Promise.resolve(
-      supabase.from("jasoos_answers").insert({
-        user_id: user.id,
-        level_id: lvl.id,
-        category: lvl.category,
-        verse_line_1: lvl.verseLines[0],
-        verse_line_2: lvl.verseLines[1],
-        chosen_role: chosenRole,
-        correct_role: correctRole,
-        is_correct: isCorrect,
-      }),
-    )
-      .then(({ error }) => {
-        if (error) {
-          // most likely cause: the jasoos_answers table/migration hasn't
-          // been created yet in this Supabase project — see
-          // supabase/migrations/20260714_jasoos_answers.sql
-          console.error(
-            "jasoos_answers insert failed:",
-            error.message || error.code || error.details || error.hint || error,
-          );
-        }
-      })
-      .catch((err: unknown) => console.error("jasoos_answers insert threw:", err));
+
+    // user_id فرستاده نمی‌شود؛ سرور آن را از کوکی سشن می‌گیرد. isCorrect هم
+    // فرستاده نمی‌شود — سرور خودش chosenRole را با correctRole مقایسه می‌کند.
+    void apiPost("/api/v1/jasoos/answer", {
+      levelId: lvl.id,
+      category: lvl.category,
+      verseLine1: lvl.verseLines[0],
+      verseLine2: lvl.verseLines[1],
+      chosenRole,
+      correctRole,
+    }).then((result) => {
+      if (!result.ok) console.error("jasoos answer save failed:", result.errors.join(" "));
+    });
   };
 
   const handleResult = (correct: boolean, spy: SuspectType, chosen: SuspectType) => {
-    logAttempt(level, chosen.role, spy.role, correct);
+    logAttempt(level, chosen.role, spy.role);
 
     if (correct) {
       const nextCleared = clearedCount + 1;

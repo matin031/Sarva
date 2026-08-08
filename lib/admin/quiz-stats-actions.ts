@@ -1,7 +1,7 @@
 "use server";
 
+import { query, queryOne } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export type QuizAnswerDetail = {
   questionId: string;
@@ -19,69 +19,81 @@ export type QuizAttemptRow = {
   answers: QuizAnswerDetail[];
 };
 
+/** آمار کلی عروض سماعی — مثل آمار امتحانات، جمع‌بندی در دیتابیس. */
 export async function adminQuizStatsOverview() {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data, error } = await supabase.from("quiz_attempts").select("total, correct");
-  if (error) throw new Error(`adminQuizStatsOverview: ${error.message}`);
+  const row = await queryOne<{ attempt_count: number; total_questions: number; total_correct: number }>(
+    `select count(*)                    as attempt_count,
+            coalesce(sum(total), 0)     as total_questions,
+            coalesce(sum(correct), 0)   as total_correct
+       from quiz_attempts`,
+  );
 
-  const attemptCount = data?.length ?? 0;
-  const totalQuestions = (data ?? []).reduce((s, a) => s + a.total, 0);
-  const totalCorrect = (data ?? []).reduce((s, a) => s + a.correct, 0);
+  const totalQuestions = row?.total_questions ?? 0;
 
   return {
-    attemptCount,
-    avgAccuracy: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
+    attemptCount: row?.attempt_count ?? 0,
+    avgAccuracy: totalQuestions > 0 ? Math.round(((row?.total_correct ?? 0) / totalQuestions) * 100) : 0,
   };
 }
 
 export async function adminQuizAttemptsForUser(userId: string): Promise<QuizAttemptRow[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("quiz_attempts")
-    .select("id, total, correct, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(`adminQuizAttemptsForUser: ${error.message}`);
+  // قبلاً دو رفت‌وبرگشت بود (اول تلاش‌ها، بعد پاسخ‌ها با in(...)). حالا یک JOIN
+  // است و گروه‌بندی در کد انجام می‌شود — همان کاری که آن نسخه هم می‌کرد، فقط
+  // بدون کوئری دوم.
+  const rows = await query<{
+    attempt_id: string;
+    total: number;
+    correct: number;
+    created_at: string;
+    question_id: string | null;
+    is_correct: boolean | null;
+    q_type: string | null;
+    q_poem: string[] | null;
+    q_difficulty: string | null;
+  }>(
+    `select a.id as attempt_id, a.total, a.correct, a.created_at,
+            ans.question_id, ans.is_correct,
+            q.type as q_type, q.poem as q_poem, q.difficulty as q_difficulty
+       from quiz_attempts a
+       left join quiz_attempt_answers ans on ans.attempt_id = a.id
+       left join questions q on q.id = ans.question_id
+      where a.user_id = $1
+      order by a.created_at desc, ans.created_at`,
+    [userId],
+  );
 
-  const attempts = data ?? [];
-  if (attempts.length === 0) return [];
+  const byAttempt = new Map<string, QuizAttemptRow>();
 
-  const { data: answers, error: answersError } = await supabase
-    .from("quiz_attempt_answers")
-    .select("attempt_id, question_id, is_correct, questions(type, poem, difficulty)")
-    .in(
-      "attempt_id",
-      attempts.map((a) => a.id),
-    );
-  if (answersError) throw new Error(`adminQuizAttemptsForUser answers: ${answersError.message}`);
+  for (const row of rows) {
+    let attempt = byAttempt.get(row.attempt_id);
+    if (!attempt) {
+      attempt = {
+        id: row.attempt_id,
+        total: row.total,
+        correct: row.correct,
+        createdAt: row.created_at,
+        answers: [],
+      };
+      byAttempt.set(row.attempt_id, attempt);
+    }
 
-  const byAttempt = new Map<string, QuizAnswerDetail[]>();
-  for (const row of answers ?? []) {
-    const question = row.questions as unknown as {
-      type: string;
-      poem: string[] | null;
-      difficulty: string | null;
-    } | null;
-    const list = byAttempt.get(row.attempt_id) ?? [];
-    list.push({
-      questionId: row.question_id,
-      type: question?.type ?? "—",
-      poem: question?.poem ?? undefined,
-      difficulty: question?.difficulty ?? undefined,
-      isCorrect: row.is_correct,
-    });
-    byAttempt.set(row.attempt_id, list);
+    // left join یعنی تلاشی که هیچ پاسخی ندارد هم یک ردیف با ستون‌های null
+    // برمی‌گرداند — آن ردیف نباید به یک پاسخِ ساختگی تبدیل شود.
+    if (row.question_id) {
+      attempt.answers.push({
+        questionId: row.question_id,
+        type: row.q_type ?? "—",
+        poem: row.q_poem ?? undefined,
+        difficulty: row.q_difficulty ?? undefined,
+        isCorrect: row.is_correct ?? false,
+      });
+    }
   }
 
-  return attempts.map((a) => ({
-    id: a.id,
-    total: a.total,
-    correct: a.correct,
-    createdAt: a.created_at,
-    answers: byAttempt.get(a.id) ?? [],
-  }));
+  // ترتیب Map همان ترتیب درجِ اول است، که به‌خاطر order by بالا از تازه به قدیم است
+  return [...byAttempt.values()];
 }

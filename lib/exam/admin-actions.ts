@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import {
   correctAnswerSchemaByType,
   questionPartContentSchema,
@@ -112,83 +112,119 @@ function validateQuestionInput(input: AdminQuestionInput): string[] {
 
 export async function adminListExams() {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("exams")
-    .select("id, subject, grade, title, exam_session, total_score, created_at")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(`adminListExams: ${error.message}`);
-  return (data ?? []).map((e) => ({
+
+  const rows = await query<{
+    id: string;
+    subject: string;
+    grade: number;
+    title: string;
+    exam_session: string | null;
+    total_score: number;
+    created_at: string;
+  }>(
+    `select id, subject, grade, title, exam_session, total_score, created_at
+       from exams order by created_at desc`,
+  );
+
+  return rows.map((e) => ({
     id: e.id,
     subject: e.subject,
     grade: e.grade,
     title: e.title,
     examKey: e.exam_session ?? "",
-    totalScore: Number(e.total_score),
-    createdAt: e.created_at as string,
+    totalScore: e.total_score,
+    createdAt: e.created_at,
   }));
 }
 
 export async function adminGetExamDetail(examId: string): Promise<AdminExamDetail | null> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data: exam, error: examError } = await supabase
-    .from("exams")
-    .select("id, subject, grade, title, exam_session, total_score")
-    .eq("id", examId)
-    .maybeSingle();
-  if (examError) throw new Error(`adminGetExamDetail: ${examError.message}`);
+  const exam = await queryOne<{
+    id: string;
+    subject: string;
+    grade: number;
+    title: string;
+    exam_session: string | null;
+    total_score: number;
+  }>(`select id, subject, grade, title, exam_session, total_score from exams where id = $1`, [examId]);
+
   if (!exam) return null;
 
-  const { data: sections, error: sectionsError } = await supabase
-    .from("exam_sections")
-    .select("id, title, order_index, section_score")
-    .eq("exam_id", exam.id)
-    .order("order_index");
-  if (sectionsError) throw new Error(`adminGetExamDetail sections: ${sectionsError.message}`);
-
-  const { data: questions, error: questionsError } = await supabase
-    .from("exam_questions")
-    .select("id, exam_section_id, number, page_ref, instruction, layout_pattern, order_index")
-    .in("exam_section_id", (sections ?? []).map((s) => s.id))
-    .order("order_index");
-  if (questionsError) throw new Error(`adminGetExamDetail questions: ${questionsError.message}`);
-
-  const { data: parts, error: partsError } = await supabase
-    .from("exam_question_parts")
-    .select(
-      "id, question_id, part_index, label, type, score, content, correct_answer, accepted_answers, grading_mode, ai_grading_hint",
-    )
-    .in("question_id", (questions ?? []).map((q) => q.id))
-    .order("part_index");
-  if (partsError) throw new Error(`adminGetExamDetail parts: ${partsError.message}`);
-
-  const { data: options, error: optionsError } = await supabase
-    .from("exam_question_options")
-    .select("id, question_part_id, option_key, order_index, text, is_correct")
-    .in("question_part_id", (parts ?? []).map((p) => p.id))
-    .order("order_index");
-  if (optionsError) throw new Error(`adminGetExamDetail options: ${optionsError.message}`);
+  // چهار کوئری موازی — همان الگوی lib/exam/db-exam.ts. نسخهٔ قبلی مجبور بود
+  // ترتیبی باشد چون هر مرحله شناسه‌های مرحلهٔ قبل را برای .in(...) لازم داشت.
+  const [sections, questions, parts, options] = await Promise.all([
+    query<{ id: string; title: string; order_index: number; section_score: number }>(
+      `select id, title, order_index, section_score
+         from exam_sections where exam_id = $1 order by order_index`,
+      [examId],
+    ),
+    query<{
+      id: string;
+      exam_section_id: string;
+      number: number;
+      page_ref: number | null;
+      instruction: string | null;
+      layout_pattern: string | null;
+    }>(
+      `select q.id, q.exam_section_id, q.number, q.page_ref, q.instruction, q.layout_pattern
+         from exam_questions q
+         join exam_sections s on s.id = q.exam_section_id
+        where s.exam_id = $1
+        order by q.order_index`,
+      [examId],
+    ),
+    query<{
+      id: string;
+      question_id: string;
+      label: string | null;
+      type: string;
+      score: number;
+      content: unknown;
+      correct_answer: unknown;
+      accepted_answers: unknown;
+      grading_mode: string;
+      ai_grading_hint: string | null;
+    }>(
+      `select p.id, p.question_id, p.label, p.type, p.score, p.content,
+              p.correct_answer, p.accepted_answers, p.grading_mode, p.ai_grading_hint
+         from exam_question_parts p
+         join exam_questions q on q.id = p.question_id
+         join exam_sections s on s.id = q.exam_section_id
+        where s.exam_id = $1
+        order by p.part_index`,
+      [examId],
+    ),
+    query<{ question_part_id: string; option_key: string | null; text: string; is_correct: boolean }>(
+      `select o.question_part_id, o.option_key, o.text, o.is_correct
+         from exam_question_options o
+         join exam_question_parts p on p.id = o.question_part_id
+         join exam_questions q on q.id = p.question_id
+         join exam_sections s on s.id = q.exam_section_id
+        where s.exam_id = $1
+        order by o.order_index`,
+      [examId],
+    ),
+  ]);
 
   const optionsByPart = new Map<string, SeedOption[]>();
-  for (const o of options ?? []) {
+  for (const o of options) {
     const list = optionsByPart.get(o.question_part_id) ?? [];
     list.push({ optionKey: o.option_key ?? undefined, text: o.text, isCorrect: o.is_correct });
     optionsByPart.set(o.question_part_id, list);
   }
 
   const partsByQuestion = new Map<string, AdminPartDetail[]>();
-  for (const p of parts ?? []) {
+  for (const p of parts) {
     const detail: AdminPartDetail = {
       id: p.id,
       label: p.label ?? undefined,
       type: p.type as QuestionPartType,
-      score: Number(p.score),
-      content: p.content,
+      score: p.score,
+      content: p.content as QuestionPartContent,
       correctAnswer: p.correct_answer,
       acceptedAnswers: p.accepted_answers ?? undefined,
-      gradingMode: p.grading_mode,
+      gradingMode: p.grading_mode as AdminPartInput["gradingMode"],
       aiGradingHint: p.ai_grading_hint ?? undefined,
       options: optionsByPart.get(p.id),
     };
@@ -198,12 +234,12 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
   }
 
   const questionsBySection = new Map<string, AdminQuestionDetail[]>();
-  for (const q of questions ?? []) {
+  for (const q of questions) {
     const detail: AdminQuestionDetail = {
       id: q.id,
       number: q.number,
       pageRef: q.page_ref ?? undefined,
-      layoutPattern: q.layout_pattern ?? undefined,
+      layoutPattern: (q.layout_pattern as LayoutPattern) ?? undefined,
       instruction: q.instruction ?? undefined,
       parts: partsByQuestion.get(q.id) ?? [],
     };
@@ -218,12 +254,12 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
     grade: exam.grade,
     title: exam.title,
     examKey: exam.exam_session ?? "",
-    totalScore: Number(exam.total_score),
-    sections: (sections ?? []).map((s) => ({
+    totalScore: exam.total_score,
+    sections: sections.map((s) => ({
       id: s.id,
       title: s.title,
       orderIndex: s.order_index,
-      sectionScore: Number(s.section_score),
+      sectionScore: s.section_score,
       questions: questionsBySection.get(s.id) ?? [],
     })),
   };
@@ -241,21 +277,23 @@ export async function adminCreateExam(input: {
   totalScore: number;
 }): Promise<ActionResult<{ id: string }>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("exams")
-    .insert({
-      subject: input.subject,
-      grade: input.grade,
-      title: input.title,
-      exam_session: input.examKey,
-      total_score: input.totalScore,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, errors: [error.message] };
-  return { ok: true, data: { id: data.id } };
+  try {
+    const row = await queryOne<{ id: string }>(
+      `insert into exams (subject, grade, title, exam_session, total_score)
+       values ($1, $2, $3, $4, $5) returning id`,
+      [input.subject, input.grade, input.title, input.examKey, input.totalScore],
+    );
+    return { ok: true, data: { id: row!.id } };
+  } catch (err) {
+    // exam_session یکتاست و این محتمل‌ترین خطای این تابع است. پیام خام پستگرس
+    // («duplicate key value violates unique constraint») به درد ادمین نمی‌خورد.
+    if ((err as { code?: string }).code === "23505") {
+      return { ok: false, errors: ["آزمونی با این شناسه از قبل وجود دارد."] };
+    }
+    console.error("[exam] ساخت آزمون ناموفق بود:", err);
+    return { ok: false, errors: ["ساخت آزمون ناموفق بود."] };
+  }
 }
 
 export async function adminCreateSection(
@@ -263,26 +301,34 @@ export async function adminCreateSection(
   input: { title: string; orderIndex: number; sectionScore: number },
 ): Promise<ActionResult<{ id: string }>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("exam_sections")
-    .insert({
-      exam_id: examId,
-      title: input.title,
-      order_index: input.orderIndex,
-      section_score: input.sectionScore,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, errors: [error.message] };
-  return { ok: true, data: { id: data.id } };
+  try {
+    const row = await queryOne<{ id: string }>(
+      `insert into exam_sections (exam_id, title, order_index, section_score)
+       values ($1, $2, $3, $4) returning id`,
+      [examId, input.title, input.orderIndex, input.sectionScore],
+    );
+    return { ok: true, data: { id: row!.id } };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      return { ok: false, errors: ["بخشی با این ترتیب از قبل در این آزمون هست."] };
+    }
+    console.error("[exam] ساخت بخش ناموفق بود:", err);
+    return { ok: false, errors: ["ساخت بخش ناموفق بود."] };
+  }
 }
 
-/** Creates a new question or fully replaces an existing one's parts/options
- *  (delete-then-reinsert): a question's parts are authored as one cohesive
- *  unit — there's no meaningful "edit just one part" workflow separate from
- *  re-submitting the whole question form. */
+/**
+ * ساخت سؤال تازه، یا جایگزینی کاملِ بخش‌ها و گزینه‌های سؤال موجود.
+ *
+ * حذف-و-درجِ-دوباره عمدی است: بخش‌های یک سؤال به‌عنوان یک واحد تألیف می‌شوند و
+ * «ویرایش فقط یک بخش» جدا از ارسال دوبارهٔ کل فرم معنایی ندارد.
+ *
+ * همه‌اش در یک تراکنش است، و این تفاوت واقعیِ نسبت به نسخهٔ قبل است: آنجا هر
+ * insert یک درخواست HTTP جدا بود، پس اگر بعد از حذف بخش‌ها و وسط درج دوباره
+ * خطایی می‌آمد، سؤال با بخش‌های ناقص — یا اصلاً بدون هیچ بخشی — رها می‌شد و
+ * راه برگشتی وجود نداشت.
+ */
 export async function adminUpsertQuestion(
   sectionId: string,
   input: AdminQuestionInput,
@@ -292,103 +338,95 @@ export async function adminUpsertQuestion(
   const errors = validateQuestionInput(input);
   if (errors.length > 0) return { ok: false, errors };
 
-  const supabase = createSupabaseAdmin();
+  try {
+    const questionId = await transaction(async (tx) => {
+      let id: string;
 
-  let questionId: string;
-  if (input.id) {
-    questionId = input.id;
-    const { error: updateError } = await supabase
-      .from("exam_questions")
-      .update({
-        number: input.number,
-        page_ref: input.pageRef ?? null,
-        instruction: input.instruction ?? null,
-        layout_pattern: input.layoutPattern ?? null,
-      })
-      .eq("id", questionId);
-    if (updateError) return { ok: false, errors: [updateError.message] };
+      if (input.id) {
+        id = input.id;
+        await tx.execute(
+          `update exam_questions
+              set number = $1, page_ref = $2, instruction = $3, layout_pattern = $4
+            where id = $5`,
+          [input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null, id],
+        );
+        // حذف بخش‌ها؛ گزینه‌هایشان با cascade می‌روند
+        await tx.execute(`delete from exam_question_parts where question_id = $1`, [id]);
+      } else {
+        const created = await tx.queryOne<{ id: string }>(
+          `insert into exam_questions
+             (exam_section_id, number, page_ref, instruction, layout_pattern, order_index)
+           values ($1, $2, $3, $4, $5,
+                   (select count(*) from exam_questions where exam_section_id = $1))
+           returning id`,
+          [sectionId, input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null],
+        );
+        id = created!.id;
+      }
 
-    // Delete existing parts (cascades to their options) before reinserting.
-    const { error: deleteError } = await supabase.from("exam_question_parts").delete().eq("question_id", questionId);
-    if (deleteError) return { ok: false, errors: [deleteError.message] };
-  } else {
-    const { count } = await supabase
-      .from("exam_questions")
-      .select("id", { count: "exact", head: true })
-      .eq("exam_section_id", sectionId);
+      for (const [partIndex, part] of input.parts.entries()) {
+        const partRow = await tx.queryOne<{ id: string }>(
+          `insert into exam_question_parts
+             (question_id, part_index, label, type, score, content,
+              correct_answer, accepted_answers, grading_mode, ai_grading_hint)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           returning id`,
+          [
+            id,
+            partIndex,
+            part.label ?? null,
+            part.type,
+            part.score,
+            // jsonb از رشتهٔ JSON ساخته می‌شود. اگر شیء خام را می‌دادیم، درایور
+            // آن را به نمایش متنیِ رکورد پستگرس تبدیل می‌کرد، نه JSON.
+            JSON.stringify(part.content),
+            JSON.stringify(part.correctAnswer),
+            part.acceptedAnswers === undefined ? null : JSON.stringify(part.acceptedAnswers),
+            part.gradingMode,
+            part.aiGradingHint ?? null,
+          ],
+        );
 
-    const { data: created, error: createError } = await supabase
-      .from("exam_questions")
-      .insert({
-        exam_section_id: sectionId,
-        number: input.number,
-        page_ref: input.pageRef ?? null,
-        instruction: input.instruction ?? null,
-        layout_pattern: input.layoutPattern ?? null,
-        order_index: count ?? 0,
-      })
-      .select("id")
-      .single();
-    if (createError) return { ok: false, errors: [createError.message] };
-    questionId = created.id;
-  }
+        for (const [i, o] of (part.options ?? []).entries()) {
+          await tx.execute(
+            `insert into exam_question_options
+               (question_part_id, option_key, order_index, text, is_correct)
+             values ($1, $2, $3, $4, $5)`,
+            [partRow!.id, o.optionKey ?? null, i, o.text, o.isCorrect],
+          );
+        }
+      }
 
-  for (const [partIndex, part] of input.parts.entries()) {
-    const { data: partRow, error: partError } = await supabase
-      .from("exam_question_parts")
-      .insert({
-        question_id: questionId,
-        part_index: partIndex,
-        label: part.label ?? null,
-        type: part.type,
-        score: part.score,
-        content: part.content,
-        correct_answer: part.correctAnswer,
-        accepted_answers: part.acceptedAnswers ?? null,
-        grading_mode: part.gradingMode,
-        ai_grading_hint: part.aiGradingHint ?? null,
-      })
-      .select("id")
-      .single();
-    if (partError) return { ok: false, errors: [partError.message] };
+      return id;
+    });
 
-    if (part.options?.length) {
-      const { error: optionsError } = await supabase.from("exam_question_options").insert(
-        part.options.map((o, i) => ({
-          question_part_id: partRow.id,
-          option_key: o.optionKey ?? null,
-          order_index: i,
-          text: o.text,
-          is_correct: o.isCorrect,
-        })),
-      );
-      if (optionsError) return { ok: false, errors: [optionsError.message] };
+    return { ok: true, data: { id: questionId } };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      return { ok: false, errors: ["سؤالی با این شماره در این بخش از قبل هست."] };
     }
+    console.error("[exam] ذخیرهٔ سؤال ناموفق بود:", err);
+    return { ok: false, errors: ["ذخیرهٔ سؤال ناموفق بود. هیچ تغییری اعمال نشد."] };
   }
-
-  return { ok: true, data: { id: questionId } };
 }
 
 export async function adminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("exam_questions").delete().eq("id", questionId);
-  if (error) return { ok: false, errors: [error.message] };
+  const deleted = await execute("delete from exam_questions where id = $1", [questionId]);
+  if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
   return { ok: true, data: null };
 }
 
 export async function adminDeleteSection(sectionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("exam_sections").delete().eq("id", sectionId);
-  if (error) return { ok: false, errors: [error.message] };
+  const deleted = await execute("delete from exam_sections where id = $1", [sectionId]);
+  if (!deleted) return { ok: false, errors: ["بخش پیدا نشد."] };
   return { ok: true, data: null };
 }
 
 export async function adminDeleteExam(examId: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("exams").delete().eq("id", examId);
-  if (error) return { ok: false, errors: [error.message] };
+  const deleted = await execute("delete from exams where id = $1", [examId]);
+  if (!deleted) return { ok: false, errors: ["آزمون پیدا نشد."] };
   return { ok: true, data: null };
 }

@@ -26,7 +26,7 @@ import {
   preloadImage,
   resetFailure,
 } from "@/lib/vocab-preload";
-import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
 import BookmarkButton from "@/components/UI/BookmarkButton";
@@ -67,7 +67,8 @@ export default function VocabGame() {
   const [gradeWords, setGradeWords] = useState<GradeWord[]>([]); // all pictured words of the grade
   const [pool, setPool] = useState<VocabWord[]>([]); // shared distractor pool (whole grade)
   const [gradeLoading, setGradeLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useCurrentUser();
+  const userId = user?.id ?? null;
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
   const [qi, setQi] = useState(0);
@@ -100,10 +101,6 @@ export default function VocabGame() {
     setBest(loadBest());
     correctAudio.current = new Audio("/currectsound.mp3");
     correctAudio.current.volume = 0.5;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => setUserId(data.user?.id ?? null))
-      .catch(() => setUserId(null));
   }, []);
 
   /** Every screen here replaces the whole view, but the browser keeps the old

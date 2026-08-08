@@ -1,12 +1,17 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/client";
 import type { BookmarkArea } from "@/lib/panel/types";
 
-/** Browser-side bookmark writes.
+/** نوشتنِ نشان‌شده‌ها از مرورگر.
  *
- *  Flagging is a toggle keyed on (user, area, ref) — the table's unique index
- *  enforces that, so a double tap can never leave two rows behind. */
+ *  نشان کردن یک toggle است که به (کاربر، حوزه، مرجع) کلید خورده — ایندکس
+ *  یکتای جدول همان را اجبار می‌کند، پس دو بار زدن هرگز دو ردیف باقی نمی‌گذارد.
+ *
+ *  امضای همهٔ توابع دست‌نخورده مانده تا BookmarkButton.tsx و صفحه‌های پنل
+ *  تغییری لازم نداشته باشند. پارامتر userId هم به همین دلیل مانده، ولی دیگر
+ *  فرستاده نمی‌شود: سرور کاربر را از کوکی می‌شناسد. اگر فرستاده می‌شد، هرکسی
+ *  می‌توانست نشان‌شده‌های کس دیگری را بخواند یا دست بزند. */
 
 export type BookmarkInput = {
   area: BookmarkArea;
@@ -17,72 +22,48 @@ export type BookmarkInput = {
 };
 
 export async function isBookmarked(
-  userId: string,
+  _userId: string,
   area: BookmarkArea,
   refId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("user_bookmarks")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("area", area)
-    .eq("ref_id", refId)
-    .maybeSingle();
-  if (error) {
-    // a failed read must not masquerade as "not bookmarked" in the console —
-    // that is exactly the case that used to end in a mysterious flicker
-    console.error("isBookmarked:", error.message);
+  const result = await apiGet<{ bookmarked: boolean }>(
+    `/api/v1/bookmarks?area=${encodeURIComponent(area)}&refId=${encodeURIComponent(refId)}`,
+  );
+
+  if (!result.ok) {
+    // یک خواندنِ ناموفق نباید خودش را جای «نشان نشده» جا بزند — همان حالتی که
+    // قبلاً به یک پرش مرموز در دکمه ختم می‌شد.
+    console.error("isBookmarked:", result.errors.join(" "));
     return false;
   }
-  return Boolean(data);
+
+  return result.data.bookmarked;
 }
 
-/** Write the flag to a known state.
+/** نشان را به حالت مشخصی می‌برد.
  *
- *  Both branches are idempotent — a delete that matches nothing succeeds, and
- *  the insert upserts on the (user, area, ref) unique key. The earlier version
- *  read the current state first and then inserted, so a read that came back
- *  wrong (RLS, a cold PostgREST schema cache) turned into a duplicate-key
- *  error, the button reverted, and the flag appeared to switch itself off. */
+ *  هر دو شاخه idempotent اند: حذفی که چیزی را پیدا نکند موفق است، و درج روی
+ *  کلید یکتا upsert می‌شود. نسخهٔ قدیمی اول حالت فعلی را می‌خواند و بعد درج
+ *  می‌کرد، پس خواندنی که اشتباه برمی‌گشت به خطای کلید تکراری می‌خورد، دکمه
+ *  برمی‌گشت، و به نظر می‌رسید نشان خودش خاموش شده. */
 export async function setBookmark(
-  userId: string,
+  _userId: string,
   input: BookmarkInput,
   next: boolean,
 ): Promise<void> {
-  if (!next) {
-    const { error } = await supabase
-      .from("user_bookmarks")
-      .delete()
-      .eq("user_id", userId)
-      .eq("area", input.area)
-      .eq("ref_id", input.refId);
-    if (error) throw new Error(error.message);
-    return;
-  }
+  const result = next
+    ? await apiPost("/api/v1/bookmarks", input)
+    : await apiDelete("/api/v1/bookmarks", { area: input.area, refId: input.refId });
 
-  const { error } = await supabase.from("user_bookmarks").upsert(
-    {
-      user_id: userId,
-      area: input.area,
-      ref_id: input.refId,
-      title: input.title,
-      subtitle: input.subtitle ?? null,
-      payload: input.payload ?? {},
-    },
-    { onConflict: "user_id,area,ref_id" },
-  );
-  if (error) throw new Error(error.message);
+  if (!result.ok) throw new Error(result.errors.join("\n"));
 }
 
 export async function removeBookmark(id: string): Promise<void> {
-  const { error } = await supabase.from("user_bookmarks").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const result = await apiDelete("/api/v1/bookmarks", { id });
+  if (!result.ok) throw new Error(result.errors.join("\n"));
 }
 
 export async function setBookmarkNote(id: string, note: string): Promise<void> {
-  const { error } = await supabase
-    .from("user_bookmarks")
-    .update({ note: note.trim() || null })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  const result = await apiPatch("/api/v1/bookmarks", { id, note });
+  if (!result.ok) throw new Error(result.errors.join("\n"));
 }

@@ -1,7 +1,7 @@
 "use server";
 
+import { query, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export type AdminVocabWord = {
   id: string;
@@ -20,19 +20,20 @@ function isGrade(g: string): g is Grade {
 
 type WordRow = { id: string; word: string; meaning: string; image: string | null; sort_index: number };
 
-/** All words of one lesson, for the admin list. */
+/** واژه‌های یک درس، برای فهرست پنل. */
 export async function vocabAdminList(grade: string, lesson: number): Promise<AdminVocabWord[]> {
   await requireAdmin();
   if (!isGrade(grade)) throw new Error("پایهٔ نامعتبر است.");
-  const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("vocab_words")
-    .select("id, word, meaning, image, sort_index")
-    .eq("grade", grade)
-    .eq("lesson", lesson)
-    .order("sort_index", { ascending: true });
-  if (error) throw new Error(`vocabAdminList: ${error.message}`);
-  return (data ?? []).map((r: WordRow) => ({
+
+  const rows = await query<WordRow>(
+    `select id, word, meaning, image, sort_index
+       from vocab_words
+      where grade = $1 and lesson = $2
+      order by sort_index`,
+    [grade, lesson],
+  );
+
+  return rows.map((r) => ({
     id: r.id,
     word: r.word,
     meaning: r.meaning,
@@ -42,7 +43,7 @@ export async function vocabAdminList(grade: string, lesson: number): Promise<Adm
 }
 
 export type VocabWordInput = {
-  id?: string; // present = editing an existing word
+  id?: string; // اگر باشد یعنی ویرایش
   grade: string;
   lesson: number;
   word: string;
@@ -52,52 +53,58 @@ export type VocabWordInput = {
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-/** Create a new word or update an existing one. */
+/** ساخت واژهٔ تازه یا ویرایش واژهٔ موجود. */
 export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionResult> {
   await requireAdmin();
+
   if (!isGrade(input.grade)) return { ok: false, error: "پایهٔ نامعتبر است." };
   if (!Number.isInteger(input.lesson) || input.lesson < 1 || input.lesson > 18) {
     return { ok: false, error: "شمارهٔ درس باید بین ۱ تا ۱۸ باشد." };
   }
+
   const word = input.word.trim();
   const meaning = input.meaning.trim();
   const image = input.image.trim();
   if (!word) return { ok: false, error: "واژه را وارد کنید." };
   if (!meaning) return { ok: false, error: "معنی را وارد کنید." };
 
-  const supabase = createSupabaseAdmin();
+  try {
+    if (input.id) {
+      const updated = await execute(
+        `update vocab_words
+            set grade = $1, lesson = $2, word = $3, meaning = $4, image = $5
+          where id = $6`,
+        [input.grade, input.lesson, word, meaning, image, input.id],
+      );
+      if (!updated) return { ok: false, error: "واژه پیدا نشد." };
+      return { ok: true };
+    }
 
-  if (input.id) {
-    const { error } = await supabase
-      .from("vocab_words")
-      .update({ grade: input.grade, lesson: input.lesson, word, meaning, image })
-      .eq("id", input.id);
-    if (error) return { ok: false, error: error.message };
+    // واژهٔ تازه بعد از آخرین واژهٔ همین درس می‌نشیند.
+    //
+    // خواندن بیشترین sort_index و درج، در یک تراکنش‌اند: قبلاً دو درخواست جدا
+    // بودند و دو افزودنِ همزمان می‌توانستند هر دو یک شماره بگیرند.
+    await transaction(async (tx) => {
+      await tx.execute(
+        `insert into vocab_words (grade, lesson, word, meaning, image, sort_index)
+         values ($1, $2, $3, $4, $5,
+                 coalesce((select max(sort_index) from vocab_words
+                            where grade = $1 and lesson = $2), 0) + 1)`,
+        [input.grade, input.lesson, word, meaning, image],
+      );
+    });
+
     return { ok: true };
+  } catch (err) {
+    console.error("[vocab] ذخیرهٔ واژه ناموفق بود:", err);
+    return { ok: false, error: "ذخیرهٔ واژه ناموفق بود." };
   }
-
-  // new word: append after the current last one in this lesson
-  const { data: last } = await supabase
-    .from("vocab_words")
-    .select("sort_index")
-    .eq("grade", input.grade)
-    .eq("lesson", input.lesson)
-    .order("sort_index", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextSort = (last?.sort_index ?? 0) + 1;
-
-  const { error } = await supabase
-    .from("vocab_words")
-    .insert({ grade: input.grade, lesson: input.lesson, word, meaning, image, sort_index: nextSort });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
 }
 
 export async function vocabAdminDelete(id: string): Promise<ActionResult> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("vocab_words").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+
+  const deleted = await execute("delete from vocab_words where id = $1", [id]);
+  if (!deleted) return { ok: false, error: "واژه پیدا نشد." };
   return { ok: true };
 }

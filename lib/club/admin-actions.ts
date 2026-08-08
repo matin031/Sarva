@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   poemExcerpt,
   type ActionResult,
@@ -16,12 +16,19 @@ import {
   type ReportStatus,
 } from "@/lib/club/types";
 
-/** Moderation for سروا کلاب.
+/**
+ * بررسی و مدیریت سروا کلاب.
  *
- *  This is the one part of the feature that uses the service-role client: its
- *  whole job is to read the rows RLS hides from everyone else. Every export
- *  therefore starts with `requireAdmin()` — that call, not the URL, is what
- *  keeps the queue private. */
+ * قبلاً این تنها بخشی از فیچر بود که از کلاینت service-role استفاده می‌کرد،
+ * چون کارش دقیقاً دیدنِ ردیف‌هایی است که RLS از بقیه پنهان می‌کرد. حالا که
+ * RLS ای در کار نیست، تنها چیزی که صف را خصوصی نگه می‌دارد همان
+ * `requireAdmin()` ابتدای هر تابع است — نه آدرس صفحه، نه چیز دیگر.
+ *
+ * یک ساده‌سازی بزرگ هم اتفاق افتاده: نام و ایمیل حساب قبلاً از دو منبع می‌آمد
+ * (جدول profiles و GoTrue admin API) و یک تابع کمکیِ accountsById لازم داشت که
+ * برای هر فهرست، *همهٔ* کاربران را از GoTrue می‌کشید. حالا هر دو ستونِ همان
+ * جدول users هستند و یک JOIN کافی است.
+ */
 
 function revalidateClub(postId?: string) {
   revalidatePath("/admin/club");
@@ -30,10 +37,23 @@ function revalidateClub(postId?: string) {
   if (postId) revalidatePath(`/sarvaclub/${postId}`);
 }
 
-const POST_COLUMNS =
-  "id, user_id, author_name, is_anonymous, title, body, form, tags, meter, status, review_note, featured, like_count, comment_count, published_at, created_at, updated_at";
+/** سروده آن‌طور که مدیر می‌بیند: ردیف عمومی، به‌علاوهٔ اینکه واقعاً چه کسی
+ *  نوشته — که روی شعر بی‌نام بیشترین اهمیت را دارد: امضا می‌گوید «ناشناس» ولی
+ *  بررسی‌کننده باید بداند پشت یک متخلفِ تکراری کدام حساب است. */
+export type AdminClubPost = ClubPost & {
+  userId: string;
+  accountName: string;
+  accountEmail: string | null;
+  openReports: number;
+};
 
-type PostRow = {
+export type AdminClubComment = ClubCommentWithPost & {
+  userId: string;
+  accountEmail: string | null;
+  openReports: number;
+};
+
+type AdminPostRow = {
   id: string;
   user_id: string;
   author_name: string;
@@ -51,73 +71,12 @@ type PostRow = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  account_name: string | null;
+  account_email: string | null;
+  open_reports: number;
 };
 
-/** A سروده as the moderator sees it: the public row plus who really wrote it,
- *  which matters most on a بی‌نام poem — the byline says «ناشناس» but a
- *  reviewer still has to know whose account is behind a repeat offender. */
-export type AdminClubPost = ClubPost & {
-  userId: string;
-  accountName: string;
-  accountEmail: string | null;
-  openReports: number;
-};
-
-export type AdminClubComment = ClubCommentWithPost & {
-  userId: string;
-  accountEmail: string | null;
-  openReports: number;
-};
-
-/** Account name + email for a set of user ids, in one round trip.
- *
- *  `auth.users` is not exposed over PostgREST, so the email comes from the
- *  GoTrue admin API the same way `lib/admin/user-actions.ts` gets it. */
-async function accountsById(userIds: string[]) {
-  const supabase = createSupabaseAdmin();
-  const ids = [...new Set(userIds)];
-  if (ids.length === 0) return new Map<string, { name: string; email: string | null }>();
-
-  const [{ data: profiles }, { data: usersPage }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name").in("id", ids),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
-  ]);
-
-  const emailById = new Map(
-    (usersPage?.users ?? []).map((u) => [u.id, u.email ?? null] as const),
-  );
-  const out = new Map<string, { name: string; email: string | null }>();
-  for (const id of ids) {
-    const profile = (profiles ?? []).find((p) => p.id === id);
-    out.set(id, {
-      name: (profile?.full_name as string | null) || "بدون نام",
-      email: emailById.get(id) ?? null,
-    });
-  }
-  return out;
-}
-
-/** How many open گزارش‌ها each of these targets has. */
-async function openReportsFor(type: "post" | "comment", ids: string[]) {
-  if (ids.length === 0) return new Map<string, number>();
-  const supabase = createSupabaseAdmin();
-  const { data } = await supabase
-    .from("club_reports")
-    .select("target_id")
-    .eq("target_type", type)
-    .eq("status", "open")
-    .in("target_id", ids);
-  const counts = new Map<string, number>();
-  for (const r of data ?? [])
-    counts.set(r.target_id as string, (counts.get(r.target_id as string) ?? 0) + 1);
-  return counts;
-}
-
-function toAdminPost(
-  row: PostRow,
-  accounts: Map<string, { name: string; email: string | null }>,
-  reports: Map<string, number>,
-): AdminClubPost {
+function toAdminPost(row: AdminPostRow): AdminClubPost {
   return {
     id: row.id,
     authorName: row.author_name,
@@ -131,16 +90,16 @@ function toAdminPost(
     status: row.status as ClubStatus,
     reviewNote: row.review_note,
     featured: row.featured,
-    likeCount: Number(row.like_count ?? 0),
-    commentCount: Number(row.comment_count ?? 0),
+    likeCount: row.like_count,
+    commentCount: row.comment_count,
     likedByMe: false,
     publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     userId: row.user_id,
-    accountName: accounts.get(row.user_id)?.name ?? "بدون نام",
-    accountEmail: accounts.get(row.user_id)?.email ?? null,
-    openReports: reports.get(row.id) ?? 0,
+    accountName: row.account_name || "بدون نام",
+    accountEmail: row.account_email,
+    openReports: row.open_reports,
   };
 }
 
@@ -148,42 +107,34 @@ export async function clubAdminListPosts(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubPost[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  let query = supabase.from("club_posts").select(POST_COLUMNS);
-  if (status !== "all") query = query.eq("status", status);
-  // oldest first while reviewing: a queue is fair only if it is a queue
-  const { data, error } = await query
-    .order("created_at", { ascending: status === "pending" })
-    .limit(300);
-  if (error) throw new Error(`clubAdminListPosts: ${error.message}`);
+  const rows = await query<AdminPostRow>(
+    `select p.id, p.user_id, p.author_name, p.is_anonymous, p.title, p.body, p.form,
+            p.tags, p.meter, p.status, p.review_note, p.featured, p.like_count,
+            p.comment_count, p.published_at, p.created_at, p.updated_at,
+            u.full_name as account_name, u.email as account_email,
+            (select count(*) from club_reports r
+              where r.target_type = 'post' and r.target_id = p.id and r.status = 'open')
+              as open_reports
+       from club_posts p
+       left join users u on u.id = p.user_id
+      where ($1::text = 'all' or p.status = $1)
+      -- در حالت بررسی، قدیمی‌ترین اول: صف فقط وقتی منصفانه است که صف باشد
+      order by case when $1::text = 'pending' then p.created_at end asc,
+               case when $1::text <> 'pending' then p.created_at end desc
+      limit 300`,
+    [status],
+  );
 
-  const rows = (data ?? []) as PostRow[];
-  const [accounts, reports] = await Promise.all([
-    accountsById(rows.map((r) => r.user_id)),
-    openReportsFor("post", rows.map((r) => r.id)),
-  ]);
-  return rows.map((r) => toAdminPost(r, accounts, reports));
+  return rows.map(toAdminPost);
 }
 
 export async function clubAdminListComments(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubComment[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  let query = supabase
-    .from("club_comments")
-    .select(
-      "id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at, club_posts ( title, body )",
-    );
-  if (status !== "all") query = query.eq("status", status);
-  const { data, error } = await query
-    .order("created_at", { ascending: status === "pending" })
-    .limit(300);
-  if (error) throw new Error(`clubAdminListComments: ${error.message}`);
-
-  type Row = {
+  const rows = await query<{
     id: string;
     post_id: string;
     user_id: string;
@@ -194,13 +145,27 @@ export async function clubAdminListComments(
     status: string;
     review_note: string | null;
     created_at: string;
-    club_posts: { title: string | null; body: string } | null;
-  };
-  const rows = (data ?? []) as unknown as Row[];
-  const [accounts, reports] = await Promise.all([
-    accountsById(rows.map((r) => r.user_id)),
-    openReportsFor("comment", rows.map((r) => r.id)),
-  ]);
+    post_title: string | null;
+    post_body: string | null;
+    account_email: string | null;
+    open_reports: number;
+  }>(
+    `select c.id, c.post_id, c.user_id, c.parent_id, c.reply_to_id, c.author_name,
+            c.body, c.status, c.review_note, c.created_at,
+            p.title as post_title, p.body as post_body,
+            u.email as account_email,
+            (select count(*) from club_reports r
+              where r.target_type = 'comment' and r.target_id = c.id and r.status = 'open')
+              as open_reports
+       from club_comments c
+       left join club_posts p on p.id = c.post_id
+       left join users u on u.id = c.user_id
+      where ($1::text = 'all' or c.status = $1)
+      order by case when $1::text = 'pending' then c.created_at end asc,
+               case when $1::text <> 'pending' then c.created_at end desc
+      limit 300`,
+    [status],
+  );
 
   return rows.map((r) => ({
     id: r.id,
@@ -213,75 +178,83 @@ export async function clubAdminListComments(
     reviewNote: r.review_note,
     isMine: false,
     createdAt: r.created_at,
-    postTitle: r.club_posts?.title ?? null,
-    postExcerpt: poemExcerpt(r.club_posts?.body ?? ""),
+    postTitle: r.post_title,
+    postExcerpt: poemExcerpt(r.post_body ?? ""),
     userId: r.user_id,
-    accountEmail: accounts.get(r.user_id)?.email ?? null,
-    openReports: reports.get(r.id) ?? 0,
+    accountEmail: r.account_email,
+    openReports: r.open_reports,
   }));
 }
 
-/** Comments under one سروده, whatever their state — shown inline while the
- *  moderator is reading the poem itself. */
+/** دیدگاه‌های یک سروده، در هر وضعیتی — کنار خودِ شعر نمایش داده می‌شوند تا
+ *  مدیر هنگام خواندن شعر آن‌ها را هم ببیند. */
 export async function clubAdminPostComments(postId: string): Promise<ClubComment[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("club_comments")
-    .select("id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(`clubAdminPostComments: ${error.message}`);
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    postId: r.post_id as string,
-    parentId: (r.parent_id as string | null) ?? null,
-    replyToId: (r.reply_to_id as string | null) ?? null,
-    authorName: r.author_name as string,
-    body: r.body as string,
+
+  const rows = await query<{
+    id: string;
+    post_id: string;
+    parent_id: string | null;
+    reply_to_id: string | null;
+    author_name: string;
+    body: string;
+    status: string;
+    review_note: string | null;
+    created_at: string;
+  }>(
+    `select id, post_id, parent_id, reply_to_id, author_name, body, status,
+            review_note, created_at
+       from club_comments where post_id = $1 order by created_at`,
+    [postId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    postId: r.post_id,
+    parentId: r.parent_id,
+    replyToId: r.reply_to_id,
+    authorName: r.author_name,
+    body: r.body,
     status: r.status as ClubStatus,
-    reviewNote: (r.review_note as string | null) ?? null,
+    reviewNote: r.review_note,
     isMine: false,
-    createdAt: r.created_at as string,
+    createdAt: r.created_at,
   }));
 }
 
-// ------------------------------------------------------------- decisions ----
+// ------------------------------------------------------------- تصمیم‌ها ----
 
-/** Approve or send back a سروده.
+/** تأیید یا بازگرداندن یک سروده.
  *
- *  `published_at` is set the first time a poem is approved and then left
- *  alone, so a poem that was edited and re-approved keeps its place in the
- *  feed's chronology instead of jumping to the top again. */
+ *  published_at فقط بار اولِ تأیید ست می‌شود و بعد دست‌نخورده می‌ماند، تا شعری
+ *  که ویرایش و دوباره تأیید شده جای خودش را در ترتیب زمانی فید نگه دارد و
+ *  دوباره به بالا نپرد.
+ *
+ *  کل کار در یک دستور انجام می‌شود: قبلاً اول published_at خوانده می‌شد و بعد
+ *  در دستور دوم نوشته — با coalesce، همان منطق در خودِ update است. */
 export async function clubAdminSetPostStatus(
   id: string,
   status: ClubStatus,
   note?: string,
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data: current } = await supabase
-    .from("club_posts")
-    .select("published_at")
-    .eq("id", id)
-    .maybeSingle();
+  const updated = await execute(
+    `update club_posts
+        set status       = $1,
+            review_note  = $2,
+            reviewed_at  = now(),
+            reviewed_by  = $3,
+            published_at = case when $1 = 'approved'
+                                then coalesce(published_at, now())
+                                else published_at end,
+            -- شعری که از فید برداشته می‌شود نباید بالای همان فید سنجاق بماند
+            featured     = case when $1 = 'approved' then featured else false end
+      where id = $4`,
+    [status, (note ?? "").trim() || null, admin.id, id],
+  );
 
-  const patch: Record<string, unknown> = {
-    status,
-    review_note: (note ?? "").trim() || null,
-    reviewed_at: new Date().toISOString(),
-    reviewed_by: admin.id,
-  };
-  if (status === "approved") {
-    patch.published_at = current?.published_at ?? new Date().toISOString();
-  } else {
-    // a poem pulled back off the feed must not stay pinned to the top of it
-    patch.featured = false;
-  }
-
-  const { error } = await supabase.from("club_posts").update(patch).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (!updated) return { ok: false, error: "این سروده پیدا نشد." };
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -292,22 +265,23 @@ export async function clubAdminSetPostFeatured(
   featured: boolean,
 ): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase
-    .from("club_posts")
-    .update({ featured })
-    .eq("id", id)
-    .eq("status", "approved");
-  if (error) return { ok: false, error: error.message };
+
+  const updated = await execute(
+    `update club_posts set featured = $1 where id = $2 and status = 'approved'`,
+    [featured, id],
+  );
+  if (!updated) return { ok: false, error: "فقط سرودهٔ منتشرشده می‌تواند برگزیده شود." };
+
   revalidateClub(id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeletePost(id: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("club_posts").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+
+  const deleted = await execute("delete from club_posts where id = $1", [id]);
+  if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
+
   revalidateClub(id);
   return { ok: true, data: null };
 }
@@ -318,94 +292,88 @@ export async function clubAdminSetCommentStatus(
   note?: string,
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("club_comments")
-    .update({
-      status,
-      review_note: (note ?? "").trim() || null,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: admin.id,
-    })
-    .eq("id", id)
-    .select("post_id")
-    .maybeSingle();
-  if (error) return { ok: false, error: error.message };
-  revalidateClub((data?.post_id as string) ?? undefined);
+
+  const row = await queryOne<{ post_id: string }>(
+    `update club_comments
+        set status = $1, review_note = $2, reviewed_at = now(), reviewed_by = $3
+      where id = $4
+      returning post_id`,
+    [status, (note ?? "").trim() || null, admin.id, id],
+  );
+
+  if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
+
+  revalidateClub(row.post_id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeleteComment(id: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("club_comments")
-    .delete()
-    .eq("id", id)
-    .select("post_id")
-    .maybeSingle();
-  if (error) return { ok: false, error: error.message };
-  revalidateClub((data?.post_id as string) ?? undefined);
+
+  const row = await queryOne<{ post_id: string }>(
+    "delete from club_comments where id = $1 returning post_id",
+    [id],
+  );
+  if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
+
+  revalidateClub(row.post_id);
   return { ok: true, data: null };
 }
 
 // -------------------------------------------------------------- گزارش‌ها ----
 
+/** گزارش‌ها، با گزیده‌ای از چیزی که دربارهٔ آن است.
+ *
+ *  target_id عمداً کلید خارجی نیست (گزارش باید از حذفِ هدفش جان سالم به در
+ *  ببرد)، پس اتصال به هدف با یک left join روی شرطِ target_type انجام می‌شود —
+ *  و اگر هدف حذف شده باشد، ستون‌ها null می‌مانند و گزارش سر جایش. */
 export async function clubAdminListReports(
   status: ReportStatus | "all" = "open",
 ): Promise<ClubReport[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  let query = supabase
-    .from("club_reports")
-    .select("id, reporter_id, target_type, target_id, reason, note, status, created_at");
-  if (status !== "all") query = query.eq("status", status);
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
-  if (error) throw new Error(`clubAdminListReports: ${error.message}`);
-
-  type Row = {
+  const rows = await query<{
     id: string;
-    reporter_id: string;
     target_type: "post" | "comment";
     target_id: string;
     reason: string;
     note: string | null;
     status: string;
     created_at: string;
-  };
-  const rows = (data ?? []) as Row[];
-
-  const postIds = rows.filter((r) => r.target_type === "post").map((r) => r.target_id);
-  const commentIds = rows.filter((r) => r.target_type === "comment").map((r) => r.target_id);
-
-  const [accounts, posts, comments] = await Promise.all([
-    accountsById(rows.map((r) => r.reporter_id)),
-    postIds.length
-      ? supabase.from("club_posts").select("id, body, status").in("id", postIds)
-      : Promise.resolve({ data: [] }),
-    commentIds.length
-      ? supabase.from("club_comments").select("id, body, status").in("id", commentIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-
-  const targets = new Map<string, { excerpt: string; status: ClubStatus }>();
-  for (const p of (posts.data ?? []) as { id: string; body: string; status: string }[])
-    targets.set(p.id, { excerpt: poemExcerpt(p.body), status: p.status as ClubStatus });
-  for (const c of (comments.data ?? []) as { id: string; body: string; status: string }[])
-    targets.set(c.id, { excerpt: c.body.slice(0, 160), status: c.status as ClubStatus });
+    reporter_name: string | null;
+    target_body: string | null;
+    target_status: string | null;
+  }>(
+    `select r.id, r.target_type, r.target_id, r.reason, r.note, r.status, r.created_at,
+            u.full_name as reporter_name,
+            coalesce(p.body, c.body)     as target_body,
+            coalesce(p.status, c.status) as target_status
+       from club_reports r
+       left join users u on u.id = r.reporter_id
+       left join club_posts p    on r.target_type = 'post'    and p.id = r.target_id
+       left join club_comments c on r.target_type = 'comment' and c.id = r.target_id
+      where ($1::text = 'all' or r.status = $1)
+      order by r.created_at desc
+      limit 200`,
+    [status],
+  );
 
   return rows.map((r) => ({
     id: r.id,
-    reporterName: accounts.get(r.reporter_id)?.name ?? "بدون نام",
+    reporterName: r.reporter_name || "بدون نام",
     targetType: r.target_type,
     targetId: r.target_id,
     reason: r.reason as ReportReason,
     note: r.note,
     status: r.status as ReportStatus,
     createdAt: r.created_at,
-    targetExcerpt: targets.get(r.target_id)?.excerpt ?? null,
-    targetStatus: targets.get(r.target_id)?.status ?? null,
+    // شعر با گزیدهٔ چندبیتی، دیدگاه با ۱۶۰ نویسهٔ اول — همان تفکیک قبلی
+    targetExcerpt: r.target_body
+      ? r.target_type === "post"
+        ? poemExcerpt(r.target_body)
+        : r.target_body.slice(0, 160)
+      : null,
+    targetStatus: (r.target_status as ClubStatus | null) ?? null,
   }));
 }
 
@@ -414,17 +382,18 @@ export async function clubAdminResolveReport(
   status: Exclude<ReportStatus, "open">,
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase
-    .from("club_reports")
-    .update({ status, resolved_at: new Date().toISOString(), resolved_by: admin.id })
-    .eq("id", id);
-  if (error) return { ok: false, error: error.message };
+
+  const updated = await execute(
+    `update club_reports set status = $1, resolved_at = now(), resolved_by = $2 where id = $3`,
+    [status, admin.id, id],
+  );
+  if (!updated) return { ok: false, error: "این گزارش پیدا نشد." };
+
   revalidatePath("/admin/club");
   return { ok: true, data: null };
 }
 
-// --------------------------------------------------------------- overview ----
+// --------------------------------------------------------------- خلاصه ----
 
 export type ClubAdminStats = {
   pendingPosts: number;
@@ -434,25 +403,27 @@ export type ClubAdminStats = {
   poets: number;
 };
 
+/** پنج عددِ داشبورد، در یک کوئری.
+ *
+ *  نسخهٔ قبلی پنج درخواست جدا می‌فرستاد و برای شمردن شاعران، ستون user_id همهٔ
+ *  سروده‌ها را می‌کشید تا در جاوااسکریپت Set بسازد. */
 export async function clubAdminStats(): Promise<ClubAdminStats> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const head = { count: "exact" as const, head: true };
-  const [pendingPosts, pendingComments, openReports, publishedPosts, poets] =
-    await Promise.all([
-      supabase.from("club_posts").select("id", head).eq("status", "pending"),
-      supabase.from("club_comments").select("id", head).eq("status", "pending"),
-      supabase.from("club_reports").select("id", head).eq("status", "open"),
-      supabase.from("club_posts").select("id", head).eq("status", "approved"),
-      supabase.from("club_posts").select("user_id"),
-    ]);
+  const row = await queryOne<ClubAdminStats & Record<string, number>>(
+    `select
+       (select count(*) from club_posts    where status = 'pending')  as "pendingPosts",
+       (select count(*) from club_comments where status = 'pending')  as "pendingComments",
+       (select count(*) from club_reports  where status = 'open')     as "openReports",
+       (select count(*) from club_posts    where status = 'approved') as "publishedPosts",
+       (select count(distinct user_id) from club_posts)               as "poets"`,
+  );
 
   return {
-    pendingPosts: pendingPosts.count ?? 0,
-    pendingComments: pendingComments.count ?? 0,
-    openReports: openReports.count ?? 0,
-    publishedPosts: publishedPosts.count ?? 0,
-    poets: new Set((poets.data ?? []).map((r) => r.user_id as string)).size,
+    pendingPosts: row?.pendingPosts ?? 0,
+    pendingComments: row?.pendingComments ?? 0,
+    openReports: row?.openReports ?? 0,
+    publishedPosts: row?.publishedPosts ?? 0,
+    poets: row?.poets ?? 0,
   };
 }

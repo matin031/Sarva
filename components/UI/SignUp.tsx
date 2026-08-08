@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { apiPost } from "@/lib/api/client";
+import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { useRouter } from "next/navigation";
 
 const emailSchema = z.object({
@@ -35,7 +36,9 @@ export default function SignUp({
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
-  const [pendingData, setPendingData] = useState<EmailFormData | null>(null);
+  // pendingData حذف شد: در ترتیب قدیم، رمز و نام باید تا بعد از تأیید کد
+  // نگه داشته می‌شدند تا آن‌وقت حساب ساخته شود. حالا حساب پیش از صفحهٔ کد
+  // ساخته شده، پس نگه داشتن رمز در حافظهٔ کلاینت نه لازم است نه مطلوب.
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [showPassword, setShowPassword] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -46,28 +49,42 @@ export default function SignUp({
     formState: { errors },
   } = useForm<EmailFormData>({ resolver: zodResolver(emailSchema) });
 
+  /**
+   * ترتیب ثبت‌نام برعکس شده — و این تغییرِ عمدیِ رفتار است.
+   *
+   * قبلاً: کد بفرست ← کد را تأیید کن ← تازه حساب بساز ← بعد وارد شو.
+   * حالا:  حساب بساز و همان‌جا وارد شو ← بعد کد تأیید ایمیل بفرست.
+   *
+   * دلیلش این است که ایمیل ممکن است هرگز نرسد (فیلترینگ، اسپم، قطعی سرویس).
+   * در ترتیب قدیمی، آن یعنی دانش‌آموزی که فرم را پر کرده هیچ حسابی ندارد و
+   * باید همه‌چیز را از نو بزند. حالا حسابش ساخته شده و وارد سایت است؛ تأیید
+   * ایمیل کاری است که می‌تواند بعداً انجام شود.
+   */
   const onSubmit = async (data: EmailFormData) => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email }),
+      const registered = await apiPost("/api/v1/auth/register", {
+        name: data.name,
+        email: data.email,
+        password: data.password,
       });
 
-      const result = await res.json();
-
-      if (!res.ok) {
-        setError(result.error || "خطایی رخ داد");
+      if (!registered.ok) {
+        setError(registered.errors.join("\n"));
         return;
       }
 
+      // ثبت‌نام سشن هم داده؛ هدر باید همین حالا کاربر را ببیند.
+      refreshCurrentUser();
+
       setPendingEmail(data.email);
-      setPendingData(data);
       setShowOtp(true);
-    } catch {
-      setError("خطای اتصال. اینترنت خود را بررسی کنید");
+
+      // اگر ارسال کد شکست بخورد ثبت‌نام خراب نمی‌شود — کاربر روی صفحهٔ کد
+      // می‌ماند و می‌تواند «ارسال دوباره» بزند.
+      const sent = await apiPost("/api/v1/auth/send-verification");
+      if (!sent.ok) setError(sent.errors.join("\n"));
     } finally {
       setLoading(false);
     }
@@ -99,62 +116,23 @@ export default function SignUp({
     setError(null);
     setLoading(true);
 
-    try {
-      const verifyRes = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, code }),
-      });
+    // حساب و سشن از قبل در onSubmit ساخته شده‌اند؛ اینجا فقط ایمیل تأیید
+    // می‌شود. سرور ایمیل را از سشن می‌گیرد، نه از این فرم.
+    const verified = await apiPost("/api/v1/auth/verify-email", { code });
 
-      const verifyResult = await verifyRes.json();
-
-      if (!verifyRes.ok) {
-        setError(verifyResult.error || "کد اشتباه است");
-        setLoading(false);
-        return;
-      }
-
-      const { data: signUpData, error: signUpError } =
-        await supabase.auth.signUp({
-          email: pendingEmail,
-          password: pendingData!.password,
-          options: {
-            data: { full_name: pendingData!.name },
-          },
-        });
-
-      if (signUpError) {
-        if (signUpError.message.includes("already registered")) {
-          setError("این ایمیل قبلاً ثبت شده. از صفحه ورود وارد شوید");
-        } else if (signUpError.message.includes("password")) {
-          setError("رمز عبور باید حداقل ۸ کاراکتر باشد");
-        } else {
-          setError("خطا در ثبت‌نام. دوباره تلاش کنید");
-        }
-        setLoading(false);
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: pendingEmail,
-        password: pendingData!.password,
-      });
-
-      if (signInError) {
-        setError("ثبت‌نام موفق بود ولی خطا در ورود: " + signInError.message);
-        setLoading(false);
-        return;
-      }
-
-      // success: keep the button in its loading state until navigation
-      // to /panel actually happens
-      onSuccess(pendingEmail);
-      router.push("/panel");
-      router.refresh();
-    } catch {
-      setError("خطای اتصال. اینترنت خود را بررسی کنید");
+    if (!verified.ok) {
+      setError(verified.errors.join("\n"));
       setLoading(false);
+      return;
     }
+
+    refreshCurrentUser();
+
+    // موفق: دکمه تا وقتی جابه‌جایی به /panel واقعاً انجام شود در حالت بارگذاری
+    // می‌ماند
+    onSuccess(pendingEmail);
+    router.push("/panel");
+    router.refresh();
   };
 
   if (showOtp) {

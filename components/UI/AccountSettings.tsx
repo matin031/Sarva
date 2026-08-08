@@ -4,21 +4,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
-import { supabase } from "@/lib/supabase";
+import { apiPatch, apiPost } from "@/lib/api/client";
+import { refreshCurrentUser, useCurrentUser } from "@/lib/auth/use-current-user";
 import { useEffect } from "react";
 
 function AccountSettings() {
+  const { user } = useCurrentUser();
   const [currentName, setCurrentName] = useState("");
   const [nameMessage, setNameMessage] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [nameLoading, setNameLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // نام از هوک می‌آید ولی در state محلی هم نگه داشته می‌شود، چون بعد از ذخیره
+  // بلافاصله به‌روز می‌شود بی‌آنکه منتظر رفت‌وبرگشت بعدی بمانیم.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentName(data.user?.user_metadata?.full_name ?? "");
-    });
-  }, []);
+    if (user) setCurrentName(user.fullName ?? "");
+  }, [user]);
 
   const nameSchema = z.object({
     name: z
@@ -68,20 +70,18 @@ function AccountSettings() {
     setNameMessage(null);
     setNameLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { full_name: data.name },
-      });
+      const result = await apiPatch("/api/v1/auth/profile", { name: data.name });
 
-      if (error) {
-        setNameMessage("خطا در تغییر نام. دوباره تلاش کنید");
+      if (!result.ok) {
+        setNameMessage(result.errors.join("\n"));
         return;
       }
 
       setCurrentName(data.name);
+      // هدر نام کاربر را نشان می‌دهد؛ بدون این تا رفرش بعدی نام قدیمی می‌ماند.
+      refreshCurrentUser();
       nameForm.reset();
       setNameMessage("نام با موفقیت تغییر کرد");
-    } catch {
-      setNameMessage("خطای اتصال. اینترنت خود را بررسی کنید");
     } finally {
       setNameLoading(false);
     }
@@ -91,37 +91,24 @@ function AccountSettings() {
     setPasswordMessage(null);
     setPasswordLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const email = userData.user?.email;
-
-      if (!email) {
-        setPasswordMessage("خطا در شناسایی کاربر");
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: data.prevPassword,
+      // یک درخواست، نه سه تا.
+      //
+      // نسخهٔ قبلی برای تأیید رمز فعلی، دوباره signInWithPassword می‌زد — یعنی
+      // یک ورودِ کامل وسط تغییر رمز. حالا سرور رمز فعلی را چک، رمز تازه را
+      // ذخیره، همهٔ سشن‌های دیگر را باطل، و برای همین دستگاه سشن تازه صادر
+      // می‌کند؛ همه در یک تماس.
+      const result = await apiPost("/api/v1/auth/change-password", {
+        currentPassword: data.prevPassword,
+        newPassword: data.newPassword,
       });
 
-      if (signInError) {
-        setPasswordMessage("رمز عبور فعلی اشتباه است");
-        return;
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        password: data.newPassword,
-      });
-
-      if (error) {
-        setPasswordMessage("خطا در تغییر رمز عبور");
+      if (!result.ok) {
+        setPasswordMessage(result.errors.join("\n"));
         return;
       }
 
       passwordForm.reset();
       setPasswordMessage("رمز عبور با موفقیت تغییر کرد");
-    } catch {
-      setPasswordMessage("خطای اتصال. اینترنت خود را بررسی کنید");
     } finally {
       setPasswordLoading(false);
     }

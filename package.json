@@ -6,19 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:check": "node scripts/db-check.mjs",
+    "db:seed-admin": "node scripts/seed-admin.mjs",
+    "db:seed-exams": "tsx scripts/seed-exams.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@node-rs/argon2": "^2.0.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@recharts/devtools": "^0.0.14",
-    "@supabase/ssr": "^0.12.0",
-    "@supabase/supabase-js": "^2.108.2",
+    "jose": "^6.1.0",
     "keen-slider": "^6.8.6",
     "motion": "^12.40.0",
     "next": "^16.2.11",
+    "nodemailer": "^7.0.6",
     "nprogress": "^0.2.0",
+    "pg": "^8.16.3",
     "react": "19.2.4",
     "react-audio-visualize": "^1.2.0",
     "react-circular-progressbar": "^2.2.0",
@@ -27,6 +33,7 @@
     "react-toastify": "^11.1.0",
     "recharts": "^3.9.0",
     "resend": "^6.16.0",
+    "sharp": "^0.34.5",
     "three": "^0.185.1",
     "wavesurfer.js": "^7.12.7",
     "zod": "^4.4.3"
@@ -34,13 +41,16 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^7.0.2",
     "@types/nprogress": "^0.2.3",
+    "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.185.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.11",
     "typescript": "^5"
   },
   "overrides": {

@@ -1,16 +1,14 @@
 "use client";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 function RegisterPrompt() {
-  const [user, setUser] = useState<any>(null);
+  const { user, loading } = useCurrentUser();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  }, []);
-
-  if (user) return null;
+  // تا وقتی نمی‌دانیم کاربر کیست چیزی نشان نمی‌دهیم. نسخهٔ قبلی این حالت را
+  // نداشت و دعوت به ثبت‌نام برای کاربرِ واردشده هم یک لحظه ظاهر می‌شد و بعد
+  // ناپدید.
+  if (loading || user) return null;
 
   return (
     <div className="mt-6 flex flex-col items-center">

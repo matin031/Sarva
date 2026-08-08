@@ -1,49 +1,35 @@
 import "server-only";
-import { createSupabaseServer } from "@/lib/supabase-server";
-import type {
-  ClubComment,
-  ClubFeedSort,
-  ClubPost,
-  ClubPostForm,
-  ClubStatus,
-} from "@/lib/club/types";
+import { query, queryOne } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import type { ClubComment, ClubFeedSort, ClubPost, ClubPostForm, ClubStatus } from "@/lib/club/types";
 import { poemExcerpt } from "@/lib/club/types";
 
-/** Server-side reads for سروا کلاب.
+/**
+ * خواندنِ سمت‌سرورِ سروا کلاب.
  *
- *  Everything here goes through the session-bound (anon-key) client on
- *  purpose: RLS is what guarantees an unapproved سروده never reaches a reader,
- *  and using the service-role client would quietly switch that guarantee off.
- *  The only place the service key appears in this feature is the admin panel,
- *  whose whole job is to see the unapproved rows. */
+ * ⚠️ مهم‌ترین نکتهٔ این فایل:
+ *
+ * تا دیروز، تضمینِ «هیچ سرودهٔ بررسی‌نشده‌ای به خواننده نمی‌رسد» در predicate
+ * یک RLS policy زندگی می‌کرد. یعنی حتی اگر یک کوئری فیلتر status را جا
+ * می‌انداخت، دیتابیس باز هم چیزی بیرون نمی‌داد.
+ *
+ * آن تور ایمنی دیگر وجود ندارد. حالا هر کوئریِ عمومی در این فایل *خودش* باید
+ * status = 'approved' را داشته باشد، وگرنه شعرِ تأییدنشده منتشر می‌شود. به
+ * همین دلیل شرط‌ها اینجا صریح و تکراری نوشته شده‌اند و در یک تابع کمکیِ
+ * «هوشمند» جمع نشده‌اند: تکرارِ دیدنی بهتر از انتزاعی است که یک نفر روزی
+ * فراموش می‌کند صدایش بزند.
+ */
 
 export const FEED_PAGE_SIZE = 12;
 
 export type ClubViewer = { id: string; name: string } | null;
 
-/** Who is reading, and under what name they would post.
- *
- *  `profiles.full_name` is the name the student chose in تنظیمات حساب; the auth
- *  metadata copy is the fallback for accounts created before profiles existed. */
+/** خواننده کیست، و با چه نامی می‌نویسد. */
 export async function getClubViewer(): Promise<ClubViewer> {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const name =
-    (profile?.full_name as string | null) ||
-    (user.user_metadata?.full_name as string | undefined) ||
-    "کاربر سروا";
-
-  return { id: user.id, name: name.trim() };
+  return { id: user.id, name: (user.fullName || "کاربر سروا").trim() };
 }
 
 type PostRow = {
@@ -66,15 +52,23 @@ type PostRow = {
   updated_at: string;
 };
 
-const POST_COLUMNS =
-  "id, user_id, author_name, is_anonymous, title, body, form, tags, meter, status, review_note, featured, like_count, comment_count, published_at, created_at, updated_at";
+const POST_COLUMNS = `id, user_id, author_name, is_anonymous, title, body, form, tags, meter,
+                      status, review_note, featured, like_count, comment_count,
+                      published_at, created_at, updated_at`;
+
+/** همان ستون‌ها با پیشوند جدول، برای کوئری‌هایی که JOIN دارند.
+ *  صریح نوشته شده و نه با split/join روی ثابت بالا: آن ترفند کار می‌کند ولی
+ *  خواندنش سخت است و اگر ستونی اضافه شود، سکوت می‌کند. */
+const POST_COLUMNS_P = `p.id, p.user_id, p.author_name, p.is_anonymous, p.title, p.body, p.form,
+                        p.tags, p.meter, p.status, p.review_note, p.featured, p.like_count,
+                        p.comment_count, p.published_at, p.created_at, p.updated_at`;
 
 function toPost(row: PostRow, viewerId: string | null, liked: Set<string>): ClubPost {
   return {
     id: row.id,
-    // For a بی‌نام poem this column holds the pen name, never the real one —
-    // the account behind it is recoverable only through the admin panel, which
-    // is the whole promise the بی‌نام switch makes.
+    // برای سرودهٔ بی‌نام، این ستون تخلص را دارد نه نام واقعی را — حسابِ پشتش
+    // فقط از پنل مدیریت قابل بازیابی است، و همین قولی است که کلید «بی‌نام»
+    // می‌دهد.
     authorName: row.author_name,
     isAnonymous: row.is_anonymous,
     isMine: !!viewerId && row.user_id === viewerId,
@@ -86,8 +80,8 @@ function toPost(row: PostRow, viewerId: string | null, liked: Set<string>): Club
     status: row.status as ClubStatus,
     reviewNote: row.review_note,
     featured: row.featured,
-    likeCount: Number(row.like_count ?? 0),
-    commentCount: Number(row.comment_count ?? 0),
+    likeCount: row.like_count,
+    commentCount: row.comment_count,
     likedByMe: liked.has(row.id),
     publishedAt: row.published_at,
     createdAt: row.created_at,
@@ -95,17 +89,16 @@ function toPost(row: PostRow, viewerId: string | null, liked: Set<string>): Club
   };
 }
 
-/** Which of these posts the reader has already پسندیده. One query for the
- *  whole page instead of a `likes(...)` embed per card. */
+/** کدام‌یک از این سروده‌ها را خواننده پسندیده. یک کوئری برای کل صفحه. */
 async function likedSet(postIds: string[], viewerId: string | null): Promise<Set<string>> {
   if (!viewerId || postIds.length === 0) return new Set();
-  const supabase = await createSupabaseServer();
-  const { data } = await supabase
-    .from("club_likes")
-    .select("post_id")
-    .eq("user_id", viewerId)
-    .in("post_id", postIds);
-  return new Set((data ?? []).map((r) => r.post_id as string));
+
+  const rows = await query<{ post_id: string }>(
+    `select post_id from club_likes where user_id = $1 and post_id = any($2::uuid[])`,
+    [viewerId, postIds],
+  );
+
+  return new Set(rows.map((r) => r.post_id));
 }
 
 export type FeedOptions = {
@@ -115,61 +108,73 @@ export type FeedOptions = {
   page?: number;
 };
 
-/** The public feed. Only approved rows come back — not because of the
- *  `.eq("status", "approved")` below (which is there to keep the index in
- *  play) but because the RLS policy allows nothing else to an ordinary reader. */
+/** فید عمومی. فقط سروده‌های تأییدشده. */
 export async function getClubFeed(
   viewer: ClubViewer,
   { sort = "recent", form, tag, page = 0 }: FeedOptions = {},
 ): Promise<{ posts: ClubPost[]; hasMore: boolean }> {
-  const supabase = await createSupabaseServer();
-  const from = page * FEED_PAGE_SIZE;
+  const offset = page * FEED_PAGE_SIZE;
 
-  let query = supabase
-    .from("club_posts")
-    .select(POST_COLUMNS)
-    .eq("status", "approved");
+  const values: unknown[] = [];
+  const conditions = ["status = 'approved'"];
 
-  if (form) query = query.eq("form", form);
-  if (tag) query = query.contains("tags", [tag]);
-
-  // برگزیده‌ها ride at the top of every ordering — that is what featuring means
-  query = query.order("featured", { ascending: false });
-  if (sort === "popular") query = query.order("like_count", { ascending: false });
-  else if (sort === "discussed") query = query.order("comment_count", { ascending: false });
-  query = query.order("published_at", { ascending: false, nullsFirst: false });
-
-  // one row past the page, purely to learn whether a "بیشتر" button is needed
-  const { data, error } = await query.range(from, from + FEED_PAGE_SIZE);
-  if (error) {
-    console.error("getClubFeed:", error.message);
-    return { posts: [], hasMore: false };
+  if (form) {
+    values.push(form);
+    conditions.push(`form = $${values.length}`);
+  }
+  if (tag) {
+    values.push([tag]);
+    conditions.push(`tags @> $${values.length}::text[]`);
   }
 
-  const rows = (data ?? []) as PostRow[];
+  // برگزیده‌ها بالای هر مرتب‌سازی می‌نشینند — معنیِ برگزیده بودن همین است.
+  const sortColumn =
+    sort === "popular" ? "like_count desc," : sort === "discussed" ? "comment_count desc," : "";
+
+  values.push(FEED_PAGE_SIZE + 1);
+  const limitParam = `$${values.length}`;
+  values.push(offset);
+  const offsetParam = `$${values.length}`;
+
+  const rows = await query<PostRow>(
+    `select ${POST_COLUMNS}
+       from club_posts
+      where ${conditions.join(" and ")}
+      order by featured desc, ${sortColumn} published_at desc nulls last
+      limit ${limitParam} offset ${offsetParam}`,
+    values,
+  );
+
   const pageRows = rows.slice(0, FEED_PAGE_SIZE);
   const liked = await likedSet(
     pageRows.map((r) => r.id),
     viewer?.id ?? null,
   );
+
   return {
     posts: pageRows.map((r) => toPost(r, viewer?.id ?? null, liked)),
     hasMore: rows.length > FEED_PAGE_SIZE,
   };
 }
 
-/** A single سروده. Returns null when it is not published *and* not the
- *  reader's own — RLS makes the two cases indistinguishable, which is exactly
- *  what a 404 should look like. */
+/**
+ * یک سروده.
+ *
+ * تأییدشده برای همه، یا هر وضعیتی برای صاحبش. اگر هیچ‌کدام، null — و null
+ * دقیقاً همان چیزی است که یک ۴۰۴ باید باشد: خواننده نمی‌فهمد شعر وجود ندارد
+ * یا وجود دارد و هنوز تأیید نشده.
+ */
 export async function getClubPost(id: string, viewer: ClubViewer): Promise<ClubPost | null> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("club_posts")
-    .select(POST_COLUMNS)
-    .eq("id", id)
-    .maybeSingle();
-  if (error || !data) return null;
-  const row = data as PostRow;
+  const row = await queryOne<PostRow>(
+    `select ${POST_COLUMNS}
+       from club_posts
+      where id = $1
+        and (status = 'approved' or ($2::uuid is not null and user_id = $2))`,
+    [id, viewer?.id ?? null],
+  );
+
+  if (!row) return null;
+
   const liked = await likedSet([row.id], viewer?.id ?? null);
   return toPost(row, viewer?.id ?? null, liked);
 }
@@ -187,8 +192,8 @@ type CommentRow = {
   created_at: string;
 };
 
-const COMMENT_COLUMNS =
-  "id, post_id, user_id, parent_id, reply_to_id, author_name, body, status, review_note, created_at";
+const COMMENT_COLUMNS = `id, post_id, user_id, parent_id, reply_to_id, author_name,
+                         body, status, review_note, created_at`;
 
 function toComment(row: CommentRow, viewerId: string | null): ClubComment {
   return {
@@ -205,43 +210,37 @@ function toComment(row: CommentRow, viewerId: string | null): ClubComment {
   };
 }
 
-/** Comments under a poem: everything approved, plus the reader's own rows
- *  whatever their state — a student who just wrote a دیدگاه should see it
- *  sitting in review rather than wonder whether the button worked. RLS returns
- *  both sets from this one query. */
-export async function getClubComments(
-  postId: string,
-  viewer: ClubViewer,
-): Promise<ClubComment[]> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("club_comments")
-    .select(COMMENT_COLUMNS)
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true });
-  if (error) {
-    console.error("getClubComments:", error.message);
-    return [];
-  }
-  return ((data ?? []) as CommentRow[]).map((r) => toComment(r, viewer?.id ?? null));
+/** دیدگاه‌های زیر یک شعر: هرچه تأییدشده، به‌علاوهٔ ردیف‌های خودِ خواننده در هر
+ *  وضعیتی — دانش‌آموزی که همین الان دیدگاه نوشته باید ببیندش که در صف بررسی
+ *  است، نه اینکه شک کند دکمه کار کرد یا نه. */
+export async function getClubComments(postId: string, viewer: ClubViewer): Promise<ClubComment[]> {
+  const rows = await query<CommentRow>(
+    `select ${COMMENT_COLUMNS}
+       from club_comments
+      where post_id = $1
+        and (status = 'approved' or ($2::uuid is not null and user_id = $2))
+      order by created_at`,
+    [postId, viewer?.id ?? null],
+  );
+
+  return rows.map((r) => toComment(r, viewer?.id ?? null));
 }
 
 // ------------------------------------------------------ پنل کاربری ----
 
 export async function getMyPosts(viewer: ClubViewer): Promise<ClubPost[]> {
   if (!viewer) return [];
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("club_posts")
-    .select(POST_COLUMNS)
-    .eq("user_id", viewer.id)
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("getMyPosts:", error.message);
-    return [];
-  }
-  const rows = (data ?? []) as PostRow[];
-  const liked = await likedSet(rows.map((r) => r.id), viewer.id);
+
+  const rows = await query<PostRow>(
+    `select ${POST_COLUMNS} from club_posts where user_id = $1 order by created_at desc`,
+    [viewer.id],
+  );
+
+  const liked = await likedSet(
+    rows.map((r) => r.id),
+    viewer.id,
+  );
+
   return rows.map((r) => toPost(r, viewer.id, liked));
 }
 
@@ -249,82 +248,63 @@ export type MyComment = ClubComment & { postTitle: string | null; postExcerpt: s
 
 export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
   if (!viewer) return [];
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("club_comments")
-    .select(`${COMMENT_COLUMNS}, club_posts ( title, body )`)
-    .eq("user_id", viewer.id)
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (error) {
-    console.error("getMyComments:", error.message);
-    return [];
-  }
-  return (data ?? []).map((raw) => {
-    const row = raw as unknown as CommentRow & {
-      club_posts: { title: string | null; body: string } | null;
-    };
-    return {
-      ...toComment(row, viewer.id),
-      postTitle: row.club_posts?.title ?? null,
-      postExcerpt: poemExcerpt(row.club_posts?.body ?? ""),
-    };
-  });
+
+  const rows = await query<CommentRow & { post_title: string | null; post_body: string | null }>(
+    `select c.id, c.post_id, c.user_id, c.parent_id, c.reply_to_id, c.author_name,
+            c.body, c.status, c.review_note, c.created_at,
+            p.title as post_title, p.body as post_body
+       from club_comments c
+       left join club_posts p on p.id = c.post_id
+      where c.user_id = $1
+      order by c.created_at desc
+      limit 200`,
+    [viewer.id],
+  );
+
+  return rows.map((row) => ({
+    ...toComment(row, viewer.id),
+    postTitle: row.post_title,
+    postExcerpt: poemExcerpt(row.post_body ?? ""),
+  }));
 }
 
-/** The three numbers under the hero.
+/** سه عددِ زیر سربرگ.
  *
- *  Counted through the same RLS the feed reads, so they can only ever describe
- *  published work — the queue is nobody's business but the moderator's. The
- *  poet tally comes from a column of ids rather than a `count(distinct)`,
- *  which PostgREST has no way to express; at this size that is a few hundred
- *  uuids, not a table scan worth optimising. */
-export async function getClubStats(): Promise<{
-  poems: number;
-  poets: number;
-  comments: number;
-}> {
-  const supabase = await createSupabaseServer();
-  const [poems, authors, comments] = await Promise.all([
-    supabase
-      .from("club_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "approved"),
-    supabase.from("club_posts").select("author_name").eq("status", "approved"),
-    supabase
-      .from("club_comments")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "approved"),
-  ]);
-  return {
-    poems: poems.count ?? 0,
-    poets: new Set((authors.data ?? []).map((r) => r.author_name as string)).size,
-    comments: comments.count ?? 0,
-  };
+ *  فقط کارِ منتشرشده را توصیف می‌کنند — صف بررسی به کسی جز مدیر مربوط نیست.
+ *
+ *  شمارش شاعران حالا count(distinct) است. نسخهٔ قبلی مجبور بود یک ستون کامل از
+ *  نام‌ها را بکشد و در جاوااسکریپت Set بسازد، چون PostgREST راهی برای بیان
+ *  count(distinct) نداشت. */
+export async function getClubStats(): Promise<{ poems: number; poets: number; comments: number }> {
+  const row = await queryOne<{ poems: number; poets: number; comments: number }>(
+    `select
+       (select count(*) from club_posts where status = 'approved')                as poems,
+       (select count(distinct author_name) from club_posts where status = 'approved') as poets,
+       (select count(*) from club_comments where status = 'approved')             as comments`,
+  );
+
+  return { poems: row?.poems ?? 0, poets: row?.poets ?? 0, comments: row?.comments ?? 0 };
 }
 
-/** The reader's own liked poems, for the «پسندیده‌های من» tab. */
+/** سروده‌هایی که خواننده پسندیده، برای تب «پسندیده‌های من».
+ *
+ *  شرط status = 'approved' اینجا حیاتی است: قبلاً RLS شعرِ لغو انتشار شده را
+ *  به‌صورت null برمی‌گرداند و کد از رویش رد می‌شد. بدون این شرط، لایکِ قدیمیِ
+ *  کاربر روی شعری که مدیر بعداً پس فرستاده، آن شعر را دوباره نمایان می‌کرد. */
 export async function getMyLikedPosts(viewer: ClubViewer): Promise<ClubPost[]> {
   if (!viewer) return [];
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("club_likes")
-    .select(`post_id, created_at, club_posts ( ${POST_COLUMNS} )`)
-    .eq("user_id", viewer.id)
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (error) {
-    console.error("getMyLikedPosts:", error.message);
-    return [];
-  }
-  const liked = new Set<string>();
-  const posts: ClubPost[] = [];
-  for (const raw of data ?? []) {
-    const row = (raw as unknown as { club_posts: PostRow | null }).club_posts;
-    // the poem may have been unpublished since; RLS then returns it as null
-    if (!row) continue;
-    liked.add(row.id);
-    posts.push(toPost(row, viewer.id, liked));
-  }
-  return posts;
+
+  const rows = await query<PostRow>(
+    `select ${POST_COLUMNS_P}
+       from club_likes l
+       join club_posts p on p.id = l.post_id
+      where l.user_id = $1
+        and p.status = 'approved'
+      order by l.created_at desc
+      limit 100`,
+    [viewer.id],
+  );
+
+  const liked = new Set(rows.map((r) => r.id));
+  return rows.map((r) => toPost(r, viewer.id, liked));
 }

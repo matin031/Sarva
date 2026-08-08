@@ -1,0 +1,23 @@
+# هرچه اینجا باشد به context ساخت نمی‌رود — هم build سریع‌تر می‌شود، هم
+# مهم‌تر: .env تصادفاً داخل image نمی‌رود.
+
+.git
+.gitignore
+node_modules
+.next
+npm-debug.log*
+
+# اسرار. اینها از طریق env_file و environment به کانتینر می‌رسند، نه از image.
+.env
+.env.*
+!.env.example
+
+# باقی‌مانده‌های محلی
+app.zip
+*.md
+!AGENTS.md
+supabase
+.vscode
+.idea
+.DS_Store
+Thumbs.db

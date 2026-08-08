@@ -1,0 +1,81 @@
+import type { NextResponse } from "next/server";
+import { verifyPassword } from "@/lib/auth/password";
+import { createSession, findUserByEmail } from "@/lib/auth/session";
+import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
+import { loginSchema } from "@/lib/auth/schemas";
+import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
+import { rateLimit, resetRateLimit } from "@/lib/api/rate-limit";
+
+/** هشِ argon2id یک رمزِ دورریختنی، با همان پارامترهای lib/auth/password.ts.
+ *  فقط برای برابر کردن زمانِ پاسخ استفاده می‌شود — پایین‌تر توضیح داده شده. */
+const DUMMY_HASH =
+  "$argon2id$v=19$m=19456,t=2,p=1$l8qhhlvCofyLfnNJu8rUpg$6df+TIi4hOHiFBM1R7Bwv0cmfyy7xfA7+U/kUxbWAmo";
+
+/** POST /api/v1/auth/login — ورود با ایمیل و رمز. */
+export async function POST(request: Request) {
+  try {
+    const meta = requestMeta(request);
+
+    const body = await readJson(request, loginSchema);
+    if (!body.ok) return body.response;
+
+    const { email, password } = body.data;
+
+    // دو سهمیهٔ جدا، چون دو حملهٔ متفاوت را می‌گیرند:
+    //   • per-email جلوی حدس زدن رمزِ یک حسابِ مشخص را می‌گیرد، حتی اگر مهاجم
+    //     IP عوض کند.
+    //   • per-IP جلوی امتحان کردن یک رمز روی هزاران ایمیل را می‌گیرد
+    //     (password spraying)، که سهمیهٔ per-email اصلاً نمی‌بیندش.
+    const emailLimit = rateLimit(`login:${email}`, 8, 15 * 60);
+    const ipLimit = rateLimit(`login-ip:${meta.ip ?? "unknown"}`, 40, 15 * 60);
+
+    if (!emailLimit.allowed || !ipLimit.allowed) {
+      const wait = Math.max(emailLimit.retryAfterSeconds, ipLimit.retryAfterSeconds);
+      return fail(`تلاش‌های ناموفق زیاد بود. ${wait} ثانیه دیگر تلاش کنید.`, 429);
+    }
+
+    const user = await findUserByEmail(email);
+
+    // پیام یکسان برای «ایمیل وجود ندارد» و «رمز غلط است» — وگرنه صفحهٔ ورود به
+    // یک ابزار برای فهمیدن اینکه چه کسی در این سایت حساب دارد تبدیل می‌شود.
+    const invalid = () => fail("ایمیل یا رمز عبور اشتباه است.", 401);
+
+    if (!user) {
+      // حتی وقتی کاربر وجود ندارد هم یک تأیید انجام می‌شود.
+      //
+      // بدون این، پاسخ برای ایمیلِ ناموجود در ~۰.۲ms برمی‌گردد و برای ایمیلِ
+      // موجود بعد از ~۲۳ms کارِ argon2. آن اختلافِ صدبرابری با یک اسکریپت
+      // ساده قابل اندازه‌گیری است و می‌گوید کدام ایمیل‌ها در این سایت حساب
+      // دارند — یعنی همان چیزی که پیامِ یکسانِ بالا می‌خواست پنهان کند.
+      //
+      // هش باید *واقعی* باشد. یک رشتهٔ بی‌معنی با فرمت argon2 در همان ۰.۲ms
+      // رد می‌شود چون تجزیه‌اش شکست می‌خورد و هرگز به کار اصلی نمی‌رسد —
+      // اندازه‌گیری شد و همین‌طور بود. این هشِ یک رمزِ دورریختنی است.
+      await verifyPassword(DUMMY_HASH, password);
+      return invalid();
+    }
+
+    const passwordOk = await verifyPassword(user.passwordHash, password);
+    if (!passwordOk) return invalid();
+
+    // بن بعد از بررسی رمز چک می‌شود، نه قبلش: اگر قبلش بود، «این حساب مسدود
+    // است» به هرکسی که ایمیل را حدس بزند گفته می‌شد، بدون اینکه رمز را بداند.
+    if (user.isBanned) {
+      return fail("حساب شما مسدود شده است. با پشتیبانی تماس بگیرید.", 403);
+    }
+
+    // ورودِ موفق سهمیه را آزاد می‌کند — کسی که رمزش را درست زده نباید به خاطر
+    // چند غلطِ قبلی قفل بماند.
+    resetRateLimit(`login:${email}`);
+
+    const { passwordHash: _passwordHash, ...safeUser } = user;
+    const tokens = await createSession(safeUser, meta);
+
+    return withCookies(ok({ user: safeUser }), [
+      accessCookie(tokens.accessToken),
+      refreshCookie(tokens.refreshToken),
+    ]) as NextResponse;
+  } catch (err) {
+    return handleError(err);
+  }
+}

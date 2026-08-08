@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
 import {
   DAILY_COMMENT_LIMIT,
@@ -19,13 +19,25 @@ import {
   type ReportReason,
 } from "@/lib/club/types";
 
-/** What a signed-in student can do in سروا کلاب.
+/**
+ * آنچه یک دانش‌آموزِ واردشده در سروا کلاب می‌تواند بکند.
  *
- *  Every write runs on the session-bound client, so the RLS policies from
- *  `20260805_sarvaclub.sql` are the last word: a poet can only ever write a
- *  'pending' row, and only their own. The checks in this file are there to
- *  turn a rejection into a sentence of Persian rather than a Postgres error,
- *  and to add the rules RLS cannot express (length limits, the daily cap). */
+ * ⚠️ این فایل بیشترین تغییرِ معناییِ کل مهاجرت را دارد.
+ *
+ * قبلاً هر نوشتن روی کلاینتِ سشن‌دار اجرا می‌شد و RLS حرف آخر را می‌زد: یک
+ * شاعر فقط می‌توانست ردیفِ 'pending' بنویسد، و فقط مالِ خودش. علاوه بر آن، دو
+ * تریگرِ security definer در دیتابیس ستون‌هایی مثل author_name و status را
+ * بازنویسی می‌کردند تا هر چه کلاینت فرستاده بود بی‌اثر شود.
+ *
+ * هیچ‌کدام دیگر وجود ندارند. حالا هر قاعده‌ای که آن‌ها اعمال می‌کردند باید در
+ * همین فایل باشد:
+ *
+ *   • status همیشه صریحاً 'pending' نوشته می‌شود، هرگز از ورودی.
+ *   • author_name از سشن ساخته می‌شود، نه از چیزی که فراخوان فرستاده.
+ *   • هر update و delete شرط user_id دارد.
+ *   • «دیدگاه فقط روی سرودهٔ منتشرشده» و «لایک فقط روی سرودهٔ منتشرشده» که
+ *     قبلاً در with check سیاست‌ها بودند، حالا چکِ صریح‌اند.
+ */
 
 const SIGN_IN = "برای این کار باید وارد حساب کاربری‌ات شوی.";
 
@@ -36,9 +48,9 @@ function revalidateClub(postId?: string) {
   if (postId) revalidatePath(`/sarvaclub/${postId}`);
 }
 
-/** Normalises a pasted poem: Windows newlines flattened, trailing spaces
- *  dropped, and a run of blank lines collapsed to one — so a stanza break
- *  survives but forty empty lines do not become forty empty lines on the page. */
+/** پاک‌سازی شعرِ چسبانده‌شده: خط‌های ویندوزی صاف، فاصله‌های انتهایی حذف، و
+ *  چند خط خالی پشت سر هم به یکی تبدیل — پس فاصلهٔ بند می‌ماند ولی چهل خط
+ *  خالی چهل خط خالی نمی‌شود. */
 function cleanPoem(raw: string): string {
   return raw
     .replace(/\r\n?/g, "\n")
@@ -61,11 +73,10 @@ export type PostInput = {
   tags?: string[];
   meter?: string;
   isAnonymous?: boolean;
-  /** pen name, used only when isAnonymous is on */
+  /** تخلص، فقط وقتی isAnonymous روشن است */
   alias?: string;
 };
 
-/** Column-shaped, ready to hand to `insert`/`update` as-is. */
 type ValidPost = {
   title: string | null;
   body: string;
@@ -99,15 +110,18 @@ function validatePost(input: PostInput, realName: string): ValidPost | string {
     tags: cleanTags(input.tags),
     meter: meter || null,
     is_anonymous: isAnonymous,
-    // the name that will sit under the poem — a pen name, «ناشناس», or the
-    // account's own name. Snapshotted now so a later rename in تنظیمات حساب
-    // does not silently re-attribute an old سروده.
+    // نامی که زیر شعر می‌نشیند — تخلص، «ناشناس»، یا نام خودِ حساب. همین حالا
+    // عکس‌برداری می‌شود تا تغییر نام بعدی در تنظیمات حساب، سرودهٔ قدیمی را
+    // بی‌سروصدا به کس دیگری نسبت ندهد.
+    //
+    // برای حالت غیرِبی‌نام، realName از سشن می‌آید نه از ورودی. این همان کاری
+    // است که تریگر club_posts_guard انجام می‌داد.
     author_name: isAnonymous ? alias || "ناشناس" : realName,
   };
 }
 
-/** Submit a new سروده. It goes straight into the moderation queue; nothing the
- *  caller can send makes it publish itself. */
+/** ارسال سرودهٔ تازه. مستقیم به صف بررسی می‌رود؛ هیچ ورودی‌ای نمی‌تواند
+ *  کاری کند که خودش منتشر شود. */
 export async function createClubPost(input: PostInput): Promise<ActionResult<{ id: string }>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
@@ -115,75 +129,89 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
   const valid = validatePost(input, viewer.name);
   if (typeof valid === "string") return { ok: false, error: valid };
 
-  const supabase = await createSupabaseServer();
+  // دو سقف جدا: یکی برای انفجار ناگهانی، یکی برای صف. دومی مهم‌تر است — مدیر
+  // نباید پنل را باز کند و چهل شعر از یک حساب ببیند و هیچ از بقیه.
+  const limits = await queryOne<{ today_count: number; pending_count: number }>(
+    `select count(*) filter (where created_at > now() - interval '24 hours') as today_count,
+            count(*) filter (where status = 'pending')                       as pending_count
+       from club_posts where user_id = $1`,
+    [viewer.id],
+  );
 
-  // two separate caps: a burst limit and a queue limit. The queue one matters
-  // most — a reviewer should never open the panel to forty poems from one
-  // account and none from anyone else.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: todayCount }, { count: pendingCount }] = await Promise.all([
-    supabase
-      .from("club_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", viewer.id)
-      .gte("created_at", since),
-    supabase
-      .from("club_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", viewer.id)
-      .eq("status", "pending"),
-  ]);
-
-  if ((todayCount ?? 0) >= DAILY_POST_LIMIT)
+  if ((limits?.today_count ?? 0) >= DAILY_POST_LIMIT) {
     return {
       ok: false,
       error: `در هر شبانه‌روز حداکثر ${DAILY_POST_LIMIT.toLocaleString("fa-IR")} سروده می‌توانی بفرستی. فردا دوباره سر بزن.`,
     };
-  if ((pendingCount ?? 0) >= PENDING_POST_LIMIT)
+  }
+  if ((limits?.pending_count ?? 0) >= PENDING_POST_LIMIT) {
     return {
       ok: false,
       error: `${PENDING_POST_LIMIT.toLocaleString("fa-IR")} سرودهٔ بررسی‌نشده داری. تا تعیین تکلیف آن‌ها صبر کن.`,
     };
+  }
 
-  const { data, error } = await supabase
-    .from("club_posts")
-    .insert({ ...valid, user_id: viewer.id, status: "pending" })
-    .select("id")
-    .single();
-  if (error) return { ok: false, error: error.message };
+  try {
+    // status/featured/published_at/reviewed_* صریحاً مقدار امن می‌گیرند و از
+    // ورودی نمی‌آیند — همان چیزی که سیاست insert در RLS تضمین می‌کرد.
+    const row = await queryOne<{ id: string }>(
+      `insert into club_posts
+         (user_id, author_name, is_anonymous, title, body, form, tags, meter, status, featured)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', false)
+       returning id`,
+      [
+        viewer.id,
+        valid.author_name,
+        valid.is_anonymous,
+        valid.title,
+        valid.body,
+        valid.form,
+        valid.tags,
+        valid.meter,
+      ],
+    );
 
-  revalidateClub();
-  return { ok: true, data: { id: data.id as string } };
+    revalidateClub();
+    return { ok: true, data: { id: row!.id } };
+  } catch (err) {
+    console.error("[club] ثبت سروده ناموفق بود:", err);
+    return { ok: false, error: "ثبت سروده ممکن نشد." };
+  }
 }
 
-/** Edit one of your own سروده‌ها. A published poem returns to the queue — the
- *  RLS `with check` clause insists on it, so this cannot be forgotten. */
-export async function updateClubPost(
-  id: string,
-  input: PostInput,
-): Promise<ActionResult<null>> {
+/** ویرایش سرودهٔ خودت. شعرِ منتشرشده به صف برمی‌گردد.
+ *
+ *  قبلاً بند `with check` در سیاست RLS این را اجباری می‌کرد، پس فراموش‌شدنی
+ *  نبود. حالا فقط همین چند خط است که نگهش می‌دارد. */
+export async function updateClubPost(id: string, input: PostInput): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
   const valid = validatePost(input, viewer.name);
   if (typeof valid === "string") return { ok: false, error: valid };
 
-  const supabase = await createSupabaseServer();
-  const { error, count } = await supabase
-    .from("club_posts")
-    .update(
-      {
-        ...valid,
-        status: "pending",
-        review_note: null,
-        featured: false,
-      },
-      { count: "exact" },
-    )
-    .eq("id", id)
-    .eq("user_id", viewer.id);
-  if (error) return { ok: false, error: error.message };
-  if (!count) return { ok: false, error: "این سروده پیدا نشد." };
+  const updated = await execute(
+    `update club_posts
+        set title = $1, body = $2, form = $3, tags = $4, meter = $5,
+            is_anonymous = $6, author_name = $7,
+            status = 'pending', review_note = null, featured = false
+      where id = $8 and user_id = $9`,
+    [
+      valid.title,
+      valid.body,
+      valid.form,
+      valid.tags,
+      valid.meter,
+      valid.is_anonymous,
+      valid.author_name,
+      id,
+      viewer.id,
+    ],
+  );
+
+  // «پیدا نشد» هم شامل «مال تو نیست» می‌شود — عمداً، چون تفکیکشان به کسی که
+  // شناسه‌ها را حدس می‌زند می‌گوید کدام‌ها وجود دارند.
+  if (!updated) return { ok: false, error: "این سروده پیدا نشد." };
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -193,13 +221,11 @@ export async function deleteClubPost(id: string): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
-  const supabase = await createSupabaseServer();
-  const { error } = await supabase
-    .from("club_posts")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", viewer.id);
-  if (error) return { ok: false, error: error.message };
+  const deleted = await execute("delete from club_posts where id = $1 and user_id = $2", [
+    id,
+    viewer.id,
+  ]);
+  if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -217,75 +243,86 @@ export async function createClubComment(
 
   const text = cleanPoem(body ?? "");
   if (text.length < 2) return { ok: false, error: "دیدگاهت را بنویس." };
-  if (text.length > MAX_COMMENT)
+  if (text.length > MAX_COMMENT) {
     return {
       ok: false,
       error: `دیدگاه نباید بیش از ${MAX_COMMENT.toLocaleString("fa-IR")} نویسه باشد.`,
     };
+  }
 
-  const supabase = await createSupabaseServer();
-
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("club_comments")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", viewer.id)
-    .gte("created_at", since);
-  if ((count ?? 0) >= DAILY_COMMENT_LIMIT)
+  const todayCount = await queryOne<{ n: number }>(
+    `select count(*) as n from club_comments
+      where user_id = $1 and created_at > now() - interval '24 hours'`,
+    [viewer.id],
+  );
+  if ((todayCount?.n ?? 0) >= DAILY_COMMENT_LIMIT) {
     return { ok: false, error: "امروز دیدگاه‌های زیادی نوشته‌ای. فردا ادامه بده." };
+  }
 
-  // You may reply to a reply, but the thread still only indents once: the new
-  // row hangs off the same root and remembers *who* it answered, which is what
-  // YouTube and Instagram do too. A third indent is unreadable on a phone.
+  // این چک قبلاً در `with check` سیاست insert بود: دیدگاه فقط روی سروده‌ای که
+  // واقعاً منتشر شده. بدون آن، کسی می‌توانست روی شعرِ در صف یا ردشده نظر بگذارد.
+  const post = await queryOne<{ id: string }>(
+    "select id from club_posts where id = $1 and status = 'approved'",
+    [postId],
+  );
+  if (!post) {
+    return { ok: false, error: "ثبت دیدگاه ممکن نشد. شاید این سروده منتشر نشده باشد." };
+  }
+
+  // می‌شود به یک پاسخ، پاسخ داد؛ ولی نخ فقط یک بار تورفتگی می‌گیرد: ردیف تازه
+  // به همان ریشه وصل می‌شود و یادش می‌ماند به *چه کسی* جواب داده — همان کاری
+  // که یوتیوب و اینستاگرام هم می‌کنند. تورفتگی سوم روی موبایل خوانا نیست.
   let parent: string | null = null;
   let replyTo: string | null = null;
+
   if (parentId) {
-    const { data } = await supabase
-      .from("club_comments")
-      .select("id, parent_id, post_id, status")
-      .eq("id", parentId)
-      .maybeSingle();
-    if (data && data.post_id === postId && data.status === "approved") {
-      parent = (data.parent_id as string | null) ?? (data.id as string);
-      // only worth labelling when it is not simply the head of the thread
-      replyTo = parent === data.id ? null : (data.id as string);
+    const target = await queryOne<{ id: string; parent_id: string | null }>(
+      `select id, parent_id from club_comments
+        where id = $1 and post_id = $2 and status = 'approved'`,
+      [parentId, postId],
+    );
+    if (target) {
+      parent = target.parent_id ?? target.id;
+      // فقط وقتی ارزش برچسب زدن دارد که سرِ نخ نباشد
+      replyTo = parent === target.id ? null : target.id;
     }
   }
 
-  const { error } = await supabase.from("club_comments").insert({
-    post_id: postId,
-    user_id: viewer.id,
-    // «نظرشون با اسمی که برای اکانتشون گذاشتن باید باشه» — a دیدگاه is always
-    // signed with the account's own name; there is no anonymous option here.
-    author_name: viewer.name,
-    parent_id: parent,
-    reply_to_id: replyTo,
-    body: text,
-    status: "pending",
-  });
-  if (error) {
-    // the RLS insert policy also refuses a comment on an unpublished سروده
-    return { ok: false, error: "ثبت دیدگاه ممکن نشد. شاید این سروده منتشر نشده باشد." };
+  try {
+    await execute(
+      `insert into club_comments
+         (post_id, user_id, author_name, parent_id, reply_to_id, body, status)
+       values ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [
+        postId,
+        viewer.id,
+        // «نظرشون با اسمی که برای اکانتشون گذاشتن باید باشه» — دیدگاه همیشه با
+        // نام خودِ حساب امضا می‌شود؛ گزینهٔ بی‌نام اینجا وجود ندارد. از سشن
+        // می‌آید، نه از ورودی.
+        viewer.name,
+        parent,
+        replyTo,
+        text,
+      ],
+    );
+  } catch (err) {
+    console.error("[club] ثبت دیدگاه ناموفق بود:", err);
+    return { ok: false, error: "ثبت دیدگاه ممکن نشد." };
   }
 
   revalidateClub(postId);
   return { ok: true, data: null };
 }
 
-export async function deleteClubComment(
-  id: string,
-  postId: string,
-): Promise<ActionResult<null>> {
+export async function deleteClubComment(id: string, postId: string): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
-  const supabase = await createSupabaseServer();
-  const { error } = await supabase
-    .from("club_comments")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", viewer.id);
-  if (error) return { ok: false, error: error.message };
+  const deleted = await execute("delete from club_comments where id = $1 and user_id = $2", [
+    id,
+    viewer.id,
+  ]);
+  if (!deleted) return { ok: false, error: "این دیدگاه پیدا نشد." };
 
   revalidateClub(postId);
   return { ok: true, data: null };
@@ -293,49 +330,56 @@ export async function deleteClubComment(
 
 // ------------------------------------------------------------- پسندیدن ----
 
-/** Toggle a پسند. Returns the state the button should show; the total comes
- *  from the counter the database keeps, so it is right even when two readers
- *  like the same poem at once. */
+/** تغییر وضعیت پسند. حالتی که دکمه باید نشان بدهد برمی‌گردد؛ عدد کل از
+ *  شمارنده‌ای می‌آید که دیتابیس نگه می‌دارد، پس حتی وقتی دو خواننده هم‌زمان یک
+ *  شعر را می‌پسندند درست است. */
 export async function toggleClubLike(
   postId: string,
 ): Promise<ActionResult<{ liked: boolean; likeCount: number }>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
-  const supabase = await createSupabaseServer();
-  const { data: existing } = await supabase
-    .from("club_likes")
-    .select("post_id")
-    .eq("post_id", postId)
-    .eq("user_id", viewer.id)
-    .maybeSingle();
+  try {
+    const result = await transaction(async (tx) => {
+      // delete ... returning هم حذف می‌کند هم می‌گوید چیزی برای حذف بود یا نه —
+      // یعنی «اول بخوان بعد تصمیم بگیر» حذف شد و با آن، مسابقهٔ دو کلیک سریع.
+      const removed = await tx.queryOne<{ post_id: string }>(
+        `delete from club_likes where post_id = $1 and user_id = $2 returning post_id`,
+        [postId, viewer.id],
+      );
 
-  if (existing) {
-    const { error } = await supabase
-      .from("club_likes")
-      .delete()
-      .eq("post_id", postId)
-      .eq("user_id", viewer.id);
-    if (error) return { ok: false, error: error.message };
-  } else {
-    const { error } = await supabase
-      .from("club_likes")
-      .insert({ post_id: postId, user_id: viewer.id });
-    if (error) return { ok: false, error: "این سروده در دسترس نیست." };
+      if (!removed) {
+        // این شرط قبلاً در سیاست insert بود: لایک فقط روی سرودهٔ منتشرشده.
+        const post = await tx.queryOne<{ id: string }>(
+          "select id from club_posts where id = $1 and status = 'approved'",
+          [postId],
+        );
+        if (!post) return null;
+
+        await tx.execute("insert into club_likes (post_id, user_id) values ($1, $2)", [
+          postId,
+          viewer.id,
+        ]);
+      }
+
+      // شمارنده را تریگر club_likes_count در همین تراکنش به‌روز کرده
+      const post = await tx.queryOne<{ like_count: number }>(
+        "select like_count from club_posts where id = $1",
+        [postId],
+      );
+
+      return { liked: !removed, likeCount: post?.like_count ?? 0 };
+    });
+
+    if (!result) return { ok: false, error: "این سروده در دسترس نیست." };
+
+    revalidatePath("/sarvaclub");
+    revalidatePath(`/sarvaclub/${postId}`);
+    return { ok: true, data: result };
+  } catch (err) {
+    console.error("[club] پسندیدن ناموفق بود:", err);
+    return { ok: false, error: "این سروده در دسترس نیست." };
   }
-
-  const { data: post } = await supabase
-    .from("club_posts")
-    .select("like_count")
-    .eq("id", postId)
-    .maybeSingle();
-
-  revalidatePath("/sarvaclub");
-  revalidatePath(`/sarvaclub/${postId}`);
-  return {
-    ok: true,
-    data: { liked: !existing, likeCount: Number(post?.like_count ?? 0) },
-  };
 }
 
 // -------------------------------------------------------------- گزارش ----
@@ -348,22 +392,30 @@ export async function reportClubContent(
 ): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
-  if (!REPORT_REASONS.some((r) => r.id === reason))
-    return { ok: false, error: "دلیل گزارش نامعتبر است." };
 
-  const supabase = await createSupabaseServer();
-  const { error } = await supabase.from("club_reports").insert({
-    reporter_id: viewer.id,
-    target_type: targetType,
-    target_id: targetId,
-    reason: reason as ReportReason,
-    note: (note ?? "").trim().slice(0, 500) || null,
-    status: "open",
-  });
-  // the unique constraint fires when the same person reports the same thing
-  // twice — from the reporter's side that is a success, not an error
-  if (error && !error.message.includes("duplicate key"))
-    return { ok: false, error: error.message };
+  if (!REPORT_REASONS.some((r) => r.id === reason)) {
+    return { ok: false, error: "دلیل گزارش نامعتبر است." };
+  }
+
+  try {
+    // گزارش دوبارهٔ یک چیز، از دید گزارش‌دهنده موفقیت است نه خطا — پس به‌جای
+    // گرفتن خطای کلید تکراری و بررسی متنش، خودِ دیتابیس بی‌صدا ردش می‌کند.
+    await execute(
+      `insert into club_reports (reporter_id, target_type, target_id, reason, note, status)
+       values ($1, $2, $3, $4, $5, 'open')
+       on conflict (reporter_id, target_type, target_id) do nothing`,
+      [
+        viewer.id,
+        targetType,
+        targetId,
+        reason as ReportReason,
+        (note ?? "").trim().slice(0, 500) || null,
+      ],
+    );
+  } catch (err) {
+    console.error("[club] ثبت گزارش ناموفق بود:", err);
+    return { ok: false, error: "ثبت گزارش ممکن نشد." };
+  }
 
   revalidatePath("/admin/club");
   return { ok: true, data: null };

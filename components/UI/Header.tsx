@@ -4,14 +4,18 @@ import MainLogo from "../svgs/mainLogo";
 import Link from "next/link";
 import DarkModeButton from "./DarkModeButton";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 import { useRouter } from "next/navigation";
 
 function Header() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  // پیش‌تر این کامپوننت خودش supabase.auth.getUser() می‌زد و به
+  // onAuthStateChange گوش می‌داد. حالا هوک مشترک این کار را می‌کند و نتیجه را
+  // بین کامپوننت‌ها کش می‌کند، تا پنج کامپوننت روی یک صفحه پنج بار /me را صدا
+  // نزنند. جای onAuthStateChange را refreshCurrentUser/clearCurrentUser
+  // گرفته‌اند که فرم‌های ورود و خروج صدایشان می‌زنند.
+  const { user } = useCurrentUser();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const [openMenuMobile, setOpenMenuMobile] = useState(false);
@@ -26,15 +30,6 @@ function Header() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   const nameRef = useRef<HTMLSpanElement>(null);
   const [isOverflow, setIsOverflow] = useState(false);
@@ -237,7 +232,7 @@ function Header() {
                     : "whitespace-nowrap"
                 }
               >
-                {user?.user_metadata?.full_name ?? "پنل کاربری"}
+                {user?.fullName ?? "پنل کاربری"}
               </span>
             </Link>
             <Link

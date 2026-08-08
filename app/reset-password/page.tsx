@@ -2,15 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { apiPost } from "@/lib/api/client";
+import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 
-// Where the reset link lands. supabase.auth.resetPasswordForEmail sent the
-// user here with a recovery token in the URL; the browser client (with
-// detectSessionInUrl) exchanges it for a short-lived recovery session on
-// load, after which updateUser({ password }) is allowed.
+/**
+ * جایی که لینک بازنشانی رمز فرود می‌آید.
+ *
+ * قبلاً این صفحه به یک سشنِ موقتِ GoTrue تکیه می‌کرد: کتابخانهٔ Supabase توکنِ
+ * داخل URL را می‌گرفت، با آن یک سشن recovery می‌ساخت، و صفحه با گوش دادن به
+ * onAuthStateChange می‌فهمید که مجاز است. یعنی لینکِ ایمیل عملاً یک ورودِ
+ * کامل بود، و صفحه یک تایمر ۲.۵ ثانیه‌ای داشت تا حدس بزند لینک معتبر است یا نه.
+ *
+ * حالا توکن فقط یک رشته در query string است که تنها یک کار می‌تواند بکند:
+ * تغییر رمز. هیچ سشنی پیش از ست شدن رمز تازه صادر نمی‌شود، و اعتبارش را سرور
+ * در همان درخواست تعیین می‌کند — نه یک تایمر.
+ */
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [ready, setReady] = useState<"checking" | "ok" | "invalid">("checking");
+  const [token, setToken] = useState<string | null | undefined>(undefined);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
@@ -18,37 +27,18 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // از window خوانده می‌شود و نه با useSearchParams: آن هوک این صفحه را وادار
+  // به داشتن مرز Suspense می‌کند و از حالت ایستا بیرونش می‌آورد، در حالی که
+  // اینجا فقط یک رشته لازم داریم.
   useEffect(() => {
-    let settled = false;
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        settled = true;
-        setReady("ok");
-      } else if (event === "PASSWORD_RECOVERY") {
-        settled = true;
-        setReady("ok");
-      }
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        settled = true;
-        setReady("ok");
-      }
-    });
-    // if nothing established a session shortly after load, the link is
-    // missing/expired
-    const t = setTimeout(() => {
-      if (!settled) setReady("invalid");
-    }, 2500);
-    return () => {
-      sub.subscription.unsubscribe();
-      clearTimeout(t);
-    };
+    const value = new URLSearchParams(window.location.search).get("token");
+    setToken(value && value.length >= 10 ? value : null);
   }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     if (password.length < 8 || password.length > 16) {
       setError("رمز عبور باید بین ۸ تا ۱۶ کاراکتر باشد");
       return;
@@ -57,13 +47,19 @@ export default function ResetPasswordPage() {
       setError("رمز عبور و تکرار آن یکسان نیست");
       return;
     }
+
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const result = await apiPost("/api/v1/auth/reset-password", { token, password });
     setLoading(false);
-    if (error) {
-      setError("تغییر رمز با خطا مواجه شد. لینک را دوباره درخواست کن.");
+
+    if (!result.ok) {
+      setError(result.errors.join("\n"));
       return;
     }
+
+    // سرور در همین پاسخ سشن تازه داده؛ کش کاربر باید تازه شود وگرنه هدر
+    // همچنان مهمان نشان می‌دهد.
+    refreshCurrentUser();
     setDone(true);
     setTimeout(() => {
       router.push("/panel");
@@ -76,11 +72,11 @@ export default function ResetPasswordPage() {
       <div className="glass relative z-20 mt-16 w-[95%] max-w-md rounded-2xl p-6 sm:p-8">
         <h1 className="text-center text-2xl font-extrabold">رمز عبور جدید</h1>
 
-        {ready === "checking" && (
+        {token === undefined && (
           <p className="mt-6 text-center text-sm text-muted-foreground">در حال بررسی لینک…</p>
         )}
 
-        {ready === "invalid" && (
+        {token === null && (
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               این لینک نامعتبر یا منقضی شده است. لطفاً از صفحهٔ ورود دوباره درخواست بازیابی رمز کن.
@@ -94,7 +90,7 @@ export default function ResetPasswordPage() {
           </div>
         )}
 
-        {ready === "ok" &&
+        {token &&
           (done ? (
             <p className="mt-6 text-center text-sm text-primary">
               رمز عبورت با موفقیت تغییر کرد. در حال انتقال به پنل…
@@ -131,7 +127,7 @@ export default function ResetPasswordPage() {
                   className="mt-1 w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-left outline-none placeholder:text-right placeholder:text-muted-foreground/30 focus:border-primary"
                 />
               </div>
-              {error && <p className="text-xs text-red-500 sm:text-sm">{error}</p>}
+              {error && <p className="text-xs whitespace-pre-line text-red-500 sm:text-sm">{error}</p>}
               <button
                 type="submit"
                 disabled={loading}

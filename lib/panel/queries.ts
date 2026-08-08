@@ -1,6 +1,6 @@
 import "server-only";
-import { createSupabaseServer } from "@/lib/supabase-server";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { query, queryOne } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import type {
   AruzAttempt,
   AruzQuestionType,
@@ -16,223 +16,207 @@ import type {
 // re-exported so server pages can keep importing everything from one place
 export * from "@/lib/panel/types";
 
-/** Server-side reads for the user panel.
+/** خواندنِ سمت‌سرورِ پنل کاربر.
  *
- *  Every function here is scoped to the signed-in user by RLS *and* by an
- *  explicit `user_id` filter — the filter is not redundant, it keeps the query
- *  cheap and makes the intent obvious at the call site. */
+ *  هر تابع اینجا با یک شرط صریح روی user_id محدود شده. تا دیروز آن شرط
+ *  «اضافه ولی مفید» بود چون RLS هم پشتش ایستاده بود؛ حالا تنها چیزی است که
+ *  داده‌های یک دانش‌آموز را از دیگری جدا می‌کند — پس هیچ‌کدام از این توابع
+ *  نباید بدون آن فراخوانی شوند، و هیچ‌کدام userId را از ورودی کاربر
+ *  نمی‌گیرند: صفحه‌ها آن را از getPanelUser() می‌گیرند که سشن را می‌خواند. */
 
 export async function getPanelUser(): Promise<PanelUser | null> {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
 
   return {
     id: user.id,
-    email: user.email ?? null,
-    fullName:
-      profile?.full_name || user.user_metadata?.full_name || "دانش‌آموز",
-    createdAt: user.created_at ?? null,
+    email: user.email,
+    fullName: user.fullName || "دانش‌آموز",
+    createdAt: user.createdAt,
   };
 }
 
 // ---------------------------------------------------------------- عروض ----
 
-type RawOption = {
-  id: string;
-  label: string | null;
-  poem: string[] | null;
-  audio_url: string | null;
-  is_correct: boolean;
-};
-
-type RawAruzAnswer = {
-  id: string;
-  is_correct: boolean;
-  selected_option_id: string | null;
-  questions: {
-    id: string;
-    type: string;
-    poem: string[] | null;
-    audio_url: string | null;
-    question_options: RawOption[] | null;
-  } | null;
-};
-
-/** Past عروض attempts, with everything the review needs: the prompt (a بیت or
- *  an audio clip), every option, which one the student chose and which one was
- *  right. Without the options there is nothing to listen back to — the whole
- *  point of reviewing an ear-training test. */
+/** تلاش‌های گذشتهٔ عروض، با هرچه مرور لازم دارد: صورت سؤال (بیت یا صوت)، همهٔ
+ *  گزینه‌ها، اینکه دانش‌آموز کدام را زد و کدام درست بود. بدون گزینه‌ها چیزی
+ *  برای گوش دادن دوباره نمی‌ماند — که کل هدف مرور یک آزمون سماعی است. */
 export async function getAruzAttempts(
   userId: string,
   offset = 0,
   limit = 5,
 ): Promise<{ attempts: AruzAttempt[]; hasMore: boolean }> {
-  const supabase = await createSupabaseServer();
-  // one row past the page, purely to learn whether a "بارگیری بیشتر" button is
-  // needed — cheaper and more reliable than a second count query
-  const { data, error } = await supabase
-    .from("quiz_attempts")
-    .select(
-      `id, total, correct, created_at,
-       quiz_attempt_answers (
-         id, is_correct, selected_option_id,
-         questions (
-           id, type, poem, audio_url,
-           question_options ( id, label, poem, audio_url, is_correct )
-         )
-       )`,
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit);
+  // یک ردیف بیشتر از صفحه خوانده می‌شود، فقط برای فهمیدن اینکه دکمهٔ «بارگیری
+  // بیشتر» لازم است یا نه — ارزان‌تر و مطمئن‌تر از یک کوئری شمارش دوم.
+  const attemptRows = await query<{
+    id: string;
+    total: number;
+    correct: number;
+    created_at: string;
+  }>(
+    `select id, total, correct, created_at
+       from quiz_attempts
+      where user_id = $1
+      order by created_at desc
+      limit $2 offset $3`,
+    [userId, limit + 1, offset],
+  );
 
-  if (error) {
-    console.error("getAruzAttempts:", error.message);
-    return { attempts: [], hasMore: false };
+  const hasMore = attemptRows.length > limit;
+  const page = attemptRows.slice(0, limit);
+  if (page.length === 0) return { attempts: [], hasMore: false };
+
+  const attemptIds = page.map((a) => a.id);
+
+  // پاسخ‌ها + سؤال + همهٔ گزینه‌های آن سؤال، در یک کوئری.
+  //
+  // گزینه‌ها با یک زیرکوئریِ json می‌آیند و نه با JOIN دیگر: با JOIN، هر پاسخ
+  // به تعداد گزینه‌هایش تکرار می‌شد و باید در کد دوباره یکتا می‌شد.
+  const answerRows = await query<{
+    attempt_id: string;
+    id: string;
+    is_correct: boolean;
+    selected_option_id: string | null;
+    question_id: string | null;
+    q_type: string | null;
+    q_poem: string[] | null;
+    q_audio_url: string | null;
+    options: { id: string; label: string | null; poem: string[] | null; audio_url: string | null; is_correct: boolean }[] | null;
+  }>(
+    `select ans.attempt_id, ans.id, ans.is_correct, ans.selected_option_id,
+            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url,
+            (select coalesce(
+                      json_agg(json_build_object(
+                        'id', o.id, 'label', o.label, 'poem', o.poem,
+                        'audio_url', o.audio_url, 'is_correct', o.is_correct
+                      ) order by o.x, o.id),
+                      '[]'::json)
+               from question_options o where o.question_id = q.id) as options
+       from quiz_attempt_answers ans
+       left join questions q on q.id = ans.question_id
+      where ans.attempt_id = any($1::uuid[])
+      order by ans.created_at, ans.id`,
+    [attemptIds],
+  );
+
+  const byAttempt = new Map<string, AruzAttempt["answers"]>();
+  for (const r of answerRows) {
+    const list = byAttempt.get(r.attempt_id) ?? [];
+    list.push({
+      id: r.id,
+      isCorrect: r.is_correct,
+      selectedOptionId: r.selected_option_id,
+      questionId: r.question_id,
+      type: (r.q_type ?? null) as AruzQuestionType | null,
+      poem: r.q_poem,
+      audioUrl: r.q_audio_url,
+      options: (r.options ?? []).map((o) => ({
+        id: o.id,
+        label: o.label,
+        poem: o.poem,
+        audioUrl: o.audio_url,
+        isCorrect: o.is_correct,
+      })),
+    });
+    byAttempt.set(r.attempt_id, list);
   }
 
-  const rows = data ?? [];
-  const hasMore = rows.length > limit;
-  const attempts = rows.slice(0, limit).map((a) => ({
-    id: a.id as string,
-    total: Number(a.total ?? 0),
-    correct: Number(a.correct ?? 0),
-    createdAt: a.created_at as string,
-    answers: ((a.quiz_attempt_answers ?? []) as unknown as RawAruzAnswer[]).map(
-      (ans) => {
-        const q = ans.questions;
-        const options = (q?.question_options ?? []).map((o) => ({
-          id: o.id,
-          label: o.label,
-          poem: o.poem,
-          audioUrl: o.audio_url,
-          isCorrect: o.is_correct,
-        }));
-        return {
-          id: ans.id,
-          isCorrect: ans.is_correct,
-          selectedOptionId: ans.selected_option_id,
-          questionId: q?.id ?? null,
-          type: (q?.type ?? null) as AruzQuestionType | null,
-          poem: q?.poem ?? null,
-          audioUrl: q?.audio_url ?? null,
-          options,
-        };
-      },
-    ),
-  }));
-
-  return { attempts, hasMore };
+  return {
+    attempts: page.map((a) => ({
+      id: a.id,
+      total: a.total,
+      correct: a.correct,
+      createdAt: a.created_at,
+      answers: byAttempt.get(a.id) ?? [],
+    })),
+    hasMore,
+  };
 }
 
-/** Every attempt's score, without the answers.
+/** نمرهٔ همهٔ تلاش‌ها، بدون پاسخ‌ها.
  *
- *  The list is paginated, but «بهترین عملکرد» and the totals describe the whole
- *  history — so they get their own query, three columns wide instead of a join
- *  down to every option of every question. */
+ *  فهرست صفحه‌بندی می‌شود، ولی «بهترین عملکرد» و جمع‌ها کل تاریخچه را توصیف
+ *  می‌کنند — پس کوئری خودشان را دارند. حالا کلِ جمع‌بندی هم در دیتابیس انجام
+ *  می‌شود، به‌جای کشیدن همهٔ ردیف‌ها و reduce کردنشان در جاوااسکریپت. */
 export async function getAruzSummary(userId: string): Promise<{
   attempts: number;
   best: number;
   questions: number;
   correct: number;
 }> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("quiz_attempts")
-    .select("total, correct")
-    .eq("user_id", userId);
-  if (error) {
-    console.error("getAruzSummary:", error.message);
-    return { attempts: 0, best: 0, questions: 0, correct: 0 };
-  }
-  const rows = data ?? [];
+  const row = await queryOne<{
+    attempts: number;
+    best: number | null;
+    questions: number;
+    correct: number;
+  }>(
+    `select count(*)                                   as attempts,
+            max(case when total > 0
+                     then round(correct::numeric * 100 / total)
+                     else 0 end)                       as best,
+            coalesce(sum(total), 0)                    as questions,
+            coalesce(sum(correct), 0)                  as correct
+       from quiz_attempts
+      where user_id = $1`,
+    [userId],
+  );
+
   return {
-    attempts: rows.length,
-    best: rows.reduce((m, r) => {
-      const total = Number(r.total ?? 0);
-      const p = total ? Math.round((Number(r.correct ?? 0) / total) * 100) : 0;
-      return Math.max(m, p);
-    }, 0),
-    questions: rows.reduce((s, r) => s + Number(r.total ?? 0), 0),
-    correct: rows.reduce((s, r) => s + Number(r.correct ?? 0), 0),
+    attempts: row?.attempts ?? 0,
+    best: row?.best ?? 0,
+    questions: row?.questions ?? 0,
+    correct: row?.correct ?? 0,
   };
 }
 
-/** Raw per-answer history, used for the activity chart and the streak. */
-export async function getAruzActivity(
-  userId: string,
-): Promise<{ at: string; ok: boolean }[]> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("user_answers")
-    .select("is_correct, answered_at")
-    .eq("user_id", userId)
-    .order("answered_at", { ascending: false })
-    .limit(2000);
-  if (error) {
-    console.error("getAruzActivity:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => ({
-    at: r.answered_at as string,
-    ok: Boolean(r.is_correct),
-  }));
+/** تاریخچهٔ خام هر پاسخ، برای نمودار فعالیت و streak. */
+export async function getAruzActivity(userId: string): Promise<{ at: string; ok: boolean }[]> {
+  const rows = await query<{ is_correct: boolean; answered_at: string }>(
+    `select is_correct, answered_at
+       from user_answers
+      where user_id = $1
+      order by answered_at desc
+      limit 2000`,
+    [userId],
+  );
+
+  return rows.map((r) => ({ at: r.answered_at, ok: r.is_correct }));
 }
 
-/** Accuracy per عروضی metre.
+/** دقت به تفکیک وزن عروضی.
  *
- *  Only two of the question shapes actually name a وزن: `weight-to-audio`
- *  carries it in `poem[0]`, and `audio-to-weight` in the correct option's
- *  label. A بیت→صوت question is about a couplet and never records which metre
- *  it belongs to, so those answers are counted in the totals but cannot be
- *  attributed to a metre — pretending otherwise would invent data. */
+ *  فقط دو شکل از سؤال‌ها اصلاً وزن را نام می‌برند: `weight-to-audio` آن را در
+ *  poem[0] دارد و `audio-to-weight` در برچسبِ گزینهٔ درست. سؤال بیت→صوت دربارهٔ
+ *  یک بیت است و هرگز ثبت نمی‌کند به کدام وزن تعلق دارد، پس آن پاسخ‌ها در جمع
+ *  کل هستند ولی به هیچ وزنی نسبت داده نمی‌شوند — وانمود کردن خلافش یعنی ساختن
+ *  داده‌ای که وجود ندارد. */
 export async function getAruzWeightStats(
   userId: string,
 ): Promise<{ weight: string; total: number; correct: number }[]> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("user_answers")
-    .select(
-      `is_correct,
-       questions ( type, poem, question_options ( label, is_correct ) )`,
-    )
-    .eq("user_id", userId)
-    .limit(3000);
-  if (error) {
-    console.error("getAruzWeightStats:", error.message);
-    return [];
-  }
-
-  type Row = {
+  const rows = await query<{
     is_correct: boolean;
-    questions: {
-      type: string | null;
-      poem: string[] | null;
-      question_options: { label: string | null; is_correct: boolean }[] | null;
-    } | null;
-  };
+    type: string | null;
+    poem: string[] | null;
+    correct_label: string | null;
+  }>(
+    `select ua.is_correct, q.type, q.poem,
+            (select o.label from question_options o
+              where o.question_id = q.id and o.is_correct limit 1) as correct_label
+       from user_answers ua
+       join questions q on q.id = ua.question_id
+      where ua.user_id = $1
+      limit 3000`,
+    [userId],
+  );
 
   const buckets = new Map<string, { total: number; correct: number }>();
-  for (const row of (data ?? []) as unknown as Row[]) {
-    const q = row.questions;
-    if (!q) continue;
+
+  for (const row of rows) {
     let weight: string | null = null;
-    if (q.type === "weight-to-audio") {
-      weight = q.poem?.[0]?.trim() || null;
-    } else if (q.type === "audio-to-weight") {
-      weight =
-        q.question_options?.find((o) => o.is_correct)?.label?.trim() || null;
-    }
+    if (row.type === "weight-to-audio") weight = row.poem?.[0]?.trim() || null;
+    else if (row.type === "audio-to-weight") weight = row.correct_label?.trim() || null;
     if (!weight) continue;
+
     const b = buckets.get(weight) ?? { total: 0, correct: 0 };
     b.total += 1;
     if (row.is_correct) b.correct += 1;
@@ -246,176 +230,158 @@ export async function getAruzWeightStats(
 
 // ------------------------------------------------------------ واژه‌یاب ----
 
-/** A page of answered واژه‌یاب questions, newest first.
- *
- *  واژه‌یاب writes one row per answer and no round id, so "a past test" is
- *  recovered from the timestamps by the caller — which is why this reads a flat
- *  window rather than whole sessions. */
+/** یک صفحه از پاسخ‌های واژه‌یاب، از تازه به قدیم. */
 export async function getVocabAnswers(
   userId: string,
   offset = 0,
   limit = 150,
 ): Promise<{ answers: VocabAnswer[]; hasMore: boolean }> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("vocab_answers")
-    .select("id, grade, lesson, word, meaning, image, is_correct, answered_at")
-    .eq("user_id", userId)
-    .order("answered_at", { ascending: false })
-    .range(offset, offset + limit);
-  if (error) {
-    console.error("getVocabAnswers:", error.message);
-    return { answers: [], hasMore: false };
-  }
-  const rows = data ?? [];
-  const answers = rows.slice(0, limit).map((r) => ({
-    id: r.id as string,
-    grade: (r.grade as string) ?? "",
-    lesson: (r.lesson as number | null) ?? null,
-    word: (r.word as string) ?? "",
-    meaning: (r.meaning as string) ?? "",
-    image: (r.image as string) ?? "",
-    isCorrect: Boolean(r.is_correct),
-    answeredAt: r.answered_at as string,
-  }));
-  return { answers, hasMore: rows.length > limit };
+  const rows = await query<{
+    id: string;
+    grade: string;
+    lesson: number | null;
+    word: string;
+    meaning: string;
+    image: string | null;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select id, grade, lesson, word, meaning, image, is_correct, answered_at
+       from vocab_answers
+      where user_id = $1
+      order by answered_at desc
+      limit $2 offset $3`,
+    [userId, limit + 1, offset],
+  );
+
+  return {
+    answers: rows.slice(0, limit).map((r) => ({
+      id: r.id,
+      grade: r.grade ?? "",
+      lesson: r.lesson,
+      word: r.word ?? "",
+      meaning: r.meaning ?? "",
+      image: r.image ?? "",
+      isCorrect: r.is_correct,
+      answeredAt: r.answered_at,
+    })),
+    hasMore: rows.length > limit,
+  };
 }
 
-/** Every واژه‌یاب answer, three columns wide — enough for the accuracy, the
- *  streak, the day-by-day trend and the per-book breakdown, without dragging
- *  the words, meanings and picture URLs along for a number. */
-export async function getVocabSummary(userId: string): Promise<{
-  grade: string;
-  ok: boolean;
-  at: string;
-}[]> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("vocab_answers")
-    .select("grade, is_correct, answered_at")
-    .eq("user_id", userId)
-    .order("answered_at", { ascending: false })
-    .limit(5000);
-  if (error) {
-    console.error("getVocabSummary:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => ({
-    grade: (r.grade as string) ?? "",
-    ok: Boolean(r.is_correct),
-    at: r.answered_at as string,
-  }));
+/** هر پاسخ واژه‌یاب، سه ستون عرض — برای دقت، streak، روند روزانه و تفکیک
+ *  کتاب کافی است، بدون کشیدن واژه و معنی و آدرس تصویر برای رسیدن به یک عدد. */
+export async function getVocabSummary(
+  userId: string,
+): Promise<{ grade: string; ok: boolean; at: string }[]> {
+  const rows = await query<{ grade: string; is_correct: boolean; answered_at: string }>(
+    `select grade, is_correct, answered_at
+       from vocab_answers
+      where user_id = $1
+      order by answered_at desc
+      limit 5000`,
+    [userId],
+  );
+
+  return rows.map((r) => ({ grade: r.grade ?? "", ok: r.is_correct, at: r.answered_at }));
 }
 
 // -------------------------------------------------------------- جاسوس ----
 
-export async function getJasoosAnswers(
-  userId: string,
-): Promise<JasoosAnswer[]> {
-  const supabase = await createSupabaseServer();
-  const { data, error } = await supabase
-    .from("jasoos_answers")
-    .select(
-      "id, level_id, category, chosen_role, correct_role, is_correct, answered_at",
-    )
-    .eq("user_id", userId)
-    .order("answered_at", { ascending: false })
-    .limit(2000);
-  if (error) {
-    console.error("getJasoosAnswers:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    levelId: Number(r.level_id ?? 0),
-    category: (r.category as string) ?? "",
-    chosenRole: (r.chosen_role as string) ?? "",
-    correctRole: (r.correct_role as string) ?? "",
-    isCorrect: Boolean(r.is_correct),
-    answeredAt: r.answered_at as string,
+export async function getJasoosAnswers(userId: string): Promise<JasoosAnswer[]> {
+  const rows = await query<{
+    id: string;
+    level_id: number;
+    category: string;
+    chosen_role: string;
+    correct_role: string;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select id, level_id, category, chosen_role, correct_role, is_correct, answered_at
+       from jasoos_answers
+      where user_id = $1
+      order by answered_at desc
+      limit 2000`,
+    [userId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    levelId: r.level_id,
+    category: r.category ?? "",
+    chosenRole: r.chosen_role ?? "",
+    correctRole: r.correct_role ?? "",
+    isCorrect: r.is_correct,
+    answeredAt: r.answered_at,
   }));
 }
 
 // ------------------------------------------------------- امتحان نهایی ----
 
-/** `exam_attempts` (and the whole exam bank) deliberately carries no
- *  authenticated RLS policy — every student-facing write goes through a server
- *  action on the service-role client. Reading it with the anon client therefore
- *  fails with "permission denied", so the panel reads it the same way the rest
- *  of that bank is read: server-side, with the user id taken from the verified
- *  session rather than from anything a caller could supply. */
+/** کارنامه‌های امتحان نهایی.
+ *
+ *  نسخهٔ قبلی اینجا مجبور بود کلاینت service-role بسازد، چون exam_attempts
+ *  هیچ policy ای برای کاربر عادی نداشت و خواندنش با کلید anon
+ *  «permission denied» می‌داد. حالا فقط یک کوئری معمولی است — آنچه دسترسی را
+ *  محدود می‌کند شرط user_id است و اینکه فراخوان آن را از سشن گرفته. */
 export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
-  let supabase;
-  try {
-    supabase = createSupabaseAdmin();
-  } catch {
-    // service-role key not configured in this environment
-    return [];
-  }
-  const { data, error } = await supabase
-    .from("exam_attempts")
-    .select(
-      "id, total_score, max_score, created_at, question_results, answers, exams(title, exam_session)",
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("getExamAttempts:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => {
-    const exam = r.exams as unknown as {
-      title?: string;
-      exam_session?: string;
-    } | null;
-    return {
-      id: r.id as string,
-      examTitle: exam?.title ?? "آزمون",
-      examKey: exam?.exam_session ?? null,
-      answers: (r.answers as Record<string, unknown> | null) ?? null,
-      totalScore: Number(r.total_score ?? 0),
-      maxScore: Number(r.max_score ?? 0),
-      createdAt: r.created_at as string,
-      results:
-        (r.question_results as Record<
-          string,
-          { score?: number; max?: number }
-        >) ?? {},
-    };
-  });
+  const rows = await query<{
+    id: string;
+    total_score: number;
+    max_score: number;
+    created_at: string;
+    question_results: Record<string, { score?: number; max?: number }> | null;
+    answers: Record<string, unknown> | null;
+    exam_title: string | null;
+    exam_session: string | null;
+  }>(
+    `select a.id, a.total_score, a.max_score, a.created_at,
+            a.question_results, a.answers,
+            e.title as exam_title, e.exam_session
+       from exam_attempts a
+       left join exams e on e.id = a.exam_id
+      where a.user_id = $1
+      order by a.created_at desc`,
+    [userId],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    examTitle: r.exam_title ?? "آزمون",
+    examKey: r.exam_session,
+    answers: r.answers,
+    totalScore: r.total_score,
+    maxScore: r.max_score,
+    createdAt: r.created_at,
+    results: r.question_results ?? {},
+  }));
 }
 
 // ----------------------------------------------------- خلاصهٔ همهٔ بخش‌ها ----
 
-/** One read for the panel's front page.
+/** یک خواندن برای صفحهٔ اول پنل.
  *
- *  The home page used to draw a chart of invented months. This gathers the real
- *  thing from every area at once — three narrow queries plus the exam scores —
- *  so the greeting, the accuracy, the streak and the chart all describe the
- *  same student rather than a placeholder. */
+ *  سه جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای سه رفت‌وبرگشت
+ *  جدا. ستون area در خودِ SQL ساخته می‌شود، پس کد فقط ردیف‌ها را می‌شمارد و
+ *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
 export async function getPanelOverview(userId: string): Promise<PanelOverview> {
-  const supabase = await createSupabaseServer();
-
-  const [aruz, vocab, jasoos, bookmarks, exams] = await Promise.all([
-    supabase
-      .from("user_answers")
-      .select("is_correct, answered_at")
-      .eq("user_id", userId)
-      .limit(3000),
-    supabase
-      .from("vocab_answers")
-      .select("is_correct, answered_at")
-      .eq("user_id", userId)
-      .limit(5000),
-    supabase
-      .from("jasoos_answers")
-      .select("is_correct, answered_at")
-      .eq("user_id", userId)
-      .limit(3000),
-    supabase
-      .from("user_bookmarks")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId),
+  const [activityRows, bookmarkRow, exams] = await Promise.all([
+    query<{ area: BookmarkArea; ok: boolean; at: string }>(
+      `select 'aruz'::text as area, is_correct as ok, answered_at as at
+         from (select is_correct, answered_at from user_answers
+                where user_id = $1 order by answered_at desc limit 3000) a
+       union all
+       select 'vocab'::text, is_correct, answered_at
+         from (select is_correct, answered_at from vocab_answers
+                where user_id = $1 order by answered_at desc limit 5000) v
+       union all
+       select 'jasoos'::text, is_correct, answered_at
+         from (select is_correct, answered_at from jasoos_answers
+                where user_id = $1 order by answered_at desc limit 3000) j`,
+      [userId],
+    ),
+    queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = $1`, [userId]),
     getExamAttempts(userId),
   ]);
 
@@ -427,30 +393,12 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
     exam: { total: 0, correct: 0 },
   };
 
-  const collect = (
-    res: { data: unknown[] | null; error: { message: string } | null },
-    area: BookmarkArea,
-    label: string,
-  ) => {
-    if (res.error) {
-      console.error(`getPanelOverview (${label}):`, res.error.message);
-      return;
-    }
-    for (const row of (res.data ?? []) as {
-      is_correct?: boolean;
-      answered_at?: string;
-    }[]) {
-      if (!row.answered_at) continue;
-      const ok = Boolean(row.is_correct);
-      activity.push({ at: row.answered_at, ok, area });
-      counts[area].total += 1;
-      if (ok) counts[area].correct += 1;
-    }
-  };
-
-  collect(aruz, "aruz", "user_answers");
-  collect(vocab, "vocab", "vocab_answers");
-  collect(jasoos, "jasoos", "jasoos_answers");
+  for (const row of activityRows) {
+    if (!row.at) continue;
+    activity.push({ at: row.at, ok: row.ok, area: row.area });
+    counts[row.area].total += 1;
+    if (row.ok) counts[row.area].correct += 1;
+  }
 
   const examScore = exams.reduce((s, a) => s + a.totalScore, 0);
   const examMax = exams.reduce((s, a) => s + a.maxScore, 0);
@@ -458,12 +406,11 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
   return {
     activity,
     counts,
-    bookmarks: bookmarks.count ?? 0,
+    bookmarks: bookmarkRow?.n ?? 0,
     exams: {
       attempts: exams.length,
       best: exams.reduce(
-        (m, a) =>
-          Math.max(m, a.maxScore ? Math.round((a.totalScore / a.maxScore) * 100) : 0),
+        (m, a) => Math.max(m, a.maxScore ? Math.round((a.totalScore / a.maxScore) * 100) : 0),
         0,
       ),
       average: examMax ? Math.round((examScore / examMax) * 100) : 0,
@@ -473,33 +420,33 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
 
 // --------------------------------------------------------- نشان‌شده‌ها ----
 
-export async function getBookmarks(
-  userId: string,
-  area?: BookmarkArea,
-): Promise<Bookmark[]> {
-  const supabase = await createSupabaseServer();
-  let query = supabase
-    .from("user_bookmarks")
-    .select("id, area, ref_id, title, subtitle, payload, note, created_at")
-    .eq("user_id", userId);
-  if (area) query = query.eq("area", area);
-  const { data, error } = await query.order("created_at", {
-    ascending: false,
-  });
-  if (error) {
-    // the table may not exist yet if the migration has not been run — the panel
-    // should still render, just with an empty bookmarks section
-    console.error("getBookmarks:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    area: r.area as BookmarkArea,
-    refId: r.ref_id as string,
-    title: (r.title as string) ?? "",
-    subtitle: (r.subtitle as string) ?? null,
-    payload: (r.payload as Record<string, unknown>) ?? {},
-    note: (r.note as string) ?? null,
-    createdAt: r.created_at as string,
+export async function getBookmarks(userId: string, area?: BookmarkArea): Promise<Bookmark[]> {
+  const rows = await query<{
+    id: string;
+    area: BookmarkArea;
+    ref_id: string;
+    title: string;
+    subtitle: string | null;
+    payload: Record<string, unknown> | null;
+    note: string | null;
+    created_at: string;
+  }>(
+    `select id, area, ref_id, title, subtitle, payload, note, created_at
+       from user_bookmarks
+      where user_id = $1
+        and ($2::text is null or area = $2)
+      order by created_at desc`,
+    [userId, area ?? null],
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    area: r.area,
+    refId: r.ref_id,
+    title: r.title ?? "",
+    subtitle: r.subtitle,
+    payload: r.payload ?? {},
+    note: r.note,
+    createdAt: r.created_at,
   }));
 }

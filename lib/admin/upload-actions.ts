@@ -1,17 +1,20 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { MAX_UPLOAD_BYTES, storageAdapter } from "@/lib/storage";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
 
-const QUIZ_AUDIO_BUCKET = "quiz-audio";
-
-/** Uploads an admin-picked audio file to Supabase Storage and returns its
- *  public URL. This is an interim storage backend — swapping to
- *  Cloudflare R2 or a self-hosted server later only means changing this
- *  one function; nothing in the quiz schema or the forms cares where the
- *  URL points, they just store/play whatever string comes back. */
+/** آپلود فایل صوتی برای سؤالات کوییز.
+ *
+ *  امضای این تابع عمداً دست‌نخورده مانده — components/admin/AudioUploadField.tsx
+ *  همان `{ ok, data: { url } }` را انتظار دارد و یک خط هم عوض نشده. تنها چیزی
+ *  که تغییر کرده جایی است که بایت‌ها می‌روند: قبلاً باکت quiz-audio در
+ *  Supabase Storage، حالا دیسک خودِ سرور از راه lib/storage.
+ *
+ *  نکتهٔ کامنت قبلیِ همین فایل («عوض کردن ذخیره‌سازی فقط یعنی عوض کردن همین یک
+ *  تابع») دقیقاً درست از آب درآمد — و حالا حتی همین تابع هم نمی‌داند فایل کجا
+ *  می‌رود، چون آداپتر تصمیم می‌گیرد. */
 export async function adminUploadQuizAudio(formData: FormData): Promise<ActionResult<{ url: string }>> {
   await requireAdmin();
 
@@ -22,30 +25,19 @@ export async function adminUploadQuizAudio(formData: FormData): Promise<ActionRe
   if (!file.type.startsWith("audio/")) {
     return { ok: false, errors: ["فقط فایل صوتی مجاز است."] };
   }
-  const MAX_BYTES = 15 * 1024 * 1024;
-  if (file.size > MAX_BYTES) {
-    return { ok: false, errors: ["حجم فایل نباید بیشتر از ۱۵ مگابایت باشد."] };
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const mb = Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024);
+    return { ok: false, errors: [`حجم فایل نباید بیشتر از ${mb} مگابایت باشد.`] };
   }
 
-  const supabase = createSupabaseAdmin();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
-
-  const { error } = await supabase.storage.from(QUIZ_AUDIO_BUCKET).upload(path, file, {
-    contentType: file.type,
-    cacheControl: "31536000",
-  });
-  if (error) {
-    return {
-      ok: false,
-      errors: [
-        error.message.includes("Bucket not found")
-          ? `باکت «${QUIZ_AUDIO_BUCKET}» هنوز در Supabase ساخته نشده — از داشبورد Supabase → Storage → New bucket بسازید (عمومی/Public).`
-          : error.message,
-      ],
-    };
+  try {
+    // prefix باعث می‌شود پوشهٔ uploads با انواع فایل قاطی نشود؛ وقتی روزی
+    // تصویر واژگان هم آپلودی شد، هرکدام جای خودش را دارد.
+    const stored = await storageAdapter().put(file, { prefix: "quiz-audio" });
+    return { ok: true, data: { url: stored.url } };
+  } catch (err) {
+    // پیام خام سیستم‌فایل مسیر سرور را لو می‌دهد؛ فقط به لاگ می‌رود.
+    console.error("[upload] آپلود فایل صوتی ناموفق بود:", err);
+    return { ok: false, errors: ["ذخیرهٔ فایل ناموفق بود. دوباره تلاش کنید."] };
   }
-
-  const { data } = supabase.storage.from(QUIZ_AUDIO_BUCKET).getPublicUrl(path);
-  return { ok: true, data: { url: data.publicUrl } };
 }

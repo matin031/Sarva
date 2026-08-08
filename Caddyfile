@@ -1,0 +1,45 @@
+# Caddy — تنها چیزی که به اینترنت باز است.
+#
+# دو کار می‌کند که Next نباید بکند:
+#
+#   ۱) فایل‌های آپلودی را مستقیم از دیسک سرو می‌کند. مهم‌تر از سرعت، پشتیبانی از
+#      Range request است: PanelAudioPlayer با wavesurfer کار می‌کند و
+#      CircularVisualizer با <audio>. هر دو برای seek و رسم موج، بایت‌های میانیِ
+#      فایل را جداگانه می‌خواهند. یک route handler سادهٔ Next کل فایل را یکجا
+#      برمی‌گرداند و نتیجه‌اش نوار پیشرفتِ از کار افتاده است.
+#
+#   ۲) HTTPS خودکار. روی سرور ایران با یک دامنهٔ درست، فقط SITE_ADDRESS را عوض
+#      می‌کنید و گواهی خودش گرفته و تمدید می‌شود.
+#
+# SITE_ADDRESS پیش‌فرض ":80" است تا لوکال بدون دامنه کار کند. برای production
+# در .env دامنه را بگذارید: SITE_ADDRESS=sarva.example.com
+
+{
+	# رابط مدیریتی Caddy لازم نیست و یک درِ باز کمتر بهتر است
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# صوت و تصویرِ آپلودی. handle_path پیشوند /uploads را قبل از جست‌وجو در
+	# دیسک برمی‌دارد، پس /uploads/x.mp3 می‌شود /srv/uploads/x.mp3
+	handle_path /uploads/* {
+		root * /srv/uploads
+		# نام فایل‌ها موقع آپلود یکتا ساخته می‌شود (timestamp + رشتهٔ تصادفی)،
+		# پس محتوای یک URL هرگز عوض نمی‌شود و immutable درست است.
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+
+	# لاگ در stdout تا با `docker compose logs` دیده شود
+	log {
+		output stdout
+		format console
+	}
+}

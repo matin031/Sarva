@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 
 /** Scoped to the three types the admin panel authors today. The DB/UI
  *  (Quiz.tsx, QuestionCard.tsx, QuestionOption.tsx) also support
@@ -88,62 +88,97 @@ export type QuizListParams = {
 
 /** Paginated + filterable by category (type/difficulty) so the admin panel
  *  never has to render every question at once — pass `limit` to fetch one
- *  page; `total` (from Postgrest's exact count) reflects the whole filtered
- *  set regardless of the page size, so callers can drive a "load more". */
+ *  page; `total` (from a window count over the filtered set) reflects the whole
+ *  filtered set regardless of the page size, so callers can drive a "load more". */
 export async function quizAdminList(params: QuizListParams = {}): Promise<{ items: QuizListItem[]; total: number }> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  let query = supabase
-    .from("questions")
-    .select("id, type, poem, audio_url, difficulty, question_options(id)", { count: "exact" })
-    // `id` is a tiebreaker: many rows share the same created_at (bulk-seeded),
-    // and range() pagination over a non-unique sort can return the same row
-    // on two different pages (or skip one) since ties aren't ordered
-    // consistently across separate queries.
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: true });
+  // فیلترها به‌صورت شرط‌های اختیاری ساخته می‌شوند تا یک کوئری هم صفحه را
+  // بدهد و هم تعداد کل را. count(*) over () تعداد کلِ *فیلترشده* را در هر
+  // ردیف برمی‌گرداند — همان چیزی که PostgREST با count: "exact" می‌داد.
+  const conditions: string[] = [];
+  const values: unknown[] = [];
 
-  if (params.type) query = query.eq("type", params.type);
-  if (params.difficulty) query = query.eq("difficulty", params.difficulty);
-  if (params.limit !== undefined) {
-    const offset = params.offset ?? 0;
-    query = query.range(offset, offset + params.limit - 1);
+  if (params.type) {
+    values.push(params.type);
+    conditions.push(`q.type = $${values.length}`);
+  }
+  if (params.difficulty) {
+    values.push(params.difficulty);
+    conditions.push(`q.difficulty = $${values.length}`);
   }
 
-  const { data, error, count } = await query;
-  if (error) throw new Error(`quizAdminList: ${error.message}`);
+  const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
+
+  let limitClause = "";
+  if (params.limit !== undefined) {
+    values.push(params.limit);
+    limitClause += ` limit $${values.length}`;
+    values.push(params.offset ?? 0);
+    limitClause += ` offset $${values.length}`;
+  }
+
+  const rows = await query<{
+    id: string;
+    type: string;
+    poem: string[] | null;
+    audio_url: string | null;
+    difficulty: string | null;
+    option_count: number;
+    total_count: number;
+  }>(
+    `select q.id, q.type, q.poem, q.audio_url, q.difficulty,
+            (select count(*) from question_options o where o.question_id = q.id) as option_count,
+            count(*) over () as total_count
+       from questions q
+       ${where}
+      -- id به‌عنوان شکنندهٔ تساوی: ردیف‌های زیادی created_at یکسان دارند
+      -- (درج انبوه)، و صفحه‌بندی روی مرتب‌سازیِ غیریکتا می‌تواند یک ردیف را
+      -- در دو صفحه بیاورد یا یکی را جا بیندازد.
+      order by q.created_at desc, q.id
+      ${limitClause}`,
+    values,
+  );
 
   return {
-    items: (data ?? []).map((q) => ({
+    items: rows.map((q) => ({
       id: q.id,
       type: q.type as QuizType,
       poem: q.poem ?? undefined,
       audioUrl: q.audio_url ?? undefined,
       difficulty: (q.difficulty ?? "medium") as "easy" | "medium" | "hard",
-      optionCount: q.question_options?.length ?? 0,
+      optionCount: q.option_count,
     })),
-    total: count ?? 0,
+    // وقتی هیچ ردیفی برنگردد، count(*) over () هم ردیفی ندارد که در آن بیاید
+    total: rows[0]?.total_count ?? 0,
   };
 }
 
 export async function quizAdminGet(questionId: string): Promise<QuizQuestionDetail | null> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data: question, error } = await supabase
-    .from("questions")
-    .select("id, type, poem, audio_url, difficulty")
-    .eq("id", questionId)
-    .maybeSingle();
-  if (error) throw new Error(`quizAdminGet: ${error.message}`);
+  const [question, options] = await Promise.all([
+    queryOne<{
+      id: string;
+      type: string;
+      poem: string[] | null;
+      audio_url: string | null;
+      difficulty: string | null;
+    }>(`select id, type, poem, audio_url, difficulty from questions where id = $1`, [questionId]),
+    query<{
+      id: string;
+      label: string | null;
+      poem: string[] | null;
+      audio_url: string | null;
+      is_correct: boolean;
+    }>(
+      `select id, label, poem, audio_url, is_correct
+         from question_options where question_id = $1 order by x, id`,
+      [questionId],
+    ),
+  ]);
+
   if (!question) return null;
-
-  const { data: options, error: optionsError } = await supabase
-    .from("question_options")
-    .select("id, label, poem, audio_url, is_correct")
-    .eq("question_id", questionId);
-  if (optionsError) throw new Error(`quizAdminGet options: ${optionsError.message}`);
 
   return {
     id: question.id,
@@ -151,7 +186,7 @@ export async function quizAdminGet(questionId: string): Promise<QuizQuestionDeta
     poem: question.poem ?? undefined,
     audioUrl: question.audio_url ?? undefined,
     difficulty: (question.difficulty ?? "medium") as "easy" | "medium" | "hard",
-    options: (options ?? []).map((o) => ({
+    options: options.map((o) => ({
       id: o.id,
       label: o.label ?? undefined,
       poem: o.poem ?? undefined,
@@ -165,70 +200,66 @@ export async function quizAdminGet(questionId: string): Promise<QuizQuestionDeta
 // Writes
 // ---------------------------------------------------------------------------
 
-/** Creates a new question or fully replaces an existing one's options
- *  (delete-then-reinsert), same reasoning as the exam bank's
- *  adminUpsertQuestion: options are authored as one unit with the question,
- *  not edited individually. */
+/** ساخت سؤال تازه یا جایگزینی کاملِ گزینه‌های سؤال موجود — همان استدلال
+ *  adminUpsertQuestion بانک آزمون: گزینه‌ها همراه خودِ سؤال تألیف می‌شوند، نه
+ *  جداگانه. مثل آنجا، حالا در یک تراکنش است تا حذفِ گزینه‌ها بدون درجِ دوباره
+ *  ممکن نباشد. */
 export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise<ActionResult<{ id: string }>> {
   await requireAdmin();
 
   const errors = validateQuizQuestion(input);
   if (errors.length > 0) return { ok: false, errors };
 
-  const supabase = createSupabaseAdmin();
+  try {
+    const questionId = await transaction(async (tx) => {
+      let id: string;
 
-  let questionId: string;
-  if (input.id) {
-    questionId = input.id;
-    const { error: updateError } = await supabase
-      .from("questions")
-      .update({
-        type: input.type,
-        poem: input.poem ?? null,
-        audio_url: input.audioUrl ?? null,
-        difficulty: input.difficulty ?? "medium",
-      })
-      .eq("id", questionId);
-    if (updateError) return { ok: false, errors: [updateError.message] };
+      if (input.id) {
+        id = input.id;
+        await tx.execute(
+          `update questions set type = $1, poem = $2, audio_url = $3, difficulty = $4 where id = $5`,
+          [input.type, input.poem ?? null, input.audioUrl ?? null, input.difficulty ?? "medium", id],
+        );
+        await tx.execute(`delete from question_options where question_id = $1`, [id]);
+      } else {
+        const created = await tx.queryOne<{ id: string }>(
+          `insert into questions (type, poem, audio_url, difficulty)
+           values ($1, $2, $3, $4) returning id`,
+          [input.type, input.poem ?? null, input.audioUrl ?? null, input.difficulty ?? "medium"],
+        );
+        id = created!.id;
+      }
 
-    const { error: deleteError } = await supabase.from("question_options").delete().eq("question_id", questionId);
-    if (deleteError) return { ok: false, errors: [deleteError.message] };
-  } else {
-    const { data: created, error: createError } = await supabase
-      .from("questions")
-      .insert({
-        type: input.type,
-        poem: input.poem ?? null,
-        audio_url: input.audioUrl ?? null,
-        difficulty: input.difficulty ?? "medium",
-      })
-      .select("id")
-      .single();
-    if (createError) return { ok: false, errors: [createError.message] };
-    questionId = created.id;
+      for (const [i, o] of input.options.entries()) {
+        await tx.execute(
+          `insert into question_options (question_id, label, poem, audio_url, is_correct, x)
+           values ($1, $2, $3, $4, $5, $6)`,
+          [
+            id,
+            o.label ?? null,
+            o.poem ?? null,
+            o.audioUrl ?? null,
+            o.isCorrect,
+            // جابه‌جاییِ یک‌درمیان برای انیمیشن ورود (whileInView در
+            // QuestionOption) — کاملاً ظاهری، نه محتوای تألیف‌شده.
+            i % 2 === 0 ? -40 : 40,
+          ],
+        );
+      }
+
+      return id;
+    });
+
+    return { ok: true, data: { id: questionId } };
+  } catch (err) {
+    console.error("[quiz] ذخیرهٔ سؤال ناموفق بود:", err);
+    return { ok: false, errors: ["ذخیرهٔ سؤال ناموفق بود. هیچ تغییری اعمال نشد."] };
   }
-
-  const { error: optionsError } = await supabase.from("question_options").insert(
-    input.options.map((o, i) => ({
-      question_id: questionId,
-      label: o.label ?? null,
-      poem: o.poem ?? null,
-      audio_url: o.audioUrl ?? null,
-      is_correct: o.isCorrect,
-      // alternating slide-in offset for the entrance animation
-      // (QuestionOption's whileInView) — purely cosmetic, not authored content.
-      x: i % 2 === 0 ? -40 : 40,
-    })),
-  );
-  if (optionsError) return { ok: false, errors: [optionsError.message] };
-
-  return { ok: true, data: { id: questionId } };
 }
 
 export async function quizAdminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.from("questions").delete().eq("id", questionId);
-  if (error) return { ok: false, errors: [error.message] };
+  const deleted = await execute("delete from questions where id = $1", [questionId]);
+  if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
   return { ok: true, data: null };
 }

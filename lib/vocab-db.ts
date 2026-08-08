@@ -1,57 +1,67 @@
-// Browser-side data access for the واژه‌یاب game.
-// Words are public content (anyone, signed in or not, can read them to play);
-// per-user wrong/right answers are logged to `vocab_answers` for the panel.
-import { supabase } from "@/lib/supabase";
+"use client";
+
+// دسترسی دادهٔ بازی واژه‌یاب، از سمت مرورگر.
+//
+// قبلاً مستقیم با کلاینت Supabase به دیتابیس می‌زد. حالا از /api/v1/vocab/*
+// رد می‌شود. امضای هر سه تابع دست‌نخورده مانده تا VocabGame.tsx تغییری لازم
+// نداشته باشد.
+import { apiGet, apiPost } from "@/lib/api/client";
 import type { VocabWord } from "@/lib/vocab-data";
 
-type WordRow = { id: string; word: string; meaning: string; image: string | null };
+type WordPayload = {
+  words: { id: string; word: string; meaning: string; image: string; lesson: number }[];
+};
 
-/** All words of one lesson, ordered, for playing that lesson. */
+/** همهٔ واژه‌های یک درس، به ترتیب. */
 export async function fetchLessonWords(grade: string, lesson: number): Promise<VocabWord[]> {
-  const { data, error } = await supabase
-    .from("vocab_words")
-    .select("id, word, meaning, image")
-    .eq("grade", grade)
-    .eq("lesson", lesson)
-    .order("sort_index", { ascending: true });
-  if (error) {
-    console.error("vocab_words fetch failed:", error.message);
+  const result = await apiGet<WordPayload>(
+    `/api/v1/vocab/words?grade=${encodeURIComponent(grade)}&lesson=${lesson}`,
+  );
+
+  if (!result.ok) {
+    console.error("vocab words fetch failed:", result.errors.join(" "));
     return [];
   }
-  return (data ?? []).map((r: WordRow) => ({
-    id: r.id,
-    word: r.word,
-    meaning: r.meaning,
-    image: r.image ?? "",
+
+  return result.data.words.map((w) => ({
+    id: w.id,
+    word: w.word,
+    meaning: w.meaning,
+    image: w.image,
   }));
 }
 
 export type GradeWord = { lesson: number; word: VocabWord };
 
-/** Every *pictured* word of a whole book, with its lesson number. Drives both
- *  the lesson list (counts per lesson) and the shared distractor pool, so a
- *  lesson with only one or two pictured words is still playable. */
+/** هر واژهٔ *تصویردارِ* یک کتاب، با شمارهٔ درسش. هم فهرست درس‌ها (تعداد هر
+ *  درس) را می‌سازد و هم مخزن مشترک گزینه‌های نادرست را، تا درسی که فقط یکی دو
+ *  واژهٔ تصویردار دارد هم قابل بازی بماند. */
 export async function fetchGradePicturedWords(grade: string): Promise<GradeWord[]> {
-  const { data, error } = await supabase
-    .from("vocab_words")
-    .select("id, word, meaning, image, lesson")
-    .eq("grade", grade)
-    .order("sort_index", { ascending: true });
-  if (error) {
-    console.error("vocab_words grade fetch failed:", error.message);
+  const result = await apiGet<WordPayload>(
+    `/api/v1/vocab/words?grade=${encodeURIComponent(grade)}`,
+  );
+
+  if (!result.ok) {
+    console.error("vocab grade fetch failed:", result.errors.join(" "));
     return [];
   }
-  return (data ?? [])
-    .filter((r: WordRow & { lesson: number }) => (r.image ?? "").trim().length > 0)
-    .map((r: WordRow & { lesson: number }) => ({
-      lesson: r.lesson,
-      word: { id: r.id, word: r.word, meaning: r.meaning, image: r.image ?? "" },
+
+  return result.data.words
+    .filter((w) => w.image.trim().length > 0)
+    .map((w) => ({
+      lesson: w.lesson,
+      word: { id: w.id, word: w.word, meaning: w.meaning, image: w.image },
     }));
 }
 
-/** Fire-and-forget: record one answer so the student sees their misses in the panel. */
+/** ثبت یک پاسخ، بدون منتظر ماندن — تا دانش‌آموز واژه‌های ازدست‌رفته‌اش را در
+ *  پنل ببیند.
+ *
+ *  پارامتر userId دیگر استفاده نمی‌شود: سرور کاربر را از کوکی سشن می‌شناسد و
+ *  به شناسه‌ای که مرورگر ادعا می‌کند اعتماد نمی‌کند. برای دست‌نخورده ماندن
+ *  محلِ فراخوانی در VocabGame.tsx نگه داشته شده. */
 export function logVocabAnswer(
-  userId: string,
+  _userId: string,
   input: {
     grade: string;
     lesson: number;
@@ -61,23 +71,7 @@ export function logVocabAnswer(
     isCorrect: boolean;
   },
 ) {
-  Promise.resolve(
-    supabase.from("vocab_answers").insert({
-      user_id: userId,
-      grade: input.grade,
-      lesson: input.lesson,
-      word: input.word,
-      meaning: input.meaning,
-      image: input.image,
-      is_correct: input.isCorrect,
-    }),
-  )
-    .then(({ error }) => {
-      if (error) {
-        // most likely the vocab_answers table/migration hasn't been run yet —
-        // see supabase/migrations/20260721_vocab_answers.sql
-        console.error("vocab_answers insert failed:", error.message || error);
-      }
-    })
-    .catch((err: unknown) => console.error("vocab_answers insert threw:", err));
+  void apiPost("/api/v1/vocab/answer", input).then((result) => {
+    if (!result.ok) console.error("vocab answer save failed:", result.errors.join(" "));
+  });
 }

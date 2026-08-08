@@ -1,7 +1,8 @@
 "use server";
 
+import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { revokeAllSessions } from "@/lib/auth/session";
 
 export type AdminUserRow = {
   id: string;
@@ -16,72 +17,104 @@ export type AdminUserRow = {
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
 
-/** auth.users isn't exposed over PostgREST, so listing users goes through
- *  the GoTrue admin API (supabase.auth.admin.*) instead of a table query —
- *  only available with the service-role key. Merged with each user's role
- *  from profiles (users created before the 0002 migration's trigger existed
- *  won't have a profiles row yet, hence the "student" fallback). */
+/**
+ * فهرست کاربران.
+ *
+ * قبلاً دو منبع لازم بود — GoTrue برای خودِ حساب‌ها و جدول profiles برای نقش —
+ * چون auth.users از PostgREST دیده نمی‌شد. حالا هر دو یک جدول‌اند و این یک
+ * کوئری است.
+ *
+ * «آخرین ورود» از جدول sessions می‌آید. GoTrue ستون last_sign_in_at داشت؛
+ * معادلش اینجا تازه‌ترین سشنِ ساخته‌شدهٔ کاربر است، که همان معنی را می‌دهد.
+ */
 export async function adminListUsers(): Promise<AdminUserRow[]> {
   await requireAdmin();
-  const supabase = createSupabaseAdmin();
 
-  const { data: usersPage, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-  if (usersError) throw new Error(`adminListUsers: ${usersError.message}`);
+  const rows = await query<{
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: "student" | "admin";
+    created_at: string;
+    last_sign_in_at: string | null;
+    email_verified_at: string | null;
+    is_banned: boolean;
+  }>(
+    `select u.id, u.email, u.full_name, u.role, u.created_at,
+            u.email_verified_at, u.is_banned,
+            (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at
+       from users u
+      order by u.created_at desc`,
+  );
 
-  const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id, role, full_name");
-  if (profilesError) throw new Error(`adminListUsers profiles: ${profilesError.message}`);
-
-  const roleById = new Map((profiles ?? []).map((p) => [p.id, p.role as "student" | "admin"]));
-  const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name ?? undefined]));
-
-  return usersPage.users
-    .map((u) => ({
-      id: u.id,
-      email: u.email,
-      fullName: nameById.get(u.id) ?? (u.user_metadata?.full_name as string | undefined),
-      role: roleById.get(u.id) ?? "student",
-      createdAt: u.created_at,
-      lastSignInAt: u.last_sign_in_at ?? undefined,
-      emailConfirmed: !!u.email_confirmed_at,
-      isBanned: !!u.banned_until && new Date(u.banned_until) > new Date(),
-    }))
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return rows.map((u) => ({
+    id: u.id,
+    email: u.email,
+    fullName: u.full_name ?? undefined,
+    role: u.role,
+    createdAt: u.created_at,
+    lastSignInAt: u.last_sign_in_at ?? undefined,
+    emailConfirmed: u.email_verified_at !== null,
+    isBanned: u.is_banned,
+  }));
 }
 
-/** Creates the profiles row if the user pre-dates the signup trigger
- *  (same situation the very first admin promotion hit manually). */
-export async function adminSetUserRole(userId: string, role: "student" | "admin"): Promise<ActionResult<null>> {
-  await requireAdmin();
-  const supabase = createSupabaseAdmin();
+export async function adminSetUserRole(
+  userId: string,
+  role: "student" | "admin",
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
 
-  const { error } = await supabase.from("profiles").upsert({ id: userId, role }, { onConflict: "id" });
-  if (error) return { ok: false, errors: [error.message] };
+  // بدون این، آخرین مدیرِ سایت می‌توانست خودش را دانش‌آموز کند و بعد هیچ‌کس
+  // نمی‌توانست به پنل برگردد — تنها راه چاره اجرای دستی SQL روی سرور بود.
+  if (userId === admin.id && role !== "admin") {
+    return { ok: false, errors: ["نمی‌توانید نقش مدیریت خودتان را بردارید."] };
+  }
+
+  const updated = await execute("update users set role = $1 where id = $2", [role, userId]);
+  if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
   return { ok: true, data: null };
 }
 
-/** GoTrue has no permanent-ban flag, only a duration — "876000h" (~100
- *  years) is the standard way every Supabase project represents "banned
- *  indefinitely"; "none" lifts it. A banned user's existing sessions stay
- *  valid until they expire, but they can't sign in again. */
-export async function adminSetUserBanned(userId: string, banned: boolean): Promise<ActionResult<null>> {
+/**
+ * مسدود کردن کاربر.
+ *
+ * در نسخهٔ Supabase یک بازهٔ زمانی به GoTrue داده می‌شد («876000h» یعنی صد
+ * سال) و — طبق کامنت خودِ همان کد — سشن‌های فعلیِ کاربر تا انقضا معتبر
+ * می‌ماندند. حالا یک پرچم بولی است و سشن‌ها همان لحظه باطل می‌شوند، پس بن
+ * کردن بلافاصله اثر می‌کند.
+ */
+export async function adminSetUserBanned(
+  userId: string,
+  banned: boolean,
+): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
 
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.auth.admin.updateUserById(userId, {
-    ban_duration: banned ? "876000h" : "none",
-  });
-  if (error) return { ok: false, errors: [error.message] };
+  const updated = await execute("update users set is_banned = $1 where id = $2", [banned, userId]);
+  if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  if (banned) await revokeAllSessions(userId);
+
   return { ok: true, data: null };
 }
 
-/** Permanently deletes the auth user; profiles row cascades with it. */
+/** حذف دائمی حساب. همهٔ داده‌های وابسته با cascade می‌روند. */
 export async function adminDeleteUser(userId: string): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را حذف کنید."] };
 
-  const supabase = createSupabaseAdmin();
-  const { error } = await supabase.auth.admin.deleteUser(userId);
-  if (error) return { ok: false, errors: [error.message] };
+  // شمردن مدیرها قبل از حذف: سایتی بدون هیچ مدیری یعنی پنل برای همیشه بسته.
+  const target = await queryOne<{ role: string }>("select role from users where id = $1", [userId]);
+  if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  if (target.role === "admin") {
+    const count = await queryOne<{ n: number }>("select count(*) as n from users where role = 'admin'");
+    if ((count?.n ?? 0) <= 1) {
+      return { ok: false, errors: ["این تنها مدیر سایت است و نمی‌تواند حذف شود."] };
+    }
+  }
+
+  await execute("delete from users where id = $1", [userId]);
   return { ok: true, data: null };
 }

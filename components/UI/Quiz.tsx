@@ -5,7 +5,8 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import QuestionCard from "./QuestionCard";
 import QuestionOption from "@/components/UI/QuestionOption";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { apiGet, apiPost } from "@/lib/api/client";
 import QuizSettingsModal from "./QuizSettingsModal";
 import GuestLimitModal from "./GuestLimitModal";
 import SarvaLoader from "@/components/UI/SarvaLoader";
@@ -51,7 +52,10 @@ function Quiz({ data }: { data: Question[] }) {
   >([]);
 
   // undefined = still checking auth, null = guest, object = logged in
-  const [user, setUser] = useState<any>(undefined);
+  // undefined = هنوز معلوم نیست، null = مهمان. تفکیکشان لازم است چون بازیِ
+  // ذخیره‌شده در localStorage صاحب دارد و تا معلوم نشدنِ کاربر نباید بازیابی شود.
+  const { user: currentUser, loading: userLoading } = useCurrentUser();
+  const user = userLoading ? undefined : currentUser;
   // ids of questions this user has already answered, null while loading
   const [answeredIds, setAnsweredIds] = useState<string[] | null>(null);
   const [quizStarted, setQuizStarted] = useState(false);
@@ -102,9 +106,6 @@ function Quiz({ data }: { data: Question[] }) {
     setRestoredFromStorage(true);
   }, []);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-  }, []);
 
   useEffect(() => {
     if (!restoredFromStorage || !quizStarted || user === undefined) return;
@@ -133,17 +134,17 @@ function Quiz({ data }: { data: Question[] }) {
 
     let cancelled = false;
     (async () => {
-      const { data: rows } = await supabase
-        .from("user_answers")
-        .select("question_id")
-        .eq("user_id", user.id)
-        .in(
-          "question_id",
-          allQuestions.map((q) => q.id),
-        );
+      // سرور همهٔ سؤال‌های جواب‌دادهٔ کاربر را برمی‌گرداند و فیلتر کردن به
+      // سؤال‌های این دور اینجا انجام می‌شود. قبلاً فهرست شناسه‌ها در کوئری
+      // فرستاده می‌شد؛ در URL این می‌توانست به سقف طول برسد.
+      const result = await apiGet<{ questionIds: string[] }>("/api/v1/quiz/answered");
+      if (cancelled) return;
 
-      if (!cancelled) {
-        setAnsweredIds((rows ?? []).map((r: any) => r.question_id));
+      if (result.ok) {
+        const inThisSet = new Set(allQuestions.map((q) => q.id));
+        setAnsweredIds(result.data.questionIds.filter((id) => inThisSet.has(id)));
+      } else {
+        setAnsweredIds([]);
       }
     })();
 
@@ -219,100 +220,48 @@ function Quiz({ data }: { data: Question[] }) {
       return copy;
     });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!user) return;
 
-    if (user) {
-      const { data: existing } = await supabase
-        .from("user_answers")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("question_id", questions[currentIndex].id)
-        .single();
+    // فقط شناسهٔ سؤال و گزینهٔ انتخابی می‌رود.
+    //
+    // درستی پاسخ عمداً فرستاده نمی‌شود: سرور خودش از روی
+    // question_options.is_correct حسابش می‌کند. نسخهٔ قبلی `is_correct` را از
+    // همین‌جا می‌فرستاد، یعنی با کنسول مرورگر می‌شد برای هر سؤالی «درست» ثبت
+    // کرد. (امتیازی که روی صفحه دیده می‌شود همچنان کلاینتی است — آن فقط یک
+    // شمارندهٔ نمایشی است و هیچ‌جا ذخیره نمی‌شود.)
+    //
+    // پاسخ دوباره به یک سؤال، سمت سرور بازنویسی می‌شود؛ منطق
+    // «اول بخوان بعد update یا insert» که اینجا بود دیگر لازم نیست.
+    const result = await apiPost<{ isCorrect: boolean }>("/api/v1/quiz/answer", {
+      questionId: questions[currentIndex].id,
+      selectedOptionId: selectedOption.id,
+    });
 
-      if (existing) {
-        // repeated question: overwrite with this attempt's result so the
-        // panel reflects the latest answer instead of ignoring the retry
-        const { error: updateError } = await supabase
-          .from("user_answers")
-          .update({
-            selected_option_id: selectedOption.id,
-            is_correct: isCorrect,
-            answered_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-        if (updateError)
-          console.error("user_answers update failed:", updateError);
-      } else {
-        // answered_at is set explicitly (not relying on a column default) so
-        // the panel's 7-day progress chart — which filters on answered_at —
-        // always sees this row.
-        const { error: insertError } = await supabase
-          .from("user_answers")
-          .insert({
-            user_id: user.id,
-            question_id: questions[currentIndex].id,
-            selected_option_id: selectedOption.id,
-            is_correct: isCorrect,
-            answered_at: new Date().toISOString(),
-          });
-        if (insertError)
-          console.error("user_answers insert failed:", insertError);
-      }
-    }
+    if (!result.ok) console.error("quiz answer save failed:", result.errors.join(" "));
   };
 
   const saveQuizAttempt = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
     if (!user) return;
 
-    const answeredEntries = answersLog
-      .map((entry, i) => ({ entry, question: questions[i] }))
-      .filter(({ entry }) => entry.answered && entry.selected !== null);
+    const anyAnswered = answersLog.some((e) => e?.answered && e.selected !== null);
+    if (!anyAnswered) return;
 
-    if (!answeredEntries.length) return;
-
-    const correctCount = answeredEntries.filter(
-      ({ entry, question }) => question.options[entry.selected!]?.isCorrect,
-    ).length;
-
-    const { data: attempt, error: attemptError } = await supabase
-      .from("quiz_attempts")
-      .insert({
-        user_id: user.id,
-        total: questions.length,
-        correct: correctCount,
-      })
-      .select("id")
-      .single();
-
-    if (attemptError || !attempt) {
-      console.log("Failed to save quiz attempt", attemptError);
-      return;
-    }
-
-    const rows = questions.map((question, i) => {
+    // فقط «کدام گزینه برای کدام سؤال» فرستاده می‌شود. تعداد پاسخ‌های درست و
+    // درستیِ تک‌تک ردیف‌ها را سرور حساب می‌کند — قبلاً هر دو از مرورگر می‌آمدند.
+    //
+    // ساخت تلاش و ثبت پاسخ‌هایش هم آنجا در یک تراکنش انجام می‌شود؛ اینجا دو
+    // درخواست جدا بود و شکست دومی، یک دورِ بدون هیچ پاسخی در کارنامه می‌گذاشت.
+    const answers = questions.map((question, i) => {
       const entry = answersLog[i];
-      const wasAnswered = !!entry && entry.answered && entry.selected !== null;
-      const selectedOption = wasAnswered
-        ? question.options[entry.selected!]
-        : null;
+      const answered = !!entry && entry.answered && entry.selected !== null;
       return {
-        attempt_id: attempt.id,
-        question_id: question.id,
-        selected_option_id: selectedOption ? selectedOption.id : null,
-        is_correct: !!selectedOption?.isCorrect,
+        questionId: question.id,
+        selectedOptionId: answered ? (question.options[entry.selected!]?.id ?? null) : null,
       };
     });
 
-    const { error: answersError } = await supabase
-      .from("quiz_attempt_answers")
-      .insert(rows);
-    if (answersError)
-      console.error("quiz_attempt_answers insert failed:", answersError);
+    const result = await apiPost("/api/v1/quiz/attempt", { answers });
+    if (!result.ok) console.error("quiz attempt save failed:", result.errors.join(" "));
   };
 
   const handleNext = async () => {

@@ -3,14 +3,13 @@
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { gradePart } from "@/lib/exam/grading";
 import { getExamByKey } from "@/lib/exam/db-exam";
-import { createSupabaseServer } from "@/lib/supabase-server";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { queryOne, execute } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
-// Server-only: getExamByKey uses the service-role client and returns the
-// full SeedExam (with the answer key), so this action must never be
-// imported from a "use client" file. The page component fetches its own
-// copy separately and sanitizes it via toClientExam before it reaches the
-// browser.
+// Server-only: getExamByKey returns the full SeedExam (with the answer key),
+// so this action must never be imported from a "use client" file. The page
+// component fetches its own copy separately and sanitizes it via
+// toClientExam before it reaches the browser.
 
 export type PartResult = {
   label?: string;
@@ -18,10 +17,10 @@ export type PartResult = {
   maxScore: number;
   status: "correct" | "incorrect" | "partial" | "needs_review";
   correctAnswerText: string;
-  /** Short AI feedback shown to the student, present only for AI-graded parts. */
+  /** Short feedback shown to the student. Reserved for future manual review. */
   feedback?: string;
   /** True for open-ended (conceptual) parts that the student scores
-   *  themselves against the revealed answer — no auto/AI grading. */
+   *  themselves against the revealed answer — no auto grading. */
   selfGrade?: boolean;
 };
 
@@ -44,10 +43,11 @@ export async function submitQuestion(
   const question = exam.sections.flatMap((s) => s.questions).find((q) => q.number === questionNumber);
   if (!question) throw new Error(`Unknown question: ${questionNumber}`);
 
-  // exact_match parts are auto-graded here. Open-ended (conceptual) parts
-  // are not auto-graded for now — the student sees the correct answer and
-  // scores themselves (selfGrade), which works offline without any AI
-  // service. The ai-grading module is kept for a later server-side deploy.
+  // exact_match parts are auto-graded here. Open-ended (conceptual) parts are
+  // not auto-graded — the student sees the correct answer and scores
+  // themselves (selfGrade). This used to be a temporary state while an LLM
+  // grader existed behind it; that grader has been removed, so self-grading
+  // is now the deliberate and only behaviour for these parts.
   const parts: PartResult[] = question.parts.map((part, partIndex) => {
     if (part.gradingMode === "exact_match") {
       const graded = gradePart(part, partIndex, answers[partIndex]);
@@ -72,12 +72,6 @@ export async function submitQuestion(
   return { number: question.number, parts };
 }
 
-/** Called once when a signed-in student reaches the results screen
- *  (ExamResults.tsx) — mirrors components/UI/Quiz.tsx's saveQuizAttempt:
- *  same "guests aren't persisted" guard, same "fire on finish" timing.
- *  Recomputes the total from the results the client already has (not
- *  re-graded here) since this is a stats record, not a security boundary
- *  — the actual grading already happened server-side in submitQuestion. */
 /** How much of a paper has to be attempted before it counts as a کارنامه. */
 const MIN_ANSWERED_RATIO = 2 / 3;
 
@@ -85,6 +79,9 @@ export type AttemptSaveResult =
   | { saved: true }
   | { saved: false; reason: "guest" | "too_few" | "unknown_exam" };
 
+/** Called once when a signed-in student reaches the results screen
+ *  (ExamResults.tsx) — mirrors components/UI/Quiz.tsx's saveQuizAttempt:
+ *  same "guests aren't persisted" guard, same "fire on finish" timing. */
 export async function submitExamAttempt(
   examKey: string,
   questionResults: Record<number, QuestionResult>,
@@ -93,14 +90,12 @@ export async function submitExamAttempt(
    *  results alone only ever knew the score. */
   answers?: Record<string, unknown>,
 ): Promise<AttemptSaveResult> {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { saved: false, reason: "guest" };
 
-  const admin = createSupabaseAdmin();
-  const { data: exam } = await admin.from("exams").select("id").eq("exam_session", examKey).maybeSingle();
+  const exam = await queryOne<{ id: string }>("select id from exams where exam_session = $1", [
+    examKey,
+  ]);
   if (!exam) return { saved: false, reason: "unknown_exam" };
 
   /* A کارنامه should describe a paper the student actually sat. Answering three
@@ -109,13 +104,9 @@ export async function submitExamAttempt(
      checked here, on the server, where the real question count lives, rather
      than trusting whatever the client chose to send. */
   const paper = await getExamByKey(examKey);
-  const totalQuestions =
-    paper?.sections.reduce((n, s) => n + s.questions.length, 0) ?? 0;
+  const totalQuestions = paper?.sections.reduce((n, s) => n + s.questions.length, 0) ?? 0;
   const answeredQuestions = Object.keys(questionResults).length;
-  if (
-    totalQuestions > 0 &&
-    answeredQuestions < Math.ceil(totalQuestions * MIN_ANSWERED_RATIO)
-  ) {
+  if (totalQuestions > 0 && answeredQuestions < Math.ceil(totalQuestions * MIN_ANSWERED_RATIO)) {
     return { saved: false, reason: "too_few" };
   }
 
@@ -129,28 +120,26 @@ export async function submitExamAttempt(
   }
   if (maxScore === 0) return { saved: false, reason: "too_few" };
 
-  const row = {
-    user_id: user.id,
-    exam_id: exam.id,
-    total_score: totalScore,
-    max_score: maxScore,
-    question_results: questionResults,
-  };
-
-  const { error } = await admin
-    .from("exam_attempts")
-    .insert({ ...row, answers: answers ?? {} });
-
-  // `answers` arrived later than this table did. If the column has not been
-  // added yet, the attempt itself still has to be recorded — losing a whole
-  // report card over a missing column would be a poor trade.
-  if (error) {
-    console.error("submitExamAttempt (with answers):", error.message);
-    const retry = await admin.from("exam_attempts").insert(row);
-    if (retry.error) {
-      console.error("submitExamAttempt:", retry.error.message);
-      return { saved: false, reason: "unknown_exam" };
-    }
+  try {
+    await execute(
+      `insert into exam_attempts (user_id, exam_id, total_score, max_score, question_results, answers)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [
+        user.id,
+        exam.id,
+        totalScore,
+        maxScore,
+        JSON.stringify(questionResults),
+        JSON.stringify(answers ?? {}),
+      ],
+    );
+  } catch (err) {
+    // نسخهٔ قبلی اینجا یک مسیر دوم داشت: اگر درج با ستون answers شکست می‌خورد،
+    // دوباره بدون آن تلاش می‌کرد — چون آن ستون بعداً به جدول اضافه شده بود و
+    // معلوم نبود روی هر پروژه‌ای وجود داشته باشد. حالا ستون بخشی از
+    // 001_init.sql است و همیشه هست، پس آن مسیر حذف شده.
+    console.error("[exam] ثبت کارنامه ناموفق بود:", err);
+    return { saved: false, reason: "unknown_exam" };
   }
 
   return { saved: true };

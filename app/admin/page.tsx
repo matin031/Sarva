@@ -87,6 +87,11 @@ export default async function Page() {
       title: "کاربران",
       desc: "مشاهدهٔ کاربران و تغییر نقش (دانش‌آموز/مدیر).",
     },
+    {
+      href: "/admin/settings",
+      title: "تنظیمات",
+      desc: "آدرس فرستندهٔ ایمیل و سرویس‌های فعال سایت.",
+    },
   ];
 
   // A queue that nobody looks at is the one way this feature fails, so the

@@ -7,7 +7,7 @@ import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
 import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import {
   submitExamAttempt,
   submitQuestion,
@@ -85,24 +85,11 @@ export default function ExamRunner({ examKey, exam }: Props) {
    *  the component returns early while the saved progress is still being read,
    *  and a hook after that return is only called on some renders — which is
    *  exactly the "rendered more hooks than during the previous render" crash. */
-  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const { user, loading: userLoading } = useCurrentUser();
+  /** undefined تا وقتی هنوز نمی‌دانیم — کد پایین‌دست همین را تشخیص می‌دهد و
+   *  «مهمان» را از «هنوز معلوم نیست» جدا می‌کند. */
+  const userId: string | null | undefined = userLoading ? undefined : (user?.id ?? null);
   const [saveResult, setSaveResult] = useState<SaveOutcome | null>(null);
-
-  /** Who is playing. Also above the early return, for the same reason. */
-  useEffect(() => {
-    let alive = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (alive) setUserId(data.user?.id ?? null);
-      })
-      .catch(() => {
-        if (alive) setUserId(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Restoring persisted progress on mount is a one-time sync with an
   // external system (localStorage), not a derived-state update — the

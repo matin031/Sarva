@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { isBookmarked, setBookmark } from "@/lib/panel/bookmarks-client";
 import type { BookmarkArea } from "@/lib/panel/types";
 
@@ -27,23 +27,11 @@ export default function BookmarkButton({
   className?: string;
   compact?: boolean;
 }) {
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useCurrentUser();
+  const userId = user?.id ?? null;
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (alive) setUserId(data.user?.id ?? null);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!userId || !refId) return;

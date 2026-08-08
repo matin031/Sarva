@@ -4,7 +4,7 @@ import { z } from "zod";
  * Phase 1 — question-bank content model.
  *
  * One Zod schema per `question_part_type` value (see the SQL enum in
- * supabase/migrations/0001_exam_bank_schema.sql). `question_parts.content`
+ * migrations/001_init.sql). `question_parts.content`
  * and `question_parts.correct_answer` are validated against these before
  * insert; the discriminated union lets one JSON column hold 18 different
  * shapes while TypeScript still narrows correctly per `type`.

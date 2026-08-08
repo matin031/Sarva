@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { apiPost } from "@/lib/api/client";
+import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { useRouter } from "next/navigation";
 
 const mobileSchema = z.object({
@@ -70,20 +71,19 @@ export default function LoginForm({
     }
     setResetLoading(true);
     setResetError(null);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      setResetLoading(false);
-      if (error) {
-        setResetError("ارسال لینک با خطا مواجه شد. دوباره تلاش کنید.");
-        return;
-      }
-      setResetSent(true);
-    } catch {
-      setResetLoading(false);
-      setResetError("خطای اتصال. اینترنت خود را بررسی کنید.");
+
+    // این endpoint همیشه موفق برمی‌گردد، حتی وقتی آن ایمیل حسابی ندارد —
+    // عمدی، تا نشود با آن فهمید چه کسی در سایت حساب دارد. پس پیام «فرستاده
+    // شد» هم همیشه همان است.
+    const result = await apiPost("/api/v1/auth/forgot-password", { email: resetEmail });
+    setResetLoading(false);
+
+    if (!result.ok) {
+      setResetError(result.errors.join("\n"));
+      return;
     }
+
+    setResetSent(true);
   };
 
   useEffect(() => {
@@ -124,34 +124,28 @@ export default function LoginForm({
     setError(null);
     setLoading(true);
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+    // سرور یک پیام واحد برای «ایمیل پیدا نشد» و «رمز غلط» می‌دهد، پس دیگر
+    // لازم نیست اینجا متن خطا را بخوانیم و حدس بزنیم کدام حالت بوده — کاری که
+    // نسخهٔ قبلی با includes("Invalid login credentials") می‌کرد و با هر
+    // تغییر متن در Supabase می‌شکست.
+    const result = await apiPost("/api/v1/auth/login", {
+      email: data.email,
+      password: data.password,
+    });
 
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          setError("ایمیل یا رمز عبور اشتباه است");
-        } else if (error.message.includes("Email not confirmed")) {
-          setError("لطفاً ایمیل خود را تأیید کنید");
-        } else {
-          setError("خطایی رخ داد. دوباره تلاش کنید");
-        }
-        setLoading(false);
-        return;
-      }
-
-      // success: keep the button in its loading state — we're about to
-      // navigate away, so there's nothing to reset, and resetting here
-      // would flash the button back before the route actually changes
-      onSuccess(data.email);
-      router.push("/panel");
-      router.refresh();
-    } catch {
-      setError("خطای اتصال. اینترنت خود را بررسی کنید");
+    if (!result.ok) {
+      setError(result.errors.join("\n"));
       setLoading(false);
+      return;
     }
+
+    refreshCurrentUser();
+
+    // موفق: دکمه در حالت بارگذاری می‌ماند — داریم از صفحه خارج می‌شویم، پس
+    // چیزی برای بازنشانی نیست و بازنشاندنش فقط باعث یک پرشِ لحظه‌ای می‌شود
+    onSuccess(data.email);
+    router.push("/panel");
+    router.refresh();
   };
   const [showPassword, setShowPassword] = useState(false);
 

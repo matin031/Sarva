@@ -1,150 +1,139 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { Grade } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
+import Shamseh from "@/components/UI/doroos/Shamseh";
 
-const ACCENTS = ["--color-primary", "--color-gold", "--color-lapis-light"];
+/** One پایه, drawn as the cover of its book.
+ *
+ *  A textbook is a physical thing the reader already knows the look of, so the
+ *  card is built like a binding: a ruled frame (جدول), a شمسه behind the title,
+ *  corner marks, and the lesson count set where a colophon would sit. Each
+ *  grade keeps its own colour so the three read apart at a glance. */
 
-/** One textbook, drawn as a tilting spine. The tilt is driven by a pointer
- *  position cached on enter — never re-read while the pointer moves — and the
- *  sheen only exists while the pointer is inside, so nothing flashes on leave. */
-export default function BookCard({
-  grade,
-  index,
-}: {
-  grade: Grade;
-  index: number;
-}) {
-  const ref = useRef<HTMLAnchorElement>(null);
-  const rect = useRef<{ x: number; y: number; w: number; h: number } | null>(
-    null,
-  );
-  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
-  const [glare, setGlare] = useState<{ x: number; y: number } | null>(null);
-  const accent = ACCENTS[index % ACCENTS.length];
-  const readyCount = grade.lessons.filter((l) => l.ready).length;
+const TONE: Record<string, string> = {
+  dahom: "--color-primary",
+  yazdahom: "--color-gold",
+  davazdahom: "--color-lapis-light",
+};
 
-  const cache = () => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    rect.current = { x: r.left, y: r.top, w: r.width || 1, h: r.height || 1 };
-  };
+export default function BookCard({ grade, index }: { grade: Grade; index: number }) {
+  const ready = grade.lessons.filter((l) => l.ready).length;
+  const token = TONE[grade.key] ?? "--color-primary";
+  const c = (pct: number) => `color-mix(in oklch, var(${token}) ${pct}%, transparent)`;
 
-  const onMove = (e: React.PointerEvent) => {
-    if (!rect.current) cache();
-    const r = rect.current;
-    if (!r) return;
-    const nx = (e.clientX - r.x) / r.w;
-    const ny = (e.clientY - r.y) / r.h;
-    setTilt({ rx: (0.5 - ny) * 10, ry: (nx - 0.5) * 12 });
-    setGlare({ x: nx * 100, y: ny * 100 });
-  };
+  const inner = (
+    <>
+      {/* The شمسه sits behind everything, large and faint. It is sized off the
+          card's shorter side — the cover lies down below sm, and a width-based
+          size would stretch the rosette across the whole page there. */}
+      <Shamseh
+        className="pointer-events-none absolute start-1/2 top-1/2 aspect-square h-[115%] w-auto -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 sm:h-auto sm:w-[78%]"
+        style={{ color: `var(${token})`, opacity: 0.16 }}
+      />
 
-  const onLeave = () => {
-    rect.current = null;
-    setTilt({ rx: 0, ry: 0 });
-    // the sheen is unmounted rather than recentred, so it cannot flash
-    setGlare(null);
-  };
+      {/* جدول — the ruled frame, two lines with a hairline gap */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-3 rounded-xl border transition-colors duration-500"
+        style={{ borderColor: c(38) }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-[0.9rem] rounded-lg border"
+        style={{ borderColor: c(16) }}
+      />
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40, rotateX: -8 }}
-      whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{
-        duration: 0.7,
-        delay: index * 0.1,
-        ease: [0.16, 1, 0.3, 1],
-      }}
-      style={{ perspective: 900 }}
-      className="relative z-20"
-    >
-      <Link
-        ref={ref}
-        href={`/doroos/${grade.key}`}
-        onPointerEnter={cache}
-        onPointerMove={onMove}
-        onPointerLeave={onLeave}
-        style={{
-          transform: `rotateX(${tilt.rx.toFixed(2)}deg) rotateY(${tilt.ry.toFixed(2)}deg)`,
-          transformStyle: "preserve-3d",
-        }}
-        className="group relative z-20 block overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-xl transition-[border-color,box-shadow] duration-300 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
-      >
-        {/* accent corner glow */}
-        <div
+      {/* corner marks */}
+      {(
+        [
+          ["top-3 start-3", ""],
+          ["top-3 end-3", ""],
+          ["bottom-3 start-3", ""],
+          ["bottom-3 end-3", ""],
+        ] as const
+      ).map(([pos], i) => (
+        <span
+          key={i}
           aria-hidden
-          className="pointer-events-none absolute -left-16 -top-16 size-48 rounded-full"
-          style={{
-            background: `radial-gradient(closest-side, color-mix(in oklch, var(${accent}) 28%, transparent), transparent)`,
-          }}
+          className={`pointer-events-none absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 ${pos}`}
+          style={{ background: c(55) }}
         />
-        {/* pointer sheen — mounted only while hovered */}
-        {glare && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background: `radial-gradient(340px circle at ${glare.x}% ${glare.y}%, color-mix(in oklch, var(${accent}) 16%, transparent), transparent 70%)`,
-            }}
-          />
-        )}
+      ))}
 
-        <div className="relative z-20">
-          <span
-            className="text-xs font-bold tracking-[0.25em] uppercase"
-            style={{ color: `var(${accent})` }}
-          >
+      <div className="relative z-20 flex h-full flex-col items-center justify-between px-5 py-7 text-center sm:px-6 sm:py-9">
+        <span
+          className="text-[0.7rem] font-black tracking-[0.2em]"
+          style={{ color: c(90) }}
+        >
+          پایهٔ {grade.label}
+        </span>
+
+        <div>
+          <h2 className="font-serif text-2xl font-black whitespace-nowrap text-foreground sm:text-3xl md:text-4xl">
             {grade.book}
-          </span>
-
-          <h2 className="mt-3 text-3xl font-black text-foreground">
-            پایهٔ {grade.label}
           </h2>
-
-          <div className="mt-5 flex items-baseline gap-2">
-            <span className="text-5xl font-black text-foreground">
-              {faNum(grade.lessons.length)}
-            </span>
-            <span className="text-sm text-muted-foreground">درس</span>
+          {/* rule with a lozenge in the middle, the way a title page is ruled */}
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <span className="h-px w-8" style={{ background: c(45) }} />
+            <span className="size-1.5 rotate-45" style={{ background: c(70) }} />
+            <span className="h-px w-8" style={{ background: c(45) }} />
           </div>
+          <p className="mt-3 hidden text-xs font-bold text-muted-foreground sm:block">
+            {faNum(grade.lessons.length)} درس
+          </p>
+        </div>
 
-          {/* eighteen ticks: filled where a lesson is ready */}
-          <div aria-hidden className="mt-5 flex flex-wrap gap-1.5">
+        <div className="w-full">
+          {/* one tick per lesson: the shape of the book, and how far in we are */}
+          <div className="mb-2.5 flex justify-center gap-[3px]">
             {grade.lessons.map((l) => (
               <span
                 key={l.number}
-                className="h-1.5 flex-1 rounded-full"
-                style={{
-                  minWidth: 8,
-                  background: l.ready
-                    ? `var(${accent})`
-                    : "color-mix(in oklch, var(--color-muted-foreground) 25%, transparent)",
-                }}
+                className="h-1.5 w-1 rounded-full transition-colors duration-500"
+                style={{ background: l.ready ? `var(${token})` : "var(--color-border)" }}
               />
             ))}
           </div>
-
-          <p className="mt-4 text-sm text-muted-foreground">
-            {readyCount > 0
-              ? `${faNum(readyCount)} درس آماده است`
+          <p className="text-[0.72rem] font-bold text-muted-foreground">
+            {ready
+              ? `${faNum(ready)} درس آمادهٔ خواندن`
               : "به‌زودی افزوده می‌شود"}
           </p>
-
-          <span
-            className="mt-6 inline-flex items-center gap-2 text-sm font-bold transition-transform group-hover:-translate-x-1"
-            style={{ color: `var(${accent})` }}
-          >
-            انتخاب درس
-            <span aria-hidden>←</span>
-          </span>
         </div>
-      </Link>
+      </div>
+    </>
+  );
+
+  const shell =
+    "group relative block aspect-[5/3.1] overflow-hidden rounded-[1.4rem] border bg-card sm:aspect-[3/4]";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.6, delay: index * 0.09, ease: [0.16, 1, 0.3, 1] }}
+      className="relative z-20"
+    >
+      {ready ? (
+        <Link
+          href={`/doroos/${grade.key}`}
+          className={`${shell} border-border shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none`}
+          style={{ ["--tw-shadow-color" as string]: c(30) }}
+        >
+          {inner}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-[1.4rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+            style={{ boxShadow: `inset 0 0 0 1.5px ${c(55)}` }}
+          />
+        </Link>
+      ) : (
+        <div className={`${shell} border-dashed border-border opacity-60`}>{inner}</div>
+      )}
     </motion.div>
   );
 }

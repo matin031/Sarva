@@ -4,11 +4,10 @@ import type { PoemLesson } from "@/lib/doroos/types";
  *  transcribed from the source document. Seventeen بیت, nine exam questions,
  *  three closing topics.
  *
- *  Placed at دهم / درس ۱ for now; only `grade` and `number` need to change if
- *  it belongs somewhere else in the book. */
+ *  یازدهم / درس ۱ — فارسی ۲. */
 const lesson: PoemLesson = {
   kind: "poem",
-  grade: "dahom",
+  grade: "yazdahom",
   number: 1,
   title: "روباهِ بی‌دست‌وپا",
   poet: "سعدی",

@@ -10,15 +10,15 @@ const LESSONS_PER_BOOK = 18;
 
 /** Lesson titles we know, per grade, keyed by lesson number. */
 const TITLES: Record<GradeKey, Record<number, string>> = {
-  dahom: { 1: "روباهِ بی‌دست‌وپا" },
-  yazdahom: {},
+  dahom: {},
+  yazdahom: { 1: "روباهِ بی‌دست‌وپا" },
   davazdahom: {},
 };
 
 /** Lesson numbers that have content wired up, per grade. */
 const READY: Record<GradeKey, number[]> = {
-  dahom: [1],
-  yazdahom: [],
+  dahom: [],
+  yazdahom: [1],
   davazdahom: [],
 };
 
@@ -63,8 +63,8 @@ export function getGrade(key: string): Grade | undefined {
 const CONTENT: Partial<
   Record<GradeKey, Record<number, () => Promise<{ default: Lesson }>>>
 > = {
-  dahom: {
-    1: () => import("@/lib/doroos/content/dahom-01"),
+  yazdahom: {
+    1: () => import("@/lib/doroos/content/yazdahom-01"),
   },
 };
 

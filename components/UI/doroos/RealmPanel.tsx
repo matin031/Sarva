@@ -10,12 +10,16 @@ export default function RealmPanel({
   token,
   items,
   body,
+  badge,
   delay = 0,
 }: {
   label: string;
   token: string;
   items?: string[];
   body?: string;
+  /** a short fact that belongs to the whole قلمرو rather than to one bullet —
+   *  «۲ جمله» for قلمرو زبانی */
+  badge?: string;
   delay?: number;
 }) {
   if (!items?.length && !body) return null;
@@ -29,12 +33,25 @@ export default function RealmPanel({
       className="relative z-20 overflow-hidden rounded-2xl border border-border bg-card p-5"
       style={{ borderInlineStartWidth: 3, borderInlineStartColor: `var(${token})` }}
     >
-      <h3
-        className="relative z-20 mb-3 text-sm font-black tracking-wide"
-        style={{ color: `var(${token})` }}
-      >
-        {label}
-      </h3>
+      <div className="relative z-20 mb-3 flex items-center justify-between gap-2">
+        <h3
+          className="text-sm font-black tracking-wide"
+          style={{ color: `var(${token})` }}
+        >
+          {label}
+        </h3>
+        {badge ? (
+          <span
+            className="shrink-0 rounded-full px-2.5 py-0.5 text-[0.7rem] font-bold"
+            style={{
+              color: `var(${token})`,
+              background: `color-mix(in oklch, var(${token}) 13%, transparent)`,
+            }}
+          >
+            {badge}
+          </span>
+        ) : null}
+      </div>
 
       {items?.length ? (
         <ul className="relative z-20 space-y-2.5">

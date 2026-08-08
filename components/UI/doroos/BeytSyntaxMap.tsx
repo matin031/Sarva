@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Beyt, SyntaxRole } from "@/lib/doroos/types";
+import type { Beyt, WordRole } from "@/lib/doroos/types";
 
 /** نقشِ دستوریِ واژه‌ها — the بیت with a wire from every word to its role.
  *
@@ -39,11 +39,26 @@ const wireColor = (i: number) => `oklch(0.62 0.17 ${HUES[i % HUES.length]})`;
 const INK_TOP = 0.3;
 const INK_BOTTOM = 0.14;
 
-type Wire = { wx: number; lx: number; lane: number };
+type Wire = {
+  /** where the wire meets the بیت */
+  wx: number;
+  /** the phrase's extent, for the underline under a multi-word entry */
+  from: number;
+  to: number;
+  /** true when the entry covers more than one word */
+  phrase: boolean;
+  lx: number;
+  lane: number;
+};
 
-export default function BeytSyntaxMap({ beyt }: { beyt: Beyt }) {
-  if (!beyt.syntax?.length) return null;
-  const roles = beyt.syntax;
+export default function BeytSyntaxMap({
+  beyt,
+  roles,
+}: {
+  beyt: Beyt;
+  roles: WordRole[];
+}) {
+  if (!roles.length) return null;
   return (
     <div dir="rtl" className="relative z-20 space-y-10">
       {([0, 1] as const).map((h) => (
@@ -64,7 +79,7 @@ function Hemistich({
   above,
 }: {
   words: string[];
-  roles: SyntaxRole[];
+  roles: WordRole[];
   /** labels sit above the مصراع and the arrows point up */
   above: boolean;
 }) {
@@ -99,8 +114,13 @@ function Hemistich({
       if (!cells.length || !lab) return null;
       const boxes = cells.map((c) => c.getBoundingClientRect());
       const lb = lab.getBoundingClientRect();
+      const from = Math.min(...boxes.map((b) => b.left)) - W.left;
+      const to = Math.max(...boxes.map((b) => b.right)) - W.left;
       return {
-        wx: (Math.min(...boxes.map((b) => b.left)) + Math.max(...boxes.map((b) => b.right))) / 2 - W.left,
+        wx: (from + to) / 2,
+        from,
+        to,
+        phrase: r.words.length > 1,
         lx: (lb.left + lb.right) / 2 - W.left,
       };
     });
@@ -114,7 +134,14 @@ function Hemistich({
       .sort((a, b) => Math.abs(a.e.wx - a.e.lx) - Math.abs(b.e.wx - b.e.lx));
 
     const used: [number, number][][] = [];
-    const out: Wire[] = ends.map(() => ({ wx: 0, lx: 0, lane: -1 }));
+    const out: Wire[] = ends.map(() => ({
+      wx: 0,
+      from: 0,
+      to: 0,
+      phrase: false,
+      lx: 0,
+      lane: -1,
+    }));
     for (const { i, e } of byLength) {
       const lo = Math.min(e.wx, e.lx) - 5;
       const hi = Math.max(e.wx, e.lx) + 5;
@@ -124,7 +151,7 @@ function Hemistich({
         lane = used.length - 1;
       }
       used[lane].push([lo, hi]);
-      out[i] = { wx: e.wx, lx: e.lx, lane };
+      out[i] = { ...e, lane };
     }
 
     setWires(out);
@@ -148,6 +175,19 @@ function Hemistich({
     document.fonts?.ready.then(measure).catch(() => {});
     return () => ro.disconnect();
   }, [measure]);
+
+  /* A مصراع with nothing to say — قلمرو ادبی often has figures in one line and
+     none in the other — gets the plain line, not an empty band holding space
+     for a label row that will never arrive. */
+  if (!roles.length) {
+    return (
+      <p className="flex flex-wrap justify-center gap-x-2 text-center font-serif text-lg leading-none font-bold text-foreground sm:text-xl md:text-2xl">
+        {words.map((w, i) => (
+          <span key={i}>{w}</span>
+        ))}
+      </p>
+    );
+  }
 
   /* The wiring band: stub, every lane, and room for the arrowhead. The extra
      LANE_GAP matters — without it the outermost lane sits exactly on the arrow
@@ -205,8 +245,23 @@ function Hemistich({
                 points={`${g.lx},${yTip} ${g.lx - 4.5},${yBase} ${g.lx + 4.5},${yBase}`}
                 fill={c}
               />
-              {/* a dot where the wire meets the word, so the anchor is unmistakable */}
-              <circle cx={g.wx} cy={yWord} r={2.2} fill={c} />
+              {/* A single word gets a dot; a phrase gets an underline with end
+                  ticks, so «کنایه» over five words reads as one thing rather
+                  than as a wire dangling off the middle of the line. */}
+              {g.phrase && g.to - g.from > 2 ? (
+                <g stroke={c} strokeWidth={1.5} strokeLinecap="round">
+                  <line x1={g.from} y1={yWord} x2={g.to} y2={yWord} />
+                  <line
+                    x1={g.from}
+                    y1={yWord}
+                    x2={g.from}
+                    y2={yWord + (above ? 4 : -4)}
+                  />
+                  <line x1={g.to} y1={yWord} x2={g.to} y2={yWord + (above ? 4 : -4)} />
+                </g>
+              ) : (
+                <circle cx={g.wx} cy={yWord} r={2.2} fill={c} />
+              )}
             </g>
           );
         })}

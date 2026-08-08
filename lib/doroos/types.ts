@@ -35,22 +35,23 @@ export type BeytNote = { label: string; body: string };
 
 export type ExamQuestion = { q: string; a: string };
 
-/** One labelled span in the نقشِ دستوری diagram.
+/** One labelled span in a diagram drawn over the بیت — a grammatical role in
+ *  the نقشِ دستوری view, a figure of speech in the آرایه‌ها view.
  *
- *  `words` are indices into `hemistichs[h].split(/\s+/)`, so a role can cover a
- *  phrase («بی‌دست و پای») as easily as a single word. They are written out by
- *  hand rather than matched from the prose notes: a diagram that points at the
- *  wrong word is worse than no diagram, and matching prose was exactly how the
- *  earlier attempt went wrong. */
-export type SyntaxRole = {
+ *  `words` are indices into `hemistichs[h].split(/\s+/)`, so an entry can cover
+ *  a whole phrase («بی‌دست و پای», «زنخدان فرو برد … به جیب») as easily as a
+ *  single word; a multi-word entry is drawn as an underline under the phrase
+ *  rather than a dot on one word. They are written out by hand rather than
+ *  matched from the prose notes: a diagram that points at the wrong word is
+ *  worse than no diagram, and matching prose was exactly how the earlier
+ *  attempt went wrong. */
+export type WordRole = {
   /** 0 = مصراع اول, 1 = مصراع دوم */
   h: 0 | 1;
   /** word indices this role covers, in order */
   words: number[];
-  /** what to write in the box, e.g. «نهاد» or «فعل، ماضی ساده» */
+  /** what to write in the box, e.g. «نهاد» or «جناس با سیر» */
   label: string;
-  /** which جمله of the مصراع this belongs to — only used to group, may be omitted */
-  clause?: number;
 };
 
 export type Beyt = {
@@ -68,10 +69,16 @@ export type Beyt = {
   literary: string[];
   /** قلمرو فکری — one paragraph, not a list */
   intellectual: string;
+  /** تعدادِ جمله — counted by finite verbs, plus any شبه‌جمله (a منادا counts) */
+  clauses?: number;
   /** نقشِ دستوریِ واژه‌ها, drawn as a diagram over the بیت. Omitted where the
    *  analysis has not been written yet — the diagram is then simply not shown,
    *  which is honest in a way that a guessed one would not be. */
-  syntax?: SyntaxRole[];
+  syntax?: WordRole[];
+  /** آرایه‌ها, drawn the same way. Only the figures that actually attach to a
+   *  word are here: واج‌آرایی، تلمیح and تمثیل belong to the whole بیت and stay
+   *  in the قلمرو ادبی panel, and مراعات‌نظیر is left out on request. */
+  devices?: WordRole[];
   notes?: BeytNote[];
   /** قرابت معنایی — lines from elsewhere that carry the same idea */
   affinity?: string[];

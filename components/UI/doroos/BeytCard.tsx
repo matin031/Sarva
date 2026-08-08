@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Beyt } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
+import type { WordRole } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
 import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
@@ -16,7 +17,18 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  reads the answer before the question. */
 export default function BeytCard({ beyt }: { beyt: Beyt }) {
   const [showAnswer, setShowAnswer] = useState(false);
-  const [showSyntax, setShowSyntax] = useState(true);
+  /** which diagram is drawn over the بیت — grammar, figures of speech, or the
+   *  plain couplet. Only one at a time: both at once is unreadable. */
+  const [view, setView] = useState<"syntax" | "devices" | "plain">("syntax");
+
+  const VIEWS = [
+    { id: "syntax", label: "نقش دستوری", roles: beyt.syntax },
+    { id: "devices", label: "آرایه‌ها", roles: beyt.devices },
+  ] as const;
+  const available = VIEWS.filter(
+    (v): v is (typeof VIEWS)[number] & { roles: WordRole[] } => !!v.roles?.length,
+  );
+  const active = available.find((v) => v.id === view);
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
@@ -51,32 +63,39 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
               بیت {faNum(beyt.n)}
             </span>
 
-            {/* the diagram is on by default — the point is to see the roles the
-                moment you look at the بیت — but it is a lot to take in, so the
-                plain couplet stays one click away */}
-            {beyt.syntax?.length ? (
-              <button
-                type="button"
-                onClick={() => setShowSyntax((v) => !v)}
-                aria-pressed={showSyntax}
-                className={`rounded-full border px-3 py-1 text-[0.7rem] font-bold transition-colors ${
-                  showSyntax
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                نقش دستوری
-              </button>
+            {/* a diagram is on by default — the point is to see the analysis
+                the moment you look at the بیت — but it is a lot to take in, so
+                the plain couplet stays one click away */}
+            {available.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {[...available, { id: "plain", label: "ساده" } as const].map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setView(v.id)}
+                    aria-pressed={view === v.id}
+                    className={`rounded-full border px-3 py-1 text-[0.7rem] font-bold transition-colors ${
+                      view === v.id
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
 
-          {beyt.syntax?.length && showSyntax ? (
+          {active ? (
             <div className="mt-8 overflow-x-auto pb-1">
               {/* the wires need the couplet's real width; on a narrow screen
                   that is wider than the card, so the diagram scrolls rather
                   than reflowing into something the arrows no longer match */}
+              {/* keyed on the view so switching remounts rather than carrying
+                  the previous diagram's measurements into the new one */}
               <div className="min-w-[30rem]">
-                <BeytSyntaxMap beyt={beyt} />
+                <BeytSyntaxMap key={active.id} beyt={beyt} roles={active.roles} />
               </div>
             </div>
           ) : (
@@ -124,6 +143,7 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
           label={REALMS[0].label}
           token={REALMS[0].token}
           items={beyt.linguistic}
+          badge={beyt.clauses ? `${faNum(beyt.clauses)} جمله` : undefined}
           delay={0}
         />
         <RealmPanel

@@ -38,7 +38,7 @@ export default function LessonView({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative z-20 overflow-hidden bg-background">
+      <div className="relative z-20 overflow-hidden">
         {/* reading progress */}
         <motion.div
           aria-hidden

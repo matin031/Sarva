@@ -28,7 +28,7 @@ export default function LessonPicker({ grade }: { grade: Grade }) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative z-20 overflow-hidden bg-background">
+      <div className="relative z-20 overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 z-0"

@@ -18,7 +18,7 @@ export default function DoroosHome() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative z-20 overflow-hidden bg-background">
+      <div className="relative z-20 overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_15%_0%,color-mix(in_oklch,var(--color-primary)_11%,transparent),transparent_55%),radial-gradient(ellipse_at_88%_35%,color-mix(in_oklch,var(--color-gold)_9%,transparent),transparent_55%)]"

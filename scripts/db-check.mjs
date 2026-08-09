@@ -32,6 +32,34 @@ const EXPECTED_TABLES = [
 ];
 
 let failures = 0;
+
+// آینهٔ installIsoTimestampParser در lib/db/index.ts — با همان برچسب، تا
+// چند بار صدا زدنش بی‌اثر باشد.
+const ISO_PARSER_BRAND = "__sarvaIsoTimestampParser";
+
+function installIsoTimestampParser(oid) {
+  const current = pg.types.getTypeParser(oid);
+  if (current[ISO_PARSER_BRAND]) return;
+
+  const wrapper = (raw) => {
+    const parsed = current(raw);
+    if (parsed instanceof Date) return parsed.toISOString();
+    if (typeof parsed === "number") return raw; // infinity / -infinity
+    if (typeof parsed === "string") return parsed;
+    return parsed;
+  };
+  wrapper[ISO_PARSER_BRAND] = true;
+
+  pg.types.setTypeParser(oid, wrapper);
+}
+
+function installTypeParsers() {
+  installIsoTimestampParser(pg.types.builtins.TIMESTAMPTZ);
+  installIsoTimestampParser(pg.types.builtins.TIMESTAMP);
+  // این دو پارسرِ قبلی را نمی‌گیرند، پس ثبتِ مکرر خودبه‌خود بی‌خطر است.
+  pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => Number(v));
+  pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
+}
 function check(label, ok, detail = "") {
   console.log(`${ok ? "✓" : "✗"} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
@@ -47,10 +75,14 @@ async function main() {
   // همان مبدل‌هایی که lib/db/index.ts ثبت می‌کند — اینجا تکرار شده‌اند چون این
   // فایل .mjs است و آن ماژول TypeScript ای است که فقط داخل Next بار می‌شود.
   // اگر آنجا عوضشان کردید، اینجا هم عوض کنید وگرنه این آزمون بی‌معنی می‌شود.
-  const parseTimestamptz = pg.types.getTypeParser(pg.types.builtins.TIMESTAMPTZ);
-  pg.types.setTypeParser(pg.types.builtins.TIMESTAMPTZ, (v) => parseTimestamptz(v).toISOString());
-  pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => Number(v));
-  pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
+  installTypeParsers();
+
+  // و یک بار دیگر: داخل Next این ماژول می‌تواند بیش از یک بار اجرا شود (یک
+  // نمونه در باندلِ proxy، یکی در باندلِ route ها) و جدولِ پارسرها مشترک است.
+  // نسخهٔ قبلی در همین حالت لاگین را با «parseTimestamptz(...).toISOString is
+  // not a function» می‌شکست، ولی این اسکریپت متوجهش نمی‌شد چون یک بار ثبت
+  // می‌کرد. حالا دوباره‌ثبت هم آزمون می‌شود.
+  installTypeParsers();
 
   const client = new pg.Client({ connectionString: url });
 
@@ -111,7 +143,10 @@ async function main() {
     const { rows: t } = await client.query(`
       select count(*)                              as int8_val,
              12.50::numeric(5,2)                   as numeric_val,
-             '2026-08-09 10:20:30.5+00'::timestamptz as ts_val
+             '2026-08-09 10:20:30.5+00'::timestamptz as ts_val,
+             '2026-08-09 10:20:30.5'::timestamp      as ts_plain_val,
+             'infinity'::timestamptz                 as ts_inf_val,
+             now()                                   as ts_now_val
         from users
     `);
     const r = t[0];
@@ -127,8 +162,26 @@ async function main() {
     );
     check(
       "  timestamptz → رشتهٔ ISO",
-      typeof r.ts_val === "string" && !Number.isNaN(Date.parse(r.ts_val)),
+      typeof r.ts_val === "string" && r.ts_val === "2026-08-09T10:20:30.500Z",
       `${typeof r.ts_val} ${JSON.stringify(r.ts_val)}`,
+    );
+    // now() همان مسیری است که لاگین از آن رد می‌شود (created_at). جدا آزمون
+    // می‌شود چون مقدارِ بالا literal است و این یکی از خودِ سرور می‌آید.
+    check(
+      "  now() → رشتهٔ ISO",
+      typeof r.ts_now_val === "string" && !Number.isNaN(Date.parse(r.ts_now_val)),
+      `${typeof r.ts_now_val} ${JSON.stringify(r.ts_now_val)}`,
+    );
+    check(
+      "  timestamp (بدون منطقهٔ زمانی) → رشتهٔ ISO",
+      typeof r.ts_plain_val === "string" && !Number.isNaN(Date.parse(r.ts_plain_val)),
+      `${typeof r.ts_plain_val} ${JSON.stringify(r.ts_plain_val)}`,
+    );
+    // 'infinity' نباید ۵۰۰ بدهد. متن خام رد می‌شود، نه Infinity عددی.
+    check(
+      "  infinity → متن خام (نه سقوط)",
+      r.ts_inf_val === "infinity",
+      `${typeof r.ts_inf_val} ${JSON.stringify(r.ts_inf_val)}`,
     );
 
     // آرایهٔ متن (questions.poem) باید آرایهٔ JS شود، همان‌طور که PostgREST می‌داد

@@ -37,11 +37,60 @@ import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 // منطق پایین‌دستشان را.
 
 // پارسر اصلی باید قبل از جایگزینی گرفته شود، وگرنه بازگشتِ بی‌پایان می‌شود.
-const parseTimestamptz = types.getTypeParser(types.builtins.TIMESTAMPTZ) as (v: string) => Date;
-const parseTimestamp = types.getTypeParser(types.builtins.TIMESTAMP) as (v: string) => Date;
+//
+// ولی «گرفتنِ پارسر فعلی و پیچیدنش» فقط یک بار درست است، و این ماژول تضمینی
+// ندارد که یک بار اجرا شود:
+//
+//   • جدولِ پارسرها داخل `pg-types` است و در Next 16 هر چیزی که در node_modules
+//     باشد external است — یعنی یک نمونه در کل فرایند، از require نود.
+//   • همین فایل ولی bundle می‌شود، و هر entry باندلِ خودش را دارد. proxy.ts به
+//     lib/auth/session و از آنجا به همین فایل می‌رسد، route ها هم مستقلاً. در
+//     dev هم هر بار کامپایل مجدد یک نمونهٔ تازه است. (کش کردن Pool روی
+//     globalThis پایین همین فایل، اعترافِ همین موضوع است.)
+//
+// پس بارِ دوم، `getTypeParser` پارسر *اصلی* را برنمی‌گرداند؛ wrapper بارِ اول را
+// برمی‌گرداند که رشته می‌دهد نه Date — و رشته `toISOString` ندارد:
+//
+//     TypeError: parseTimestamptz(...).toISOString is not a function
+//
+// این خطا در لاگین دیده شد (findUserByEmail، ستون created_at). ربطی به نسخهٔ
+// پستگرس ندارد: اگر فرمتِ خروجی ناآشنا بود، postgres-date مقدار null می‌داد و
+// پیام خطا «reading 'toISOString' of null» می‌شد، نه «is not a function».
+//
+// راه‌حل: wrapper خودمان را علامت‌دار می‌کنیم و اگر از قبل نشسته باشد دست
+// نمی‌زنیم. برچسب یک رشتهٔ ثابت است نه Symbol، چون باید بین نمونه‌های مختلفِ
+// این ماژول هم شناسایی شود.
+const ISO_PARSER_BRAND = "__sarvaIsoTimestampParser";
 
-types.setTypeParser(types.builtins.TIMESTAMPTZ, (v) => parseTimestamptz(v).toISOString());
-types.setTypeParser(types.builtins.TIMESTAMP, (v) => parseTimestamp(v).toISOString());
+type MaybeBrandedParser = ((raw: string) => unknown) & { [ISO_PARSER_BRAND]?: true };
+
+function installIsoTimestampParser(oid: number): void {
+  const current = types.getTypeParser(oid) as MaybeBrandedParser;
+  if (current[ISO_PARSER_BRAND]) return; // قبلاً نصب شده
+
+  const wrapper: MaybeBrandedParser = (raw: string) => {
+    const parsed = current(raw);
+    if (parsed instanceof Date) return parsed.toISOString();
+
+    // 'infinity' و '-infinity' — پستگرس اجازه‌شان می‌دهد و postgres-date عددِ
+    // Infinity برمی‌گرداند که ISO ندارد. متن خام رد می‌شود تا به‌جای ۵۰۰ گرفتن،
+    // کدِ پایین‌دست چیزی ببیند که Date.parse رویش NaN می‌دهد و قابل تشخیص است.
+    if (typeof parsed === "number") return raw;
+
+    // رشته: یعنی برچسب را از دست داده‌ایم ولی زنجیره سالم است — دوباره نپیچ.
+    if (typeof parsed === "string") return parsed;
+
+    // null: تاریخی که parser نشناخته. همان null می‌ماند (مقدارِ SQL NULL هم
+    // اصلاً به اینجا نمی‌رسد؛ pg خودش قبل از صدا زدن parser جدایش می‌کند).
+    return parsed;
+  };
+  wrapper[ISO_PARSER_BRAND] = true;
+
+  types.setTypeParser(oid, wrapper);
+}
+
+installIsoTimestampParser(types.builtins.TIMESTAMPTZ);
+installIsoTimestampParser(types.builtins.TIMESTAMP);
 
 // Number و نه parseFloat: parseFloat روی "12abc" مقدار ۱۲ می‌دهد و خرابی را
 // پنهان می‌کند؛ Number در همان حالت NaN می‌دهد که دیده می‌شود.

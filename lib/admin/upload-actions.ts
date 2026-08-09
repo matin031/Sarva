@@ -3,6 +3,7 @@
 import { requireAdmin } from "@/lib/require-admin";
 import { MAX_UPLOAD_BYTES, detectAudioFile, storageAdapter } from "@/lib/storage";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { recordAudit, recordError } from "@/lib/admin/audit";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
 
@@ -57,10 +58,20 @@ export async function adminUploadQuizAudio(formData: FormData): Promise<ActionRe
       prefix: "quiz-audio",
       extension: detected.extension,
     });
+    await recordAudit({
+      actor: admin,
+      action: "upload.audio",
+      targetType: "file",
+      targetId: stored.key,
+      summary: `فایل صوتی «${file.name}» آپلود شد`,
+      metadata: { size: file.size, format: detected.extension },
+    });
+
     return { ok: true, data: { url: stored.url } };
   } catch (err) {
     // پیام خام سیستم‌فایل مسیر سرور را لو می‌دهد؛ فقط به لاگ می‌رود.
     console.error("[upload] آپلود فایل صوتی ناموفق بود:", err);
+    await recordError("upload", err, "adminUploadQuizAudio");
     return { ok: false, errors: ["ذخیرهٔ فایل ناموفق بود. دوباره تلاش کنید."] };
   }
 }

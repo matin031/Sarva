@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { boolArg, enumArg, optionalTextArg, uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
 import {
   poemExcerpt,
   type ActionResult,
@@ -103,6 +104,13 @@ function toAdminPost(row: AdminPostRow): AdminClubPost {
     openReports: row.open_reports,
   };
 }
+
+/** فارسیِ وضعیت‌ها، برای خلاصهٔ لاگ فعالیت. */
+const STATUS_LABEL: Record<string, string> = {
+  pending: "در انتظار بررسی",
+  approved: "منتشرشده",
+  rejected: "ردشده",
+};
 
 export async function clubAdminListPosts(
   status: ClubStatus | "all" = "pending",
@@ -261,6 +269,15 @@ export async function clubAdminSetPostStatus(
 
   if (!updated) return { ok: false, error: "این سروده پیدا نشد." };
 
+  await recordAudit({
+    actor: admin,
+    action: "club.post_status",
+    targetType: "club_post",
+    targetId: id,
+    summary: `یک سروده «${STATUS_LABEL[status] ?? status}» شد`,
+    metadata: { status, note: reviewNote },
+  });
+
   revalidateClub(id);
   return { ok: true, data: null };
 }
@@ -269,7 +286,7 @@ export async function clubAdminSetPostFeatured(
   id: string,
   featured: boolean,
 ): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   id = uuidArg(id, "شناسهٔ سروده نامعتبر است.");
   featured = boolArg(featured, "مقدار برگزیده نامعتبر است.");
@@ -280,16 +297,40 @@ export async function clubAdminSetPostFeatured(
   );
   if (!updated) return { ok: false, error: "فقط سرودهٔ منتشرشده می‌تواند برگزیده شود." };
 
+  await recordAudit({
+    actor: admin,
+    action: "club.post_feature",
+    targetType: "club_post",
+    targetId: id,
+    summary: featured ? "یک سروده برگزیده شد" : "یک سروده از برگزیده‌ها برداشته شد",
+  });
+
   revalidateClub(id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeletePost(id: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   id = uuidArg(id, "شناسهٔ سروده نامعتبر است.");
+
+  // قبل از حذف خوانده می‌شود: بعدش ردیفی نمانده که لاگ بتواند به آن اشاره کند.
+  const target = await queryOne<{ author_name: string; title: string | null }>(
+    "select author_name, title from club_posts where id = $1",
+    [id],
+  );
 
   const deleted = await execute("delete from club_posts where id = $1", [id]);
   if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.post_delete",
+    targetType: "club_post",
+    targetId: id,
+    summary: target
+      ? `سرودهٔ «${target.title || "بی‌عنوان"}» از ${target.author_name} حذف شد`
+      : "یک سروده حذف شد",
+  });
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -316,19 +357,36 @@ export async function clubAdminSetCommentStatus(
 
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
 
+  await recordAudit({
+    actor: admin,
+    action: "club.comment_status",
+    targetType: "club_comment",
+    targetId: id,
+    summary: `یک دیدگاه «${STATUS_LABEL[status] ?? status}» شد`,
+    metadata: { status, note: reviewNote },
+  });
+
   revalidateClub(row.post_id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeleteComment(id: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   id = uuidArg(id, "شناسهٔ دیدگاه نامعتبر است.");
 
-  const row = await queryOne<{ post_id: string }>(
-    "delete from club_comments where id = $1 returning post_id",
+  const row = await queryOne<{ post_id: string; author_name: string }>(
+    "delete from club_comments where id = $1 returning post_id, author_name",
     [id],
   );
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.comment_delete",
+    targetType: "club_comment",
+    targetId: id,
+    summary: `یک دیدگاه از ${row.author_name} حذف شد`,
+  });
 
   revalidateClub(row.post_id);
   return { ok: true, data: null };
@@ -405,6 +463,15 @@ export async function clubAdminResolveReport(
     [status, admin.id, id],
   );
   if (!updated) return { ok: false, error: "این گزارش پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.report_resolve",
+    targetType: "club_report",
+    targetId: id,
+    summary: status === "resolved" ? "به یک گزارش رسیدگی شد" : "یک گزارش رد شد",
+    metadata: { status },
+  });
 
   revalidatePath("/admin/club");
   return { ok: true, data: null };

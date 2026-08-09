@@ -1,8 +1,9 @@
 "use server";
 
-import { query, execute, transaction } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
 
 export type AdminVocabWord = {
   id: string;
@@ -56,7 +57,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 
 /** ساخت واژهٔ تازه یا ویرایش واژهٔ موجود. */
 export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (!isGrade(input.grade)) return { ok: false, error: "پایهٔ نامعتبر است." };
   if (!Number.isInteger(input.lesson) || input.lesson < 1 || input.lesson > 18) {
@@ -78,6 +79,16 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
         [input.grade, input.lesson, word, meaning, image, input.id],
       );
       if (!updated) return { ok: false, error: "واژه پیدا نشد." };
+
+      await recordAudit({
+        actor: admin,
+        action: "vocab.word_save",
+        targetType: "vocab_word",
+        targetId: input.id,
+        summary: `واژهٔ «${word}» در درس ${input.lesson} ویرایش شد`,
+        metadata: { grade: input.grade, lesson: input.lesson },
+      });
+
       return { ok: true };
     }
 
@@ -95,18 +106,46 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
       );
     });
 
+    await recordAudit({
+      actor: admin,
+      action: "vocab.word_save",
+      targetType: "vocab_word",
+      summary: `واژهٔ «${word}» به درس ${input.lesson} اضافه شد`,
+      metadata: { grade: input.grade, lesson: input.lesson },
+    });
+
     return { ok: true };
   } catch (err) {
     console.error("[vocab] ذخیرهٔ واژه ناموفق بود:", err);
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("action", err, "vocabAdminUpsert");
     return { ok: false, error: "ذخیرهٔ واژه ناموفق بود." };
   }
 }
 
 export async function vocabAdminDelete(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   id = uuidArg(id, "شناسهٔ واژه نامعتبر است.");
+
+  // قبل از حذف خوانده می‌شود، وگرنه لاگ فقط یک uuid خواهد داشت.
+  const target = await queryOne<{ word: string; grade: string; lesson: number }>(
+    "select word, grade, lesson from vocab_words where id = $1",
+    [id],
+  );
 
   const deleted = await execute("delete from vocab_words where id = $1", [id]);
   if (!deleted) return { ok: false, error: "واژه پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "vocab.word_delete",
+    targetType: "vocab_word",
+    targetId: id,
+    summary: target
+      ? `واژهٔ «${target.word}» از درس ${target.lesson} حذف شد`
+      : "یک واژه حذف شد",
+    metadata: target ? { grade: target.grade, lesson: target.lesson } : {},
+  });
+
   return { ok: true };
 }

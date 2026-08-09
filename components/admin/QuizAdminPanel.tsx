@@ -11,6 +11,7 @@ import {
 } from "@/lib/quiz/admin-actions";
 import { QUIZ_PAGE_SIZE } from "@/lib/quiz/constants";
 import QuizQuestionForm from "./QuizQuestionForm";
+import ConfirmDialog from "./ConfirmDialog";
 import { useAdminToast } from "@/components/admin/AdminToast";
 
 const TYPE_LABELS: Record<QuizType, string> = {
@@ -41,6 +42,7 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
   const [creating, setCreating] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [loadingPage, setLoadingPage] = useState(false);
+  const [confirming, setConfirming] = useState<QuizListItem | null>(null);
 
   const searching = query.trim().length > 0;
 
@@ -111,11 +113,17 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
     if (detail) setEditing(detail);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("این سؤال حذف شود؟")) return;
+  async function handleDelete() {
+    if (!confirming) return;
+    const id = confirming.id;
+    setConfirming(null);
     const result = await quizAdminDeleteQuestion(id);
-    if (result.ok) await refresh();
-    else toast(result.errors.join("\n"));
+    if (result.ok) {
+      toast("سؤال حذف شد.", "success");
+      await refresh();
+    } else {
+      toast(result.errors.join("\n"));
+    }
   }
 
   if (creating || editing) {
@@ -230,7 +238,7 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => handleDelete(q.id)}
+                onClick={() => setConfirming(q)}
                 className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
               >
                 حذف
@@ -250,6 +258,20 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
           {loadingPage ? "در حال بارگذاری..." : `نمایش بیشتر (${items.length} از ${total})`}
         </button>
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        title="حذف سؤال"
+        body={
+          confirming?.poem?.[0]
+            ? `سؤال «${confirming.poem[0]}» و همهٔ گزینه‌هایش حذف می‌شود.`
+            : "این سؤال و همهٔ گزینه‌هایش حذف می‌شود."
+        }
+        consequence="پاسخ‌هایی که دانش‌آموزان به این سؤال داده‌اند هم از کارنامه‌ها حذف می‌شود."
+        confirmLabel="حذف کن"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 
 /** Scoped to the three types the admin panel authors today. The DB/UI
@@ -206,7 +207,7 @@ export async function quizAdminGet(questionId: string): Promise<QuizQuestionDeta
  *  جداگانه. مثل آنجا، حالا در یک تراکنش است تا حذفِ گزینه‌ها بدون درجِ دوباره
  *  ممکن نباشد. */
 export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise<ActionResult<{ id: string }>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const errors = validateQuizQuestion(input);
   if (errors.length > 0) return { ok: false, errors };
@@ -251,6 +252,17 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
       return id;
     });
 
+    await recordAudit({
+      actor: admin,
+      action: "quiz.question_save",
+      targetType: "quiz_question",
+      targetId: questionId,
+      summary: input.poem?.[0]
+        ? `سؤال عروض سماعی «${input.poem[0]}» ${input.id ? "ویرایش" : "اضافه"} شد`
+        : `یک سؤال عروض سماعی ${input.id ? "ویرایش" : "اضافه"} شد`,
+      metadata: { type: input.type, difficulty: input.difficulty },
+    });
+
     return { ok: true, data: { id: questionId } };
   } catch (err) {
     console.error("[quiz] ذخیرهٔ سؤال ناموفق بود:", err);
@@ -259,10 +271,27 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
 }
 
 export async function quizAdminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
+
+  const target = await queryOne<{ type: string; poem: string[] | null }>(
+    "select type, poem from questions where id = $1",
+    [questionId],
+  );
 
   const deleted = await execute("delete from questions where id = $1", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
+
+  await recordAudit({
+    actor: admin,
+    action: "quiz.question_delete",
+    targetType: "quiz_question",
+    targetId: questionId,
+    summary: target?.poem?.[0]
+      ? `سؤال عروض سماعی «${target.poem[0]}» حذف شد`
+      : "یک سؤال عروض سماعی حذف شد",
+    metadata: { type: target?.type },
+  });
+
   return { ok: true, data: null };
 }

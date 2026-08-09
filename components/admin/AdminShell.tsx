@@ -72,6 +72,15 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/activity",
+    label: "فعالیت و خطاها",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4l2.5-7 4 14 2.5-7H21" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "تنظیمات",
     icon: (

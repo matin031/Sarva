@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { adminListUsers } from "@/lib/admin/user-actions";
+import { adminGetUser } from "@/lib/admin/user-actions";
 import { adminQuizAttemptsForUser } from "@/lib/admin/quiz-stats-actions";
 import { adminExamAttemptsForUser } from "@/lib/admin/exam-stats-actions";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
@@ -12,12 +12,11 @@ export const metadata: Metadata = {
 };
 
 async function loadUserDetail(userId: string) {
-  const [users, quizAttempts, examAttempts] = await Promise.all([
-    adminListUsers(),
+  const [user, quizAttempts, examAttempts] = await Promise.all([
+    adminGetUser(userId),
     adminQuizAttemptsForUser(userId),
     adminExamAttemptsForUser(userId),
   ]);
-  const user = users.find((u) => u.id === userId);
   return { user, quizAttempts, examAttempts };
 }
 

@@ -36,22 +36,59 @@ import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 // دیروز از PostgREST می‌آمد — که یعنی فاز ۵ فقط کوئری‌ها را عوض می‌کند، نه
 // منطق پایین‌دستشان را.
 
-// پارسر اصلی باید قبل از جایگزینی گرفته شود، وگرنه بازگشتِ بی‌پایان می‌شود.
-const parseTimestamptz = types.getTypeParser(types.builtins.TIMESTAMPTZ) as (v: string) => Date;
-const parseTimestamp = types.getTypeParser(types.builtins.TIMESTAMP) as (v: string) => Date;
+/**
+ * ⚠️ نصب مبدل‌ها باید دقیقاً **یک بار** انجام شود.
+ *
+ * این بلوک قبلاً مستقیم در سطح ماژول بود و یک باگ واقعی می‌ساخت که فقط در
+ * build واقعی خودش را نشان می‌داد (نه در `next dev`، نه در اسکریپت‌های node،
+ * نه در tsc — یعنی همه‌جا سالم به نظر می‌رسید و در production ورود به سایت
+ * کار نمی‌کرد):
+ *
+ *   ۱) `pg` یک بستهٔ خارجیِ سرور است، پس `types` در کل فرایند یک نمونه است.
+ *   ۲) ولی همین فایل بسته‌بندی می‌شود و Turbopack می‌تواند آن را در بیش از یک
+ *      chunk قرار بدهد — و آن‌وقت کد سطحِ ماژول **دوباره** اجرا می‌شود.
+ *   ۳) در اجرای دوم، `getTypeParser` دیگر پارسرِ اصلی را برنمی‌گرداند بلکه
+ *      همان جایگزینِ اجرای اول را می‌دهد — که رشته برمی‌گرداند، نه Date.
+ *      نتیجه: `parseTimestamptz(v).toISOString()` روی یک رشته صدا زده می‌شد و
+ *      کوئری با «toISOString is not a function» می‌مرد.
+ *
+ * پرچم روی globalThis نشسته و نه در ماژول، دقیقاً به همین دلیل: چیزی که در
+ * ماژول باشد با هر نمونهٔ تازهٔ ماژول از نو ساخته می‌شود و مسئله را حل نمی‌کند.
+ * همان الگویی که Pool پایین‌تر برای بازبارگذاری‌های dev استفاده می‌کند.
+ */
+const globalForTypes = globalThis as unknown as { __sarvaTypeParsers?: true };
 
-types.setTypeParser(types.builtins.TIMESTAMPTZ, (v) => parseTimestamptz(v).toISOString());
-types.setTypeParser(types.builtins.TIMESTAMP, (v) => parseTimestamp(v).toISOString());
+if (!globalForTypes.__sarvaTypeParsers) {
+  globalForTypes.__sarvaTypeParsers = true;
 
-// Number و نه parseFloat: parseFloat روی "12abc" مقدار ۱۲ می‌دهد و خرابی را
-// پنهان می‌کند؛ Number در همان حالت NaN می‌دهد که دیده می‌شود.
-//
-// دقت: numeric در Postgres دلخواه‌دقت است و double نیست. اینجا بی‌خطر است چون
-// تنها numeric های ما نمره‌اند — numeric(5,2) و numeric(6,2)، یعنی حداکثر
-// ۹۹۹۹.۹۹ که خیلی زیر مرز دقت double است. اگر روزی ستون پولی یا شناسهٔ بزرگ
-// اضافه شد، آن ستون باید مبدل خودش را داشته باشد.
-types.setTypeParser(types.builtins.NUMERIC, (v) => Number(v));
-types.setTypeParser(types.builtins.INT8, (v) => Number(v));
+  // پارسر اصلی باید قبل از جایگزینی گرفته شود، وگرنه بازگشتِ بی‌پایان می‌شود.
+  const parseTimestamptz = types.getTypeParser(types.builtins.TIMESTAMPTZ) as (v: string) => Date;
+  const parseTimestamp = types.getTypeParser(types.builtins.TIMESTAMP) as (v: string) => Date;
+
+  // کمربند دوم: اگر روزی به هر دلیلی این بلوک دوباره اجرا شد، خروجیِ رشته‌ای
+  // را دست‌نخورده رد می‌کند به‌جای اینکه بمیرد. یک تاریخِ درست بهتر از یک
+  // کوئریِ شکسته است.
+  const toIso = (parse: (v: string) => Date) => (v: string) => {
+    const parsed = parse(v);
+    return parsed instanceof Date ? parsed.toISOString() : (parsed as unknown as string);
+  };
+
+  types.setTypeParser(types.builtins.TIMESTAMPTZ, toIso(parseTimestamptz));
+  types.setTypeParser(types.builtins.TIMESTAMP, toIso(parseTimestamp));
+
+  // Number و نه parseFloat: parseFloat روی "12abc" مقدار ۱۲ می‌دهد و خرابی را
+  // پنهان می‌کند؛ Number در همان حالت NaN می‌دهد که دیده می‌شود.
+  //
+  // دقت: numeric در Postgres دلخواه‌دقت است و double نیست. اینجا بی‌خطر است چون
+  // تنها numeric های ما نمره‌اند — numeric(5,2) و numeric(6,2)، یعنی حداکثر
+  // ۹۹۹۹.۹۹ که خیلی زیر مرز دقت double است. اگر روزی ستون پولی یا شناسهٔ بزرگ
+  // اضافه شد، آن ستون باید مبدل خودش را داشته باشد.
+  //
+  // (این دو برخلاف بالایی‌ها idempotent اند — Number(Number(x)) همان است — ولی
+  //  داخل همین گارد می‌مانند تا همه‌شان یک‌جا و یک‌بار نصب شوند.)
+  types.setTypeParser(types.builtins.NUMERIC, (v) => Number(v));
+  types.setTypeParser(types.builtins.INT8, (v) => Number(v));
+}
 
 // ---------------------------------------------------------------------------
 // Pool

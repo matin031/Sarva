@@ -209,9 +209,23 @@ export function crossSiteRejection(): NextResponse<ApiResult<never>> {
  * یک پیام عمومی می‌گیرد و متن اصلی فقط به لاگ می‌رود: پیام خام پستگرس نام
  * جدول و ستون را لو می‌دهد و چیزی نیست که کاربر باید ببیند.
  */
-export function handleError(err: unknown): NextResponse<ApiResult<never>> {
+export function handleError(err: unknown, context?: string): NextResponse<ApiResult<never>> {
+  // AuthError یک خطای *مورد انتظار* است («وارد نشده‌اید»)، نه نشانهٔ خرابی.
+  // ثبتش در لاگ خطا فقط آن را با هزاران ردیف بی‌معنی پر می‌کرد.
   if (err instanceof AuthError) return fail(err.message, err.status);
 
   console.error("[api] خطای مدیریت‌نشده:", err);
+
+  // ...و در جدول، تا از پنل مدیریت هم دیده شود. تا امروز تنها راهِ دیدنِ این
+  // خطاها SSH زدن به سرور و `docker compose logs` بود — یعنی برای کسی که با
+  // سرور کار نمی‌کند، عملاً نامرئی.
+  //
+  // import پویاست تا این ماژول (که proxy.ts هم از آن استفاده می‌کند) وابستگیِ
+  // دیتابیس را وارد باندل خودش نکند، و بی‌انتظار است تا ثبت لاگ پاسخ کاربر را
+  // معطل نکند. اگر خودِ ثبت هم شکست بخورد، recordError بی‌صدا ردش می‌کند.
+  void import("@/lib/admin/audit")
+    .then((m) => m.recordError("api", err, context))
+    .catch(() => {});
+
   return fail("خطای غیرمنتظره‌ای رخ داد. دوباره تلاش کنید.", 500);
 }

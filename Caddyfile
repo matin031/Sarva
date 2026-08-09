@@ -23,18 +23,59 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
 
+	# HSTS — فقط روی اتصال TLS.
+	#
+	# ماچرِ شرطی لازم است: SITE_ADDRESS پیش‌فرض ":80" است و اگر این هدر روی
+	# http فرستاده شود، مرورگر آن دامنه (از جمله localhost) را برای یک سال
+	# قفلِ https می‌کند و توسعهٔ محلی می‌شکند — خطایی که پس گرفتنش سخت است،
+	# چون باید از تنظیمات خودِ مرورگر پاک شود.
+	#
+	# `preload` عمداً نیست: افزودن دامنه به فهرست preload مرورگرها یک تعهد
+	# چندماهه و عملاً برگشت‌ناپذیر است. اگر روزی مطمئن بودید، اضافه‌اش کنید.
+	@secure expression {http.request.tls}
+	header @secure Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
 	# صوت و تصویرِ آپلودی. handle_path پیشوند /uploads را قبل از جست‌وجو در
 	# دیسک برمی‌دارد، پس /uploads/x.mp3 می‌شود /srv/uploads/x.mp3
 	handle_path /uploads/* {
 		root * /srv/uploads
+
 		# نام فایل‌ها موقع آپلود یکتا ساخته می‌شود (timestamp + رشتهٔ تصادفی)،
 		# پس محتوای یک URL هرگز عوض نمی‌شود و immutable درست است.
 		header Cache-Control "public, max-age=31536000, immutable"
+
+		# ⚠️ این سه هدر لایهٔ آخرِ دفاع در برابر آپلودِ خطرناک‌اند.
+		#
+		# لایهٔ اول در lib/storage است: پسوند از فهرست سفید، و بایت‌های اول
+		# فایل باید با نوعِ اعلام‌شده بخوانند. ولی اگر روزی آن بررسی سوراخی
+		# داشته باشد، این‌ها جلوی تبدیل شدنِ /uploads به یک بردار XSS را
+		# می‌گیرند: هر چیزی که از اینجا سرو شود دانلود می‌شود، نه اجرا.
+		#
+		#   • nosniff       — مرورگر حق ندارد نوع فایل را «حدس» بزند
+		#   • attachment    — HTML/SVG به‌جای رندر شدن، دانلود می‌شود
+		#   • CSP sandbox   — حتی اگر باز شد، اسکریپتی داخلش اجرا نمی‌شود
+		header X-Content-Type-Options "nosniff"
+		header Content-Disposition "attachment"
+		header Content-Security-Policy "default-src 'none'; sandbox"
+
 		file_server
 	}
 
 	handle {
-		reverse_proxy app:3000
+		reverse_proxy app:3000 {
+			# ⚠️ بدون این خط، همهٔ محدودیت‌های نرخِ مبتنی بر IP قابل دور زدن‌اند.
+			#
+			# Caddy مقدارِ ورودیِ X-Forwarded-For را حذف نمی‌کند؛ IP کلاینت را
+			# به انتهایش اضافه می‌کند. یعنی مهاجمی که خودش هدر را می‌فرستد،
+			# مقداری دلخواه در ابتدای زنجیره می‌نشاند. اینجا زنجیره با یک
+			# مقدار جایگزین می‌شود: آدرس واقعیِ کسی که به Caddy وصل شده.
+			#
+			# سمت اپ هم مستقل از این محافظت شده (lib/api/http.ts آخرین عضو
+			# زنجیره را می‌خواند، نه اولی) — دو کمربند، چون اگر روزی این فایل
+			# عوض شود اپ نباید بی‌دفاع بماند.
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Real-IP {remote_host}
+		}
 	}
 
 	# لاگ در stdout تا با `docker compose logs` دیده شود

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { transaction } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
-import { handleError, ok, readJson } from "@/lib/api/http";
+import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 const schema = z.object({
   answers: z
@@ -30,6 +31,14 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+
+    // سقفِ نوشتن. هر یک از این ردیف‌ها دائمی است، پس بدون سقف یک اسکریپت
+    // می‌تواند جدول را — و با آن دیسک سرور را — پر کند. عدد سخاوتمندانه
+    // است: هر «دور کامل» یک درخواست است؛ ۳۰ دور در ده دقیقه از توان انسان بیرون است.
+    const limit = rateLimit(`quiz-attempt:${user.id}`, 30, 10 * 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;

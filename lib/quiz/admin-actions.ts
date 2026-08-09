@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
+import { uuidArg } from "@/lib/api/action-input";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 
 /** Scoped to the three types the admin panel authors today. The DB/UI
@@ -259,6 +260,8 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
 
 export async function quizAdminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
+  questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
+
   const deleted = await execute("delete from questions where id = $1", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
   return { ok: true, data: null };

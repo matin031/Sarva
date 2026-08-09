@@ -6,6 +6,7 @@ import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { registerSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 
 /**
  * POST /api/v1/auth/register — ساخت حساب.
@@ -33,7 +34,26 @@ export async function POST(request: Request) {
     const body = await readJson(request, registerSchema);
     if (!body.ok) return body.response;
 
-    const { name, email, password } = body.data;
+    const { name, email, password, turnstileToken } = body.data;
+
+    const captcha = await verifyTurnstile(turnstileToken, meta.ip);
+    if (!captcha.ok) return fail(captcha.error, 400);
+
+    // سقف دوم، روی خودِ ایمیل.
+    //
+    // این endpoint وجود یا نبودِ یک حساب را عمداً فاش می‌کند (توضیحش پایین‌تر
+    // کنار پاسخ ۴۰۹). آن تصمیم درست است، ولی معنایش این است که ثبت‌نام یک
+    // ابزار پرسش «آیا فلانی اینجا حساب دارد؟» هم هست. سقفِ IP به‌تنهایی جلویش
+    // را نمی‌گیرد، چون مهاجم می‌تواند از چند IP بپرسد. با این سقف، هر ایمیل
+    // در ربع ساعت فقط چند بار قابل پرسش است — بی‌فایده برای ساختن فهرست،
+    // بی‌اثر برای کسی که واقعاً دارد ثبت‌نام می‌کند.
+    const emailLimit = rateLimit(`register-email:${email}`, 5, 15 * 60);
+    if (!emailLimit.allowed) {
+      return fail(
+        `تعداد تلاش‌ها زیاد بود. ${emailLimit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`,
+        429,
+      );
+    }
 
     const passwordHash = await hashPassword(password);
 

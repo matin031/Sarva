@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
+import { uuidArg } from "@/lib/api/action-input";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import {
   correctAnswerSchemaByType,
@@ -412,6 +413,7 @@ export async function adminUpsertQuestion(
 
 export async function adminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
+  questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
   const deleted = await execute("delete from exam_questions where id = $1", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
   return { ok: true, data: null };
@@ -419,6 +421,7 @@ export async function adminDeleteQuestion(questionId: string): Promise<ActionRes
 
 export async function adminDeleteSection(sectionId: string): Promise<ActionResult<null>> {
   await requireAdmin();
+  sectionId = uuidArg(sectionId, "شناسهٔ بخش نامعتبر است.");
   const deleted = await execute("delete from exam_sections where id = $1", [sectionId]);
   if (!deleted) return { ok: false, errors: ["بخش پیدا نشد."] };
   return { ok: true, data: null };
@@ -426,6 +429,7 @@ export async function adminDeleteSection(sectionId: string): Promise<ActionResul
 
 export async function adminDeleteExam(examId: string): Promise<ActionResult<null>> {
   await requireAdmin();
+  examId = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
   const deleted = await execute("delete from exams where id = $1", [examId]);
   if (!deleted) return { ok: false, errors: ["آزمون پیدا نشد."] };
   return { ok: true, data: null };

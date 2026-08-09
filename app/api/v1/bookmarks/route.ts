@@ -3,6 +3,7 @@ import { z } from "zod";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 /**
  * نشان‌شده‌ها.
@@ -31,6 +32,17 @@ const patchSchema = z.object({
   id: z.uuid(),
   note: z.string().max(2000),
 });
+
+/**
+ * سقفِ نوشتن روی نشان‌شده‌ها.
+ *
+ * GET عمداً بیرون است: خواندنِ فهرست خودش را در پنل چند بار در دقیقه اتفاق
+ * می‌افتد و سقفِ سراسریِ /api در proxy.ts پوششش می‌دهد. آنچه اینجا مهم است
+ * نوشتن است — هر ردیف تا همیشه می‌ماند.
+ */
+function writeLimit(userId: string) {
+  return rateLimit(`bookmarks:${userId}`, 120, 10 * 60);
+}
 
 /**
  * GET /api/v1/bookmarks            — همه
@@ -96,6 +108,11 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
 
+    const limit = writeLimit(user.id);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
+
     const body = await readJson(request, upsertSchema);
     if (!body.ok) return body.response;
 
@@ -123,6 +140,11 @@ export async function DELETE(request: Request) {
   try {
     const user = await requireUser();
 
+    const limit = writeLimit(user.id);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
+
     const body = await readJson(request, deleteSchema);
     if (!body.ok) return body.response;
 
@@ -148,6 +170,11 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
+
+    const limit = writeLimit(user.id);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const body = await readJson(request, patchSchema);
     if (!body.ok) return body.response;

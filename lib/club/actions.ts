@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
+import { rateLimit } from "@/lib/api/rate-limit";
 import {
   DAILY_COMMENT_LIMIT,
   DAILY_POST_LIMIT,
@@ -339,6 +340,14 @@ export async function toggleClubLike(
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
+  // برخلاف ارسال سروده و دیدگاه (که سقف روزانه در دیتابیس دارند)، لایک هیچ
+  // سقفی نداشت. هر تغییرِ وضعیت یک تراکنش با سه کوئری و یک تریگرِ شمارنده است،
+  // پس یک حلقهٔ ساده روی همین اکشن می‌تواند دیتابیس را مشغول نگه دارد.
+  const limit = rateLimit(`club-like:${viewer.id}`, 120, 10 * 60);
+  if (!limit.allowed) {
+    return { ok: false, error: "کمی آرام‌تر — چند لحظه دیگر دوباره تلاش کن." };
+  }
+
   try {
     const result = await transaction(async (tx) => {
       // delete ... returning هم حذف می‌کند هم می‌گوید چیزی برای حذف بود یا نه —
@@ -395,6 +404,13 @@ export async function reportClubContent(
 
   if (!REPORT_REASONS.some((r) => r.id === reason)) {
     return { ok: false, error: "دلیل گزارش نامعتبر است." };
+  }
+
+  // ایندکس یکتای (reporter, target) جلوی گزارش تکراریِ یک چیز را می‌گیرد، ولی
+  // نه گزارشِ هزار چیزِ متفاوت را — که یعنی پر کردن صف بررسیِ مدیر با نویز.
+  const limit = rateLimit(`club-report:${viewer.id}`, 20, 24 * 60 * 60);
+  if (!limit.allowed) {
+    return { ok: false, error: "امروز گزارش‌های زیادی ثبت کرده‌ای. فردا ادامه بده." };
   }
 
   try {

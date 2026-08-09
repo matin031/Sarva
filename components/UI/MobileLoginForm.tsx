@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { apiPost } from "@/lib/api/client";
 import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { useRouter } from "next/navigation";
+import { loginSchema } from "@/lib/auth/schemas";
+import TurnstileWidget from "@/components/UI/TurnstileWidget";
 
 const mobileSchema = z.object({
   mobile: z
@@ -14,13 +16,15 @@ const mobileSchema = z.object({
 });
 type MobileFormData = z.infer<typeof mobileSchema>;
 
-const emailSchema = z.object({
-  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "ایمیل معتبر نیست!"),
-  password: z
-    .string()
-    .min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد")
-    .max(16, "رمز عبور باید حداکثر ۱۶ کاراکتر باشد"),
-});
+/**
+ * فرم *ورود* — عمداً همان loginSchema سرور، نه قوانین ثبت‌نام.
+ *
+ * قالبِ رمز اینجا بررسی نمی‌شود و این عمدی است: اگر فرم ورود بگوید «رمز باید
+ * حداقل ۸ کاراکتر باشد»، به کسی که دارد رمز حدس می‌زند گفته‌ایم رمزِ این حساب
+ * چه شکلی *نیست*. ضمناً کاربری که رمزش را قبل از قوانین جدید ساخته باید
+ * بتواند وارد شود.
+ */
+const emailSchema = loginSchema;
 type EmailFormData = z.infer<typeof emailSchema>;
 
 export default function LoginForm({
@@ -57,6 +61,13 @@ export default function LoginForm({
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  // دو کپچای مستقل: یکی برای فرم ورود، یکی برای پنجرهٔ فراموشی رمز. مشترک
+  // بودنشان یعنی توکنی که در یکی مصرف شده، دیگری را هم می‌سوزاند.
+  const [loginCaptcha, setLoginCaptcha] = useState<string | null>(null);
+  const [loginCaptchaNonce, setLoginCaptchaNonce] = useState(0);
+  const [resetCaptcha, setResetCaptcha] = useState<string | null>(null);
+  const [resetCaptchaNonce, setResetCaptchaNonce] = useState(0);
+
   const openForgot = () => {
     setResetEmail(getEmailValues("email") || "");
     setResetError(null);
@@ -75,11 +86,15 @@ export default function LoginForm({
     // این endpoint همیشه موفق برمی‌گردد، حتی وقتی آن ایمیل حسابی ندارد —
     // عمدی، تا نشود با آن فهمید چه کسی در سایت حساب دارد. پس پیام «فرستاده
     // شد» هم همیشه همان است.
-    const result = await apiPost("/api/v1/auth/forgot-password", { email: resetEmail });
+    const result = await apiPost("/api/v1/auth/forgot-password", {
+      email: resetEmail,
+      turnstileToken: resetCaptcha ?? undefined,
+    });
     setResetLoading(false);
 
     if (!result.ok) {
       setResetError(result.errors.join("\n"));
+      setResetCaptchaNonce((n) => n + 1);
       return;
     }
 
@@ -131,11 +146,13 @@ export default function LoginForm({
     const result = await apiPost("/api/v1/auth/login", {
       email: data.email,
       password: data.password,
+      turnstileToken: loginCaptcha ?? undefined,
     });
 
     if (!result.ok) {
       setError(result.errors.join("\n"));
       setLoading(false);
+      setLoginCaptchaNonce((n) => n + 1);
       return;
     }
 
@@ -307,6 +324,15 @@ export default function LoginForm({
         </div>
       )}
 
+      {/* فقط روی تبِ ایمیل: تبِ موبایل هنوز هیچ درخواستی به سرور نمی‌فرستد،
+          پس کپچا آنجا فقط یک مانع بی‌فایده بود. وقتی کپچا خاموش باشد این
+          هیچ چیزی رندر نمی‌کند. */}
+      {tab === "email" && (
+        <div className="mt-5 flex justify-center">
+          <TurnstileWidget onToken={setLoginCaptcha} resetSignal={loginCaptchaNonce} />
+        </div>
+      )}
+
       {error && (
         <p className=" text-xs sm:text-sm text-red-500 mt-3 text-center">
           {error}
@@ -374,6 +400,9 @@ export default function LoginForm({
                 placeholder="you@example.com"
                 className="mt-4 w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-left outline-none focus:border-primary"
               />
+              <div className="mt-4 flex justify-center">
+                <TurnstileWidget onToken={setResetCaptcha} resetSignal={resetCaptchaNonce} />
+              </div>
               {resetError && <p className="mt-2 text-xs text-red-500">{resetError}</p>}
               <div className="mt-5 flex gap-2">
                 <button

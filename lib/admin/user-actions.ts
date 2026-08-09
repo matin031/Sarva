@@ -3,6 +3,7 @@
 import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { revokeAllSessions } from "@/lib/auth/session";
+import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
 
 export type AdminUserRow = {
   id: string;
@@ -65,6 +66,11 @@ export async function adminSetUserRole(
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
 
+  // تایپ‌های بالا در زمان اجرا وجود ندارند؛ این خط‌ها همان ادعا را واقعاً
+  // بررسی می‌کنند. توضیح کامل در lib/api/action-input.ts.
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+  role = enumArg(role, ["student", "admin"], "نقش نامعتبر است.");
+
   // بدون این، آخرین مدیرِ سایت می‌توانست خودش را دانش‌آموز کند و بعد هیچ‌کس
   // نمی‌توانست به پنل برگردد — تنها راه چاره اجرای دستی SQL روی سرور بود.
   if (userId === admin.id && role !== "admin") {
@@ -89,6 +95,9 @@ export async function adminSetUserBanned(
   banned: boolean,
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+  banned = boolArg(banned, "مقدار مسدودی نامعتبر است.");
+
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
 
   const updated = await execute("update users set is_banned = $1 where id = $2", [banned, userId]);
@@ -102,6 +111,8 @@ export async function adminSetUserBanned(
 /** حذف دائمی حساب. همهٔ داده‌های وابسته با cascade می‌روند. */
 export async function adminDeleteUser(userId: string): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را حذف کنید."] };
 
   // شمردن مدیرها قبل از حذف: سایتی بدون هیچ مدیری یعنی پنل برای همیشه بسته.

@@ -7,6 +7,7 @@ import z from "zod";
 import { apiPatch, apiPost } from "@/lib/api/client";
 import { refreshCurrentUser, useCurrentUser } from "@/lib/auth/use-current-user";
 import { useEffect } from "react";
+import { passwordField } from "@/lib/auth/schemas";
 
 function AccountSettings() {
   const { user } = useCurrentUser();
@@ -32,22 +33,12 @@ function AccountSettings() {
 
   const passwordSchema = z
     .object({
-      prevPassword: z
-        .string()
-        .min(8, "حداقل 8 کاراکتر وارد نمایید")
-        .max(16, "رمز عبور باید حداکثر ۱۶ کاراکتر باشد")
-        .regex(
-          /^[A-Za-z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/,
-          "رمز عبور فقط می‌تواند شامل حروف انگلیسی، اعداد و علائم باشد",
-        ),
-      newPassword: z
-        .string()
-        .min(8, "حداقل 8 کاراکتر وارد نمایید")
-        .max(16, "رمز عبور باید حداکثر ۱۶ کاراکتر باشد")
-        .regex(
-          /^[A-Za-z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/,
-          "رمز عبور فقط می‌تواند شامل حروف انگلیسی، اعداد و علائم باشد",
-        ),
+      // رمز *فعلی* فقط باید خالی نباشد — همان کاری که changePasswordSchema در
+      // سرور می‌کند. اعمال قوانین جدید روی آن، کاربری را که رمزش را قبل از
+      // تغییر قوانین ساخته از تغییر دادنش محروم می‌کرد.
+      prevPassword: z.string().min(1, "رمز فعلی را وارد کنید"),
+      // رمز جدید از همان شِمای سرور می‌آید تا این دو هرگز از هم نیفتند.
+      newPassword: passwordField,
       confirmNewPassword: z.string().min(1, "تکرار رمز عبور الزامی است"),
     })
     .refine((data) => data.newPassword === data.confirmNewPassword, {

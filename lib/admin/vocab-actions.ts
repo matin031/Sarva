@@ -2,6 +2,7 @@
 
 import { query, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
+import { uuidArg } from "@/lib/api/action-input";
 
 export type AdminVocabWord = {
   id: string;
@@ -103,6 +104,7 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
 
 export async function vocabAdminDelete(id: string): Promise<ActionResult> {
   await requireAdmin();
+  id = uuidArg(id, "شناسهٔ واژه نامعتبر است.");
 
   const deleted = await execute("delete from vocab_words where id = $1", [id]);
   if (!deleted) return { ok: false, error: "واژه پیدا نشد." };

@@ -26,12 +26,33 @@ export function refreshTtlSeconds(): number {
 }
 
 /**
+ * پرچم Secure کوکی سشن.
+ *
  * روی http محلی باید false باشد وگرنه مرورگر کوکی را اصلاً نگه نمی‌دارد و
  * ورود بی‌سروصدا کار نمی‌کند؛ روی production با HTTPS باید true باشد وگرنه
- * کوکی سشن روی اتصال رمزنگاری‌نشده هم فرستاده می‌شود.
+ * کوکی سشن روی اتصال رمزنگاری‌نشده هم فرستاده می‌شود و هرکسی در همان شبکه
+ * می‌تواند سشن را بردارد.
+ *
+ * ⚠️ منطق این تابع عوض شده و دلیلش مهم است. نسخهٔ قبلی این بود:
+ *
+ *     return process.env.AUTH_COOKIE_SECURE === "true";
+ *
+ * یعنی حالتِ *ناامن* پیش‌فرض بود. اگر کسی موقع راه‌اندازی سرور یادش می‌رفت
+ * AUTH_COOKIE_SECURE=true را در .env بگذارد (و مقدارِ .env.example هم false
+ * است، پس فراموش کردنش کاملاً محتمل بود)، سایت بی‌هیچ خطا و هشداری بالا
+ * می‌آمد و فقط کوکی‌ها ناامن بودند. یک نقصِ امنیتی که هیچ نشانهٔ بیرونی ندارد،
+ * بدترین نوعِ نقص است.
+ *
+ * حالا برعکس شده: در production پیش‌فرض true است و متغیر محیطی فقط برای
+ * *غیرفعال* کردنِ عمدی به کار می‌رود — کاری که کسی تصادفاً انجام نمی‌دهد.
+ * برای کسی که روی سرور از http استفاده می‌کند (که به‌هرحال توصیه نمی‌شود)،
+ * AUTH_COOKIE_SECURE=false همچنان کار می‌کند.
  */
 export function cookieSecure(): boolean {
-  return process.env.AUTH_COOKIE_SECURE === "true";
+  const override = process.env.AUTH_COOKIE_SECURE;
+  if (override === "true") return true;
+  if (override === "false") return false;
+  return process.env.NODE_ENV === "production";
 }
 
 let cachedSecret: Uint8Array | null = null;

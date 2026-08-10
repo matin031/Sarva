@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
+import { boolArg, enumArg, optionalTextArg, uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
 import {
   poemExcerpt,
   type ActionResult,
@@ -103,10 +105,18 @@ function toAdminPost(row: AdminPostRow): AdminClubPost {
   };
 }
 
+/** فارسیِ وضعیت‌ها، برای خلاصهٔ لاگ فعالیت. */
+const STATUS_LABEL: Record<string, string> = {
+  pending: "در انتظار بررسی",
+  approved: "منتشرشده",
+  rejected: "ردشده",
+};
+
 export async function clubAdminListPosts(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubPost[]> {
   await requireAdmin();
+  status = enumArg(status, ["pending", "approved", "rejected", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<AdminPostRow>(
     `select p.id, p.user_id, p.author_name, p.is_anonymous, p.title, p.body, p.form,
@@ -121,7 +131,8 @@ export async function clubAdminListPosts(
       where ($1::text = 'all' or p.status = $1)
       -- در حالت بررسی، قدیمی‌ترین اول: صف فقط وقتی منصفانه است که صف باشد
       order by case when $1::text = 'pending' then p.created_at end asc,
-               case when $1::text <> 'pending' then p.created_at end desc
+               case when $1::text <> 'pending' then p.created_at end desc,
+               p.id
       limit 300`,
     [status],
   );
@@ -133,6 +144,7 @@ export async function clubAdminListComments(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubComment[]> {
   await requireAdmin();
+  status = enumArg(status, ["pending", "approved", "rejected", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -162,7 +174,8 @@ export async function clubAdminListComments(
        left join users u on u.id = c.user_id
       where ($1::text = 'all' or c.status = $1)
       order by case when $1::text = 'pending' then c.created_at end asc,
-               case when $1::text <> 'pending' then c.created_at end desc
+               case when $1::text <> 'pending' then c.created_at end desc,
+               c.id
       limit 300`,
     [status],
   );
@@ -190,6 +203,7 @@ export async function clubAdminListComments(
  *  مدیر هنگام خواندن شعر آن‌ها را هم ببیند. */
 export async function clubAdminPostComments(postId: string): Promise<ClubComment[]> {
   await requireAdmin();
+  postId = uuidArg(postId, "شناسهٔ سروده نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -204,7 +218,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
   }>(
     `select id, post_id, parent_id, reply_to_id, author_name, body, status,
             review_note, created_at
-       from club_comments where post_id = $1 order by created_at`,
+       from club_comments where post_id = $1 order by created_at, id`,
     [postId],
   );
 
@@ -239,6 +253,10 @@ export async function clubAdminSetPostStatus(
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
 
+  id = uuidArg(id, "شناسهٔ سروده نامعتبر است.");
+  status = enumArg(status, ["pending", "approved", "rejected"], "وضعیت نامعتبر است.");
+  const reviewNote = optionalTextArg(note, 1000, "یادداشت بررسی خیلی بلند است.");
+
   const updated = await execute(
     `update club_posts
         set status       = $1,
@@ -251,10 +269,19 @@ export async function clubAdminSetPostStatus(
             -- شعری که از فید برداشته می‌شود نباید بالای همان فید سنجاق بماند
             featured     = case when $1 = 'approved' then featured else false end
       where id = $4`,
-    [status, (note ?? "").trim() || null, admin.id, id],
+    [status, reviewNote, admin.id, id],
   );
 
   if (!updated) return { ok: false, error: "این سروده پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.post_status",
+    targetType: "club_post",
+    targetId: id,
+    summary: `یک سروده «${STATUS_LABEL[status] ?? status}» شد`,
+    metadata: { status, note: reviewNote },
+  });
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -264,7 +291,10 @@ export async function clubAdminSetPostFeatured(
   id: string,
   featured: boolean,
 ): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+
+  id = uuidArg(id, "شناسهٔ سروده نامعتبر است.");
+  featured = boolArg(featured, "مقدار برگزیده نامعتبر است.");
 
   const updated = await execute(
     `update club_posts set featured = $1 where id = $2 and status = 'approved'`,
@@ -272,15 +302,40 @@ export async function clubAdminSetPostFeatured(
   );
   if (!updated) return { ok: false, error: "فقط سرودهٔ منتشرشده می‌تواند برگزیده شود." };
 
+  await recordAudit({
+    actor: admin,
+    action: "club.post_feature",
+    targetType: "club_post",
+    targetId: id,
+    summary: featured ? "یک سروده برگزیده شد" : "یک سروده از برگزیده‌ها برداشته شد",
+  });
+
   revalidateClub(id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeletePost(id: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  id = uuidArg(id, "شناسهٔ سروده نامعتبر است.");
+
+  // قبل از حذف خوانده می‌شود: بعدش ردیفی نمانده که لاگ بتواند به آن اشاره کند.
+  const target = await queryOne<{ author_name: string; title: string | null }>(
+    "select author_name, title from club_posts where id = $1",
+    [id],
+  );
 
   const deleted = await execute("delete from club_posts where id = $1", [id]);
   if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.post_delete",
+    targetType: "club_post",
+    targetId: id,
+    summary: target
+      ? `سرودهٔ «${target.title || "بی‌عنوان"}» از ${target.author_name} حذف شد`
+      : "یک سروده حذف شد",
+  });
 
   revalidateClub(id);
   return { ok: true, data: null };
@@ -293,28 +348,50 @@ export async function clubAdminSetCommentStatus(
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
 
+  id = uuidArg(id, "شناسهٔ دیدگاه نامعتبر است.");
+  status = enumArg(status, ["pending", "approved", "rejected"], "وضعیت نامعتبر است.");
+  const reviewNote = optionalTextArg(note, 1000, "یادداشت بررسی خیلی بلند است.");
+
   const row = await queryOne<{ post_id: string }>(
     `update club_comments
         set status = $1, review_note = $2, reviewed_at = now(), reviewed_by = $3
       where id = $4
       returning post_id`,
-    [status, (note ?? "").trim() || null, admin.id, id],
+    [status, reviewNote, admin.id, id],
   );
 
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.comment_status",
+    targetType: "club_comment",
+    targetId: id,
+    summary: `یک دیدگاه «${STATUS_LABEL[status] ?? status}» شد`,
+    metadata: { status, note: reviewNote },
+  });
 
   revalidateClub(row.post_id);
   return { ok: true, data: null };
 }
 
 export async function clubAdminDeleteComment(id: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  id = uuidArg(id, "شناسهٔ دیدگاه نامعتبر است.");
 
-  const row = await queryOne<{ post_id: string }>(
-    "delete from club_comments where id = $1 returning post_id",
+  const row = await queryOne<{ post_id: string; author_name: string }>(
+    "delete from club_comments where id = $1 returning post_id, author_name",
     [id],
   );
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.comment_delete",
+    targetType: "club_comment",
+    targetId: id,
+    summary: `یک دیدگاه از ${row.author_name} حذف شد`,
+  });
 
   revalidateClub(row.post_id);
   return { ok: true, data: null };
@@ -331,6 +408,7 @@ export async function clubAdminListReports(
   status: ReportStatus | "all" = "open",
 ): Promise<ClubReport[]> {
   await requireAdmin();
+  status = enumArg(status, ["open", "resolved", "dismissed", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -353,7 +431,7 @@ export async function clubAdminListReports(
        left join club_posts p    on r.target_type = 'post'    and p.id = r.target_id
        left join club_comments c on r.target_type = 'comment' and c.id = r.target_id
       where ($1::text = 'all' or r.status = $1)
-      order by r.created_at desc
+      order by r.created_at desc, r.id
       limit 200`,
     [status],
   );
@@ -383,11 +461,23 @@ export async function clubAdminResolveReport(
 ): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
 
+  id = uuidArg(id, "شناسهٔ گزارش نامعتبر است.");
+  status = enumArg(status, ["resolved", "dismissed"], "وضعیت گزارش نامعتبر است.");
+
   const updated = await execute(
     `update club_reports set status = $1, resolved_at = now(), resolved_by = $2 where id = $3`,
     [status, admin.id, id],
   );
   if (!updated) return { ok: false, error: "این گزارش پیدا نشد." };
+
+  await recordAudit({
+    actor: admin,
+    action: "club.report_resolve",
+    targetType: "club_report",
+    targetId: id,
+    summary: status === "resolved" ? "به یک گزارش رسیدگی شد" : "یک گزارش رد شد",
+    metadata: { status },
+  });
 
   revalidatePath("/admin/club");
   return { ok: true, data: null };

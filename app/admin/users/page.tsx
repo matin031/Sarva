@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { adminListUsers } from "@/lib/admin/user-actions";
+import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 import UserAdminPanel from "@/components/admin/UserAdminPanel";
 
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const result = await loadAdminData(() => adminListUsers());
+  const result = await loadAdminData(() => adminListUsers({ limit: USER_PAGE_SIZE }));
   if (!result.ok) return <AdminAccessDenied message={result.message} />;
-  return <UserAdminPanel initialUsers={result.data} />;
+  return <UserAdminPanel initialUsers={result.data.users} initialTotal={result.data.total} />;
 }

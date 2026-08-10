@@ -15,7 +15,12 @@ import { queryOne, execute } from "@/lib/db";
  * app/api/send-otp/route.ts هاردکد شده بود.
  */
 
-export type SettingKey = "mail.from";
+export type SettingKey =
+  | "mail.from"
+  | "sms.driver"
+  | "sms.api_key"
+  | "sms.sender"
+  | "sms.base_url";
 
 type SettingSpec = {
   /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
@@ -23,14 +28,85 @@ type SettingSpec = {
   /** برچسب فارسی برای پنل ادمین */
   label: string;
   description: string;
+  /** گروه‌بندی در صفحهٔ تنظیمات */
+  group: "mail" | "sms";
+  /**
+   * راز است؟
+   *
+   * مقدارِ رازها هرگز به مرورگر فرستاده نمی‌شود — پنل فقط می‌بیند که «مقداری
+   * ثبت شده» و می‌تواند رویش بنویسد. بدون این، هر کسی که یک لحظه به صفحهٔ باز
+   * تنظیمات دسترسی پیدا کند کلید API را می‌خواند.
+   */
+  secret?: boolean;
+  /** ورودی از فهرست، نه متن آزاد. */
+  options?: { value: string; label: string }[];
+  placeholder?: string;
 };
 
 export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
   "mail.from": {
     envVar: "MAIL_FROM",
+    group: "mail",
     label: "آدرس فرستندهٔ ایمیل",
     description:
       'نامی که گیرنده می‌بیند. مثال: «سروا <noreply@example.com>». دامنه باید در سرویس ایمیل تأیید شده باشد.',
+    placeholder: "سروا <noreply@example.com>",
+  },
+
+  // ── پیامک ───────────────────────────────────────────────────────────────
+  // این چهار کلید برای این اضافه شده‌اند که وقتی پنل پیامک خریداری شد، راه‌اندازی
+  // «وارد کردن دو مقدار در همین صفحه» باشد و نه «ویرایش .env روی سرور و
+  // ری‌استارت کانتینر».
+  "sms.driver": {
+    envVar: "SMS_DRIVER",
+    group: "sms",
+    label: "سرویس پیامک",
+    description:
+      "تا وقتی روی «غیرفعال» باشد هیچ پیامکی فرستاده نمی‌شود و فقط در گزارش ثبت می‌شود. بعد از خرید پنل، سرویس خود را انتخاب کنید.",
+    options: [
+      { value: "mock", label: "غیرفعال (فقط ثبت در گزارش)" },
+      { value: "kavenegar", label: "کاوه‌نگار" },
+      { value: "sms_ir", label: "اس‌ام‌اس دات آی‌آر" },
+      { value: "melipayamak", label: "ملی‌پیامک" },
+      { value: "custom", label: "سرویس دیگر (با آدرس دلخواه)" },
+    ],
+  },
+  "sms.api_key": {
+    envVar: "SMS_API_KEY",
+    group: "sms",
+    label: "کلید API پیامک",
+    description:
+      "کلیدی که پنل پیامک به شما می‌دهد. بعد از ذخیره دیگر نمایش داده نمی‌شود؛ برای تغییر، مقدار تازه را بنویسید.",
+    secret: true,
+    placeholder: "کلید را اینجا بچسبانید",
+  },
+  "sms.sender": {
+    envVar: "SMS_SENDER",
+    group: "sms",
+    label: "شمارهٔ فرستنده",
+    description: "شماره‌ای که پیامک از آن ارسال می‌شود — همان که پنل پیامک به شما داده.",
+    placeholder: "۱۰۰۰۱۲۳۴",
+  },
+  "sms.base_url": {
+    envVar: "SMS_BASE_URL",
+    group: "sms",
+    label: "آدرس سرویس پیامک",
+    description:
+      "فقط وقتی لازم است که سرویس «دیگر» را انتخاب کرده باشید. برای سرویس‌های شناخته‌شده خالی بگذارید.",
+    placeholder: "https://api.example.com/send",
+  },
+};
+
+/** برچسب فارسی هر گروه، برای عنوان بخش‌ها در صفحهٔ تنظیمات. */
+export const SETTING_GROUPS: Record<SettingSpec["group"], { title: string; description: string }> = {
+  mail: {
+    title: "ایمیل",
+    description: "کد تأیید حساب و لینک بازیابی رمز از این آدرس فرستاده می‌شوند.",
+  },
+  sms: {
+    title: "پیامک",
+    description:
+      "هنوز هیچ بخشی از سایت پیامک نمی‌فرستد. این تنظیمات برای وقتی است که پنل پیامک بخرید — با پر کردن آن‌ها، ورود با موبایل بدون هیچ تغییری در کد فعال می‌شود.",
   },
 };
 
@@ -93,10 +169,23 @@ export async function clearSetting(key: SettingKey): Promise<void> {
   cache.delete(key);
 }
 
+export type ListedSetting = {
+  key: SettingKey;
+  label: string;
+  description: string;
+  group: SettingSpec["group"];
+  secret: boolean;
+  options: { value: string; label: string }[] | null;
+  placeholder: string | null;
+  /** برای رازها همیشه null است — مقدار واقعی هرگز از سرور بیرون نمی‌رود. */
+  value: string | null;
+  /** فقط برای رازها معنی دارد: «مقداری ثبت شده یا نه». */
+  hasValue: boolean;
+  source: "db" | "env" | "none";
+};
+
 /** همهٔ تنظیمات با منبعشان — برای نمایش در پنل. */
-export async function listSettings(): Promise<
-  { key: SettingKey; label: string; description: string; value: string | null; source: "db" | "env" | "none" }[]
-> {
+export async function listSettings(): Promise<ListedSetting[]> {
   const rows = await queryOne<{ pairs: Record<string, unknown> | null }>(
     `select jsonb_object_agg(key, value) as pairs from app_settings`,
   );
@@ -106,12 +195,21 @@ export async function listSettings(): Promise<
     const spec = SETTING_SPECS[key];
     const dbValue = typeof stored[key] === "string" && stored[key] ? (stored[key] as string) : null;
     const envValue = process.env[spec.envVar]?.trim() || null;
+    const resolved = dbValue ?? envValue;
 
     return {
       key,
       label: spec.label,
       description: spec.description,
-      value: dbValue ?? envValue,
+      group: spec.group,
+      secret: spec.secret ?? false,
+      options: spec.options ?? null,
+      placeholder: spec.placeholder ?? null,
+      // ⚠️ اینجاست که راز از پاسخ حذف می‌شود. اگر روزی کلیدی secret علامت
+      // بخورد ولی این شرط را رد کند، مقدارش مستقیم در HTML صفحهٔ تنظیمات
+      // می‌نشیند.
+      value: spec.secret ? null : resolved,
+      hasValue: Boolean(resolved),
       source: dbValue ? "db" : envValue ? "env" : "none",
     };
   });

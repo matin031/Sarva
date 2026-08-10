@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { refreshSession } from "@/lib/auth/session";
+import { hashRefreshToken } from "@/lib/auth/tokens";
 import { REFRESH_COOKIE, accessCookie, clearedCookies } from "@/lib/auth/cookies";
 import { fail, handleError, ok, withCookies } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 /**
  * POST /api/v1/auth/refresh — توکن دسترسیِ تازه.
@@ -15,6 +17,15 @@ export async function POST() {
   try {
     const token = (await cookies()).get(REFRESH_COOKIE)?.value;
     if (!token) return fail("سشنی وجود ندارد.", 401);
+
+    // هر تازه‌سازی یک JOIN روی sessions×users است. سقف روی خودِ توکن بسته شده
+    // و نه روی IP: کاربر واقعی هر ۱۵ دقیقه یک بار به اینجا می‌رسد، پس ۲۰ در
+    // ربع ساعت یعنی فقط حلقه‌ای که خودش را تکرار می‌کند گرفته می‌شود. کلید،
+    // هشِ توکن است نه خودش، تا مقدار خام در حافظهٔ محدودساز ننشیند.
+    const limit = rateLimit(`refresh:${hashRefreshToken(token)}`, 20, 15 * 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const result = await refreshSession(token);
 

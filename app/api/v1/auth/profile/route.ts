@@ -2,7 +2,8 @@ import { z } from "zod";
 import { execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { findUserById } from "@/lib/auth/session";
-import { handleError, ok, readJson } from "@/lib/api/http";
+import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 // همان قوانینی که AccountSettings.tsx امروز اعمال می‌کند — حداکثر ۱۲ نویسه،
 // که سخت‌گیرانه‌تر از nameField در schemas.ts است (آنجا ۶۰ برای ثبت‌نام).
@@ -32,6 +33,14 @@ const schema = z.object({
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
+
+    // سقفِ نوشتن. هر یک از این ردیف‌ها دائمی است، پس بدون سقف یک اسکریپت
+    // می‌تواند جدول را — و با آن دیسک سرور را — پر کند. عدد سخاوتمندانه
+    // است: تغییر نام نمایشی کاری است که کسی در ربع ساعت بیست بار انجام نمی‌دهد.
+    const limit = rateLimit(`profile:${user.id}`, 20, 15 * 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;

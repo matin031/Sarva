@@ -6,21 +6,21 @@ import { useRef, useState } from "react";
 import { apiPost } from "@/lib/api/client";
 import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { useRouter } from "next/navigation";
+import { emailField, nameField, passwordField } from "@/lib/auth/schemas";
+import TurnstileWidget from "@/components/UI/TurnstileWidget";
 
+/**
+ * قوانین از lib/auth/schemas.ts می‌آیند، نه از یک کپیِ محلی.
+ *
+ * تا امروز این فایل نسخهٔ خودش را داشت — و آن نسخه با نسخهٔ سرور از هم افتاده
+ * بود: سقف رمز در سرور به ۷۲ رفت ولی اینجا ۱۶ ماند، یعنی فرم رمزی را رد
+ * می‌کرد که سرور کاملاً می‌پذیرفت. هر بار که این دو از هم بیفتند، یا کاربر
+ * بی‌دلیل مسدود می‌شود یا سرور چیزی را می‌پذیرد که فرم قولش را نداده بود.
+ */
 const emailSchema = z.object({
-  name: z
-    .string()
-    .min(3, "نام الزامی است")
-    .regex(/^[\u0600-\u06FF\s]+$/, "نام باید فقط به فارسی وارد شود"),
-  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "ایمیل معتبر نیست!"),
-  password: z
-    .string()
-    .min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد")
-    .max(16, "رمز عبور باید حداکثر ۱۶ کاراکتر باشد")
-    .regex(
-      /^[A-Za-z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/,
-      "رمز عبور فقط می‌تواند شامل حروف انگلیسی، اعداد و علائم باشد",
-    ),
+  name: nameField,
+  email: emailField,
+  password: passwordField,
 });
 type EmailFormData = z.infer<typeof emailSchema>;
 
@@ -42,6 +42,12 @@ export default function SignUp({
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [showPassword, setShowPassword] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // توکن کپچا. وقتی کپچا خاموش باشد (کلید در محیط نیست) همیشه null می‌ماند و
+  // سرور هم چیزی نمی‌خواهد. captchaNonce بعد از هر تلاش ناموفق زیاد می‌شود تا
+  // ویجت ریست شود — هر توکن Turnstile فقط یک بار قابل مصرف است.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaNonce, setCaptchaNonce] = useState(0);
 
   const {
     register,
@@ -68,10 +74,12 @@ export default function SignUp({
         name: data.name,
         email: data.email,
         password: data.password,
+        turnstileToken: captchaToken ?? undefined,
       });
 
       if (!registered.ok) {
         setError(registered.errors.join("\n"));
+        setCaptchaNonce((n) => n + 1);
         return;
       }
 
@@ -292,6 +300,11 @@ export default function SignUp({
             {errors.password.message}
           </p>
         )}
+      </div>
+
+      {/* وقتی کپچا خاموش باشد این هیچ چیزی رندر نمی‌کند و فضایی هم نمی‌گیرد. */}
+      <div className="mt-2 flex justify-center">
+        <TurnstileWidget onToken={setCaptchaToken} resetSignal={captchaNonce} />
       </div>
 
       {error && (

@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 import { refreshSession } from "@/lib/auth/session";
 import { ACCESS_COOKIE, REFRESH_COOKIE, accessCookie, clearedCookies } from "@/lib/auth/cookies";
+import { isCrossSiteRequest, requestMeta } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 /**
  * Proxy — در Next 16 نام تازهٔ middleware است.
@@ -22,13 +24,53 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, accessCookie, clearedCookies } from "@/l
  *
  *   ۲) هدایت. دقیقاً همان دو قاعدهٔ قبلی، بدون تغییر.
  *
+ *   ۳) دو گاردِ سراسری روی /api: ردِ درخواست‌های بین‌سایتی، و یک سقفِ نرخِ
+ *      کلی. هر دو عمداً اینجا هستند و نه در تک‌تک route ها — چون گاردی که باید
+ *      در بیست فایل تکرار شود، همان گاردی است که در فایل بیست‌ویکم فراموش
+ *      می‌شود. محدودیت‌های دقیق‌ترِ هر endpoint سر جای خودشان می‌مانند؛ این
+ *      فقط کفِ محافظت است.
+ *
  * آنچه اینجا انجام *نمی‌شود*: تصمیمِ واقعیِ دسترسی. هدایتِ اینجا فقط برای
  * تجربهٔ کاربری است. requireUser()/requireAdmin() در لایهٔ داده هستند که
  * واقعاً جلوی کار را می‌گیرند — چون هرکسی می‌تواند مستقیم به یک Server Action
  * درخواست بزند و اصلاً از این مسیر رد نشود.
  */
 
+/** سقفِ کلیِ درخواست به ازای هر IP روی /api.
+ *
+ *  عمداً بلند است — یک کاربر عادی که در پنل بین صفحه‌ها می‌چرخد یا وسط بازی
+ *  است، در یک دقیقه ده‌ها درخواست می‌زند و نباید به دیوار بخورد. کارِ این سقف
+ *  گرفتنِ اسکریپت است، نه آدم: هزار درخواست در دقیقه از یک IP، کاربر نیست. */
+const API_RATE_LIMIT = Number(process.env.API_RATE_LIMIT ?? 240);
+const API_RATE_WINDOW_SECONDS = 60;
+
+function tooManyRequests(retryAfterSeconds: number): NextResponse {
+  return NextResponse.json(
+    { ok: false, errors: [`درخواست‌های زیاد. ${retryAfterSeconds} ثانیه دیگر تلاش کنید.`] },
+    { status: 429, headers: { "retry-after": String(retryAfterSeconds), "cache-control": "no-store" } },
+  );
+}
+
 export async function proxy(request: NextRequest) {
+  // ---------------------------------------------------------------- گاردها --
+  // قبل از هر کار دیگری، چون هیچ‌کدام به سشن نیاز ندارند و یک درخواستِ رد شده
+  // نباید هزینهٔ تازه‌سازی توکن یا کوئری دیتابیس را تحمیل کند.
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    const method = request.method.toUpperCase();
+
+    // GET/HEAD هیچ چیزی را تغییر نمی‌دهند، پس CSRF برایشان بی‌معنی است.
+    if (method !== "GET" && method !== "HEAD" && isCrossSiteRequest(request)) {
+      return NextResponse.json(
+        { ok: false, errors: ["این درخواست از مبدأ نامعتبری آمده است."] },
+        { status: 403, headers: { "cache-control": "no-store" } },
+      );
+    }
+
+    const { ip } = requestMeta(request);
+    const limit = rateLimit(`api:${ip ?? "unknown"}`, API_RATE_LIMIT, API_RATE_WINDOW_SECONDS);
+    if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 

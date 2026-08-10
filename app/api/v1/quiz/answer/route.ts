@@ -2,6 +2,7 @@ import { z } from "zod";
 import { queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 const schema = z.object({
   questionId: z.uuid("شناسهٔ سؤال معتبر نیست"),
@@ -23,6 +24,14 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+
+    // سقفِ نوشتن. هر یک از این ردیف‌ها دائمی است، پس بدون سقف یک اسکریپت
+    // می‌تواند جدول را — و با آن دیسک سرور را — پر کند. عدد سخاوتمندانه
+    // است: هر سؤال یک درخواست است و پاسخِ دوباره فقط ردیف قبلی را بازنویسی می‌کند.
+    const limit = rateLimit(`quiz-answer:${user.id}`, 300, 10 * 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;

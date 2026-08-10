@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
+import { rateLimit } from "@/lib/api/rate-limit";
+import { isUuid } from "@/lib/api/action-input";
 import {
   DAILY_COMMENT_LIMIT,
   DAILY_POST_LIMIT,
@@ -40,6 +42,22 @@ import {
  */
 
 const SIGN_IN = "برای این کار باید وارد حساب کاربری‌ات شوی.";
+
+/**
+ * شناسه‌ای که از کلاینت آمده، قبل از رسیدن به دیتابیس.
+ *
+ * ⚠️ هر Server Action در عمل یک endpoint شبکه است: تایپِ `id: string` هنگام
+ * کامپایل پاک می‌شود و کسی که مستقیم به آن POST می‌زند می‌تواند هر چیزی بفرستد.
+ * پستگرس برای uuid بدشکل استثنا می‌دهد، و اینجا (برخلاف پنل مدیریت که
+ * `uuidArg` دارد) هیچ‌کس آن استثنا را نمی‌گرفت — یعنی `delete` و `update`
+ * بدونِ try/catch به یک خطای خامِ سرور تبدیل می‌شدند و کاربر هیچ پیامی نمی‌دید.
+ *
+ * پیامش عمداً همان «پیدا نشد» است: شناسهٔ بدشکل و شناسهٔ ناموجود از بیرون
+ * تفاوتی ندارند و نباید داشته باشند.
+ */
+function badId(id: unknown, what: string): { ok: false; error: string } | null {
+  return isUuid(id) ? null : { ok: false, error: `این ${what} پیدا نشد.` };
+}
 
 function revalidateClub(postId?: string) {
   revalidatePath("/sarvaclub");
@@ -187,6 +205,9 @@ export async function updateClubPost(id: string, input: PostInput): Promise<Acti
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
+  const bad = badId(id, "سروده");
+  if (bad) return bad;
+
   const valid = validatePost(input, viewer.name);
   if (typeof valid === "string") return { ok: false, error: valid };
 
@@ -194,7 +215,11 @@ export async function updateClubPost(id: string, input: PostInput): Promise<Acti
     `update club_posts
         set title = $1, body = $2, form = $3, tags = $4, meter = $5,
             is_anonymous = $6, author_name = $7,
-            status = 'pending', review_note = null, featured = false
+            status = 'pending', review_note = null, featured = false,
+            -- متن عوض شده، پس بررسیِ قبلی دیگر دربارهٔ این متن نیست. بدون
+            -- پاک کردنشان، ردیفی که در صف نشسته هنوز می‌گفت چه کسی و کِی
+            -- تأییدش کرده.
+            reviewed_at = null, reviewed_by = null
       where id = $8 and user_id = $9`,
     [
       valid.title,
@@ -221,6 +246,9 @@ export async function deleteClubPost(id: string): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
+  const bad = badId(id, "سروده");
+  if (bad) return bad;
+
   const deleted = await execute("delete from club_posts where id = $1 and user_id = $2", [
     id,
     viewer.id,
@@ -240,6 +268,12 @@ export async function createClubComment(
 ): Promise<ActionResult<null>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
+
+  const bad = badId(postId, "سروده");
+  if (bad) return bad;
+  if (parentId != null && !isUuid(parentId)) {
+    return { ok: false, error: "دیدگاهی که به آن پاسخ داده‌ای پیدا نشد." };
+  }
 
   const text = cleanPoem(body ?? "");
   if (text.length < 2) return { ok: false, error: "دیدگاهت را بنویس." };
@@ -281,11 +315,18 @@ export async function createClubComment(
         where id = $1 and post_id = $2 and status = 'approved'`,
       [parentId, postId],
     );
-    if (target) {
-      parent = target.parent_id ?? target.id;
-      // فقط وقتی ارزش برچسب زدن دارد که سرِ نخ نباشد
-      replyTo = parent === target.id ? null : target.id;
+
+    // قبلاً اگر این ردیف پیدا نمی‌شد (حذف شده، یا هنوز تأیید نشده) کد بی‌صدا
+    // از کنارش رد می‌شد و دیدگاه به‌جای پاسخ، یک نخِ تازه می‌شد. کاربر «پاسخ به
+    // فلانی» را زده بود و نوشته‌اش جای دیگری می‌نشست — بدترین نوع شکست، چون
+    // شبیه موفقیت است. حالا صریح می‌گوید چه شد.
+    if (!target) {
+      return { ok: false, error: "دیدگاهی که به آن پاسخ داده‌ای دیگر در دسترس نیست." };
     }
+
+    parent = target.parent_id ?? target.id;
+    // فقط وقتی ارزش برچسب زدن دارد که سرِ نخ نباشد
+    replyTo = parent === target.id ? null : target.id;
   }
 
   try {
@@ -318,6 +359,9 @@ export async function deleteClubComment(id: string, postId: string): Promise<Act
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
+  const bad = badId(id, "دیدگاه");
+  if (bad) return bad;
+
   const deleted = await execute("delete from club_comments where id = $1 and user_id = $2", [
     id,
     viewer.id,
@@ -338,6 +382,17 @@ export async function toggleClubLike(
 ): Promise<ActionResult<{ liked: boolean; likeCount: number }>> {
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
+
+  const bad = badId(postId, "سروده");
+  if (bad) return bad;
+
+  // برخلاف ارسال سروده و دیدگاه (که سقف روزانه در دیتابیس دارند)، لایک هیچ
+  // سقفی نداشت. هر تغییرِ وضعیت یک تراکنش با سه کوئری و یک تریگرِ شمارنده است،
+  // پس یک حلقهٔ ساده روی همین اکشن می‌تواند دیتابیس را مشغول نگه دارد.
+  const limit = rateLimit(`club-like:${viewer.id}`, 120, 10 * 60);
+  if (!limit.allowed) {
+    return { ok: false, error: "کمی آرام‌تر — چند لحظه دیگر دوباره تلاش کن." };
+  }
 
   try {
     const result = await transaction(async (tx) => {
@@ -393,8 +448,43 @@ export async function reportClubContent(
   const viewer = await getClubViewer();
   if (!viewer) return { ok: false, error: SIGN_IN };
 
+  // targetType هم مثل شناسه‌ها فقط یک تایپ بود، نه یک بررسی: هر رشته‌ای
+  // می‌رسید به دیتابیس و آنجا با constraint می‌ترکید.
+  if (targetType !== "post" && targetType !== "comment") {
+    return { ok: false, error: "نوع گزارش نامعتبر است." };
+  }
+  const bad = badId(targetId, targetType === "post" ? "سروده" : "دیدگاه");
+  if (bad) return bad;
+
   if (!REPORT_REASONS.some((r) => r.id === reason)) {
     return { ok: false, error: "دلیل گزارش نامعتبر است." };
+  }
+
+  // ایندکس یکتای (reporter, target) جلوی گزارش تکراریِ یک چیز را می‌گیرد، ولی
+  // نه گزارشِ هزار چیزِ متفاوت را — که یعنی پر کردن صف بررسیِ مدیر با نویز.
+  const limit = rateLimit(`club-report:${viewer.id}`, 20, 24 * 60 * 60);
+  if (!limit.allowed) {
+    return { ok: false, error: "امروز گزارش‌های زیادی ثبت کرده‌ای. فردا ادامه بده." };
+  }
+
+  // target_id عمداً کلید خارجی ندارد (گزارش باید از حذفِ هدفش جان سالم به در
+  // ببرد)، پس دیتابیس نمی‌پرسد این شناسه اصلاً وجود دارد یا نه. بدون این چک،
+  // ۲۰ شناسهٔ ساختگی در روز مستقیم وارد صف بررسی می‌شد و مدیر ردیف‌هایی
+  // می‌دید که به هیچ چیز اشاره نمی‌کنند. فقط چیزی گزارش‌پذیر است که خودِ
+  // گزارش‌دهنده حق دیدنش را دارد: محتوای منتشرشده.
+  const target = await queryOne<{ id: string }>(
+    targetType === "post"
+      ? "select id from club_posts where id = $1 and status = 'approved'"
+      : `select c.id from club_comments c
+           join club_posts p on p.id = c.post_id
+          where c.id = $1 and c.status = 'approved' and p.status = 'approved'`,
+    [targetId],
+  );
+  if (!target) {
+    return {
+      ok: false,
+      error: targetType === "post" ? "این سروده پیدا نشد." : "این دیدگاه پیدا نشد.",
+    };
   }
 
   try {

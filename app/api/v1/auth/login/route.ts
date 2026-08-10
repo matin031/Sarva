@@ -5,6 +5,7 @@ import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { loginSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit, resetRateLimit } from "@/lib/api/rate-limit";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 
 /** هشِ argon2id یک رمزِ دورریختنی، با همان پارامترهای lib/auth/password.ts.
  *  فقط برای برابر کردن زمانِ پاسخ استفاده می‌شود — پایین‌تر توضیح داده شده. */
@@ -19,7 +20,22 @@ export async function POST(request: Request) {
     const body = await readJson(request, loginSchema);
     if (!body.ok) return body.response;
 
-    const { email, password } = body.data;
+    const { email, password, turnstileToken } = body.data;
+
+    // کپچا قبل از هر کار دیگری — و ترتیبش نسبت به محدودیت نرخِ پایین عمدی است:
+    //
+    //   • قبل از کوئری کاربر و argon2، وگرنه مهاجم با توکنِ بی‌اعتبار هم سرور
+    //     را وادار به کارِ گران می‌کرد و کپچا جلوی هزینه را نگرفته بود.
+    //
+    //   • قبل از سهمیهٔ `login:${email}`، وگرنه هر کسی می‌توانست با چند
+    //     درخواستِ بی‌توکن، سهمیهٔ ورودِ حساب دیگری را بسوزاند و صاحبش را
+    //     پانزده دقیقه بیرون نگه دارد — یعنی خودِ محافظ به ابزار حمله تبدیل
+    //     می‌شد.
+    //
+    // هزینه‌اش یک درخواست بیرونی به ازای هر تلاش است، که سقفِ سراسریِ /api در
+    // proxy.ts محدودش می‌کند.
+    const captcha = await verifyTurnstile(turnstileToken, meta.ip);
+    if (!captcha.ok) return fail(captcha.error, 400);
 
     // دو سهمیهٔ جدا، چون دو حملهٔ متفاوت را می‌گیرند:
     //   • per-email جلوی حدس زدن رمزِ یک حسابِ مشخص را می‌گیرد، حتی اگر مهاجم

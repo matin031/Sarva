@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
-import { fail, handleError, ok } from "@/lib/api/http";
+import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 const GRADES = new Set(["dahom", "yazdahom", "davazdahom"]);
 
@@ -16,6 +17,16 @@ const GRADES = new Set(["dahom", "yazdahom", "davazdahom"]);
  */
 export async function GET(request: NextRequest) {
   try {
+    // تنها endpoint این فاز که احراز هویت نمی‌خواهد — و بدون lesson، کلِ
+    // واژه‌های یک پایه را برمی‌گرداند. یعنی گران‌ترین کوئریِ عمومیِ سایت است و
+    // هرکسی می‌تواند در حلقه صدایش بزند. سقف طوری انتخاب شده که یک دور بازی
+    // (که چند بار این را می‌خواند) هرگز به آن نخورد.
+    const { ip } = requestMeta(request);
+    const limit = rateLimit(`vocab-words:${ip ?? "unknown"}`, 60, 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
+
     const grade = request.nextUrl.searchParams.get("grade") ?? "";
     const lessonRaw = request.nextUrl.searchParams.get("lesson");
 

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
-import { handleError, ok, readJson } from "@/lib/api/http";
+import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 const schema = z.object({
   grade: z.enum(["dahom", "yazdahom", "davazdahom"]),
@@ -28,6 +29,14 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
+
+    // سقفِ نوشتن. هر یک از این ردیف‌ها دائمی است، پس بدون سقف یک اسکریپت
+    // می‌تواند جدول را — و با آن دیسک سرور را — پر کند. عدد سخاوتمندانه
+    // است: یک دور بازی چند ده پاسخ دارد؛ ۶۰۰ در ده دقیقه یعنی هیچ بازیکن واقعی به آن نمی‌خورد.
+    const limit = rateLimit(`vocab-answer:${user.id}`, 600, 10 * 60);
+    if (!limit.allowed) {
+      return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
+    }
 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;

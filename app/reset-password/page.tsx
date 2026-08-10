@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api/client";
 import { refreshCurrentUser } from "@/lib/auth/use-current-user";
+import { passwordField } from "@/lib/auth/schemas";
 
 /**
  * جایی که لینک بازنشانی رمز فرود می‌آید.
@@ -39,8 +40,10 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8 || password.length > 16) {
-      setError("رمز عبور باید بین ۸ تا ۱۶ کاراکتر باشد");
+    // همان شِمای سرور، نه یک کپیِ دستی — تا پیام خطا و قوانین یکی بمانند.
+    const check = passwordField.safeParse(password);
+    if (!check.success) {
+      setError(check.error.issues[0]?.message ?? "رمز عبور معتبر نیست");
       return;
     }
     if (password !== confirm) {

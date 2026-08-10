@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { requestMeta } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 /** A random بیت from گنجور, for the وزن‌یاب's "بیتِ تصادفی" button.
  *
@@ -166,7 +169,20 @@ async function fetchRandomPoem(): Promise<unknown> {
   return res.json();
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // One call here can mean up to MAX_ATTEMPTS requests to Ganjoor, and the
+  // endpoint needs no session. Without a cap it amplifies traffic ~5x against
+  // a third party we do not own, and ties up our own connections while doing
+  // it. A person clicking «بیت تصادفی» never gets near this.
+  const { ip } = requestMeta(request);
+  const limit = rateLimit(`random-beyt:${ip ?? "unknown"}`, 30, 60);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: `درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کن.` },
+      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let lastError: unknown = null;
   let lastShape: string[] = [];
 

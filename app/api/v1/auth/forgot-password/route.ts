@@ -1,13 +1,14 @@
 import { randomBytes, createHash } from "node:crypto";
 import { z } from "zod";
 import { execute, queryOne } from "@/lib/db";
-import { emailField } from "@/lib/auth/schemas";
+import { emailField, turnstileField } from "@/lib/auth/schemas";
 import { sendMail } from "@/lib/mail";
 import { passwordResetEmail } from "@/lib/mail/templates";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 
-const schema = z.object({ email: emailField });
+const schema = z.object({ email: emailField, turnstileToken: turnstileField });
 
 const TTL_MINUTES = 30;
 
@@ -26,7 +27,13 @@ export async function POST(request: Request) {
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;
 
-    const { email } = body.data;
+    const { email, turnstileToken } = body.data;
+
+    // اینجا هم قبل از هر کاری. بدون کپچا، این endpoint یک ابزار ارسال ایمیل
+    // به هر آدرسی است — نه برای دزدیدن حساب، بلکه برای رساندن دامنهٔ سایت به
+    // لیست سیاه اسپم.
+    const captcha = await verifyTurnstile(turnstileToken, meta.ip);
+    if (!captcha.ok) return fail(captcha.error, 400);
 
     const limit = rateLimit(`forgot:${email}`, 3, 15 * 60);
     const ipLimit = rateLimit(`forgot-ip:${meta.ip ?? "unknown"}`, 15, 60 * 60);

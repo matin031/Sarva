@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import PoemCard from "@/components/UI/club/PoemCard";
 import PoemComposer from "@/components/UI/club/PoemComposer";
 import { motion, useReducedMotion } from "motion/react";
@@ -33,12 +33,37 @@ export default function ClubFeed({
   filters: { sort: ClubFeedSort; form?: string; tag?: string };
 }) {
   const reduced = useReducedMotion();
-  const [posts, setPosts] = useState(initialPosts);
-  const [hasMore, setHasMore] = useState(initialHasMore);
+  // ⚠️ فقط صفحه‌های *بعدی* در state می‌مانند. صفحهٔ اول همیشه همان چیزی است
+  // که سرور همین حالا داده.
+  //
+  // نسخهٔ قبلی `useState(initialPosts)` می‌نوشت، و آن یک بار برای همیشه
+  // مقداردهی می‌شود. نتیجه دو باگ بود:
+  //
+  //   • `router.refresh()` بعد از پسندیدن یا ثبت دیدگاه، داده‌های تازهٔ سرور را
+  //     می‌آورد و کلاینت همان فهرست کهنه را نشان می‌داد.
+  //   • بدتر: با کلیک روی «پرپسندترین» آدرس عوض می‌شد و سرور فهرست تازه
+  //     می‌فرستاد، ولی چون کامپوننت در همان جای درخت باقی می‌ماند React
+  //     state اش را نگه می‌داشت — یعنی فیلتر عملاً هیچ کاری نمی‌کرد.
+  //
+  // حالا `initialPosts` منبع حقیقتِ صفحهٔ اول است و state فقط چیزی را نگه
+  // می‌دارد که کاربر خودش خواسته: صفحه‌های بارگذاری‌شدهٔ بعدی.
+  const [extra, setExtra] = useState<ClubPost[]>([]);
+  const [moreState, setMoreState] = useState<boolean | null>(null);
   const [page, setPage] = useState(0);
   const [composing, setComposing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const hasMore = moreState ?? initialHasMore;
+
+  // اگر مدیر بین دو صفحه سروده‌ای را تأیید کند، همان ردیف می‌تواند هم در
+  // صفحهٔ تازهٔ سرور باشد و هم در صفحه‌ای که قبلاً گرفته‌ایم. یک کلید تکراری
+  // در React یعنی رندرِ خراب، پس اینجا یکتا می‌شود.
+  const posts = useMemo(() => {
+    const seen = new Set<string>();
+    return [...initialPosts, ...extra].filter((p) => !seen.has(p.id) && seen.add(p.id));
+  }, [initialPosts, extra]);
 
   const href = (patch: Partial<typeof filters>) => {
     const next = { ...filters, ...patch };
@@ -51,12 +76,20 @@ export default function ClubFeed({
   };
 
   const loadMore = () => {
+    setLoadError(null);
     startTransition(async () => {
       const next = page + 1;
-      const res = await loadMoreClubPosts({ ...filters, page: next });
-      setPosts((prev) => [...prev, ...res.posts]);
-      setHasMore(res.hasMore);
-      setPage(next);
+      try {
+        const res = await loadMoreClubPosts({ ...filters, page: next });
+        setExtra((prev) => [...prev, ...res.posts]);
+        setMoreState(res.hasMore);
+        setPage(next);
+      } catch {
+        // شبکه قطع شده یا سرور جواب نداده. بدون این، دکمه فقط از حالت
+        // «در حال بارگذاری…» درمی‌آمد و هیچ اتفاقی نمی‌افتاد — که از دید
+        // کاربر یعنی دکمه خراب است.
+        setLoadError("سروده‌های بیشتر بارگذاری نشد. دوباره تلاش کن.");
+      }
     });
   };
 
@@ -169,13 +202,22 @@ export default function ClubFeed({
         </div>
       )}
 
+      {loadError && (
+        <p
+          role="alert"
+          className="mx-auto rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
+          {loadError}
+        </p>
+      )}
+
       {hasMore && (
         <button
           onClick={loadMore}
           disabled={pending}
-          className="mx-auto rounded-xl border border-border px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
+          className="mx-auto min-h-11 rounded-xl border border-border px-6 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
         >
-          {pending ? "در حال بارگذاری…" : "سروده‌های بیشتر"}
+          {pending ? "در حال بارگذاری…" : loadError ? "تلاش دوباره" : "سروده‌های بیشتر"}
         </button>
       )}
     </div>

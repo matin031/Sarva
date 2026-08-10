@@ -140,26 +140,43 @@ export default function HomePanel({
             </div>
           </div>
 
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 text-gold sm:size-10"
-            >
-              <path
-                fillRule="evenodd"
-                d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">
-                {toFa(bookmarks)}
-              </span>{" "}
-              نشان‌شده
+          {/* شمارندهٔ نشان‌شده‌ها حالا لینک است. قبلاً عددی بود که هیچ‌جا
+              نمی‌برد — و صفحه‌ای هم برای رفتن وجود نداشت. */}
+          <Link
+            href="/panel/bookmarks"
+            className=" flex items-center justify-between gap-x-4 rounded-xl bg-card p-4 shadow transition-all hover:brightness-105 active:scale-[0.99] sm:gap-x-6"
+          >
+            <div className=" flex items-center gap-x-4 sm:gap-x-6">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className=" size-9 shrink-0 text-gold sm:size-10"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className=" text-base sm:text-lg">
+                <span className=" text-2xl text-gold sm:text-3xl">
+                  {toFa(bookmarks)}
+                </span>{" "}
+                نشان‌شده
+              </div>
             </div>
-          </div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              className=" size-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
+            </svg>
+          </Link>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import PoemBody from "@/components/UI/club/PoemBody";
 import PoemComposer from "@/components/UI/club/PoemComposer";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { Chip, ClubDate, StatusBadge, fa } from "@/components/UI/club/ClubBits";
 import { deleteClubComment, deleteClubPost } from "@/lib/club/actions";
 import type { MyComment } from "@/lib/club/queries";
@@ -34,8 +35,10 @@ export default function ClubPanel({
   const [tab, setTab] = useState<Tab>("posts");
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<ClubPost | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [deletingPost, setDeletingPost] = useState<ClubPost | null>(null);
+  const [deletingComment, setDeletingComment] = useState<MyComment | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const stats = {
     pending: posts.filter((p) => p.status === "pending").length,
@@ -44,18 +47,36 @@ export default function ClubPanel({
     likes: posts.reduce((s, p) => s + p.likeCount, 0),
   };
 
-  const removePost = (id: string) =>
+  /** هر دو حذف، نتیجهٔ اکشن را می‌خوانند.
+   *
+   *  قبلاً هیچ‌کدام نمی‌خواندند: `await` می‌کردند و بی‌قید و شرط
+   *  `router.refresh()` می‌زدند. اگر اکشن شکست می‌خورد، ردیف بعد از refresh
+   *  دوباره سر جایش بود و کاربر فقط می‌دید که «دکمه کار نمی‌کند». */
+  const removePost = (post: ClubPost) => {
+    setDeletingPost(null);
+    setError(null);
     startTransition(async () => {
-      await deleteClubPost(id);
-      setConfirming(null);
+      const res = await deleteClubPost(post.id);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       router.refresh();
     });
+  };
 
-  const removeComment = (id: string, postId: string) =>
+  const removeComment = (comment: MyComment) => {
+    setDeletingComment(null);
+    setError(null);
     startTransition(async () => {
-      await deleteClubComment(id, postId);
+      const res = await deleteClubComment(comment.id, comment.postId);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       router.refresh();
     });
+  };
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "posts", label: "سروده‌های من", count: posts.length },
@@ -110,6 +131,15 @@ export default function ClubPanel({
         >
           + سرودهٔ تازه
         </button>
+      )}
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive"
+        >
+          {error}
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">
@@ -198,37 +228,18 @@ export default function ClubPanel({
                     )}
                     <button
                       onClick={() => setEditing(p)}
-                      className="ms-auto transition-colors hover:text-primary"
+                      className="ms-auto min-h-9 rounded-lg px-2 transition-colors hover:bg-primary/10 hover:text-primary"
                     >
                       ویرایش
                     </button>
                     <button
-                      onClick={() => setConfirming(p.id)}
-                      className="transition-colors hover:text-destructive"
+                      onClick={() => setDeletingPost(p)}
+                      disabled={pending}
+                      className="min-h-9 rounded-lg px-2 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                     >
                       حذف
                     </button>
                   </div>
-
-                  {confirming === p.id && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
-                      <span>حذف این سروده برگشت‌ناپذیر است.</span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => removePost(p.id)}
-                          className="rounded-lg bg-destructive px-3 py-1 font-semibold text-destructive-foreground"
-                        >
-                          حذف کن
-                        </button>
-                        <button
-                          onClick={() => setConfirming(null)}
-                          className="rounded-lg border border-border px-3 py-1"
-                        >
-                          انصراف
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </li>
               ),
             )}
@@ -265,8 +276,9 @@ export default function ClubPanel({
                   </p>
                 )}
                 <button
-                  onClick={() => removeComment(c.id, c.postId)}
-                  className="self-start text-[11px] text-muted-foreground transition-colors hover:text-destructive"
+                  onClick={() => setDeletingComment(c)}
+                  disabled={pending}
+                  className="min-h-9 self-start rounded-lg px-2 text-[11px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                 >
                   حذف دیدگاه
                 </button>
@@ -298,6 +310,32 @@ export default function ClubPanel({
             ))}
           </ul>
         ))}
+
+      <ConfirmDialog
+        open={!!deletingPost}
+        title="حذف سروده"
+        body={
+          deletingPost?.title ? `«${deletingPost.title}» حذف می‌شود.` : "این سروده حذف می‌شود."
+        }
+        consequence={
+          deletingPost && deletingPost.commentCount > 0
+            ? `${fa(deletingPost.commentCount)} دیدگاه و ${fa(deletingPost.likeCount)} پسندی که گرفته هم می‌رود. این کار برگشت ندارد.`
+            : "این کار برگشت ندارد."
+        }
+        confirmLabel="حذف کن"
+        onConfirm={() => deletingPost && removePost(deletingPost)}
+        onCancel={() => setDeletingPost(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deletingComment}
+        title="حذف دیدگاه"
+        body="این دیدگاه از زیر سروده برداشته می‌شود."
+        consequence="این کار برگشت ندارد."
+        confirmLabel="حذف کن"
+        onConfirm={() => deletingComment && removeComment(deletingComment)}
+        onCancel={() => setDeletingComment(null)}
+      />
     </div>
   );
 }

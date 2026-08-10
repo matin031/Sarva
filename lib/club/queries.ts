@@ -1,5 +1,6 @@
 import "server-only";
 import { query, queryOne } from "@/lib/db";
+import { isUuid } from "@/lib/api/action-input";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { ClubComment, ClubFeedSort, ClubPost, ClubPostForm, ClubStatus } from "@/lib/club/types";
 import { poemExcerpt } from "@/lib/club/types";
@@ -9,9 +10,9 @@ import { poemExcerpt } from "@/lib/club/types";
  *
  * ⚠️ مهم‌ترین نکتهٔ این فایل:
  *
- * تا دیروز، تضمینِ «هیچ سرودهٔ بررسی‌نشده‌ای به خواننده نمی‌رسد» در predicate
- * یک RLS policy زندگی می‌کرد. یعنی حتی اگر یک کوئری فیلتر status را جا
- * می‌انداخت، دیتابیس باز هم چیزی بیرون نمی‌داد.
+ * پیش از مهاجرت از Supabase، تضمینِ «هیچ سرودهٔ بررسی‌نشده‌ای به خواننده
+ * نمی‌رسد» در predicate یک RLS policy زندگی می‌کرد. یعنی حتی اگر یک کوئری فیلتر
+ * status را جا می‌انداخت، دیتابیس باز هم چیزی بیرون نمی‌داد.
  *
  * آن تور ایمنی دیگر وجود ندارد. حالا هر کوئریِ عمومی در این فایل *خودش* باید
  * status = 'approved' را داشته باشد، وگرنه شعرِ تأییدنشده منتشر می‌شود. به
@@ -136,11 +137,18 @@ export async function getClubFeed(
   values.push(offset);
   const offsetParam = `$${values.length}`;
 
+  // `, id` آخرِ ترتیب اختیاری نیست. وقتی مدیر چند سروده را پشت سر هم تأیید
+  // می‌کند، published_at همه‌شان عملاً یکی می‌شود و بقیهٔ کلیدها (featured،
+  // like_count، comment_count) هم برای سروده‌های تازه صفر است. آن‌وقت ترتیبِ
+  // ردیف‌های هم‌ارز را Postgres آزاد است هر بار جور دیگری بدهد، و چون
+  // صفحه‌بندی با offset کار می‌کند، یک سروده در صفحهٔ ۲ تکرار می‌شود و یکی
+  // دیگر اصلاً دیده نمی‌شود. با ۶۰ سرودهٔ هم‌زمان همین اتفاق در آزمون دیده شد:
+  // ۵۹ یکتا از ۶۰، در هر سه مرتب‌سازی.
   const rows = await query<PostRow>(
     `select ${POST_COLUMNS}
        from club_posts
       where ${conditions.join(" and ")}
-      order by featured desc, ${sortColumn} published_at desc nulls last
+      order by featured desc, ${sortColumn} published_at desc nulls last, id
       limit ${limitParam} offset ${offsetParam}`,
     values,
   );
@@ -165,6 +173,11 @@ export async function getClubFeed(
  * یا وجود دارد و هنوز تأیید نشده.
  */
 export async function getClubPost(id: string, viewer: ClubViewer): Promise<ClubPost | null> {
+  // شناسه از آدرس می‌آید، پس هر رشته‌ای می‌تواند باشد. بدون این بررسی،
+  // `/sarvaclub/abc` به پستگرس می‌رسید و `invalid input syntax for type uuid`
+  // می‌گرفت — یعنی صفحهٔ خطای ۵۰۰ برای چیزی که فقط «وجود ندارد» است.
+  if (!isUuid(id)) return null;
+
   const row = await queryOne<PostRow>(
     `select ${POST_COLUMNS}
        from club_posts
@@ -214,12 +227,14 @@ function toComment(row: CommentRow, viewerId: string | null): ClubComment {
  *  وضعیتی — دانش‌آموزی که همین الان دیدگاه نوشته باید ببیندش که در صف بررسی
  *  است، نه اینکه شک کند دکمه کار کرد یا نه. */
 export async function getClubComments(postId: string, viewer: ClubViewer): Promise<ClubComment[]> {
+  if (!isUuid(postId)) return [];
+
   const rows = await query<CommentRow>(
     `select ${COMMENT_COLUMNS}
        from club_comments
       where post_id = $1
         and (status = 'approved' or ($2::uuid is not null and user_id = $2))
-      order by created_at`,
+      order by created_at, id`,
     [postId, viewer?.id ?? null],
   );
 
@@ -232,7 +247,7 @@ export async function getMyPosts(viewer: ClubViewer): Promise<ClubPost[]> {
   if (!viewer) return [];
 
   const rows = await query<PostRow>(
-    `select ${POST_COLUMNS} from club_posts where user_id = $1 order by created_at desc`,
+    `select ${POST_COLUMNS} from club_posts where user_id = $1 order by created_at desc, id`,
     [viewer.id],
   );
 
@@ -256,7 +271,7 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
        from club_comments c
        left join club_posts p on p.id = c.post_id
       where c.user_id = $1
-      order by c.created_at desc
+      order by c.created_at desc, c.id
       limit 200`,
     [viewer.id],
   );
@@ -272,14 +287,16 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
  *
  *  فقط کارِ منتشرشده را توصیف می‌کنند — صف بررسی به کسی جز مدیر مربوط نیست.
  *
- *  شمارش شاعران حالا count(distinct) است. نسخهٔ قبلی مجبور بود یک ستون کامل از
- *  نام‌ها را بکشد و در جاوااسکریپت Set بسازد، چون PostgREST راهی برای بیان
- *  count(distinct) نداشت. */
+ *  شاعران را با user_id می‌شماریم و نه با author_name. نام نویسنده یکتا نیست:
+ *  هر سرودهٔ بی‌نام «ناشناس» ثبت می‌شود، پس شمارش بر اساس نام، همهٔ بی‌نام‌ها را
+ *  یک نفر حساب می‌کرد؛ دو همنام هم همین‌طور. در آزمون با سه شاعر (که یکی‌شان
+ *  بی‌نام نوشته بود) عدد ۲ برمی‌گشت. user_id هویت واقعی است و کوچک‌شماری ندارد
+ *  — و چون هرگز بیرون نمی‌رود، بی‌نامی هم نمی‌شکند. */
 export async function getClubStats(): Promise<{ poems: number; poets: number; comments: number }> {
   const row = await queryOne<{ poems: number; poets: number; comments: number }>(
     `select
        (select count(*) from club_posts where status = 'approved')                as poems,
-       (select count(distinct author_name) from club_posts where status = 'approved') as poets,
+       (select count(distinct user_id) from club_posts where status = 'approved') as poets,
        (select count(*) from club_comments where status = 'approved')             as comments`,
   );
 
@@ -300,7 +317,7 @@ export async function getMyLikedPosts(viewer: ClubViewer): Promise<ClubPost[]> {
        join club_posts p on p.id = l.post_id
       where l.user_id = $1
         and p.status = 'approved'
-      order by l.created_at desc
+      order by l.created_at desc, p.id
       limit 100`,
     [viewer.id],
   );

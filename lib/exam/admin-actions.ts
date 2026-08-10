@@ -1,6 +1,8 @@
 "use server";
 
 import { requireAdmin } from "@/lib/require-admin";
+import { uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import {
   correctAnswerSchemaByType,
@@ -276,7 +278,7 @@ export async function adminCreateExam(input: {
   examKey: string;
   totalScore: number;
 }): Promise<ActionResult<{ id: string }>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   try {
     const row = await queryOne<{ id: string }>(
@@ -284,6 +286,16 @@ export async function adminCreateExam(input: {
        values ($1, $2, $3, $4, $5) returning id`,
       [input.subject, input.grade, input.title, input.examKey, input.totalScore],
     );
+
+    await recordAudit({
+      actor: admin,
+      action: "exam.create",
+      targetType: "exam",
+      targetId: row!.id,
+      summary: `آزمون «${input.title}» ساخته شد`,
+      metadata: { examKey: input.examKey, grade: input.grade, totalScore: input.totalScore },
+    });
+
     return { ok: true, data: { id: row!.id } };
   } catch (err) {
     // exam_session یکتاست و این محتمل‌ترین خطای این تابع است. پیام خام پستگرس
@@ -300,7 +312,7 @@ export async function adminCreateSection(
   examId: string,
   input: { title: string; orderIndex: number; sectionScore: number },
 ): Promise<ActionResult<{ id: string }>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   try {
     const row = await queryOne<{ id: string }>(
@@ -308,6 +320,16 @@ export async function adminCreateSection(
        values ($1, $2, $3, $4) returning id`,
       [examId, input.title, input.orderIndex, input.sectionScore],
     );
+
+    await recordAudit({
+      actor: admin,
+      action: "exam.section_create",
+      targetType: "exam_section",
+      targetId: row!.id,
+      summary: `بخش «${input.title}» به یک آزمون اضافه شد`,
+      metadata: { examId, sectionScore: input.sectionScore },
+    });
+
     return { ok: true, data: { id: row!.id } };
   } catch (err) {
     if ((err as { code?: string }).code === "23505") {
@@ -333,7 +355,7 @@ export async function adminUpsertQuestion(
   sectionId: string,
   input: AdminQuestionInput,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const errors = validateQuestionInput(input);
   if (errors.length > 0) return { ok: false, errors };
@@ -400,6 +422,15 @@ export async function adminUpsertQuestion(
       return id;
     });
 
+    await recordAudit({
+      actor: admin,
+      action: "exam.question_save",
+      targetType: "exam_question",
+      targetId: questionId,
+      summary: `سؤال ${input.number} ${input.id ? "ویرایش" : "اضافه"} شد`,
+      metadata: { sectionId, parts: input.parts?.length ?? 0 },
+    });
+
     return { ok: true, data: { id: questionId } };
   } catch (err) {
     if ((err as { code?: string }).code === "23505") {
@@ -410,23 +441,163 @@ export async function adminUpsertQuestion(
   }
 }
 
-export async function adminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
+/**
+ * ویرایش مشخصات آزمون.
+ *
+ * تا امروز وجود نداشت: آزمونی که با عنوان یا نمرهٔ کلِ اشتباه ساخته می‌شد،
+ * برای همیشه همان‌طور می‌ماند — تنها راهش SQL دستی روی سرور بود.
+ *
+ * examKey عمداً قابل تغییر است ولی با هشدار در UI: آن رشته در آدرس
+ * /exam/<key> استفاده می‌شود، پس عوض کردنش لینک‌های قبلی را می‌شکند.
+ */
+export async function adminUpdateExam(
+  examId: string,
+  input: { title: string; examKey: string; grade: number; totalScore: number },
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  const id = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
+
+  const title = input.title?.trim() ?? "";
+  const examKey = input.examKey?.trim() ?? "";
+
+  const errors: string[] = [];
+  if (title.length < 3) errors.push("عنوان آزمون خیلی کوتاه است.");
+  if (title.length > 200) errors.push("عنوان آزمون خیلی بلند است.");
+  // فقط حروف لاتین، عدد و خط تیره: این رشته مستقیم در URL می‌نشیند.
+  if (!/^[a-z0-9-]{3,60}$/i.test(examKey)) {
+    errors.push("شناسهٔ آزمون فقط می‌تواند شامل حروف انگلیسی، عدد و خط تیره باشد.");
+  }
+  if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > 12) {
+    errors.push("پایه باید عددی بین ۱ تا ۱۲ باشد.");
+  }
+  if (!Number.isFinite(input.totalScore) || input.totalScore <= 0 || input.totalScore > 100) {
+    errors.push("نمرهٔ کل باید عددی بین ۱ تا ۱۰۰ باشد.");
+  }
+  if (errors.length) return { ok: false, errors };
+
+  const before = await queryOne<{ title: string; exam_session: string | null }>(
+    "select title, exam_session from exams where id = $1",
+    [id],
+  );
+  if (!before) return { ok: false, errors: ["آزمون پیدا نشد."] };
+
+  try {
+    await execute(
+      `update exams set title = $1, exam_session = $2, grade = $3, total_score = $4 where id = $5`,
+      [title, examKey, input.grade, input.totalScore, id],
+    );
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      return { ok: false, errors: ["آزمون دیگری با این شناسه وجود دارد."] };
+    }
+    throw err;
+  }
+
+  await recordAudit({
+    actor: admin,
+    action: "exam.update",
+    targetType: "exam",
+    targetId: id,
+    summary:
+      before.title === title
+        ? `مشخصات آزمون «${title}» ویرایش شد`
+        : `عنوان آزمون از «${before.title}» به «${title}» تغییر کرد`,
+    metadata: {
+      examKeyBefore: before.exam_session,
+      examKeyAfter: examKey,
+      grade: input.grade,
+      totalScore: input.totalScore,
+    },
+  });
+
+  return { ok: true, data: null };
+}
+
+/** چند کارنامه به این آزمون وصل است — برای هشدار قبل از حذف. */
+export async function adminExamAttemptCount(examId: string): Promise<number> {
   await requireAdmin();
+  const id = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
+  const row = await queryOne<{ n: number }>(
+    "select count(*) as n from exam_attempts where exam_id = $1",
+    [id],
+  );
+  return row?.n ?? 0;
+}
+
+export async function adminDeleteQuestion(questionId: string): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
+
+  const target = await queryOne<{ number: number }>(
+    "select number from exam_questions where id = $1",
+    [questionId],
+  );
+
   const deleted = await execute("delete from exam_questions where id = $1", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
+
+  await recordAudit({
+    actor: admin,
+    action: "exam.question_delete",
+    targetType: "exam_question",
+    targetId: questionId,
+    summary: target ? `سؤال ${target.number} از یک آزمون حذف شد` : "یک سؤال آزمون حذف شد",
+  });
+
   return { ok: true, data: null };
 }
 
 export async function adminDeleteSection(sectionId: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  sectionId = uuidArg(sectionId, "شناسهٔ بخش نامعتبر است.");
+
+  const target = await queryOne<{ title: string; n: number }>(
+    `select s.title,
+            (select count(*) from exam_questions q where q.exam_section_id = s.id) as n
+       from exam_sections s where s.id = $1`,
+    [sectionId],
+  );
+
   const deleted = await execute("delete from exam_sections where id = $1", [sectionId]);
   if (!deleted) return { ok: false, errors: ["بخش پیدا نشد."] };
+
+  await recordAudit({
+    actor: admin,
+    action: "exam.section_delete",
+    targetType: "exam_section",
+    targetId: sectionId,
+    summary: target
+      ? `بخش «${target.title}» با ${target.n} سؤالش حذف شد`
+      : "یک بخش آزمون حذف شد",
+  });
+
   return { ok: true, data: null };
 }
 
 export async function adminDeleteExam(examId: string): Promise<ActionResult<null>> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  examId = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
+
+  const target = await queryOne<{ title: string; exam_session: string | null; n: number }>(
+    `select e.title, e.exam_session,
+            (select count(*) from exam_attempts a where a.exam_id = e.id) as n
+       from exams e where e.id = $1`,
+    [examId],
+  );
+
   const deleted = await execute("delete from exams where id = $1", [examId]);
   if (!deleted) return { ok: false, errors: ["آزمون پیدا نشد."] };
+
+  await recordAudit({
+    actor: admin,
+    action: "exam.delete",
+    targetType: "exam",
+    targetId: examId,
+    summary: target
+      ? `آزمون «${target.title}» حذف شد (${target.n} کارنامهٔ ثبت‌شده هم با آن رفت)`
+      : "یک آزمون حذف شد",
+    metadata: { examKey: target?.exam_session, attempts: target?.n },
+  });
+
   return { ok: true, data: null };
 }

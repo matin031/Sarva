@@ -132,6 +132,14 @@ function Suspect({
         state === "dimmed" ? "opacity-75" : ""
       }`}
     >
+      {/* سایهٔ زیر پا. همیشه هست (برخلاف هالهٔ نشانه‌گیری که فقط هنگام هدف
+          گرفتن می‌آید) — بدون آن، صف روی کف نمی‌نشست و معلق دیده می‌شد. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -bottom-1 left-1/2 h-3 w-16 -translate-x-1/2 rounded-[100%] sm:w-20"
+        style={{ background: "radial-gradient(closest-side, rgba(0,0,0,0.75), transparent)" }}
+      />
+
       {/* a pool of light under the one being aimed at — a gradient, not a blur */}
       <motion.span
         aria-hidden
@@ -175,7 +183,10 @@ function Suspect({
               ? "text-gold"
               : mood === "smug"
                 ? "text-destructive/90"
-                : "text-foreground/85 group-enabled:group-hover:text-primary"
+                : // ⚠️ رنگِ ثابت و نه `text-foreground`: اتاق بازجویی در هر
+                  // تمی شبانه است، و در تمِ روشن --foreground سرمه‌ایِ تیره
+                  // است — مظنون‌ها روی دیوارِ تاریک عملاً دیده نمی‌شدند.
+                  "text-[#cfd6e2] group-enabled:group-hover:text-primary"
         } drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)]`}
       >
         <HandsUpFigure
@@ -185,7 +196,7 @@ function Suspect({
         />
       </motion.div>
 
-      <span className="glass whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold sm:text-sm">
+      <span className="whitespace-nowrap rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-bold text-white/90 backdrop-blur-sm sm:text-sm">
         {role}
       </span>
 

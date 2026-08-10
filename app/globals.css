@@ -917,3 +917,407 @@ button {
     animation: none;
   }
 }
+
+/* ============================================================
+   نینجای کلمات
+   ============================================================ */
+/* همه‌چیزِ اینجا فقط تصویری است — منطق بازی در SliceField.tsx دست نخورده.
+   هر انیمیشن روی transform یا opacity کار می‌کند تا روی گوشی هم روی لایهٔ
+   کامپوزیت بماند و ۶۰ فریم را نگه دارد. */
+
+.ninja-field {
+  /* بدون این، فرزندانِ position:absolute نسبت به صفحه جا می‌گیرند */
+  isolation: isolate;
+}
+
+/* --- هاله‌های پس‌زمینه: دو لکهٔ رنگی که آرام جابه‌جا می‌شوند --- */
+@keyframes ninjaAuroraA {
+  0%,
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1.05);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(8%, 6%, 0) scale(1.25);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ninjaAuroraB {
+  0%,
+  100% {
+    transform: translate3d(7%, 5%, 0) scale(1.2);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate3d(-5%, -7%, 0) scale(1);
+    opacity: 0.7;
+  }
+}
+
+.ninja-aurora {
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.ninja-aurora-a {
+  background: radial-gradient(
+    40% 32% at 25% 30%,
+    color-mix(in oklch, var(--color-primary) 42%, transparent),
+    transparent 70%
+  );
+  animation: ninjaAuroraA 15s ease-in-out infinite;
+}
+
+.ninja-aurora-b {
+  background: radial-gradient(
+    38% 30% at 75% 62%,
+    /* رنگِ ثابت و نه توکنِ تم: زمین بازی همیشه شبانه است، و --lapis-light در
+       حالت تیره آن‌قدر تیره می‌شود که این هاله اصلاً دیده نشود. */
+    rgba(96, 140, 230, 0.42),
+    transparent 70%
+  );
+  animation: ninjaAuroraB 19s ease-in-out infinite;
+}
+
+/* بافتِ ریزِ نقطه‌ای، تا پس‌زمینه یکدستِ بی‌جان نباشد */
+.ninja-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* --- خودِ کلمه --- */
+/* یک لبهٔ روشن بالا و یک سایهٔ زیر: همان چیزی که یک تکه را از یک لکهٔ رنگی
+   جدا می‌کند. */
+.ninja-chip {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* --- دو نیمه بعد از برش --- */
+@keyframes ninjaHalfTop {
+  to {
+    transform: translate(-6px, -30px) rotate(-16deg);
+    opacity: 0;
+  }
+}
+
+@keyframes ninjaHalfBottom {
+  to {
+    transform: translate(6px, 34px) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+.ninja-half-top,
+.ninja-half-bottom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  will-change: transform, opacity;
+}
+
+.ninja-half-top {
+  animation: ninjaHalfTop 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+.ninja-half-bottom {
+  animation: ninjaHalfBottom 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+/* --- جرقه‌ها --- */
+@keyframes ninjaSpark {
+  to {
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.ninja-spark {
+  will-change: transform, opacity;
+  animation: ninjaSpark 0.6s ease-out forwards;
+}
+
+/* --- «+۱» --- */
+@keyframes ninjaPopup {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  25% {
+    opacity: 1;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 0;
+    scale: 1;
+    translate: 0 -42px;
+  }
+}
+
+.ninja-popup {
+  will-change: opacity, scale, translate;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  animation: ninjaPopup 0.72s ease-out forwards;
+}
+
+/* --- کمبو --- */
+@keyframes ninjaCombo {
+  0% {
+    scale: 0.6;
+    opacity: 0;
+  }
+  40% {
+    scale: 1.18;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+.ninja-combo {
+  animation: ninjaCombo 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* --- برشِ اشتباه: یک تپشِ قرمز روی کل زمین --- */
+@keyframes ninjaWrongFlash {
+  0% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ninja-wrong-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(255, 60, 60, 0.75));
+  animation: ninjaWrongFlash 0.45s ease-out forwards;
+}
+
+/* --- نوار زمان وقتی رو به پایان است --- */
+@keyframes ninjaUrgent {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.ninja-urgent {
+  animation: ninjaUrgent 0.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-aurora,
+  .ninja-urgent,
+  .ninja-combo,
+  .ninja-popup,
+  .ninja-spark,
+  .ninja-half-top,
+  .ninja-half-bottom {
+    animation: none;
+  }
+  /* بدون انیمیشن، ترکش‌ها باید بی‌صدا ناپدید شوند نه اینکه سر جایشان بمانند */
+  .ninja-spark,
+  .ninja-half-top,
+  .ninja-half-bottom,
+  .ninja-popup {
+    opacity: 0;
+  }
+}
+
+/* کارت‌های صفحهٔ حفظ کردن — برجسته، تا از متنِ توضیح جدا باشند */
+.ninja-study-card {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--color-primary) 22%, transparent),
+    color-mix(in oklch, var(--color-primary) 8%, transparent)
+  );
+  border: 1px solid color-mix(in oklch, var(--color-primary) 35%, transparent);
+  color: var(--color-primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 14px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.ninja-study-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 22px color-mix(in oklch, var(--color-primary) 30%, transparent);
+}
+
+/* دکمهٔ شروع: یک تپشِ آرام تا معلوم باشد کجا باید زد */
+@keyframes ninjaCta {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+.ninja-cta {
+  animation: ninjaCta 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-cta {
+    animation: none;
+  }
+}
+
+/* HUD نینجا */
+@keyframes ninjaHeartLost {
+  0% {
+    scale: 1.35;
+    filter: grayscale(0);
+  }
+  60% {
+    scale: 0.85;
+  }
+  100% {
+    scale: 1;
+    filter: grayscale(1);
+    opacity: 0.25;
+  }
+}
+
+.ninja-heart {
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+
+.ninja-heart-lost {
+  animation: ninjaHeartLost 0.5s ease-out forwards;
+}
+
+@keyframes ninjaScore {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.45;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+.ninja-score {
+  display: inline-block;
+  animation: ninjaScore 0.32s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-heart-lost,
+  .ninja-score {
+    animation: none;
+  }
+  .ninja-heart-lost {
+    opacity: 0.25;
+  }
+}
+
+/* ============================================================
+   بازی جاسوس
+   ============================================================ */
+
+.jasoos-hall {
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  /* ⚠️ راهرو همیشه شبانه است، در هر تمی. متنِ داخلش نمی‌تواند به
+     --foreground تکیه کند: در تمِ روشن آن رنگ تیره است و عنوان‌ها روی دیوارِ
+     تاریک عملاً ناپیدا می‌شدند. */
+  color: #f1eee7;
+}
+
+.jasoos-hall .text-muted-foreground {
+  color: rgba(241, 238, 231, 0.62);
+}
+
+/* ذراتِ معلق در نورِ راهرو */
+.jasoos-dust {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* درِ فعال: نور می‌تاباند و آرام نفس می‌کشد.
+   با box-shadow و نه filter — سایه روی لایهٔ کامپوزیت می‌ماند و کلِ درخت را
+   دوباره رنگ نمی‌کند. */
+@keyframes jasoosDoorGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 22px rgba(224, 178, 60, 0.35),
+      inset 0 0 22px rgba(224, 178, 60, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(224, 178, 60, 0.6),
+      inset 0 0 30px rgba(224, 178, 60, 0.22);
+  }
+}
+
+.jasoos-door-active {
+  animation: jasoosDoorGlow 2.4s ease-in-out infinite;
+}
+
+/* شکافِ نور زیر در */
+@keyframes jasoosDoorLight {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(4px);
+  }
+}
+
+.jasoos-doorlight {
+  animation: jasoosDoorLight 2.4s ease-in-out infinite;
+  box-shadow: 0 0 16px 3px rgba(224, 178, 60, 0.75);
+}
+
+/* درِ قفل: کمی فرورفته به نظر برسد */
+.jasoos-door:disabled {
+  box-shadow: inset 0 4px 18px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jasoos-door-active,
+  .jasoos-doorlight {
+    animation: none;
+  }
+}
+
+/* اتاق بازجویی */
+.jasoos-room {
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* متنِ داخل اتاق همیشه روی زمینهٔ تیره می‌نشیند، پس در تمِ روشن هم باید
+     روشن بماند — وگرنه بیت روی دیوارِ شب سیاهِ روی سیاه می‌شود. */
+  color: #f1eee7;
+}
+
+.jasoos-room .text-muted-foreground {
+  color: rgba(241, 238, 231, 0.62);
+}

@@ -63,12 +63,42 @@ function ShootingScene({
         ref={containerRef}
         onMouseMove={handleMove}
         onMouseLeave={() => setAiming(false)}
-        className={`relative z-20 w-full rounded-2xl overflow-hidden glass bg-popover! shadow-sm select-none ${
+        className={`jasoos-room relative z-20 w-full select-none overflow-hidden rounded-2xl shadow-sm ${
           result ? "" : "sm:cursor-none"
         }`}
       >
+        {/* ---------- اتاق بازجویی ----------
+            قبلاً مظنون‌ها روی یک پنلِ تخت می‌ایستادند و هیچ‌جا نبودند. سه لایه
+            کافی است تا اتاق ساخته شود و هیچ‌کدام تصویر نیستند: دیوار، نورِ
+            چراغِ سقفی که مخروطی روی کف می‌افتد، و کفی که در افق محو می‌شود. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,#0c111b_0%,#141c2b_74%,#0a0e16_75%,#070a10_100%)]" />
+          {/* مخروط نور از سقف */}
+          <div
+            className="absolute left-1/2 top-0 h-[72%] w-[85%] -translate-x-1/2"
+            style={{
+              background:
+                "linear-gradient(180deg, color-mix(in oklch, var(--color-gold) 16%, transparent), transparent 78%)",
+              clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)",
+            }}
+          />
+          {/* لکهٔ نور روی کف، دقیقاً زیر صف مظنون‌ها */}
+          <div
+            className="absolute bottom-[12%] left-1/2 h-24 w-[80%] -translate-x-1/2 rounded-[100%] opacity-50"
+            style={{
+              background:
+                "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 26%, transparent), transparent)",
+            }}
+          />
+          <div className="jasoos-dust absolute inset-0 opacity-[0.05]" />
+          <div
+            className="absolute inset-0"
+            style={{ boxShadow: "inset 0 0 120px 30px rgba(0,0,0,0.6)" }}
+          />
+        </div>
+
         {/* verse card */}
-        <div className="w-[98%] xs:w-[90%] mt-6 mx-auto bg-secondary z-20 rounded-xl">
+        <div className="xs:w-[90%] relative z-20 mx-auto mt-6 w-[98%] rounded-xl border border-white/10 bg-black/35 backdrop-blur-sm">
           <div className="sm:w-[70%] mx-auto rounded-xl px-4 py-3 sm:px-6 sm:py-4 text-center">
             <span className="inline-block mb-1 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
               {level.category === "دستوری" ? "نقش دستوری" : "آرایه‌ی ادبی"}
@@ -98,9 +128,7 @@ function ShootingScene({
         {/* suspects lineup — a shallow 3D stage. Each suspect sits at its own
             translateZ, so the tilt separates the line-up into depth instead of
             sliding it as one flat sheet. */}
-        <div
-          className="mt-6 py-12 inset-x-0 z-30 px-2"
-        >
+        <div className="relative inset-x-0 z-30 mt-6 px-2 py-12">
         {/* No pointer-driven tilt here. Rotating the whole line-up with the
             mouse moved every suspect — including the fixed hit layer inside
             each one — so the figure under the crosshair slid out from under it

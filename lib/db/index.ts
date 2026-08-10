@@ -176,6 +176,46 @@ type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
 const SLOW_QUERY_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
 
+/**
+ * پارامترهای کوئری، آمادهٔ لاگ شدن.
+ *
+ * ⚠️ قبلاً لاگِ خطای کوئری مستقیماً `JSON.stringify(params)` را می‌نوشت. برای
+ * دیباگ عالی بود و از نظر امنیتی گران: هر خطای کوئری این‌ها را در
+ * `docker compose logs` می‌گذاشت —
+ *
+ *   • هشِ refresh token (در createSession و refreshSession). دیتابیس دقیقاً
+ *     همین هش را ذخیره می‌کند، پس داشتنش یعنی داشتنِ سشن.
+ *   • هشِ توکن بازنشانی رمز، یعنی امکان تصاحب حساب.
+ *   • هشِ کد OTP، هشِ رمز عبور، ایمیل و IP کاربران.
+ *
+ * رمز عبورِ متن‌ساده هرگز به این لایه نمی‌رسد (همیشه قبلش argon2 می‌شود)، ولی
+ * بقیه کافی بودند: یک فایل لاگِ لو رفته = دسترسی به حساب‌ها.
+ *
+ * حالا هر رشتهٔ بلندی که شبیه راز است با طول و نوعش جایگزین می‌شود. چیزی که
+ * برای دیباگ لازم است — «پارامتر سوم null بود» یا «چهارم عدد ۷ بود» — سر جایش
+ * می‌ماند.
+ */
+function redactParams(params: unknown[]): string {
+  const safe = params.map((value) => {
+    if (value === null || value === undefined) return value;
+
+    if (typeof value === "string") {
+      // hex/base64url بلند = هش یا توکن. هر رشتهٔ بلند دیگری هم می‌تواند
+      // محتوای کاربر باشد (متن سروده، دیدگاه) که آن هم در لاگ جایی ندارد.
+      if (value.length > 24) return `[رشتهٔ ${value.length} نویسه‌ای]`;
+      // ایمیل حتی وقتی کوتاه است شناسایی‌کننده است.
+      if (value.includes("@")) return "[ایمیل]";
+      return value;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") return value;
+    if (Array.isArray(value)) return `[آرایهٔ ${value.length} عضوی]`;
+    return "[شیء]";
+  });
+
+  return JSON.stringify(safe).slice(0, 300);
+}
+
 async function run<T extends QueryResultRow>(
   on: Queryable,
   text: string,
@@ -197,7 +237,7 @@ async function run<T extends QueryResultRow>(
     // کاربر نشان داده شود و ساختار دیتابیس چیزی نیست که کاربر باید ببیند.
     console.error(
       `[db] کوئری شکست خورد: ${text.replace(/\s+/g, " ").slice(0, 200)}`,
-      params?.length ? `\n     پارامترها: ${JSON.stringify(params).slice(0, 200)}` : "",
+      params?.length ? `\n     پارامترها: ${redactParams(params)}` : "",
       `\n     ${(err as Error).message}`,
     );
     throw err;

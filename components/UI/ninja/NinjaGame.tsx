@@ -131,19 +131,32 @@ function NinjaGame() {
   return (
     <div className="container max-w-4xl mx-auto my-10 sm:my-16">
       {(screen === "study" || screen === "slicing") && (
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="mb-4 flex items-center justify-between px-1">
+          {/* جان‌ها. هر قلبِ ازدست‌رفته یک بار می‌تپد و بعد خاکستری می‌ماند —
+              `key` روی وضعیتِ پر/خالی است تا انیمیشن دقیقاً در لحظهٔ از دست
+              رفتن اجرا شود، نه در هر رندر. */}
           <div className="flex items-center gap-x-1.5">
-            {Array.from({ length: START_LIVES }).map((_, i) => (
-              <span
-                key={i}
-                className={`text-lg sm:text-xl ${i < lives ? "opacity-100" : "opacity-20"}`}
-              >
-                ❤️
-              </span>
-            ))}
+            {Array.from({ length: START_LIVES }).map((_, i) => {
+              const alive = i < lives;
+              return (
+                <span
+                  key={`${i}-${alive}`}
+                  className={`ninja-heart text-lg sm:text-xl ${
+                    alive ? "" : "ninja-heart-lost grayscale"
+                  }`}
+                >
+                  ❤️
+                </span>
+              );
+            })}
           </div>
-          <div className="glass rounded-full px-4 py-1 text-sm sm:text-base font-bold">
-            امتیاز: {totalScore}
+          {/* عدد با هر امتیاز یک تکان می‌خورد؛ بدون آن، تنها بازخوردِ برشِ
+              درست یک عددِ بی‌صدا بود که عوض می‌شد. */}
+          <div className="glass flex items-center gap-2 rounded-full px-4 py-1 text-sm font-bold sm:text-base">
+            <span className="text-muted-foreground">امتیاز</span>
+            <span key={totalScore} className="ninja-score text-primary">
+              {totalScore.toLocaleString("fa-IR")}
+            </span>
           </div>
         </div>
       )}

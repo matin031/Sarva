@@ -144,13 +144,43 @@ export async function revokeAllSessions(userId: string): Promise<number> {
   );
 }
 
-/** سشن‌های فعال، برای صفحهٔ «دستگاه‌های من» در آینده. */
-export async function listActiveSessions(userId: string) {
-  return query<{ id: string; user_agent: string | null; ip: string | null; created_at: string; last_used_at: string | null }>(
-    `select id, user_agent, ip, created_at, last_used_at
+export type ActiveSession = {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  /** برای اینکه فراخوان بتواند «همین دستگاه» را تشخیص بدهد.
+   *
+   *  خودِ توکن هرگز اینجا نیست — فقط هشِ ذخیره‌شده، که با هشِ کوکیِ درخواستِ
+   *  جاری مقایسه می‌شود. این مقدار نباید به مرورگر فرستاده شود؛ route فقط
+   *  نتیجهٔ مقایسه (یک بولی) را بیرون می‌دهد. */
+  refreshTokenHash: string;
+};
+
+/** سشن‌های فعال — پشتِ صفحهٔ «دستگاه‌های من» در تنظیمات حساب. */
+export async function listActiveSessions(userId: string): Promise<ActiveSession[]> {
+  const rows = await query<{
+    id: string;
+    user_agent: string | null;
+    ip: string | null;
+    created_at: string;
+    last_used_at: string | null;
+    refresh_token_hash: string;
+  }>(
+    `select id, user_agent, host(ip) as ip, created_at, last_used_at, refresh_token_hash
        from sessions
       where user_id = $1 and revoked_at is null and expires_at > now()
-      order by created_at desc`,
+      order by coalesce(last_used_at, created_at) desc`,
     [userId],
   );
+
+  return rows.map((r) => ({
+    id: r.id,
+    userAgent: r.user_agent,
+    ip: r.ip,
+    createdAt: r.created_at,
+    lastUsedAt: r.last_used_at,
+    refreshTokenHash: r.refresh_token_hash,
+  }));
 }

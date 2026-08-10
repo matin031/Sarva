@@ -9,6 +9,7 @@ export {
   revokeSessionByToken,
   revokeAllSessions,
   listActiveSessions,
+  type ActiveSession,
   findUserById,
   findUserByEmail,
   toAuthUser,

@@ -54,7 +54,11 @@ export default async function Page({
       </div>
 
       <div className="container mx-auto max-w-3xl px-4">
+        {/* کلید عمداً از خودِ فیلترها ساخته می‌شود: با عوض شدن مرتب‌سازی یا
+            قالب، React باید کامپوننت را از نو بسازد، وگرنه صفحه‌های بارگذاری‌شدهٔ
+            فیلترِ قبلی (که در state آن مانده‌اند) زیر فهرست تازه می‌چسبند. */}
         <ClubFeed
+          key={`${sort}|${form ?? ""}|${tag ?? ""}`}
           initialPosts={posts}
           initialHasMore={hasMore}
           viewerName={viewer?.name ?? null}

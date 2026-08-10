@@ -116,6 +116,7 @@ export async function clubAdminListPosts(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubPost[]> {
   await requireAdmin();
+  status = enumArg(status, ["pending", "approved", "rejected", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<AdminPostRow>(
     `select p.id, p.user_id, p.author_name, p.is_anonymous, p.title, p.body, p.form,
@@ -130,7 +131,8 @@ export async function clubAdminListPosts(
       where ($1::text = 'all' or p.status = $1)
       -- در حالت بررسی، قدیمی‌ترین اول: صف فقط وقتی منصفانه است که صف باشد
       order by case when $1::text = 'pending' then p.created_at end asc,
-               case when $1::text <> 'pending' then p.created_at end desc
+               case when $1::text <> 'pending' then p.created_at end desc,
+               p.id
       limit 300`,
     [status],
   );
@@ -142,6 +144,7 @@ export async function clubAdminListComments(
   status: ClubStatus | "all" = "pending",
 ): Promise<AdminClubComment[]> {
   await requireAdmin();
+  status = enumArg(status, ["pending", "approved", "rejected", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -171,7 +174,8 @@ export async function clubAdminListComments(
        left join users u on u.id = c.user_id
       where ($1::text = 'all' or c.status = $1)
       order by case when $1::text = 'pending' then c.created_at end asc,
-               case when $1::text <> 'pending' then c.created_at end desc
+               case when $1::text <> 'pending' then c.created_at end desc,
+               c.id
       limit 300`,
     [status],
   );
@@ -199,6 +203,7 @@ export async function clubAdminListComments(
  *  مدیر هنگام خواندن شعر آن‌ها را هم ببیند. */
 export async function clubAdminPostComments(postId: string): Promise<ClubComment[]> {
   await requireAdmin();
+  postId = uuidArg(postId, "شناسهٔ سروده نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -213,7 +218,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
   }>(
     `select id, post_id, parent_id, reply_to_id, author_name, body, status,
             review_note, created_at
-       from club_comments where post_id = $1 order by created_at`,
+       from club_comments where post_id = $1 order by created_at, id`,
     [postId],
   );
 
@@ -403,6 +408,7 @@ export async function clubAdminListReports(
   status: ReportStatus | "all" = "open",
 ): Promise<ClubReport[]> {
   await requireAdmin();
+  status = enumArg(status, ["open", "resolved", "dismissed", "all"], "وضعیت نامعتبر است.");
 
   const rows = await query<{
     id: string;
@@ -425,7 +431,7 @@ export async function clubAdminListReports(
        left join club_posts p    on r.target_type = 'post'    and p.id = r.target_id
        left join club_comments c on r.target_type = 'comment' and c.id = r.target_id
       where ($1::text = 'all' or r.status = $1)
-      order by r.created_at desc
+      order by r.created_at desc, r.id
       limit 200`,
     [status],
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
+import Modal from "@/components/UI/Modal";
 
 /**
  * دیالوگ تأیید عملیات.
@@ -65,72 +66,18 @@ function ConfirmDialogPanel({
   const [typed, setTyped] = useState("");
   const titleId = useId();
   const bodyId = useId();
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
-
-  // فوکوس روی «انصراف» و نه روی دکمهٔ خطرناک: اگر کاربر ناخواسته Enter بزند،
-  // نتیجه‌اش بستنِ دیالوگ باشد نه انجام دادنِ کار.
-  useEffect(() => {
-    cancelRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-        return;
-      }
-
-      // نگه داشتن فوکوس داخل دیالوگ: بدون این، Tab کاربر را به صفحهٔ پشت
-      // می‌برد در حالی که دیالوگ هنوز باز است.
-      if (e.key !== "Tab" || !panelRef.current) return;
-      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", onKey);
-    // اسکرول صفحهٔ پشت قفل می‌شود تا دیالوگ واقعاً مودال به نظر برسد.
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onCancel]);
 
   const typingSatisfied = !requireTyping || typed.trim() === requireTyping.trim();
 
   return (
-    <div
-      dir="rtl"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={(e) => {
-        // فقط کلیک روی خودِ پس‌زمینه می‌بندد، نه کلیکی که از داخل پنل بالا آمده.
-        if (e.target === e.currentTarget) onCancel();
-      }}
+    <Modal
+      role="alertdialog"
+      onClose={onCancel}
+      labelledBy={titleId}
+      describedBy={bodyId}
+      className="max-w-md p-6"
     >
-      <div
-        ref={panelRef}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-xl"
-      >
+      <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <span
             className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
@@ -175,9 +122,12 @@ function ConfirmDialogPanel({
           </label>
         )}
 
+        {/* «انصراف» عمداً اولین دکمه در DOM است: `Modal` فوکوس را به اولین
+            موردِ قابل فوکوس می‌دهد، پس Enterِ ناخواسته دیالوگ را می‌بندد و
+            کارِ برگشت‌ناپذیر را انجام نمی‌دهد. (وقتی `requireTyping` هست،
+            اولین مورد آن ورودی است — که باز هم بی‌خطر است.) */}
         <div className="flex flex-wrap justify-end gap-2">
           <button
-            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="min-h-11 rounded-xl border border-border px-5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -198,6 +148,6 @@ function ConfirmDialogPanel({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

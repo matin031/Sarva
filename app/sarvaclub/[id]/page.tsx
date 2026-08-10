@@ -32,8 +32,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const viewer = await getClubViewer();
   const post = await getClubPost(id, viewer);
-  // RLS hides an unapproved poem from everyone but its poet, so "not found"
-  // and "not yours to see" collapse into the same 404 on purpose
+  // «پیدا نشد»، «مال تو نیست که ببینی» و «این اصلاً شناسه نیست» عمداً هر سه به
+  // یک ۴۰۴ می‌رسند: تفکیکشان به کسی که شناسه‌ها را حدس می‌زند می‌گوید کدام
+  // سروده‌ها وجود دارند و کدام هنوز در صف بررسی‌اند.
   if (!post) notFound();
 
   const comments = post.status === "approved" || post.isMine

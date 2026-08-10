@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClubPost, updateClubPost } from "@/lib/club/actions";
 import {
@@ -43,6 +44,9 @@ export default function PoemComposer({
     editing?.isAnonymous ? (editing?.authorName ?? "") : "",
   );
   const [error, setError] = useState<string | null>(null);
+  /** خبرِ آرام، جدا از خطا: «وزنی پیدا نشد» یک شکست نیست و نباید قرمز باشد. */
+  const [hint, setHint] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -61,18 +65,20 @@ export default function PoemComposer({
       .map((l) => l.trim())
       .filter(Boolean);
     if (lines.length === 0) {
-      setError("اول شعرت را بنویس تا وزنش را پیدا کنم.");
+      setHint("اول شعرت را بنویس تا وزنش را پیدا کنم.");
       return;
     }
     setDetecting(true);
     setError(null);
+    setHint(null);
     try {
       const { findMeterLocally } = await import("@/lib/aruz");
       const guess = findMeterLocally(lines[0], lines[1]);
+      if (guess) setHint(`وزن پیدا شد: ${guess.rhythm}`);
+      else setHint("وزنی پیدا نشد؛ می‌توانی خودت بنویسی یا خالی بگذاری.");
       if (guess) setMeter(guess.rhythm);
-      else setError("وزنی پیدا نشد؛ می‌توانی خودت بنویسی یا خالی بگذاری.");
     } catch {
-      setError("تشخیص وزن ممکن نشد؛ می‌توانی خودت بنویسی یا خالی بگذاری.");
+      setHint("تشخیص وزن ممکن نشد؛ می‌توانی خودت بنویسی یا خالی بگذاری.");
     } finally {
       setDetecting(false);
     }
@@ -80,6 +86,7 @@ export default function PoemComposer({
 
   const submit = () => {
     setError(null);
+    setHint(null);
     startTransition(async () => {
       const payload = {
         title,
@@ -97,16 +104,76 @@ export default function PoemComposer({
         setError(res.error);
         return;
       }
-      if (!editing) {
-        setTitle("");
-        setBody("");
-        setMeter("");
-        setTags([]);
-      }
       router.refresh();
-      onDone?.();
+
+      // ⚠️ ویرایش و ارسالِ تازه دو سرانجام کاملاً متفاوت دارند.
+      //
+      // سرودهٔ تازه 'pending' است، پس در فید *دیده نمی‌شود*. نسخهٔ قبلی فقط
+      // فرم را می‌بست: دانش‌آموزی که با تردید دکمه را زده بود، صفحه‌ای می‌دید
+      // که هیچ فرقی نکرده و باور می‌کرد چیزی ارسال نشده. برای بخشی که کل
+      // انگیزه‌اش «کسانی که می‌سرایند و به کسی نشان نمی‌دهند» است، این بدترین
+      // پیام ممکن بود.
+      //
+      // ویرایش اما جای خودش را دارد (کاربر روی صفحهٔ همان سروده است و آن صفحه
+      // خودش وضعیت «در انتظار بررسی» را نشان می‌دهد)، پس همان رفتار قبلی
+      // می‌ماند.
+      if (editing) {
+        onDone?.();
+        return;
+      }
+
+      setTitle("");
+      setBody("");
+      setMeter("");
+      setTags([]);
+      setSent(true);
     });
   };
+
+  if (sent) {
+    return (
+      <div
+        dir="rtl"
+        role="status"
+        className="rounded-2xl border border-primary/40 bg-primary/[0.06] p-6 text-center"
+      >
+        <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
+          </svg>
+        </span>
+        <p className="font-bold">سروده‌ات رسید</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-muted-foreground">
+          الان در صف بررسی است. به‌محض تأیید مدیر، در همین فید منتشر می‌شود و بقیه
+          می‌توانند زیرش بنویسند.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSent(false)}
+            className="min-h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          >
+            سرودهٔ دیگری بفرست
+          </button>
+          <Link
+            href="/panel/club"
+            className="min-h-11 rounded-xl border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            دیدن سروده‌های من
+          </Link>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="min-h-11 rounded-xl px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              بستن
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const inputClass =
     "min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary/60";
@@ -250,18 +317,29 @@ export default function PoemComposer({
         )}
       </div>
 
+      {hint && (
+        <p className="mb-3 rounded-xl border border-primary/30 bg-primary/8 px-3 py-2 text-sm text-primary">
+          {hint}
+        </p>
+      )}
+
       {error && (
-        <p className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={submit}
-          disabled={pending}
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95 disabled:opacity-60"
+          // متن خالی حتماً از سرور خطا می‌گیرد؛ رفت‌وبرگشتش هیچ چیزی به کاربر
+          // نمی‌گوید که همین‌جا معلوم نباشد.
+          disabled={pending || body.trim().length < 5}
+          className="min-h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
         >
           {pending
             ? "در حال ارسال…"
@@ -273,10 +351,13 @@ export default function PoemComposer({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="min-h-11 rounded-xl border border-border px-5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             انصراف
           </button>
+        )}
+        {body.trim().length > 0 && body.trim().length < 5 && (
+          <span className="text-xs text-muted-foreground">دست‌کم یک مصراع بنویس.</span>
         )}
       </div>
     </div>

@@ -138,12 +138,17 @@ export default function PoemCard({
             {fa(post.commentCount)} دیدگاه
           </Link>
 
+          {/* ⚠️ این دکمه قبلاً `opacity-0 group-hover:opacity-100` بود، یعنی تا
+              وقتی موشواره روی کارت نرود دیده نمی‌شد. روی گوشی hover وجود ندارد،
+              پس دکمه **هرگز** ظاهر نمی‌شد: کاربر موبایل هیچ راهی برای گزارش
+              سرقت ادبی نداشت — و بیشترِ خوانندگان این سایت با گوشی می‌آیند.
+              حالا همیشه هست، فقط کم‌رنگ، و با نزدیک شدن به کارت پررنگ می‌شود. */}
           <button
             type="button"
             onClick={() =>
               signedIn ? setReporting(true) : onNeedsAuth?.("برای گزارش باید وارد حساب کاربری‌ات شوی.")
             }
-            className="ms-auto text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus:opacity-100 group-hover:opacity-100"
+            className="ms-auto min-h-9 rounded-lg px-2 text-[11px] text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive group-hover:text-muted-foreground"
           >
             گزارش
           </button>

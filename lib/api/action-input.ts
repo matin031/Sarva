@@ -43,6 +43,15 @@ export function uuidArg(value: unknown, message = "شناسه نامعتبر ا�
   return parse(z.uuid(), value, message);
 }
 
+/** همان بررسی، ولی بدون پرتاب.
+ *
+ *  برای لایهٔ خواندن است، جایی که شناسهٔ نامعتبر باید «پیدا نشد» باشد نه خطا:
+ *  یک آدرس مثل `/sarvaclub/abc` را کاربر یا خزندهٔ گوگل هم می‌سازد، و پستگرس
+ *  برای uuid بدشکل استثنا می‌دهد — یعنی ۵۰۰ به‌جای ۴۰۴. */
+export function isUuid(value: unknown): value is string {
+  return z.uuid().safeParse(value).success;
+}
+
 /** یکی از چند مقدار مشخص. */
 export function enumArg<const T extends readonly [string, ...string[]]>(
   value: unknown,

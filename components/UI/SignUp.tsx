@@ -139,7 +139,7 @@ export default function SignUp({
     // موفق: دکمه تا وقتی جابه‌جایی به /panel واقعاً انجام شود در حالت بارگذاری
     // می‌ماند
     onSuccess(pendingEmail);
-    router.push("/panel");
+    router.push("/panel/home");
     router.refresh();
   };
 

@@ -161,7 +161,9 @@ export default function LoginForm({
     // موفق: دکمه در حالت بارگذاری می‌ماند — داریم از صفحه خارج می‌شویم، پس
     // چیزی برای بازنشانی نیست و بازنشاندنش فقط باعث یک پرشِ لحظه‌ای می‌شود
     onSuccess(data.email);
-    router.push("/panel");
+    // مستقیم به مقصد، نه به `/panel` که خودش دوباره ریدایرکت می‌کند — آن پرشِ
+    // اضافه یک رفت‌وبرگشتِ سرور بود که کاربر به‌صورت یک لحظه مکث می‌دیدش.
+    router.push("/panel/home");
     router.refresh();
   };
   const [showPassword, setShowPassword] = useState(false);

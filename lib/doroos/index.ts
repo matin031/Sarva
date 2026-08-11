@@ -6,7 +6,55 @@ import type { Grade, GradeKey, Lesson, LessonRef } from "@/lib/doroos/types";
  *  actually have them — an unknown lesson renders as «درس ۷» rather than an
  *  invented name — and `ready` gates whether it is clickable yet. */
 
-const LESSONS_PER_BOOK = 18;
+export const LESSONS_PER_BOOK = 18;
+
+/**
+ * شمارهٔ درس از آدرس.
+ *
+ * ⚠️ ارقام فارسی هم پذیرفته می‌شوند. کلِ رابط شماره‌ها را فارسی نشان می‌دهد
+ * («درس ۱»)، پس کاربری که آدرس را از روی صفحه تایپ یا کپی می‌کند، طبیعتاً
+ * `/doroos/yazdahom/۱` می‌سازد — و `Number("۱")` در جاوااسکریپت NaN است، یعنی
+ * یک ۴۰۴ برای درسی که وجود دارد.
+ *
+ * `Number` تنها بعد از این نرمال‌سازی صدا زده می‌شود و ورودی‌هایی مثل "1.5" یا
+ * "1e2" یا رشتهٔ خالی هم رد می‌شوند: شمارهٔ درس یک عدد صحیح است، نه هر چیزی که
+ * جاوااسکریپت بتواند به عدد تبدیلش کند.
+ */
+export function parseLessonNumber(raw: string): number | null {
+  // ⚠️ اول decode. Next پارامترِ مسیر را **کدشده** می‌دهد، نه رمزگشایی‌شده:
+  //    برای `/doroos/yazdahom/۱` رشته‌ای که به اینجا می‌رسد `"%DB%B1"` است، نه
+  //    `"۱"`. بدون این خط، نرمال‌سازیِ ارقام فارسیِ پایین هیچ‌وقت چیزی برای
+  //    نرمال کردن پیدا نمی‌کرد. (این با یک لاگِ موقت روی همان مسیر دیده شد،
+  //    نه از روی حدس.)
+  //
+  //    decodeURIComponent روی `%` تنها یا دنبالهٔ ناقص استثنا می‌دهد، و
+  //    آدرس را کاربر می‌سازد — پس داخل try.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+
+  // ارقام فارسی (۰-۹، U+06F0..U+06F9) و عربی (٠-٩، U+0660..U+0669) هر دو
+  // پذیرفته می‌شوند: کلِ رابط شماره‌ها را فارسی نشان می‌دهد («درس ۱»)، پس
+  // کاربری که آدرس را از روی صفحه کپی یا تایپ می‌کند طبیعتاً همان را می‌سازد.
+  const normalized = decoded
+    .trim()
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+
+  // فقط رقم — نه "1.5"، نه "1e2"، نه رشتهٔ خالی. شمارهٔ درس عدد صحیح است، نه
+  // هر چیزی که Number بتواند به عدد تبدیلش کند.
+  if (!/^\d+$/.test(normalized)) return null;
+  const n = Number(normalized);
+  return Number.isInteger(n) ? n : null;
+}
+
+/** آیا این شماره اصلاً در کتاب هست؟ (جدا از اینکه محتوایش نوشته شده یا نه) */
+export function isLessonInBook(number: number): boolean {
+  return number >= 1 && number <= LESSONS_PER_BOOK;
+}
 
 /** Lesson titles we know, per grade, keyed by lesson number. */
 const TITLES: Record<GradeKey, Record<number, string>> = {

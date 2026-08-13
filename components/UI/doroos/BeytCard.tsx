@@ -126,7 +126,7 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
               </p>
             </div>
             <div className="relative z-20 rounded-2xl border border-gold/30 bg-background p-4 sm:col-span-2">
-              <h3 className="mb-1.5 text-xs font-black tracking-wide text-gold">
+              <h3 className="mb-1.5 text-xs font-black tracking-wide text-gold-ink">
                 مفهوم
               </h3>
               <p className="text-sm leading-relaxed font-bold text-foreground">
@@ -169,7 +169,7 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
           transition={{ duration: 0.5, ease: EASE }}
           className="relative z-20 mt-4 rounded-2xl border border-gold/30 bg-card p-5"
         >
-          <h3 className="mb-3 text-sm font-black text-gold">قرابت معنایی</h3>
+          <h3 className="mb-3 text-sm font-black text-gold-ink">قرابت معنایی</h3>
           <ul className="space-y-2.5">
             {beyt.affinity.map((a, i) => (
               <li

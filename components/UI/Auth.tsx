@@ -82,7 +82,7 @@ function Auth() {
             variants={itemVariants}
             className=" cursor-default font-extrabold text-3xl text-muted-foreground dark:text-white"
           >
-            ورود به عروض‌آموز
+            ورود به سروا
           </motion.h1>
           <motion.p
             variants={itemVariants}

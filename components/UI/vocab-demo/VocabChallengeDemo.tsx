@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { vocabImageUrl } from "@/lib/vocab-image";
 
 /** Self-playing preview of the واژه‌یاب game's CHALLENGE mode for the homepage:
  *  a picture with a ticking countdown ring and two words — the timer runs, the
@@ -41,6 +42,8 @@ export default function VocabChallengeDemo() {
   const [round, setRound] = useState(0);
   const [num, setNum] = useState(5);
   const [answered, setAnswered] = useState(false);
+  /** تصویرهایی که بارگذاری نشدند — به‌ازای اندیسِ راند. */
+  const [brokenImages, setBrokenImages] = useState<Record<number, true>>({});
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -176,7 +179,40 @@ export default function VocabChallengeDemo() {
               answered ? "border-green-500" : "border-border"
             }`}
           >
-            <img src={r.src} alt="تصویر" className=" object-cover size-full" />
+            {/* ⚠️ دو تغییر، هر دو به یک دلیل: این کارت روی صفحهٔ اصلی است و
+                اولین چیزی است که یک بازدیدکنندهٔ تازه می‌بیند.
+
+                ۱) آدرس از `vocabImageUrl` می‌گذرد. تنها جای سایت بود که
+                   مستقیم به raw.githubusercontent.com وصل می‌شد — یعنی
+                   صفحهٔ اصلی به یک مخزنِ شخصیِ شخصِ دیگری بند بود، تصویر
+                   بی‌واترمارک می‌آمد، و IP هر بازدیدکننده به گیت‌هاب می‌رفت.
+                   بقیهٔ سایت (بازی، پنل، نشان‌شده‌ها) همه از همین helper
+                   استفاده می‌کنند.
+
+                ۲) اگر باز هم نیامد، به‌جای آیکونِ عکسِ شکسته یک جای‌گزینِ
+                   آرام نشان داده می‌شود. کارت ارتفاع ثابت دارد، پس چیدمان
+                   تکان نمی‌خورد. */}
+            {brokenImages[round] ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4} className="size-10">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 4.5h16.5a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6a1.5 1.5 0 011.5-1.5z"
+                  />
+                </svg>
+                <span className="text-xs">تصویر در دسترس نیست</span>
+              </div>
+            ) : (
+              <img
+                src={vocabImageUrl(r.src)}
+                alt="تصویر واژه"
+                loading="lazy"
+                decoding="async"
+                onError={() => setBrokenImages((b) => ({ ...b, [round]: true }))}
+                className="size-full object-cover"
+              />
+            )}
             <AnimatePresence>
               {answered && (
                 <motion.div

@@ -13,7 +13,7 @@ import Shamseh from "@/components/UI/doroos/Shamseh";
 
 const TONE: Record<string, string> = {
   dahom: "--color-primary",
-  yazdahom: "--color-gold",
+  yazdahom: "--color-gold-ink",
   davazdahom: "--color-lapis-light",
 };
 

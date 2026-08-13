@@ -83,7 +83,7 @@ export default function LessonView({
             <RevealItem>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 {lesson.kind === "poem" && lesson.poet ? (
-                  <span className="rounded-full border border-gold/40 bg-card px-3 py-1 font-bold text-gold">
+                  <span className="rounded-full border border-gold/40 bg-card px-3 py-1 font-bold text-gold-ink">
                     {lesson.poet}
                   </span>
                 ) : null}
@@ -216,7 +216,7 @@ export default function LessonView({
                     }}
                     className="relative z-20 rounded-2xl border border-border bg-background p-5"
                   >
-                    <h3 className="mb-2 font-black text-gold">{topic.title}</h3>
+                    <h3 className="mb-2 font-black text-gold-ink">{topic.title}</h3>
                     <p className="text-sm leading-relaxed text-foreground">
                       {topic.body}
                     </p>

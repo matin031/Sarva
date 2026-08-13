@@ -133,7 +133,9 @@ export type Lesson = PoemLesson | ProseLesson;
  *  never hard-codes a colour. */
 export const REALMS = [
   { id: "linguistic", label: "قلمرو زبانی", token: "--color-primary" },
-  { id: "literary", label: "قلمرو ادبی", token: "--color-gold" },
+  // ⚠️ gold-ink و نه gold: این توکن به‌عنوان *رنگ متن* استفاده می‌شود و
+  // طلاییِ اصلی روی کاغذِ کرم فقط ۲٫۰۵:۱ کنتراست دارد.
+  { id: "literary", label: "قلمرو ادبی", token: "--color-gold-ink" },
   { id: "intellectual", label: "قلمرو فکری", token: "--color-lapis-light" },
 ] as const;
 

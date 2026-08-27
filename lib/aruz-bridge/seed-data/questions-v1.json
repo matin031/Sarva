@@ -1,0 +1,5090 @@
+[
+  {
+    "phrase": "کجا",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 1,
+    "correctAnswer": "فعل",
+    "id": 1
+  },
+  {
+    "phrase": "مدفن",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 2
+  },
+  {
+    "phrase": "لطایف",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 3
+  },
+  {
+    "phrase": "صانعی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 4
+  },
+  {
+    "phrase": "بخورد",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 5
+  },
+  {
+    "phrase": "مسلمانی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 6
+  },
+  {
+    "phrase": "سرکشیدن",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 7
+  },
+  {
+    "phrase": "شکوفایی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فعلاتن",
+    "id": 8
+  },
+  {
+    "phrase": "آتشِ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 9
+  },
+  {
+    "phrase": "آرشِ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 10
+  },
+  {
+    "phrase": "رها",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 1,
+    "correctAnswer": "فعل",
+    "id": 11
+  },
+  {
+    "phrase": "چنبر",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 12
+  },
+  {
+    "phrase": "دقایق",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 13
+  },
+  {
+    "phrase": "مبتنی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 14
+  },
+  {
+    "phrase": "بنهد",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 15
+  },
+  {
+    "phrase": "پشیمانی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 16
+  },
+  {
+    "phrase": "بردمیدن",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 17
+  },
+  {
+    "phrase": "کاهشِ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 18
+  },
+  {
+    "phrase": "هوا",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 1,
+    "correctAnswer": "فعل",
+    "id": 19
+  },
+  {
+    "phrase": "گلشن",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 20
+  },
+  {
+    "phrase": "تناور",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 21
+  },
+  {
+    "phrase": "بشنوی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 22
+  },
+  {
+    "phrase": "بشود",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 23
+  },
+  {
+    "phrase": "وفاداری",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 24
+  },
+  {
+    "phrase": "مهربانی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 25
+  },
+  {
+    "phrase": "نالهٔ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 26
+  },
+  {
+    "phrase": "چرا",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 1,
+    "correctAnswer": "فعل",
+    "id": 27
+  },
+  {
+    "phrase": "حاذق",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 28
+  },
+  {
+    "phrase": "غرایب",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 29
+  },
+  {
+    "phrase": "مانعی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 30
+  },
+  {
+    "phrase": "بزند",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 31
+  },
+  {
+    "phrase": "شکیبایی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 32
+  },
+  {
+    "phrase": "بت‌پرستی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 33
+  },
+  {
+    "phrase": "جلوهٔ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 34
+  },
+  {
+    "phrase": "مرا",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 1,
+    "correctAnswer": "فعل",
+    "id": 35
+  },
+  {
+    "phrase": "منکر",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 36
+  },
+  {
+    "phrase": "عجایب",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 37
+  },
+  {
+    "phrase": "ابلهی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 38
+  },
+  {
+    "phrase": "بکشد",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 39
+  },
+  {
+    "phrase": "توانایی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 40
+  },
+  {
+    "phrase": "خوش‌زبانی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 41
+  },
+  {
+    "phrase": "شعلهٔ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 42
+  },
+  {
+    "phrase": "عامل",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 43
+  },
+  {
+    "phrase": "خموشی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 44
+  },
+  {
+    "phrase": "عاشقی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 45
+  },
+  {
+    "phrase": "بجَهَد",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 46
+  },
+  {
+    "phrase": "خداوندی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 47
+  },
+  {
+    "phrase": "همزبانی",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 48
+  },
+  {
+    "phrase": "بوسهٔ ما",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 49
+  },
+  {
+    "phrase": "ضامن",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 50
+  },
+  {
+    "phrase": "کجایی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 51
+  },
+  {
+    "phrase": "عالمی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 52
+  },
+  {
+    "phrase": "بکَنَد",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 53
+  },
+  {
+    "phrase": "وطن‌خواهی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 54
+  },
+  {
+    "phrase": "ناسپاسی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 55
+  },
+  {
+    "phrase": "خانهٔ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 56
+  },
+  {
+    "phrase": "کرکس",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 57
+  },
+  {
+    "phrase": "جدایی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 58
+  },
+  {
+    "phrase": "حاکمی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 59
+  },
+  {
+    "phrase": "بدهد",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 60
+  },
+  {
+    "phrase": "سخن‌سنجی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 61
+  },
+  {
+    "phrase": "حق‌شناسی",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 62
+  },
+  {
+    "phrase": "نامهٔ ما",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 63
+  },
+  {
+    "phrase": "عاجز",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 64
+  },
+  {
+    "phrase": "سراپا",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 65
+  },
+  {
+    "phrase": "سالکی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 66
+  },
+  {
+    "phrase": "بدمد",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 67
+  },
+  {
+    "phrase": "هنرورزی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 68
+  },
+  {
+    "phrase": "ناپدیدی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 69
+  },
+  {
+    "phrase": "سایهٔ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 70
+  },
+  {
+    "phrase": "زیبا",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 71
+  },
+  {
+    "phrase": "تمنا",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 72
+  },
+  {
+    "phrase": "شاکری",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 73
+  },
+  {
+    "phrase": "سحرخیزی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 74
+  },
+  {
+    "phrase": "خودپرستی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 75
+  },
+  {
+    "phrase": "مصلحتی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 76
+  },
+  {
+    "phrase": "تنها",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 77
+  },
+  {
+    "phrase": "تسلا",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 78
+  },
+  {
+    "phrase": "ناظری",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 79
+  },
+  {
+    "phrase": "وطن‌داری",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 80
+  },
+  {
+    "phrase": "پیدا",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 81
+  },
+  {
+    "phrase": "تعهد",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 82
+  },
+  {
+    "phrase": "زاهدی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 83
+  },
+  {
+    "phrase": "سحرخوانی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 84
+  },
+  {
+    "phrase": "فردا",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 85
+  },
+  {
+    "phrase": "تلطف",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 86
+  },
+  {
+    "phrase": "باطلی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 87
+  },
+  {
+    "phrase": "هنرمندی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 88
+  },
+  {
+    "phrase": "سالک",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 89
+  },
+  {
+    "phrase": "تفکر",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 90
+  },
+  {
+    "phrase": "صادقی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 91
+  },
+  {
+    "phrase": "فرستادن",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 92
+  },
+  {
+    "phrase": "وحشی",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 93
+  },
+  {
+    "phrase": "تعالی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 94
+  },
+  {
+    "phrase": "کاهلی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 95
+  },
+  {
+    "phrase": "خردمندی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 96
+  },
+  {
+    "phrase": "سفالی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 97
+  },
+  {
+    "phrase": "پرستادن",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 98
+  },
+  {
+    "phrase": "سخندانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 99
+  },
+  {
+    "phrase": "پراکندن",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 100
+  },
+  {
+    "phrase": "زندگی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 101
+  },
+  {
+    "phrase": "آزادی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 102
+  },
+  {
+    "phrase": "آزاده",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 103
+  },
+  {
+    "phrase": "آزادگی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 104
+  },
+  {
+    "phrase": "آفرینش",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 105
+  },
+  {
+    "phrase": "گرفتاری",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 106
+  },
+  {
+    "phrase": "مناسبی",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 107
+  },
+  {
+    "phrase": "مبارزه",
+    "option1": "مفاعل",
+    "option2": "فاعلات",
+    "correctOption": 1,
+    "correctAnswer": "مفاعل",
+    "id": 108
+  },
+  {
+    "phrase": "عارفانه",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 109
+  },
+  {
+    "phrase": "ادبی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 110
+  },
+  {
+    "phrase": "داوری",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 111
+  },
+  {
+    "phrase": "آگاهی",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 112
+  },
+  {
+    "phrase": "آسوده",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 113
+  },
+  {
+    "phrase": "آمادگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 114
+  },
+  {
+    "phrase": "آسمانی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 115
+  },
+  {
+    "phrase": "نگهبانی",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 116
+  },
+  {
+    "phrase": "مهارتی",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 117
+  },
+  {
+    "phrase": "مقابله",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 118
+  },
+  {
+    "phrase": "شاعرانه",
+    "option1": "مفاعل",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 119
+  },
+  {
+    "phrase": "پسری",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 120
+  },
+  {
+    "phrase": "یاوری",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 121
+  },
+  {
+    "phrase": "دانایی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 122
+  },
+  {
+    "phrase": "آماده",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 123
+  },
+  {
+    "phrase": "بخشندگی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 124
+  },
+  {
+    "phrase": "زندگانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 125
+  },
+  {
+    "phrase": "فراوانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 126
+  },
+  {
+    "phrase": "محبتی",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 127
+  },
+  {
+    "phrase": "مقایسه",
+    "option1": "فعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 128
+  },
+  {
+    "phrase": "صادقانه",
+    "option1": "فاعلات",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 129
+  },
+  {
+    "phrase": "ابدی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 130
+  },
+  {
+    "phrase": "شاعری",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 131
+  },
+  {
+    "phrase": "تنهایی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 132
+  },
+  {
+    "phrase": "آلوده",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 133
+  },
+  {
+    "phrase": "دیوانگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 134
+  },
+  {
+    "phrase": "جاودانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 135
+  },
+  {
+    "phrase": "مناسبت",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 136
+  },
+  {
+    "phrase": "مسابقه",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 137
+  },
+  {
+    "phrase": "عالمانه",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 138
+  },
+  {
+    "phrase": "خبری",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 139
+  },
+  {
+    "phrase": "معنوی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 140
+  },
+  {
+    "phrase": "دنیایی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 141
+  },
+  {
+    "phrase": "آینده",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 142
+  },
+  {
+    "phrase": "بالندگی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 143
+  },
+  {
+    "phrase": "قهرمانی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 144
+  },
+  {
+    "phrase": "مراقبت",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 145
+  },
+  {
+    "phrase": "مراجعه",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 146
+  },
+  {
+    "phrase": "کودکانه",
+    "option1": "مفاعلن",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 147
+  },
+  {
+    "phrase": "اثری",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 148
+  },
+  {
+    "phrase": "مذهبی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 149
+  },
+  {
+    "phrase": "معنایی",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 150
+  },
+  {
+    "phrase": "فرزانه",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 151
+  },
+  {
+    "phrase": "بارندگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 152
+  },
+  {
+    "phrase": "پهلوانی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 153
+  },
+  {
+    "phrase": "مقاومت",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 154
+  },
+  {
+    "phrase": "مشاوره",
+    "option1": "فعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 155
+  },
+  {
+    "phrase": "مخلصانه",
+    "option1": "مفاعل",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 156
+  },
+  {
+    "phrase": "نظری",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 157
+  },
+  {
+    "phrase": "صنعتی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 158
+  },
+  {
+    "phrase": "دریایی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 159
+  },
+  {
+    "phrase": "دیوانه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 160
+  },
+  {
+    "phrase": "توفندگی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 161
+  },
+  {
+    "phrase": "مشارکت",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 162
+  },
+  {
+    "phrase": "مشاهده",
+    "option1": "مفاعل",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "مفاعل",
+    "id": 163
+  },
+  {
+    "phrase": "سفری",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 164
+  },
+  {
+    "phrase": "مرکزی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 165
+  },
+  {
+    "phrase": "پیروزی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 166
+  },
+  {
+    "phrase": "بیگانه",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 167
+  },
+  {
+    "phrase": "آسودگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 168
+  },
+  {
+    "phrase": "موافقت",
+    "option1": "مفاعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 169
+  },
+  {
+    "phrase": "پدری",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 170
+  },
+  {
+    "phrase": "منزوی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 171
+  },
+  {
+    "phrase": "خوشحالی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 172
+  },
+  {
+    "phrase": "مردانه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 173
+  },
+  {
+    "phrase": "مصاحبت",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 174
+  },
+  {
+    "phrase": "نفری",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 175
+  },
+  {
+    "phrase": "آدمی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 176
+  },
+  {
+    "phrase": "آبادی",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 177
+  },
+  {
+    "phrase": "پیاده",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 178
+  },
+  {
+    "phrase": "برادری",
+    "option1": "مفاعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 179
+  },
+  {
+    "phrase": "عملی",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 180
+  },
+  {
+    "phrase": "مادری",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 181
+  },
+  {
+    "phrase": "آرامی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 182
+  },
+  {
+    "phrase": "پروانه",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 183
+  },
+  {
+    "phrase": "فروتنی",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 184
+  },
+  {
+    "phrase": "بشری",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 185
+  },
+  {
+    "phrase": "داخلی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 186
+  },
+  {
+    "phrase": "زیبایی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 187
+  },
+  {
+    "phrase": "ویرانه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 188
+  },
+  {
+    "phrase": "همیشگی",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 189
+  },
+  {
+    "phrase": "منبری",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 190
+  },
+  {
+    "phrase": "بیداری",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 191
+  },
+  {
+    "phrase": "مظهری",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 192
+  },
+  {
+    "phrase": "رفتاری",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 193
+  },
+  {
+    "phrase": "معبدی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 194
+  },
+  {
+    "phrase": "تاریخی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 195
+  },
+  {
+    "phrase": "مفصلی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 196
+  },
+  {
+    "phrase": "واعظی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 197
+  },
+  {
+    "phrase": "بافقی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 198
+  },
+  {
+    "phrase": "رودکی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 199
+  },
+  {
+    "phrase": "دهلوی",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 200
+  },
+  {
+    "phrase": "تا مرا",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 201
+  },
+  {
+    "phrase": "از نفیرم",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 202
+  },
+  {
+    "phrase": "در نوایم",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 203
+  },
+  {
+    "phrase": "شرحه شرحه",
+    "option1": "مفاعل",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 204
+  },
+  {
+    "phrase": "تا بگویم",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 205
+  },
+  {
+    "phrase": "جست و جو",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 206
+  },
+  {
+    "phrase": "سِرِّ من از",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 207
+  },
+  {
+    "phrase": "تن ز جان و",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 208
+  },
+  {
+    "phrase": "اندر نی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 209
+  },
+  {
+    "phrase": "اندر می",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 210
+  },
+  {
+    "phrase": "نی حریفِ",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 211
+  },
+  {
+    "phrase": "هر که از",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 212
+  },
+  {
+    "phrase": "پرده‌هایش",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 213
+  },
+  {
+    "phrase": "همچو نی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 214
+  },
+  {
+    "phrase": "تریاقی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 215
+  },
+  {
+    "phrase": "مشتاقی",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 216
+  },
+  {
+    "phrase": "قصه‌های",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 217
+  },
+  {
+    "phrase": "در غمِ ما",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 218
+  },
+  {
+    "phrase": "هر که جز",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 219
+  },
+  {
+    "phrase": "هر که بی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 220
+  },
+  {
+    "phrase": "درنیابد",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 221
+  },
+  {
+    "phrase": "حالِ پخته",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 222
+  },
+  {
+    "phrase": "پس سخن",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 223
+  },
+  {
+    "phrase": "طاعتش",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 224
+  },
+  {
+    "phrase": "ورق در بر",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 225
+  },
+  {
+    "phrase": "توانایم",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 226
+  },
+  {
+    "phrase": "بقایِ من",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 227
+  },
+  {
+    "phrase": "خداوندم",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 228
+  },
+  {
+    "phrase": "خدایِ من",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 229
+  },
+  {
+    "phrase": "شکیبایم",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 230
+  },
+  {
+    "phrase": "مسلمانم",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 231
+  },
+  {
+    "phrase": "رهبری",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 232
+  },
+  {
+    "phrase": "وطن‌خواهم",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 233
+  },
+  {
+    "phrase": "وفادارم",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 234
+  },
+  {
+    "phrase": "صفایِ من",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 235
+  },
+  {
+    "phrase": "پریشانم",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 236
+  },
+  {
+    "phrase": "ویژگی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 237
+  },
+  {
+    "phrase": "وطنی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 238
+  },
+  {
+    "phrase": "افسانه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 239
+  },
+  {
+    "phrase": "روحانی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 240
+  },
+  {
+    "phrase": "سخنرانی",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 241
+  },
+  {
+    "phrase": "شادمانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 242
+  },
+  {
+    "phrase": "نوجوانی",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 243
+  },
+  {
+    "phrase": "پیوستگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 244
+  },
+  {
+    "phrase": "معرفتی",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 245
+  },
+  {
+    "phrase": "مخاصمت",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 246
+  },
+  {
+    "phrase": "مخاطره",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 247
+  },
+  {
+    "phrase": "عاشقانه",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 248
+  },
+  {
+    "phrase": "نویسنده",
+    "option1": "مفاعیل",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیل",
+    "id": 249
+  },
+  {
+    "phrase": "شنونده",
+    "option1": "مفاعل",
+    "option2": "فعلات",
+    "correctOption": 2,
+    "correctAnswer": "فعلات",
+    "id": 250
+  },
+  {
+    "phrase": "بستگی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 251
+  },
+  {
+    "phrase": "هنری",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 252
+  },
+  {
+    "phrase": "بیچاره",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 253
+  },
+  {
+    "phrase": "پنهانی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 254
+  },
+  {
+    "phrase": "امیدواری",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 255
+  },
+  {
+    "phrase": "اصفهانی",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 256
+  },
+  {
+    "phrase": "عصبانی",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 257
+  },
+  {
+    "phrase": "آلودگی",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 258
+  },
+  {
+    "phrase": "مدرسه‌ای",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 259
+  },
+  {
+    "phrase": "مکاشفت",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 260
+  },
+  {
+    "phrase": "مکالمه",
+    "option1": "فعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 261
+  },
+  {
+    "phrase": "عاجزانه",
+    "option1": "فاعلات",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 262
+  },
+  {
+    "phrase": "نماینده",
+    "option1": "فاعلات",
+    "option2": "مفاعیل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیل",
+    "id": 263
+  },
+  {
+    "phrase": "تازگی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 264
+  },
+  {
+    "phrase": "همگی",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 265
+  },
+  {
+    "phrase": "دلداده",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 266
+  },
+  {
+    "phrase": "نورانی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 267
+  },
+  {
+    "phrase": "روشنایی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 268
+  },
+  {
+    "phrase": "شاعرانی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 269
+  },
+  {
+    "phrase": "شایستگی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 270
+  },
+  {
+    "phrase": "گمشدگی",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 271
+  },
+  {
+    "phrase": "معاملت",
+    "option1": "مفاعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 272
+  },
+  {
+    "phrase": "مجادله",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 273
+  },
+  {
+    "phrase": "پشتوانه",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 274
+  },
+  {
+    "phrase": "شتابنده",
+    "option1": "مفاعلن",
+    "option2": "مفاعیل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیل",
+    "id": 275
+  },
+  {
+    "phrase": "خستگی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 276
+  },
+  {
+    "phrase": "افتاده",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 277
+  },
+  {
+    "phrase": "پایانی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 278
+  },
+  {
+    "phrase": "خراسانی",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 279
+  },
+  {
+    "phrase": "آفرینی",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 280
+  },
+  {
+    "phrase": "فرهیختگی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 281
+  },
+  {
+    "phrase": "مسافرت",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 282
+  },
+  {
+    "phrase": "محاسبه",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 283
+  },
+  {
+    "phrase": "آشیانه",
+    "option1": "فاعلات",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 284
+  },
+  {
+    "phrase": "درخشنده",
+    "option1": "مفاعل",
+    "option2": "مفاعیل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیل",
+    "id": 285
+  },
+  {
+    "phrase": "ساختگی",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 286
+  },
+  {
+    "phrase": "میانه",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 287
+  },
+  {
+    "phrase": "طوفانی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 288
+  },
+  {
+    "phrase": "روانخوانی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 289
+  },
+  {
+    "phrase": "خودستایی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 290
+  },
+  {
+    "phrase": "آهستگی",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 291
+  },
+  {
+    "phrase": "مهاجرت",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 292
+  },
+  {
+    "phrase": "مطالعه",
+    "option1": "فعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 293
+  },
+  {
+    "phrase": "آستانه",
+    "option1": "مفاعل",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 294
+  },
+  {
+    "phrase": "رساننده",
+    "option1": "مفاعیل",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیل",
+    "id": 295
+  },
+  {
+    "phrase": "سالگی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 296
+  },
+  {
+    "phrase": "یکدانه",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 297
+  },
+  {
+    "phrase": "قربانی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 298
+  },
+  {
+    "phrase": "پرستاری",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 299
+  },
+  {
+    "phrase": "راهنمایی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 300
+  },
+  {
+    "phrase": "بیهودگی",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 301
+  },
+  {
+    "phrase": "چگونگی",
+    "option1": "مفاعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 302
+  },
+  {
+    "phrase": "مفاخره",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعل",
+    "id": 303
+  },
+  {
+    "phrase": "نوازنده",
+    "option1": "مفاعیل",
+    "option2": "فاعلات",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیل",
+    "id": 304
+  },
+  {
+    "phrase": "چیرگی",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 305
+  },
+  {
+    "phrase": "فرمانده",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 306
+  },
+  {
+    "phrase": "سامانی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 307
+  },
+  {
+    "phrase": "درختانی",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 308
+  },
+  {
+    "phrase": "کدخدایی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 309
+  },
+  {
+    "phrase": "شوریدگی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 310
+  },
+  {
+    "phrase": "خجستگی",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 311
+  },
+  {
+    "phrase": "کتابخانه",
+    "option1": "مفاعیل",
+    "option2": "فاعلات",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیل",
+    "id": 312
+  },
+  {
+    "phrase": "خانگی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 313
+  },
+  {
+    "phrase": "درمانده",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 314
+  },
+  {
+    "phrase": "انسانی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 315
+  },
+  {
+    "phrase": "پذیرایی",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 316
+  },
+  {
+    "phrase": "مردانگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 317
+  },
+  {
+    "phrase": "رسیدگی",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 318
+  },
+  {
+    "phrase": "دیدگی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 319
+  },
+  {
+    "phrase": "وامانده",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 320
+  },
+  {
+    "phrase": "زندانی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 321
+  },
+  {
+    "phrase": "اهورایی",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 322
+  },
+  {
+    "phrase": "همسایگی",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 323
+  },
+  {
+    "phrase": "یگانگی",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 324
+  },
+  {
+    "phrase": "رستگی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 325
+  },
+  {
+    "phrase": "سازنده",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 326
+  },
+  {
+    "phrase": "ایمانی",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 327
+  },
+  {
+    "phrase": "اروپایی",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 328
+  },
+  {
+    "phrase": "سازندگی",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 329
+  },
+  {
+    "phrase": "کودکی",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 330
+  },
+  {
+    "phrase": "رخشنده",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 331
+  },
+  {
+    "phrase": "بیگانگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 332
+  },
+  {
+    "phrase": "مردمی",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 333
+  },
+  {
+    "phrase": "لرزنده",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 334
+  },
+  {
+    "phrase": "رهگذر",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 335
+  },
+  {
+    "phrase": "مشتری",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 336
+  },
+  {
+    "phrase": "کافی",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 337
+  },
+  {
+    "phrase": "زرپاره",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 338
+  },
+  {
+    "phrase": "ایدونک",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 339
+  },
+  {
+    "phrase": "معترف",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 340
+  },
+  {
+    "phrase": "ثابت‌قدم",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 341
+  },
+  {
+    "phrase": "چاره‌گری",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 342
+  },
+  {
+    "phrase": "مشایعت",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 343
+  },
+  {
+    "phrase": "مسامحه",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعل",
+    "id": 344
+  },
+  {
+    "phrase": "بالبداهه",
+    "option1": "فعلات",
+    "option2": "فاعلات",
+    "correctOption": 2,
+    "correctAnswer": "فاعلات",
+    "id": 345
+  },
+  {
+    "phrase": "پتیاره",
+    "option1": "فاعلات",
+    "option2": "مفاعیل",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیل",
+    "id": 346
+  },
+  {
+    "phrase": "متقارب",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 347
+  },
+  {
+    "phrase": "کراهیت",
+    "option1": "مفاعیلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 348
+  },
+  {
+    "phrase": "کرامت",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 349
+  },
+  {
+    "phrase": "شایق",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 350
+  },
+  {
+    "phrase": "انگاره",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 351
+  },
+  {
+    "phrase": "مستغرق",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 352
+  },
+  {
+    "phrase": "محتسب",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 353
+  },
+  {
+    "phrase": "فرخنده‌پی",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 354
+  },
+  {
+    "phrase": "سکندری",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 355
+  },
+  {
+    "phrase": "استشاره",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 356
+  },
+  {
+    "phrase": "متعصب",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فعلاتن",
+    "id": 357
+  },
+  {
+    "phrase": "الوهیت",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 358
+  },
+  {
+    "phrase": "تداعی",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 359
+  },
+  {
+    "phrase": "معبد",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 360
+  },
+  {
+    "phrase": "دیباچه",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 361
+  },
+  {
+    "phrase": "جسمانی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 362
+  },
+  {
+    "phrase": "برحسب",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 363
+  },
+  {
+    "phrase": "خوش‌مشربی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 364
+  },
+  {
+    "phrase": "سبکسری",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 365
+  },
+  {
+    "phrase": "متواتر",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 366
+  },
+  {
+    "phrase": "ربوبیت",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 367
+  },
+  {
+    "phrase": "طفیلی",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 368
+  },
+  {
+    "phrase": "فاحش",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 369
+  },
+  {
+    "phrase": "پرمایه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 370
+  },
+  {
+    "phrase": "شیدایی",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 371
+  },
+  {
+    "phrase": "مستمع",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 372
+  },
+  {
+    "phrase": "ستیزه‌روی",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 373
+  },
+  {
+    "phrase": "متقاعد",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فعلاتن",
+    "id": 374
+  },
+  {
+    "phrase": "مدرس",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 375
+  },
+  {
+    "phrase": "چابک",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 376
+  },
+  {
+    "phrase": "عاریه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 377
+  },
+  {
+    "phrase": "کیانی",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 378
+  },
+  {
+    "phrase": "خیره‌سر",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 379
+  },
+  {
+    "phrase": "مطاوعت",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 380
+  },
+  {
+    "phrase": "متحرک",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فعلاتن",
+    "id": 381
+  },
+  {
+    "phrase": "تطاول",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 382
+  },
+  {
+    "phrase": "چاووش",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 383
+  },
+  {
+    "phrase": "علامه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 384
+  },
+  {
+    "phrase": "مستعجل",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 385
+  },
+  {
+    "phrase": "مرتعش",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 386
+  },
+  {
+    "phrase": "مظاهرت",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 387
+  },
+  {
+    "phrase": "تعصب",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 388
+  },
+  {
+    "phrase": "بیعت",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 389
+  },
+  {
+    "phrase": "تنبوشه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 390
+  },
+  {
+    "phrase": "استغنا",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 391
+  },
+  {
+    "phrase": "بذله‌گو",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 392
+  },
+  {
+    "phrase": "مناصحت",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 393
+  },
+  {
+    "phrase": "درایت",
+    "option1": "مفعولن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 394
+  },
+  {
+    "phrase": "مرهم",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 395
+  },
+  {
+    "phrase": "آدینه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 396
+  },
+  {
+    "phrase": "استسقا",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 397
+  },
+  {
+    "phrase": "آوری",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 398
+  },
+  {
+    "phrase": "قداره‌کش",
+    "option1": "مفاعلن",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 399
+  },
+  {
+    "phrase": "زبونی",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 400
+  },
+  {
+    "phrase": "خایب",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 401
+  },
+  {
+    "phrase": "فرخنده",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 402
+  },
+  {
+    "phrase": "تهنیت",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 403
+  },
+  {
+    "phrase": "منقطع",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 404
+  },
+  {
+    "phrase": "توازن",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 405
+  },
+  {
+    "phrase": "رخصت",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 406
+  },
+  {
+    "phrase": "اندیشه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 407
+  },
+  {
+    "phrase": "یکایک",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 408
+  },
+  {
+    "phrase": "مغتنم",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 409
+  },
+  {
+    "phrase": "مرادف",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 410
+  },
+  {
+    "phrase": "رفعت",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 411
+  },
+  {
+    "phrase": "افسرده",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 412
+  },
+  {
+    "phrase": "ریاحین",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 413
+  },
+  {
+    "phrase": "مهملی",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 414
+  },
+  {
+    "phrase": "مبشر",
+    "option1": "مفعولن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 415
+  },
+  {
+    "phrase": "عازم",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 416
+  },
+  {
+    "phrase": "پرورده",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 417
+  },
+  {
+    "phrase": "سیادت",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 418
+  },
+  {
+    "phrase": "صورتک",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 419
+  },
+  {
+    "phrase": "مفرح",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 420
+  },
+  {
+    "phrase": "مرشد",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 421
+  },
+  {
+    "phrase": "کیمیا",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 422
+  },
+  {
+    "phrase": "سرسرا",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 423
+  },
+  {
+    "phrase": "معطل",
+    "option1": "مفعولن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 424
+  },
+  {
+    "phrase": "محضر",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 425
+  },
+  {
+    "phrase": "اولیتر",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 426
+  },
+  {
+    "phrase": "معتبر",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 427
+  },
+  {
+    "phrase": "خلیفت",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 428
+  },
+  {
+    "phrase": "معبر",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 429
+  },
+  {
+    "phrase": "ناحیت",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 430
+  },
+  {
+    "phrase": "مشتبه",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 431
+  },
+  {
+    "phrase": "مقرر",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 432
+  },
+  {
+    "phrase": "برزیگر",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 433
+  },
+  {
+    "phrase": "خوشلقا",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 434
+  },
+  {
+    "phrase": "دستوری",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 435
+  },
+  {
+    "phrase": "متفق",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 436
+  },
+  {
+    "phrase": "انابت",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 437
+  },
+  {
+    "phrase": "داروغه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 438
+  },
+  {
+    "phrase": "این راه حل",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 439
+  },
+  {
+    "phrase": "بیخودی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 440
+  },
+  {
+    "phrase": "فریادرس",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 441
+  },
+  {
+    "phrase": "پرتوپال",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 442
+  },
+  {
+    "phrase": "نهایت سرعت",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 443
+  },
+  {
+    "phrase": "برای من",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 444
+  },
+  {
+    "phrase": "روی امواج",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 445
+  },
+  {
+    "phrase": "رو به روی",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 446
+  },
+  {
+    "phrase": "پانوراما",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 447
+  },
+  {
+    "phrase": "چه بسا که",
+    "option1": "فعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فعلات",
+    "id": 448
+  },
+  {
+    "phrase": "از آن همه",
+    "option1": "فاعلات",
+    "option2": "مستفعل",
+    "correctOption": 2,
+    "correctAnswer": "مستفعل",
+    "id": 449
+  },
+  {
+    "phrase": "خود را",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 450
+  },
+  {
+    "phrase": "تضرع",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 451
+  },
+  {
+    "phrase": "کازیه",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 452
+  },
+  {
+    "phrase": "آن شب نیز",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 453
+  },
+  {
+    "phrase": "امتناع",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 454
+  },
+  {
+    "phrase": "فیروزه‌فام",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 455
+  },
+  {
+    "phrase": "حلقه زدن",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 456
+  },
+  {
+    "phrase": "به تنهایی",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 457
+  },
+  {
+    "phrase": "زمین نشست",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 458
+  },
+  {
+    "phrase": "سوی دیگر",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 459
+  },
+  {
+    "phrase": "بوی حمله",
+    "option1": "فاعلات",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 460
+  },
+  {
+    "phrase": "پدرش با",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "فعلاتن",
+    "id": 461
+  },
+  {
+    "phrase": "جوانی که",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 2,
+    "correctAnswer": "فعلات",
+    "id": 462
+  },
+  {
+    "phrase": "غرامت",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 463
+  },
+  {
+    "phrase": "بحبوحه",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 464
+  },
+  {
+    "phrase": "پشت بام‌ها",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 465
+  },
+  {
+    "phrase": "در فضا",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 466
+  },
+  {
+    "phrase": "روزها گذشت",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 467
+  },
+  {
+    "phrase": "خشک و جدی",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 468
+  },
+  {
+    "phrase": "امام راستین",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 469
+  },
+  {
+    "phrase": "تمام فنون",
+    "option1": "مفاعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 470
+  },
+  {
+    "phrase": "در کنار آن",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 471
+  },
+  {
+    "phrase": "از کمک به",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 472
+  },
+  {
+    "phrase": "بطالت",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 473
+  },
+  {
+    "phrase": "سیمینه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 474
+  },
+  {
+    "phrase": "عقل بی‌درد",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 475
+  },
+  {
+    "phrase": "روی آب",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 476
+  },
+  {
+    "phrase": "شور زندگی",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 477
+  },
+  {
+    "phrase": "شعر و خیال",
+    "option1": "مستفعلن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 478
+  },
+  {
+    "phrase": "جانب دوستی",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 479
+  },
+  {
+    "phrase": "دریای سبز",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 480
+  },
+  {
+    "phrase": "گرم تماشا",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 481
+  },
+  {
+    "phrase": "ارادت",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 482
+  },
+  {
+    "phrase": "جراره",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 483
+  },
+  {
+    "phrase": "پس از گشت",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 484
+  },
+  {
+    "phrase": "از درون",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 485
+  },
+  {
+    "phrase": "پیش از فرود",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 486
+  },
+  {
+    "phrase": "چشم و دهان",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 487
+  },
+  {
+    "phrase": "کمیسیون",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 488
+  },
+  {
+    "phrase": "به آسمان",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 489
+  },
+  {
+    "phrase": "شکل بدیهی",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 490
+  },
+  {
+    "phrase": "معلق",
+    "option1": "مفعولن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 491
+  },
+  {
+    "phrase": "غاشیه",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 492
+  },
+  {
+    "phrase": "بستر خویش",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 493
+  },
+  {
+    "phrase": "آن جمال",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 494
+  },
+  {
+    "phrase": "ننگی بزرگ",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 495
+  },
+  {
+    "phrase": "بر سر ما",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 496
+  },
+  {
+    "phrase": "گزاف‌کاری",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 497
+  },
+  {
+    "phrase": "برای ما",
+    "option1": "مفاعیلن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 498
+  },
+  {
+    "phrase": "مجسم",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 499
+  },
+  {
+    "phrase": "فیروزه",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 500
+  },
+  {
+    "phrase": "تقدیر ما",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 501
+  },
+  {
+    "phrase": "در زمین",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 502
+  },
+  {
+    "phrase": "مردم کویر",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 503
+  },
+  {
+    "phrase": "دامن او",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 504
+  },
+  {
+    "phrase": "برافراختن",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 505
+  },
+  {
+    "phrase": "مکاید",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 506
+  },
+  {
+    "phrase": "بازبسته",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 507
+  },
+  {
+    "phrase": "درگاه حق",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 508
+  },
+  {
+    "phrase": "هر چه در",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 509
+  },
+  {
+    "phrase": "قلب آن کویر",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 510
+  },
+  {
+    "phrase": "عرضه دهد",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 511
+  },
+  {
+    "phrase": "تمام این وقت",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعیلن",
+    "id": 512
+  },
+  {
+    "phrase": "خفایا",
+    "option1": "مفعولن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 513
+  },
+  {
+    "phrase": "نان مانده",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 514
+  },
+  {
+    "phrase": "حق آن را",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 515
+  },
+  {
+    "phrase": "اعتذار",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 516
+  },
+  {
+    "phrase": "روح دردمند",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 517
+  },
+  {
+    "phrase": "هویدا",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 518
+  },
+  {
+    "phrase": "شب بود و",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 519
+  },
+  {
+    "phrase": "مهتاب سرد",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 520
+  },
+  {
+    "phrase": "التفات",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 521
+  },
+  {
+    "phrase": "سنگ روی سنگ",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 522
+  },
+  {
+    "phrase": "عنایت",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 523
+  },
+  {
+    "phrase": "راه مکه",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 524
+  },
+  {
+    "phrase": "نکبت‌بار",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 525
+  },
+  {
+    "phrase": "مذلت",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 526
+  },
+  {
+    "phrase": "هر سال که",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 527
+  },
+  {
+    "phrase": "پیمان خود",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 528
+  },
+  {
+    "phrase": "مقرب",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 529
+  },
+  {
+    "phrase": "نفایس",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 530
+  },
+  {
+    "phrase": "وسائط",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 531
+  },
+  {
+    "phrase": "مناسک",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 532
+  },
+  {
+    "phrase": "تمکن",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 533
+  },
+  {
+    "phrase": "صباحت",
+    "option1": "فعولن",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 534
+  },
+  {
+    "phrase": "مسرت",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 535
+  },
+  {
+    "phrase": "تفرج",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 536
+  },
+  {
+    "phrase": "باسق",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 537
+  },
+  {
+    "phrase": "تحیّر",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 538
+  },
+  {
+    "phrase": "زُل‌زدن",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 539
+  },
+  {
+    "phrase": "تنها تو",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 540
+  },
+  {
+    "phrase": "دستاورد",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 541
+  },
+  {
+    "phrase": "به شما",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 542
+  },
+  {
+    "phrase": "به سمت شما",
+    "option1": "فعلاتن",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 543
+  },
+  {
+    "phrase": "برای تو",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعل",
+    "id": 544
+  },
+  {
+    "phrase": "من به شما",
+    "option1": "مفتعلن",
+    "option2": "فعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 545
+  },
+  {
+    "phrase": "زندگی به",
+    "option1": "فاعلات",
+    "option2": "مفاعل",
+    "correctOption": 1,
+    "correctAnswer": "فاعلات",
+    "id": 546
+  },
+  {
+    "phrase": "وجد و شادی",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 547
+  },
+  {
+    "phrase": "به خود آمد",
+    "option1": "مفاعیلن",
+    "option2": "فاعلاتن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعیلن",
+    "id": 548
+  },
+  {
+    "phrase": "به نهایت",
+    "option1": "فاعلاتن",
+    "option2": "فعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فعلاتن",
+    "id": 549
+  },
+  {
+    "phrase": "دو عصا به",
+    "option1": "فاعلات",
+    "option2": "فعلات",
+    "correctOption": 2,
+    "correctAnswer": "فعلات",
+    "id": 550
+  },
+  {
+    "phrase": "در این دنیا",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 551
+  },
+  {
+    "phrase": "با این همه",
+    "option1": "مفاعیل",
+    "option2": "مستفعل",
+    "correctOption": 2,
+    "correctAnswer": "مستفعل",
+    "id": 552
+  },
+  {
+    "phrase": "صفوت",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 553
+  },
+  {
+    "phrase": "مؤکّد",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 554
+  },
+  {
+    "phrase": "من خبر",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 555
+  },
+  {
+    "phrase": "با هم به",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 556
+  },
+  {
+    "phrase": "از آن است",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 557
+  },
+  {
+    "phrase": "که شما",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 558
+  },
+  {
+    "phrase": "که دانشی",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 559
+  },
+  {
+    "phrase": "در نظرم",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفتعلن",
+    "id": 560
+  },
+  {
+    "phrase": "فکر نمی‌کرد",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 561
+  },
+  {
+    "phrase": "از هر دری",
+    "option1": "فاعلاتن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 562
+  },
+  {
+    "phrase": "مفخر",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 563
+  },
+  {
+    "phrase": "برومند",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 564
+  },
+  {
+    "phrase": "در سفر",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 565
+  },
+  {
+    "phrase": "با دست به",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 566
+  },
+  {
+    "phrase": "بهتر است",
+    "option1": "فاعلن",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 567
+  },
+  {
+    "phrase": "به نظر",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 568
+  },
+  {
+    "phrase": "که ماورا",
+    "option1": "مفاعل",
+    "option2": "مفاعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفاعلن",
+    "id": 569
+  },
+  {
+    "phrase": "با عظمت",
+    "option1": "فعلاتن",
+    "option2": "مفتعلن",
+    "correctOption": 2,
+    "correctAnswer": "مفتعلن",
+    "id": 570
+  },
+  {
+    "phrase": "او به سرعت",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 571
+  },
+  {
+    "phrase": "وقتی به خود",
+    "option1": "مفتعلن",
+    "option2": "مستفعلن",
+    "correctOption": 2,
+    "correctAnswer": "مستفعلن",
+    "id": 572
+  },
+  {
+    "phrase": "موسم",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 573
+  },
+  {
+    "phrase": "مشعشع",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 574
+  },
+  {
+    "phrase": "از سفر",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 575
+  },
+  {
+    "phrase": "یک هفته",
+    "option1": "فاعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 576
+  },
+  {
+    "phrase": "این مردم",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 2,
+    "correctAnswer": "مفعولن",
+    "id": 577
+  },
+  {
+    "phrase": "به سبب",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 578
+  },
+  {
+    "phrase": "صدای وی",
+    "option1": "مفاعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مفاعلن",
+    "id": 579
+  },
+  {
+    "phrase": "ننگ بزرگی",
+    "option1": "مستفعلن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 580
+  },
+  {
+    "phrase": "در زندگی",
+    "option1": "مستفعلن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "مستفعلن",
+    "id": 581
+  },
+  {
+    "phrase": "صنعت",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 582
+  },
+  {
+    "phrase": "زُمرد",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 583
+  },
+  {
+    "phrase": "بر اثر",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 584
+  },
+  {
+    "phrase": "یک پا و",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 585
+  },
+  {
+    "phrase": "تا پولی",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 586
+  },
+  {
+    "phrase": "به خدا",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 587
+  },
+  {
+    "phrase": "وقت به آخر",
+    "option1": "فعلاتن",
+    "option2": "فاعلاتن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلاتن",
+    "id": 588
+  },
+  {
+    "phrase": "درهم",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 589
+  },
+  {
+    "phrase": "تپیدن",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 590
+  },
+  {
+    "phrase": "از خطر",
+    "option1": "فاعلن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 591
+  },
+  {
+    "phrase": "عهد کرد که",
+    "option1": "مفعول",
+    "option2": "مفعولن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 592
+  },
+  {
+    "phrase": "آن وقت شب",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 593
+  },
+  {
+    "phrase": "و خدا",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 594
+  },
+  {
+    "phrase": "در گلویش",
+    "option1": "فاعلاتن",
+    "option2": "مفاعیلن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلاتن",
+    "id": 595
+  },
+  {
+    "phrase": "اسرا",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 596
+  },
+  {
+    "phrase": "مجرّد",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 597
+  },
+  {
+    "phrase": "در خطر",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 598
+  },
+  {
+    "phrase": "در کوچه",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعول",
+    "id": 599
+  },
+  {
+    "phrase": "بر ترس خود",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 600
+  },
+  {
+    "phrase": "و هنر",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 601
+  },
+  {
+    "phrase": "یغما",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 602
+  },
+  {
+    "phrase": "ملالت",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 603
+  },
+  {
+    "phrase": "بر کمر",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 604
+  },
+  {
+    "phrase": "با این که",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 605
+  },
+  {
+    "phrase": "با خود فکر",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 606
+  },
+  {
+    "phrase": "همه ما",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 607
+  },
+  {
+    "phrase": "برزخ",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 608
+  },
+  {
+    "phrase": "مواجب",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 609
+  },
+  {
+    "phrase": "از شعف",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 1,
+    "correctAnswer": "فاعلن",
+    "id": 610
+  },
+  {
+    "phrase": "یک لحظه",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 611
+  },
+  {
+    "phrase": "با این یک",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 612
+  },
+  {
+    "phrase": "همه از",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعلن",
+    "id": 613
+  },
+  {
+    "phrase": "آزرم",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 614
+  },
+  {
+    "phrase": "مواضع",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 615
+  },
+  {
+    "phrase": "در نظر",
+    "option1": "فعلن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 616
+  },
+  {
+    "phrase": "هر چند که",
+    "option1": "فعلن",
+    "option2": "مفعول",
+    "correctOption": 2,
+    "correctAnswer": "مفعول",
+    "id": 617
+  },
+  {
+    "phrase": "بعد با خود",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 618
+  },
+  {
+    "phrase": "چه کسی",
+    "option1": "مفعول",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 619
+  },
+  {
+    "phrase": "ایمن",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 620
+  },
+  {
+    "phrase": "تأثّر",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 621
+  },
+  {
+    "phrase": "دست مرا",
+    "option1": "فعولن",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 622
+  },
+  {
+    "phrase": "یک دست از",
+    "option1": "مفعولن",
+    "option2": "فاعلن",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 623
+  },
+  {
+    "phrase": "به دنیا",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 2,
+    "correctAnswer": "فعلن",
+    "id": 624
+  },
+  {
+    "phrase": "غربت",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 625
+  },
+  {
+    "phrase": "تلمّذ",
+    "option1": "فعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 626
+  },
+  {
+    "phrase": "از نظر",
+    "option1": "مفعول",
+    "option2": "فاعلن",
+    "correctOption": 2,
+    "correctAnswer": "فاعلن",
+    "id": 627
+  },
+  {
+    "phrase": "با خود عهد",
+    "option1": "مفعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "مفعولن",
+    "id": 628
+  },
+  {
+    "phrase": "کربت",
+    "option1": "فعل",
+    "option2": "فع‌لن",
+    "correctOption": 2,
+    "correctAnswer": "فع‌لن",
+    "id": 629
+  },
+  {
+    "phrase": "محقّر",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 630
+  },
+  {
+    "phrase": "ناورد",
+    "option1": "فع‌لن",
+    "option2": "فعل",
+    "correctOption": 1,
+    "correctAnswer": "فع‌لن",
+    "id": 631
+  },
+  {
+    "phrase": "مبدّل",
+    "option1": "فعولن",
+    "option2": "مفعول",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 632
+  },
+  {
+    "phrase": "مقیّد",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 633
+  },
+  {
+    "phrase": "خزاین",
+    "option1": "فاعلن",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 634
+  },
+  {
+    "phrase": "سپهبد",
+    "option1": "مفعول",
+    "option2": "فعولن",
+    "correctOption": 2,
+    "correctAnswer": "فعولن",
+    "id": 635
+  },
+  {
+    "phrase": "تلقّی",
+    "option1": "فعولن",
+    "option2": "فعلن",
+    "correctOption": 1,
+    "correctAnswer": "فعولن",
+    "id": 636
+  }
+]

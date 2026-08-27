@@ -100,6 +100,21 @@ const STOPS: Stop[] = [
     accent: "#c79be0",
     planet: { color: "#c79be0", moon: true, distort: 0.26 },
   },
+  {
+    index: "۰۶",
+    tag: "وزن و عروض",
+    title: "پلِ وزن",
+    desc: "روی پلِ شیشه‌ای، وزنِ هر واژه را تشخیص بده و روی شیشهٔ امن بپر. اشتباه کنی، شیشه زیرِ پایت می‌شکند.",
+    steps: [
+      "دو وزن روی دو شیشهٔ پیشِ رو می‌بینی",
+      "واژه برای لحظه‌ای نشان داده می‌شود؛ وزنش را تشخیص بده",
+      "روی شیشهٔ درست بپر — پیش از آنکه زمان تمام شود",
+    ],
+    href: "/game/aruz-bridge",
+    cta: "شروعِ پلِ وزن",
+    accent: "#4fd1c5",
+    planet: { color: "#4fd1c5", ring: true, distort: 0.22 },
+  },
 ];
 
 export default function GamesGalaxy() {

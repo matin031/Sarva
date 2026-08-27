@@ -10,7 +10,9 @@ import {
 } from "@/lib/aruz-bridge/quality";
 import { currentStep } from "@/lib/aruz-bridge/machine";
 import { immersiveMode } from "@/lib/immersive-mode";
+import { GameTopBar } from "./GameTopBar";
 import { useGameViewportSize } from "./useGameViewportSize";
+import { isMobileMode, useViewportMode } from "./useViewportMode";
 import { GameHeader } from "./GameHeader";
 import { Countdown, SessionSetup } from "./SessionSetup";
 import {
@@ -85,14 +87,25 @@ export default function AruzBridgeGame() {
   const isFinished = state === "finished";
   const showBridge = !inSetup && !isOver && !isFinished;
 
-  const viewport = useGameViewportSize({ containerRef: outerRef, hudRef, active: showBridge });
+  /* یک مالکِ واحد برای «چه‌جور صفحه‌ای». چیدمان از همین یک مقدار شاخه
+     می‌گیرد، نه از چند پرسمانِ CSS که با هم رقابت کنند. */
+  const viewportMode = useViewportMode();
+  const mobileActive = showBridge && isMobileMode(viewportMode);
+  const desktopActive = showBridge && !mobileActive;
 
-  /* پوستهٔ سایت فقط در *حینِ بازی* جمع می‌شود. صفحهٔ تنظیمات و نتیجه
-     چیدمانِ عادیِ سروا را می‌گیرند، و با ترکِ صفحه همه‌چیز برمی‌گردد. */
+  /* اندازهٔ نسبت‌محور فقط برای دسکتاپ. روی موبایل ابعاد را flex می‌دهد و
+     هیچ نسبتِ ثابتی تحمیل نمی‌شود — دقیقاً همان چیزی که باعثِ سرریز بود. */
+  const viewport = useGameViewportSize({ containerRef: outerRef, hudRef, active: desktopActive });
+
+  /* پوستهٔ سایت فقط در *حینِ بازی* عوض می‌شود: روی دسکتاپ جمع، روی موبایل
+     کاملاً برداشته. صفحهٔ تنظیمات و نتیجه چیدمانِ عادیِ سروا را می‌گیرند و با
+     ترکِ صفحه همه‌چیز برمی‌گردد. */
   useEffect(() => {
-    immersiveMode.set(showBridge);
-    return () => immersiveMode.set(false);
-  }, [showBridge]);
+    immersiveMode.set(
+      mobileActive ? "fullscreen" : desktopActive ? "compact" : "off",
+    );
+    return () => immersiveMode.set("off");
+  }, [mobileActive, desktopActive]);
 
   if (webgl === false) return <WebGLFallback />;
 
@@ -108,6 +121,65 @@ export default function AruzBridgeGame() {
       ? () => game.reviewMistakes(machine.failedQuestionIds)
       : undefined,
   };
+
+  /* ── بازیِ فعال روی موبایل: یک صفحهٔ تمام‌قد ──────────────────────────────
+     ریشه دقیقاً به اندازهٔ `100dvh` است و سرریز ندارد؛ نوارِ بالا و HUD
+     ارتفاعِ محتواییِ خودشان را می‌گیرند و بومِ سه‌بعدی *تمامِ باقی‌مانده* را.
+
+     `min-h-0` روی زنجیرهٔ flex حیاتی است: بدونِ آن، فرزندِ flex ارتفاعِ ذاتیِ
+     خودش را نگه می‌دارد و حتی با ریشهٔ ۱۰۰dvh باز سرریز می‌سازد. همین یک
+     خاصیت بود که چند بار جلوتر باعثِ اسکرولِ موبایل می‌شد. */
+  if (mobileActive) {
+    return (
+      <div
+        dir="rtl"
+        className="fixed inset-0 z-40 flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-background"
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <GameTopBar muted={game.muted} onToggleMute={game.toggleMute} />
+
+        <div ref={hudRef} className="shrink-0 border-b border-border bg-card">
+          <GameHeader
+            state={state}
+            epoch={game.epoch}
+            config={game.config}
+            promptText={step?.question.promptText ?? null}
+            stepIndex={machine.stepIndex}
+            totalSteps={machine.steps.length}
+            score={machine.score}
+            streak={machine.streak}
+            muted={game.muted}
+            onToggleMute={game.toggleMute}
+            compact
+          />
+        </div>
+
+        {/* تمامِ ارتفاعِ باقی‌مانده، و اجازهٔ کوچک‌شدن. */}
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#060c14]">
+          {webgl === null ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            </div>
+          ) : (
+            <GameCanvas
+              machine={machine}
+              config={game.config}
+              quality={quality}
+              reducedMotion={reducedMotion}
+              usePlayerModel={assets.playerModel}
+              inputLocked={game.inputLocked}
+              onChoose={game.choose}
+              debugHitTargets={debugHitTargets}
+            />
+          )}
+          {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -136,7 +208,7 @@ export default function AruzBridgeGame() {
       )}
       {isFinished && <FinishedScreen summary={game.summary} actions={resultActions} />}
 
-      {showBridge && (
+      {desktopActive && (
         /* ── یک پوسته، نه سه کارتِ تودرتو ────────────────────────────────
            پیش‌تر صفحه سه سطح داشت: کارتِ پرسش، فاصله، و کارتِ بازی. روی هم
            آن‌قدر ارتفاع می‌خوردند که کاربر مجبور بود بینِ پرسش و پل اسکرول
@@ -191,7 +263,7 @@ export default function AruzBridgeGame() {
         </div>
       )}
 
-      {showBridge && game.isDemoData && (
+      {desktopActive && game.isDemoData && (
         <p className="mt-1.5 text-center text-[0.6rem] text-muted-foreground">
           دادهٔ نمایشی — محتوای عروضیِ نهاییِ سروا نیست.
         </p>

@@ -36,7 +36,12 @@ import type { AruzBridgeQuestion, GameState, Side } from "@/lib/aruz-bridge/type
  * عدد داشته باشد، وگرنه بازی همان‌جا می‌ماند؛ نوعِ Record این را در زمانِ
  * کامپایل تضمین می‌کند.
  */
-function durationFor(state: GameState, config: AruzBridgeConfig): number | null {
+function durationFor(
+  state: GameState,
+  config: AruzBridgeConfig,
+  /** آیا پاسخِ همین مرحله درست بوده. مکثِ بعد از فرود فقط برای شکست است. */
+  answeredCorrectly: boolean,
+): number | null {
   const table: Record<GameState, number | null> = {
     intro: null,
     countdown: config.countdownDuration,
@@ -45,7 +50,10 @@ function durationFor(state: GameState, config: AruzBridgeConfig): number | null 
     showingQuestion: config.questionDisplayDuration,
     waitingForAnswer: config.answerTime,
     jumping: config.jumpDuration,
-    landing: config.landingDelay,
+    /* سکوتِ کوتاهِ بعد از فرود کارکردش *تعلیق* است: لحظه‌ای که هنوز معلوم
+       نیست شیشه تاب می‌آورد یا نه. روی پاسخِ درست این تعلیق معنا ندارد و
+       فقط بازی را کُند نشان می‌دهد. */
+    landing: answeredCorrectly ? 0 : config.landingDelay,
     // لرزشِ کاشیِ زیرِ پا، پیش از ترک‌خوردن
     timeout: 520,
     correct: config.correctPauseDuration,
@@ -246,8 +254,13 @@ export function useAruzBridgeGame({
      نمی‌شود — همان چیزی که «تایمر بعد از پایانِ بازی» را غیرممکن می‌کند. */
   const { state, epoch } = machine;
 
+  /* پاسخِ درست را از روی همان شیءِ آماده‌شده می‌سنجیم — همان یکی که متن،
+     hover و مقصدِ پرش را هم تعیین می‌کند. جای دیگری دوباره حدس زده نمی‌شود. */
+  const answeredCorrectly =
+    machine.chosen != null && machine.chosen === currentStep(machine)?.correctSide;
+
   useEffect(() => {
-    const duration = durationFor(state, config);
+    const duration = durationFor(state, config, answeredCorrectly);
     if (duration === null) return;
 
     const id = window.setTimeout(() => {
@@ -272,7 +285,7 @@ export function useAruzBridgeGame({
           dispatch({ type: "resolve" });
           break;
         case "correct":
-          dispatch({ type: "advance" });
+          dispatch({ type: "advance", now: performance.now() });
           break;
         case "cracking":
           dispatch({ type: "crackDone" });
@@ -287,7 +300,7 @@ export function useAruzBridgeGame({
     }, duration);
 
     return () => window.clearTimeout(id);
-  }, [state, epoch, config]);
+  }, [state, epoch, config, answeredCorrectly]);
 
   /* ── صدا، چسبیده به گذارها ─────────────────────────────────────────────── */
   /* هر صدا دقیقاً در لحظهٔ *ورود* به حالتِ متناظرش پخش می‌شود. چون گذارها
@@ -316,9 +329,6 @@ export function useAruzBridgeGame({
       case "shattering":
         audio.playShatter();
         break;
-      case "gameOver":
-        audio.playGameOver();
-        break;
     }
   }, [state, epoch]);
 
@@ -339,7 +349,7 @@ export function useAruzBridgeGame({
       window.clearTimeout(t2);
       audio.stopHeartbeat();
     };
-  }, [state, epoch, config]);
+  }, [state, epoch, config, answeredCorrectly]);
 
   /* ── ورودیِ بازیکن ─────────────────────────────────────────────────────── */
   const choose = useCallback((side: Side) => {

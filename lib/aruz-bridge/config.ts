@@ -21,7 +21,9 @@ export interface AruzBridgeConfig {
   glassBreakDelay: number;
   /** طولِ سقوط، تا پیش از نمایشِ صفحهٔ پایان. */
   fallDuration: number;
-  /** مکثِ کوتاهِ جشنِ پاسخِ درست. */
+  /** ضربانِ کوتاهِ فرودِ درست، پیش از مسلح‌شدنِ پرسشِ بعد.
+   *  کوتاه نگهش دارید: هر میلی‌ثانیه‌اش وقتِ مرده‌ای است که بازیکن نمی‌تواند
+   *  کاری بکند. بازخوردِ دیداری خودش ادامه می‌دهد و لازم نیست منتظرش بمانیم. */
   correctPauseDuration: number;
   /** شمارشِ ۳-۲-۱ پیش از اولین پرسش. بیرون از فرصتِ پاسخ است. */
   countdownDuration: number;
@@ -48,7 +50,7 @@ export const defaultAruzBridgeConfig: AruzBridgeConfig = {
   crackDuration: 420,
   glassBreakDelay: 90,
   fallDuration: 1900,
-  correctPauseDuration: 520,
+  correctPauseDuration: 140,
   countdownDuration: 2400,
   cameraFollowSpeed: 2.6,
   questionsPerRun: 10,

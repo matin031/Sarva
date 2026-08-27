@@ -68,6 +68,14 @@ const FRAME_MARGIN = 1.15;
 /** بالای سرِ بازیکن، برای اینکه کادر سرش را نبُرد. */
 const PLAYER_TOP = 1.25;
 
+/* از این نسبت به بعد، کادر «پهن و کوتاه» است — یعنی گوشیِ افقی.
+   آنجا محدودیت عمودی است، پس اصرار بر جادادنِ لبهٔ *دورِ* کاشی‌ها فقط
+   زاویهٔ دید را باز می‌کند و همه‌چیز را کوچک می‌کند: کاشی‌ها ریز می‌شوند و
+   دو طرفِ تصویر خالی می‌ماند. با کنارگذاشتنِ آن دو نقطه، عمقِ کمتری دیده
+   می‌شود ولی گزینه‌ها بزرگ و خوانا می‌مانند — همان معاوضه‌ای که در صفحهٔ
+   کوتاه درست است. */
+const WIDE_ASPECT = 2;
+
 interface GameCameraProps {
   /** ref و نه مقدار: موقعیتِ بازیکن هر فریم عوض می‌شود. */
   targetRef: RefObject<THREE.Vector3>;
@@ -108,12 +116,15 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
     const halfW = LANE_OFFSET + TILE_WIDTH / 2;
     const farZ = zAhead - TILE_DEPTH / 2;
     const nearZ = zAhead + TILE_DEPTH / 2;
+    /* ترتیب معنا دارد: چهار نقطهٔ اولْ ضروری‌اند (بازیکن و لبهٔ نزدیکِ
+       کاشی‌ها) و دو نقطهٔ آخر — لبهٔ دور — روی کادرِ پهن‌وکوتاه کنار گذاشته
+       می‌شوند. */
     framePoints.current[0].set(p.x, p.y, p.z);
     framePoints.current[1].set(p.x, p.y + PLAYER_TOP, p.z);
-    framePoints.current[2].set(-halfW, BRIDGE_Y, farZ);
-    framePoints.current[3].set(halfW, BRIDGE_Y, farZ);
-    framePoints.current[4].set(-halfW, BRIDGE_Y, nearZ);
-    framePoints.current[5].set(halfW, BRIDGE_Y, nearZ);
+    framePoints.current[2].set(-halfW, BRIDGE_Y, nearZ);
+    framePoints.current[3].set(halfW, BRIDGE_Y, nearZ);
+    framePoints.current[4].set(-halfW, BRIDGE_Y, farZ);
+    framePoints.current[5].set(halfW, BRIDGE_Y, farZ);
 
     centroid.current.set(0, 0, 0);
     for (const point of framePoints.current) centroid.current.add(point);
@@ -178,9 +189,13 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
       camera.updateMatrixWorld();
       view.current.copy(camera.matrixWorld).invert();
 
+      /* روی کادرِ پهن‌وکوتاه، دو نقطهٔ لبهٔ دور کنار گذاشته می‌شوند. */
+      const wide = camera.aspect >= WIDE_ASPECT;
+      const points = wide ? framePoints.current.slice(0, 4) : framePoints.current;
+
       let vHalf = 0;
       let hHalf = 0;
-      for (const point of framePoints.current) {
+      for (const point of points) {
         scratch.current.copy(point).applyMatrix4(view.current);
         // دوربین در فضای دید به سمتِ ‎-z نگاه می‌کند؛ نقاطِ پشتِ سر بی‌معنی‌اند.
         const depth = -scratch.current.z;

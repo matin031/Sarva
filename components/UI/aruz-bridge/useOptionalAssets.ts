@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { optionalAssetPaths, type OptionalAssetKey } from "@/lib/aruz-bridge/assets";
+import {
+  availableOptionalAssets,
+  optionalAssetPaths,
+  type OptionalAssetKey,
+} from "@/lib/aruz-bridge/assets";
 
 export type AssetAvailability = Record<OptionalAssetKey, boolean>;
 
@@ -31,7 +35,11 @@ export function useOptionalAssets(): AssetAvailability {
     const controller = new AbortController();
 
     void (async () => {
-      const keys = Object.keys(optionalAssetPaths) as OptionalAssetKey[];
+      /* فقط دارایی‌هایی سنجیده می‌شوند که فهرست می‌گوید وجود دارند.
+         پیش‌تر هر چهار مسیر با HEAD سنجیده می‌شد و هر چهار ۴۰۴ برمی‌گشت —
+         چهار درخواستِ بی‌فایده در هر بارگذاریِ صفحه. */
+      const keys = availableOptionalAssets as readonly OptionalAssetKey[];
+      if (keys.length === 0) return;
       const results = await Promise.all(
         keys.map(async (key) => {
           try {

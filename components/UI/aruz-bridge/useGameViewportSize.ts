@@ -21,16 +21,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
    فرمول همان «عددِ جادویی» می‌شد که بار قبل اشتباه از آب درآمد. اینجا
    همان چیزی که واقعاً روی صفحه است اندازه گرفته می‌شود.
 
-   سه حالت اینجا — و فقط اینجا — تصمیم گرفته می‌شوند، نه در چند پرسمانِ CSS
-   که ترتیبِ تولیدشان برنده را عوض کند.
+   این قلّاب *فقط* برای دسکتاپ است. بازیِ فعال روی موبایل ابعادش را از
+   flex می‌گیرد (ریشهٔ ۱۰۰dvh، نوارها به اندازهٔ محتوا، بوم بقیه) و هیچ
+   نسبتِ ثابتی تحمیل نمی‌شود — چون همان نسبتِ تحمیلی بود که سرریز می‌ساخت.
+   دسته‌بندیِ نوعِ صفحه در `useViewportMode` است و فقط یک مالک دارد.
    ═══════════════════════════════════════════════════════════════════════════ */
-
-export type ViewportMode = "desktop" | "portrait" | "shortLandscape";
 
 export interface GameViewportSize {
   width: number;
   height: number;
-  mode: ViewportMode;
 }
 
 /** بیشترین پهنای کادر روی نمایشگرِ بزرگ. */
@@ -44,19 +43,6 @@ const MAX_WIDTH = 1180;
 const MIN_WIDTH = 720;
 
 const DESKTOP_RATIO = 16 / 9;
-const PORTRAIT_RATIO = 4 / 5;
-
-/** زیرِ این پهنا، چیدمانِ عمودیِ اختصاصی. */
-const PORTRAIT_MAX_WIDTH = 640;
-/** زیرِ این ارتفاع، گوشیِ افقی. */
-const SHORT_MAX_HEIGHT = 560;
-
-function modeFor(width: number, height: number): ViewportMode {
-  // شرط‌ها به همین ترتیب ناهم‌پوشان‌اند: کوتاه، بعد باریک، بعد بقیه.
-  if (height <= SHORT_MAX_HEIGHT) return "shortLandscape";
-  if (width <= PORTRAIT_MAX_WIDTH) return "portrait";
-  return "desktop";
-}
 
 export function useGameViewportSize({
   /** ظرفی که پهنای در دسترس را تعیین می‌کند. */
@@ -75,7 +61,6 @@ export function useGameViewportSize({
   const [size, setSize] = useState<GameViewportSize>({
     width: MIN_WIDTH,
     height: MIN_WIDTH / DESKTOP_RATIO,
-    mode: "desktop",
   });
 
   /* آخرین اندازه در ref هم نگه داشته می‌شود تا فقط وقتی *واقعاً* عوض شده
@@ -87,9 +72,7 @@ export function useGameViewportSize({
     const container = containerRef.current;
     if (!container || typeof window === "undefined") return;
 
-    const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const mode = modeFor(vw, vh);
 
     const containerWidth = container.clientWidth;
     const hudHeight = hudRef.current?.offsetHeight ?? 0;
@@ -106,38 +89,21 @@ export function useGameViewportSize({
 
     const availableHeight = vh - chromeAbove - hudHeight - breathingRoom;
 
-    let width: number;
-    let height: number;
+    /* ── قلبِ ماجرا ──
+       ارتفاعِ در دسترس ابتدا به سقفِ پهنا ترجمه می‌شود، بعد پهنای نهایی از
+       کمینهٔ سه محدودیت می‌آید، و ارتفاع از روی نسبت. */
+    const heightLimitedWidth = availableHeight * DESKTOP_RATIO;
+    const width = Math.min(
+      containerWidth,
+      MAX_WIDTH,
+      Math.max(MIN_WIDTH, heightLimitedWidth),
+    );
+    const height = width / DESKTOP_RATIO;
 
-    if (mode === "portrait") {
-      width = containerWidth;
-      height = width / PORTRAIT_RATIO;
-    } else if (mode === "shortLandscape") {
-      /* تنها حالتی که ارتفاع اجازه دارد نسبت را تعیین کند — و حتی اینجا هم
-         کفی هست تا کاشی‌ها ناخوانا نشوند. */
-      width = containerWidth;
-      height = Math.max(230, Math.min(availableHeight, vh * 0.7));
-    } else {
-      /* ── قلبِ ماجرا ──
-         ارتفاعِ در دسترس ابتدا به سقفِ پهنا ترجمه می‌شود، بعد پهنای نهایی
-         از کمینهٔ سه محدودیت می‌آید، و ارتفاع از روی نسبت. */
-      const heightLimitedWidth = availableHeight * DESKTOP_RATIO;
-      width = Math.min(
-        containerWidth,
-        MAX_WIDTH,
-        Math.max(MIN_WIDTH, heightLimitedWidth),
-      );
-      height = width / DESKTOP_RATIO;
-    }
-
-    const next = { width: Math.round(width), height: Math.round(height), mode };
+    const next = { width: Math.round(width), height: Math.round(height) };
     const prev = lastRef.current;
     // آستانهٔ یک پیکسل: نوسانِ ریزِ اندازه‌گیری نباید رندر بسازد.
-    if (
-      Math.abs(prev.width - next.width) < 1 &&
-      Math.abs(prev.height - next.height) < 1 &&
-      prev.mode === next.mode
-    ) {
+    if (Math.abs(prev.width - next.width) < 1 && Math.abs(prev.height - next.height) < 1) {
       return;
     }
     lastRef.current = next;

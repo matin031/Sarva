@@ -38,6 +38,8 @@ const ACTIVE: ReadonlySet<GameState> = new Set<GameState>([
  * می‌کرد و کلِ کادرِ بازی را پایین می‌راند. کوچک‌شدنِ پلکانیِ قلم هر دو را
  * حل می‌کند: متن کامل دیده می‌شود و ارتفاع دست‌نخورده می‌ماند.
  */
+const SHORT_PAD = "[@media(max-height:560px)]:pb-1 [@media(max-height:560px)]:pt-1";
+
 function promptSizeClass(text: string | null): string {
   const length = text?.trim().length ?? 0;
   if (length <= 12) return "text-xl sm:text-3xl";
@@ -90,6 +92,7 @@ export function GameHeader({
   streak,
   muted,
   onToggleMute,
+  compact = false,
 }: {
   state: GameState;
   epoch: number;
@@ -101,6 +104,8 @@ export function GameHeader({
   streak: number;
   muted: boolean;
   onToggleMute: () => void;
+  /** روی موبایل نوارِ بالای جدا دکمه‌ها را دارد، پس HUD فقط محتوا می‌شود. */
+  compact?: boolean;
 }) {
   const barRef = useRef<HTMLDivElement>(null);
   const running = state === "waitingForAnswer";
@@ -133,6 +138,43 @@ export function GameHeader({
   }, [running, epoch, config.answerTime, config.pressureThreshold, config.panicThreshold]);
 
   const active = ACTIVE.has(state);
+
+  if (compact) {
+    /* نسخهٔ موبایل: فقط محتوا. دکمه‌های خروج و صدا در `GameTopBar` هستند و
+       تکرارشان اینجا فقط ارتفاع می‌خورد. هدف ~۷۰ تا ۹۵ پیکسل. */
+    return (
+      <div dir="rtl" className={`px-3 pb-1 pt-1 ${SHORT_PAD}`}>
+        {/* روی گوشیِ افقی سطرِ راهنما حذف می‌شود: با ۳۹۰ پیکسل ارتفاع، هر
+            سطرِ HUD مستقیماً از ارتفاعِ پل کم می‌کند. */}
+        <p className="text-center text-[0.6rem] leading-none text-muted-foreground [@media(max-height:560px)]:hidden">
+          وزنِ این واژه کدام است؟
+        </p>
+        <p
+          aria-live="polite"
+          className={`mt-0.5 flex h-7 items-center justify-center overflow-hidden text-center font-sans font-black leading-tight text-foreground transition-opacity duration-200 [@media(max-height:560px)]:mt-0 [@media(max-height:560px)]:h-6 ${promptSizeClass(
+            promptText,
+          )} ${active && promptText ? "opacity-100" : "opacity-30"}`}
+        >
+          <span className="line-clamp-2 px-1">{promptText ?? "—"}</span>
+        </p>
+        <div className="mt-1 flex items-center justify-center gap-3 [@media(max-height:560px)]:mt-0.5">
+          <Stat
+            label="مرحله"
+            value={`${fa.format(Math.min(stepIndex + 1, totalSteps))}/${fa.format(totalSteps)}`}
+          />
+          <Stat label="امتیاز" value={fa.format(score)} />
+          <Stat label="زنجیره" value={fa.format(streak)} />
+        </div>
+        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            ref={barRef}
+            className="h-full w-full origin-right rounded-full"
+            style={{ background: "var(--color-primary)", transform: "scaleX(1)" }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="px-3 pb-2 pt-2 sm:px-4">

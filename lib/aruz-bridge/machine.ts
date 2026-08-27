@@ -70,7 +70,7 @@ export type MachineAction =
   | { type: "shatterDone" }
   | { type: "fallDone" }
   /** جشنِ پاسخِ درست تمام شد؛ برو مرحلهٔ بعد یا پایان. */
-  | { type: "advance" };
+  | { type: "advance"; now: number };
 
 export function initialMachineState(
   config: AruzBridgeConfig = defaultAruzBridgeConfig,
@@ -211,7 +211,20 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
       if (s.state !== "correct") return s;
       const next = s.stepIndex + 1;
       if (next >= s.steps.length) return to(s, "finished");
-      return to(s, "preparing", { stepIndex: next, chosen: null, answerOpenedAt: null });
+
+      /* مستقیم به پنجرهٔ پاسخ، نه از راهِ `preparing` و `showingQuestion`.
+         آن دو حالت برای *اولین* پرسشِ یک دورند (بعد از شمارشِ معکوس)؛ وسطِ
+         بازی فقط وقتِ مرده می‌ساختند: بازیکن فرود می‌آمد و بیش از دو ثانیه
+         منتظر می‌ماند تا دوباره بتواند بازی کند.
+
+         هیچ چیزی «آماده» نمی‌شود، چون چیزی برای آماده‌کردن نیست: کلِ دنبالهٔ
+         مرحله‌ها — متن، جای چپ و راست، پاسخِ درست — هنگامِ ساختِ دور یک بار
+         ساخته و منجمد شده. پس همین‌جا می‌شود بلافاصله مسلح کرد. */
+      return to(s, "waitingForAnswer", {
+        stepIndex: next,
+        chosen: null,
+        answerOpenedAt: a.now,
+      });
     }
 
     default:

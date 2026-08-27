@@ -14,7 +14,9 @@ import type { AruzBridgeSoundName } from "./assets";
    اضافه شد، دقیقاً جای همین می‌نشیند و هیچ کدی عوض نمی‌شود.
 
    این‌ها جایگزینِ صدابرداریِ واقعی نیستند و قرار هم نیست باشند؛ فقط از سکوت
-   بهترند و ثابت می‌کنند لوله‌کشی درست است.
+   بهترند و ثابت می‌کنند لوله‌کشی درست است. و هرجا که صدای ساختگی از سکوت
+   *بدتر* باشد، سکوت انتخاب می‌شود — صدای بدْ بازی را ارزان نشان می‌دهد.
+   به همین دلیل هیچ صدای شکستی ساخته نمی‌شود.
 
    همه‌چیز مستقیم داخلِ بافر نوشته می‌شود (نه با گرافِ نودها) چون یک بار
    ساخته می‌شود و بارها پخش — و این‌طوری نتیجه بینِ مرورگرها یکسان است.
@@ -118,16 +120,6 @@ export function synthesizeSound(name: AruzBridgeSoundName, ctx: Ctx): AudioBuffe
         const d2 = t - 0.085;
         const b = d2 > 0 ? Math.sin(2 * Math.PI * 990 * d2) * decay(d2, 0.2) : 0;
         return (a * 0.4 + b * 0.4) * attack(t, 0.008);
-      });
-
-    /* پایان: فرودِ آهسته به سمتِ بم، با غرشِ زیرین. */
-    case "gameOver":
-      return render(ctx, 1.5, (t) => {
-        const pitch = 300 * Math.exp(-t * 1.6) + 62;
-        const tone = Math.sin(2 * Math.PI * pitch * t) * decay(t, 0.55);
-        const sub = Math.sin(2 * Math.PI * (pitch / 2) * t) * decay(t, 0.7) * 0.5;
-        const rumble = noise() * decay(t, 0.3) * 0.1;
-        return (tone * 0.42 + sub + rumble) * attack(t, 0.02);
       });
 
     /* ضربان: «لاب-داب» و بعد سکوت، تا حلقه‌اش بی‌درز بسته شود. */

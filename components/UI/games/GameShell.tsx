@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useImmersiveMode } from "@/lib/immersive-mode";
+import { useChromeMode } from "@/lib/immersive-mode";
 
 /** Wraps a single game page.
  *
@@ -44,7 +44,7 @@ export default function GameShell({
   /* وقتی بازی‌ای حالتِ غرق‌شده را روشن کرده، این نوار حذف می‌شود: راهِ خروج
      همان لحظه داخلِ HUDـِ خودِ بازی هست و دو تا دکمهٔ بازگشت فقط ارتفاع
      می‌خورند. بازی‌هایی که این حالت را روشن نمی‌کنند تغییری نمی‌بینند. */
-  const immersive = useImmersiveMode();
+  const immersive = useChromeMode() !== "off";
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {

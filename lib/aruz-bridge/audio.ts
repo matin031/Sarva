@@ -1,4 +1,4 @@
-import { aruzBridgeAssets, type AruzBridgeSoundName } from "./assets";
+import { aruzBridgeAssets, audioSourceMode, type AruzBridgeSoundName } from "./assets";
 import { synthesizeSound } from "./synth";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -57,6 +57,7 @@ export class GameAudio {
       sounds[name] = this.origin.get(name) ?? "none";
     }
     return {
+      mode: audioSourceMode,
       contextState: this.ctx?.state ?? "none",
       unlocked: this.ctx?.state === "running",
       muted: this.muted,
@@ -109,19 +110,28 @@ export class GameAudio {
     const ctx = this.ctx;
     if (!ctx) return;
     const names = Object.keys(aruzBridgeAssets.audio) as AruzBridgeSoundName[];
-    await Promise.all(
-      names.map(async (name) => {
-        try {
-          const res = await fetch(aruzBridgeAssets.audio[name]);
-          if (!res.ok) throw new Error(String(res.status));
-          const buf = await ctx.decodeAudioData(await res.arrayBuffer());
-          if (!this.disposed) this.buffers.set(name, buf);
-        } catch {
-          // فایل هنوز اضافه نشده — کاملاً مورد انتظار است.
-          this.missing.add(name);
-        }
-      }),
-    );
+
+    /* در حالتِ رویه‌ای *هیچ* درخواستی فرستاده نمی‌شود.
+       پیش‌تر هر بار بارگذاری، همهٔ فایل‌ها را می‌خواست و چون هیچ‌کدام هنوز
+       وجود ندارند، هفت ۴۰۴ در شبکه و کنسول می‌نشست. درخواست‌کردنِ چیزی که
+       می‌دانیم نیست، نه فایده دارد و نه بی‌هزینه است. */
+    if (audioSourceMode === "assets") {
+      await Promise.all(
+        names.map(async (name) => {
+          try {
+            const res = await fetch(aruzBridgeAssets.audio[name]);
+            if (!res.ok) throw new Error(String(res.status));
+            const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+            if (!this.disposed) this.buffers.set(name, buf);
+          } catch {
+            // فایل هنوز اضافه نشده — کاملاً مورد انتظار است.
+            this.missing.add(name);
+          }
+        }),
+      );
+    } else {
+      for (const name of names) this.missing.add(name);
+    }
 
     /* هر فایلی که نیامد، جایش ساخته می‌شود. بازی هرگز بی‌صدا نمی‌ماند. */
     for (const name of names) {
@@ -153,17 +163,18 @@ export class GameAudio {
     const synth = Object.entries(info.sounds).filter(([, v]) => v === "synth");
 
     console.groupCollapsed(
-      `%c[پلِ وزن] صدا: ${info.unlocked ? "فعال" : "قفل"} — ` +
-        `${Object.values(info.sounds).filter((v) => v === "file").length} فایل، ${synth.length} ساخته‌شده`,
+      `%c[پلِ وزن] صدا: ${info.unlocked ? "فعال" : "قفل"} — حالتِ ${
+        info.mode === "procedural" ? "رویه‌ای" : "فایلی"
+      }، ${synth.length} صدای ساخته‌شده`,
       "color:#00a5a6;font-weight:bold",
     );
     console.table(info.sounds);
-    if (info.missingFiles.length) {
+    if (info.mode === "procedural") {
       console.info(
-        "فایل‌های صوتیِ زیر موجود نیستند و فعلاً با نمونهٔ ساخته‌شده جایگزین شده‌اند.\n" +
-          "برای صدای نهایی، این‌ها را در public/ قرار دهید (راهنما: public/games/aruz-bridge/README.md):",
+        "حالتِ رویه‌ای: هیچ فایلی درخواست نمی‌شود، پس ۴۰۴ای هم در کار نیست.\n" +
+          "برای صدای نهایی فایل‌ها را در public/ بگذارید و در lib/aruz-bridge/assets.ts\n" +
+          "مقدارِ audioSourceMode را به \"assets\" تغییر دهید.",
       );
-      for (const path of info.missingFiles) console.info("  •", path);
     }
     console.groupEnd();
   }
@@ -198,7 +209,8 @@ export class GameAudio {
   playCrack() { this.play("crack"); }
   playShatter() { this.play("shatter"); }
   playCorrect() { this.play("correct", { gain: 0.8 }); }
-  playGameOver() { this.play("gameOver"); }
+  /* عمداً `playGameOver` وجود ندارد. شکست صدای مخصوصِ خودش را ندارد و
+     ماشینِ حالت هم به چنین رویدادی وابسته نیست. */
 
   /** ضربانِ قلب فقط در کسرِ پایانیِ تایمر، و با آهنگی که تندتر می‌شود. */
   startHeartbeat(rate = 1): void {

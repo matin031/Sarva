@@ -3,32 +3,36 @@
 import { useSyncExternalStore } from "react";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   حالتِ «غرق‌شده» — یک کلیدِ سراسری برای جمع‌کردنِ پوستهٔ سایت.
+   حالتِ پوستهٔ سایت — یک کلیدِ سراسری که صفحه‌ها می‌توانند بچرخانند.
    ═══════════════════════════════════════════════════════════════════════════
 
-   بعضی صفحه‌ها در بخشی از عمرشان به کلِ ناوبریِ سایت نیاز ندارند: وقتی
-   بازیکن روی پل است، سربرگِ کامل و پاورقی فقط ارتفاع می‌خورند و چیزی به
-   تجربه اضافه نمی‌کنند.
+   سه حالت، چون سه نیازِ متفاوت وجود دارد:
+
+     off        پوستهٔ کاملِ سروا. پیش‌فرضِ همهٔ صفحه‌ها.
+     compact    سربرگِ جمع‌شده و بدونِ پاورقی — بازیِ فعال روی دسکتاپ.
+     fullscreen اصلاً سربرگ و پاورقیِ سایت رندر نمی‌شود؛ خودِ صفحه یک
+                نوارِ بالای مخصوصِ بازی می‌سازد. برای بازیِ فعال روی موبایل،
+                جایی که هر پیکسلِ عمودی ارزش دارد.
 
    چرا یک فروشگاهِ بیرونی و نه Context؟ چون مصرف‌کننده (`SiteChrome`) *بالای*
-   تولیدکننده (بازی) در درخت است. با Context باید Provider را تا ریشه بالا
-   می‌بردیم و همهٔ صفحه‌ها را درگیر می‌کرد. این الگو همان چیزی است که
-   `components/UI/galaxy/planetSlots.ts` هم برای همین مسئله به‌کار می‌برد.
+   تولیدکننده (بازی) در درخت است. همان الگویی که
+   `components/UI/galaxy/planetSlots.ts` هم دارد.
 
-   نکتهٔ مهمِ ایمنی: این حالت *فقط* وقتی روشن می‌شود که صفحه‌ای صریحاً
-   روشنش کند، و هنگامِ برچیده‌شدنش خاموش می‌شود. هیچ صفحهٔ دیگری — و هیچ
-   بازیِ دیگری — تحتِ تأثیر قرار نمی‌گیرد مگر خودش بخواهد. */
+   ایمنی: تا وقتی صفحه‌ای صریحاً چیزی جز `off` نگذارد، هیچ‌چیز عوض نمی‌شود، و
+   هر صفحه هنگامِ برچیده‌شدن آن را برمی‌گرداند. */
 
-let active = false;
+export type ChromeMode = "off" | "compact" | "fullscreen";
+
+let mode: ChromeMode = "off";
 const listeners = new Set<() => void>();
 
 export const immersiveMode = {
-  set(next: boolean) {
-    if (active === next) return;
-    active = next;
+  set(next: ChromeMode) {
+    if (mode === next) return;
+    mode = next;
     for (const listener of listeners) listener();
   },
-  get: () => active,
+  get: (): ChromeMode => mode,
   subscribe(listener: () => void) {
     listeners.add(listener);
     return () => {
@@ -37,7 +41,11 @@ export const immersiveMode = {
   },
 };
 
-/** روی سرور همیشه خاموش است، تا نشانه‌گذاریِ اولیه همان پوستهٔ عادی باشد. */
-export function useImmersiveMode(): boolean {
-  return useSyncExternalStore(immersiveMode.subscribe, immersiveMode.get, () => false);
+/** روی سرور همیشه `off` است، تا نشانه‌گذاریِ اولیه پوستهٔ عادی باشد. */
+export function useChromeMode(): ChromeMode {
+  return useSyncExternalStore(
+    immersiveMode.subscribe,
+    immersiveMode.get,
+    () => "off" as const,
+  );
 }

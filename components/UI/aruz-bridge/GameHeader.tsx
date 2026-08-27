@@ -178,9 +178,21 @@ export function GameHeader({
 
   return (
     <div dir="rtl" className="px-3 pb-2 pt-2 sm:px-4">
-      <div className="flex items-center gap-3">
+      {/* ── چرا Grid و نه Flex ──────────────────────────────────────────────
+          واژهٔ پرسش باید در مرکزِ *کلِ* پوسته بنشیند، نه در مرکزِ فضایی که از
+          کنترل‌ها باقی مانده.
+
+          با چیدمانِ قبلی (کنترل‌ها | متنِ flex-1 | آمار) متن دقیقاً به اندازهٔ
+          نصفِ اختلافِ پهنای دو طرف جابه‌جا می‌شد — و چون پهنای آمار با تعدادِ
+          رقم‌ها عوض می‌شود، واژه با هر تغییرِ امتیاز کمی می‌لغزید.
+
+          حالا دو ستونِ کناری هر دو `minmax(0,1fr)` هستند، یعنی *همیشه*
+          هم‌اندازه؛ پس ستونِ میانی ذاتاً روی مرکزِ پوسته می‌افتد. این یک
+          خاصیتِ هندسیِ چیدمان است، نه جبرانِ دستی: هرچقدر هم محتوای دو طرف
+          فرق کند، مرکز جابه‌جا نمی‌شود. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
         {/* چپ: خروج و صدا — بخشی از پوستهٔ بازی، نه شناور روی صحنه */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex items-center justify-self-start gap-1.5">
           <IconButton href="/game" label="خروج از بازی">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
@@ -203,7 +215,7 @@ export function GameHeader({
             ارتفاع *ثابت* است و به طولِ متن وابسته نیست: یک ردیفِ با ارتفاعِ
             معین، متنِ تک‌خطی و کوچک‌شدنِ اندازهٔ قلم روی صفحهٔ باریک. پس یک
             مصراعِ بلند هم کادرِ بازی را پایین نمی‌راند. */}
-        <div className="min-w-0 flex-1 text-center">
+        <div className="min-w-0 justify-self-center text-center">
           <p className="text-[0.65rem] leading-none text-muted-foreground sm:text-xs">
             وزنِ این واژه کدام است؟
           </p>
@@ -220,18 +232,11 @@ export function GameHeader({
         </div>
 
         {/* راست: آمار. روی صفحهٔ باریک زیرِ واژه می‌رود تا ردیف شلوغ نشود. */}
-        <div className="hidden shrink-0 items-center gap-3 sm:flex">
+        <div className="hidden items-center justify-self-end gap-3 sm:flex">
           <Stat label="مرحله" value={`${fa.format(Math.min(stepIndex + 1, totalSteps))}/${fa.format(totalSteps)}`} />
           <Stat label="امتیاز" value={fa.format(score)} />
           <Stat label="زنجیره" value={fa.format(streak)} />
         </div>
-      </div>
-
-      {/* آمارِ فشرده برای صفحهٔ باریک */}
-      <div className="mt-1 flex items-center justify-center gap-4 sm:hidden">
-        <Stat label="مرحله" value={`${fa.format(Math.min(stepIndex + 1, totalSteps))}/${fa.format(totalSteps)}`} />
-        <Stat label="امتیاز" value={fa.format(score)} />
-        <Stat label="زنجیره" value={fa.format(streak)} />
       </div>
 
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">

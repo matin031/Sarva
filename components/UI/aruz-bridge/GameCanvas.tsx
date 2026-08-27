@@ -20,6 +20,8 @@ export interface GameCanvasProps {
   usePlayerModel: boolean;
   inputLocked: boolean;
   onChoose: (side: Side) => void;
+  /** حالتِ توسعه: جعبه‌های برخورد را دیدنی می‌کند (‎?debugHits=1‎). */
+  debugHitTargets?: boolean;
 }
 
 export default function GameCanvas(props: GameCanvasProps) {

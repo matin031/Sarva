@@ -23,6 +23,8 @@ export interface AruzBridgeConfig {
   fallDuration: number;
   /** مکثِ کوتاهِ جشنِ پاسخِ درست. */
   correctPauseDuration: number;
+  /** شمارشِ ۳-۲-۱ پیش از اولین پرسش. بیرون از فرصتِ پاسخ است. */
+  countdownDuration: number;
   /** هرچه کمتر، دوربین تنبل‌تر. واحدش «در ثانیه» است. */
   cameraFollowSpeed: number;
   questionsPerRun: number;
@@ -47,6 +49,7 @@ export const defaultAruzBridgeConfig: AruzBridgeConfig = {
   glassBreakDelay: 90,
   fallDuration: 1900,
   correctPauseDuration: 520,
+  countdownDuration: 2400,
   cameraFollowSpeed: 2.6,
   questionsPerRun: 10,
   fogNear: 14,

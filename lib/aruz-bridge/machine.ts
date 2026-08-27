@@ -45,12 +45,18 @@ export interface MachineState {
   answeredCount: number;
   /** زمانِ بازشدنِ پنجرهٔ پاسخ (performance.now)، برای پاداشِ سرعت و تایمرِ HUD. */
   answerOpenedAt: number | null;
+  /** شناسهٔ پرسش‌هایی که بازیکن در آن‌ها شکست خورد.
+   *  آرایه است و نه یک مقدار، چون مکانیکِ فعلی دور را با اولین اشتباه تمام
+   *  می‌کند ولی حالت‌های آینده ممکن است چند اشتباه را اجازه دهند. */
+  failedQuestionIds: string[];
   epoch: number;
 }
 
 export type MachineAction =
   | { type: "reset" }
   | { type: "start"; steps: PreparedStep[]; config: AruzBridgeConfig; scoring?: ScoringConfig }
+  /** شمارشِ معکوس تمام شد؛ اولین مرحله را آماده کن. */
+  | { type: "countdownDone" }
   /** آماده‌سازیِ مرحله تمام شد؛ پرسش را نشان بده. */
   | { type: "questionShown"; now: number }
   /** متنِ پرسش محو شد؛ پنجرهٔ پاسخ باز شد. */
@@ -84,6 +90,7 @@ export function initialMachineState(
     correctCount: 0,
     answeredCount: 0,
     answerOpenedAt: null,
+    failedQuestionIds: [],
     epoch: 0,
   };
 }
@@ -91,6 +98,13 @@ export function initialMachineState(
 /** گذارِ پذیرفته‌شده: حالت را عوض کن و epoch را جلو ببر. */
 function to(s: MachineState, next: GameState, patch: Partial<MachineState> = {}): MachineState {
   return { ...s, ...patch, state: next, epoch: s.epoch + 1 };
+}
+
+/** شناسهٔ پرسشِ فعلی را به فهرستِ شکست‌ها می‌افزاید، بدونِ تکرار. */
+function appendFailure(s: MachineState): string[] {
+  const id = s.steps[s.stepIndex]?.question.id;
+  if (!id || s.failedQuestionIds.includes(id)) return s.failedQuestionIds;
+  return [...s.failedQuestionIds, id];
 }
 
 export function currentStep(s: MachineState): PreparedStep | null {
@@ -118,9 +132,14 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
       // از `intro` یا از صفحه‌های پایان — هر دو شروعِ یک دورِ تازه‌اند.
       if (s.state !== "intro" && s.state !== "gameOver" && s.state !== "finished") return s;
       if (!a.steps.length) return s;
-      return to(initialMachineState(a.config, a.scoring ?? s.scoring), "preparing", {
+      // شمارشِ معکوس بیرون از فرصتِ پاسخ است و در تایمرِ پرسش حساب نمی‌شود.
+      return to(initialMachineState(a.config, a.scoring ?? s.scoring), "countdown", {
         steps: a.steps,
       });
+
+    case "countdownDone":
+      if (s.state !== "countdown") return s;
+      return to(s, "preparing");
 
     case "questionShown":
       if (s.state !== "preparing") return s;
@@ -142,6 +161,7 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
         failure: "timeout",
         streak: 0,
         answeredCount: s.answeredCount + 1,
+        failedQuestionIds: appendFailure(s),
       });
 
     case "landed":
@@ -160,6 +180,7 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
           failure: "wrong",
           streak: 0,
           answeredCount: s.answeredCount + 1,
+          failedQuestionIds: appendFailure(s),
         });
       }
 

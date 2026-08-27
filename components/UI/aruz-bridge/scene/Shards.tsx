@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { NO_RAYCAST } from "./AnswerHitTarget";
 import type { FractureCell, FractureResult } from "@/lib/aruz-bridge/fracture";
 import { makeRng } from "@/lib/aruz-bridge/fracture";
 
@@ -128,7 +129,7 @@ export function Shards({
   return (
     <group ref={groupRef} position={[0, y, 0]}>
       {shards.map((s, i) => (
-        <mesh key={i} geometry={s.geometry} material={material} castShadow={false} />
+        <mesh key={i} geometry={s.geometry} material={material} castShadow={false} raycast={NO_RAYCAST} />
       ))}
     </group>
   );

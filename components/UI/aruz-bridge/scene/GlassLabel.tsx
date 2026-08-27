@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { TILE_DEPTH, TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout";
+import { TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout";
+import { NO_RAYCAST } from "./AnswerHitTarget";
 import { createTextTexture } from "./textTexture";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -90,6 +91,8 @@ export function GlassLabel({ text, opacity, highlight = null }: GlassLabelProps)
          روی زمین که از پشتِ سر می‌خوانیمش. */
       rotation={[-Math.PI / 2, 0, 0]}
       renderOrder={4}
+      // تزئینی است؛ نباید در انتخابِ پاسخ دخالت کند
+      raycast={NO_RAYCAST}
     >
       <planeGeometry args={[LABEL_WIDTH, height]} />
       <meshBasicMaterial
@@ -106,30 +109,4 @@ export function GlassLabel({ text, opacity, highlight = null }: GlassLabelProps)
   );
 }
 
-/** نشانگرِ ظریفِ دورِ کاشی وقتی اشاره‌گر رویش است — جایگزینِ hover قبلی. */
-export function TileHighlightRing({ opacity }: { opacity: number }) {
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const shown = useRef(0);
 
-  useFrame((_, delta) => {
-    shown.current += (opacity - shown.current) * Math.min(1, delta * 10);
-    const mat = materialRef.current;
-    if (mat) mat.opacity = shown.current * 0.55;
-  });
-
-  return (
-    <mesh position={[0, TILE_THICKNESS / 2 + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[TILE_WIDTH * 0.52, TILE_WIDTH * 0.56, 4, 1, Math.PI / 4]} />
-      <meshBasicMaterial
-        ref={materialRef}
-        color="#9ff5f7"
-        transparent
-        opacity={0}
-        depthWrite={false}
-        toneMapped={false}
-      />
-    </mesh>
-  );
-}
-
-export const GLASS_LABEL_FOOTPRINT = { width: LABEL_WIDTH, depth: TILE_DEPTH };

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { NO_RAYCAST } from "./AnswerHitTarget";
 import { aruzBridgeAssets } from "@/lib/aruz-bridge/assets";
 import type { CharacterAnimation } from "@/lib/aruz-bridge/types";
 
@@ -215,7 +216,7 @@ export function Player({ positionRef, animation, jumpPhaseRef, facingRef, useMod
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} raycast={NO_RAYCAST}>
       {useModel ? (
         <ModelBody animation={animation} />
       ) : (

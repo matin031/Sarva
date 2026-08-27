@@ -18,7 +18,15 @@ import {
   type MachineState,
 } from "@/lib/aruz-bridge/machine";
 import { LocalQuestionSource, type QuestionSource } from "@/lib/aruz-bridge/source";
-import type { Difficulty, GameState, Side } from "@/lib/aruz-bridge/types";
+import {
+  buildReviewQuestions,
+  defaultSessionConfig,
+  difficultyForPace,
+  PACE_TIMINGS,
+  sampleSessionQuestions,
+  type AruzBridgeSessionConfig,
+} from "@/lib/aruz-bridge/session";
+import type { AruzBridgeQuestion, GameState, Side } from "@/lib/aruz-bridge/types";
 
 /**
  * مدتِ هر حالتِ خودکار، بر حسبِ میلی‌ثانیه.
@@ -31,6 +39,7 @@ import type { Difficulty, GameState, Side } from "@/lib/aruz-bridge/types";
 function durationFor(state: GameState, config: AruzBridgeConfig): number | null {
   const table: Record<GameState, number | null> = {
     intro: null,
+    countdown: config.countdownDuration,
     // مکثِ کوتاه تا جفتِ بعدی از مه بیرون بیاید
     preparing: 420,
     showingQuestion: config.questionDisplayDuration,
@@ -50,21 +59,27 @@ function durationFor(state: GameState, config: AruzBridgeConfig): number | null 
 }
 
 export interface UseAruzBridgeGameOptions {
-  difficulty?: Difficulty;
   source?: QuestionSource;
   configOverrides?: Partial<AruzBridgeConfig>;
-  reducedMotion?: boolean;
 }
 
 export function useAruzBridgeGame({
-  difficulty = 1,
   source,
   configOverrides,
 }: UseAruzBridgeGameOptions = {}) {
-  const config = useMemo(
-    () => configForDifficulty(difficulty, configOverrides),
-    [difficulty, configOverrides],
-  );
+  /* پیکربندیِ دور: چیزی که بازیکن در صفحهٔ تنظیمات انتخاب کرده. تا وقتی
+     خودش عوضش نکند، «دوباره» با همین اجرا می‌شود. */
+  const [session, setSession] = useState<AruzBridgeSessionConfig>(defaultSessionConfig);
+
+  const config = useMemo(() => {
+    // سرعت تنها چیزی است که زمان‌بندی را تعیین می‌کند؛ اعداد در session.ts‌اند.
+    const timings = PACE_TIMINGS[session.pace];
+    return configForDifficulty(difficultyForPace(session.pace), {
+      ...timings,
+      questionsPerRun: session.questionCount,
+      ...configOverrides,
+    });
+  }, [session.pace, session.questionCount, configOverrides]);
 
   const [machine, dispatch] = useReducer(
     machineReducer,
@@ -75,7 +90,9 @@ export function useAruzBridgeGame({
   const questionSource = useMemo(() => source ?? new LocalQuestionSource(), [source]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
+  /* بی‌صدایی مشتقِ همان `session.soundEnabled` است و حالتِ دومی ندارد؛ پس
+     کلیدِ داخلِ بازی و کلیدِ صفحهٔ تنظیمات همیشه یک چیز را نشان می‌دهند. */
+  const muted = !session.soundEnabled;
 
   /* ── صدا ───────────────────────────────────────────────────────────────── */
   /* نمونه در یک effect ساخته می‌شود و نه هنگامِ رندر. غیر از قاعدهٔ React،
@@ -99,12 +116,18 @@ export function useAruzBridgeGame({
     audioRef.current?.setVolume(config.soundVolume);
   }, [config.soundVolume]);
 
-  const toggleMute = useCallback(() => {
-    setMuted((m) => {
-      audioRef.current?.setMuted(!m);
-      return !m;
-    });
+  const setSoundEnabled = useCallback((enabled: boolean) => {
+    setSession((prev) => ({ ...prev, soundEnabled: enabled }));
   }, []);
+
+  const toggleMute = useCallback(() => {
+    setSession((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+  }, []);
+
+  // مدیرِ صدا دنبالِ همان یک منبعِ حقیقت می‌آید.
+  useEffect(() => {
+    audioRef.current?.setMuted(!session.soundEnabled);
+  }, [session.soundEnabled]);
 
   /* ── شروعِ یک دور ──────────────────────────────────────────────────────── */
   /* شمارهٔ دور و کنترلرِ لغو، در یک جعبهٔ پایدار.
@@ -113,36 +136,100 @@ export function useAruzBridgeGame({
      همان کاری است که قاعدهٔ «ref در cleanup» می‌خواهد. */
   const lifecycleRef = useRef({ runId: 0, controller: null as AbortController | null });
 
-  const start = useCallback(async () => {
-    const lifecycle = lifecycleRef.current;
-    const runId = ++lifecycle.runId;
-    lifecycle.controller?.abort();
-    const controller = new AbortController();
-    lifecycle.controller = controller;
+  /* مخزنِ پرسش‌ها یک بار گرفته می‌شود و کَش می‌ماند.
+     ref منبعِ حقیقت است (منطق هر لحظه ممکن است لازمش داشته باشد) و state
+     فقط برای این است که صفحهٔ تنظیمات بتواند تعدادِ یکتاها را نشان دهد و
+     گزینه‌های ناممکن را غیرفعال کند. */
+  const poolRef = useRef<AruzBridgeQuestion[] | null>(null);
+  const [pool, setPool] = useState<AruzBridgeQuestion[] | null>(null);
 
-    // «شروع» یک ژستِ واقعیِ کاربر است — تنها جایی که مرورگر اجازهٔ باز کردنِ صدا می‌دهد.
-    void audioRef.current?.unlock();
-
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const questions = await questionSource.load({
-        difficulty,
-        count: config.questionsPerRun,
-        signal: controller.signal,
+  const loadPool = useCallback(
+    async (signal?: AbortSignal): Promise<AruzBridgeQuestion[]> => {
+      if (poolRef.current) return poolRef.current;
+      const rows = await questionSource.load({
+        // همهٔ مخزن را می‌خواهیم، نه فقط اندازهٔ یک دور
+        difficulty: 1,
+        count: Number.MAX_SAFE_INTEGER,
+        signal,
       });
-      // اگر در این فاصله دورِ تازه‌ای شروع شده یا صفحه بسته شده، نتیجه بی‌اثر است.
-      if (runId !== lifecycle.runId) return;
-      if (!questions.length) throw new Error("پرسشی برای این سطح پیدا نشد.");
-      dispatch({ type: "start", steps: prepareSteps(questions), config });
-    } catch (err) {
-      if (runId !== lifecycle.runId) return;
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setLoadError(err instanceof Error ? err.message : "بارگذاریِ پرسش‌ها ناموفق بود.");
-    } finally {
-      if (runId === lifecycle.runId) setLoading(false);
-    }
-  }, [config, difficulty, questionSource]);
+      poolRef.current = rows;
+      return rows;
+    },
+    [questionSource],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await loadPool(controller.signal);
+        // setState داخلِ callbackـِ ناهمگام است، نه در تنهٔ effect
+        if (!cancelled) setPool(rows);
+      } catch {
+        /* صفحهٔ تنظیمات با مخزنِ نامعلوم هم کار می‌کند؛ خطا موقعِ شروع گزارش می‌شود */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [loadPool]);
+
+  /**
+   * یک دور را می‌سازد و شروع می‌کند.
+   *
+   * دنبالهٔ پرسش‌ها دقیقاً همین‌جا — یک بار — ساخته و به ماشینِ حالت سپرده
+   * می‌شود. از آن به بعد در `machine.steps` منجمد است: هیچ رندری، تغییرِ
+   * اندازه‌ای یا زدنِ کلیدِ صدایی نمی‌تواند ترتیب را عوض کند، چون هیچ‌کس
+   * دیگر قرعه نمی‌زند.
+   */
+  const beginRun = useCallback(
+    async (overrides?: { reviewIds?: readonly string[]; sessionOverride?: AruzBridgeSessionConfig }) => {
+      const lifecycle = lifecycleRef.current;
+      const runId = ++lifecycle.runId;
+      lifecycle.controller?.abort();
+      const controller = new AbortController();
+      lifecycle.controller = controller;
+
+      const activeSession = overrides?.sessionOverride ?? session;
+
+      // «شروع» یک ژستِ واقعیِ کاربر است — تنها جایی که مرورگر اجازهٔ باز کردنِ صدا می‌دهد.
+      void audioRef.current?.unlock();
+
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const rows = await loadPool(controller.signal);
+        if (runId !== lifecycle.runId) return;
+
+        const questions = overrides?.reviewIds?.length
+          ? buildReviewQuestions({ pool: rows, failedIds: overrides.reviewIds })
+          : sampleSessionQuestions({
+              pool: rows,
+              count: activeSession.questionCount,
+              allowRepeat: activeSession.allowRepeatQuestions,
+            }).questions;
+
+        if (!questions.length) throw new Error("پرسشی برای این دور پیدا نشد.");
+
+        const runConfig = configForDifficulty(difficultyForPace(activeSession.pace), {
+          ...PACE_TIMINGS[activeSession.pace],
+          questionsPerRun: questions.length,
+          ...configOverrides,
+        });
+
+        dispatch({ type: "start", steps: prepareSteps(questions), config: runConfig });
+      } catch (err) {
+        if (runId !== lifecycle.runId) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setLoadError(err instanceof Error ? err.message : "بارگذاریِ پرسش‌ها ناموفق بود.");
+      } finally {
+        if (runId === lifecycle.runId) setLoading(false);
+      }
+    },
+    [session, loadPool, configOverrides],
+  );
 
   useEffect(() => {
     const lifecycle = lifecycleRef.current;
@@ -165,6 +252,9 @@ export function useAruzBridgeGame({
 
     const id = window.setTimeout(() => {
       switch (state) {
+        case "countdown":
+          dispatch({ type: "countdownDone" });
+          break;
         case "preparing":
           dispatch({ type: "questionShown", now: performance.now() });
           break;
@@ -257,9 +347,23 @@ export function useAruzBridgeGame({
     dispatch({ type: "answer", side, now: performance.now() });
   }, []);
 
-  const restart = useCallback(() => {
-    void start();
-  }, [start]);
+  /** «دوباره»: همان تنظیمات، دنبالهٔ تازه. بازیکن به صفحهٔ تنظیمات برنمی‌گردد. */
+  const retry = useCallback(() => {
+    void beginRun();
+  }, [beginRun]);
+
+  /** «تمرینِ اشتباه‌ها»: فقط همان پرسش‌هایی که شکست خورده‌اند. */
+  const reviewMistakes = useCallback(
+    (ids: readonly string[]) => {
+      void beginRun({ reviewIds: ids });
+    },
+    [beginRun],
+  );
+
+  /** «تغییرِ تنظیمات»: بازگشت به صفحهٔ آغاز، با حفظِ همان انتخاب‌ها. */
+  const backToSetup = useCallback(() => {
+    dispatch({ type: "reset" });
+  }, []);
 
   const step = currentStep(machine);
   const summary = useMemo(() => summarize(machine), [machine]);
@@ -278,9 +382,15 @@ export function useAruzBridgeGame({
     muted,
     toggleMute,
     audio: audioRef,
+    session,
+    setSession,
+    setSoundEnabled,
+    pool,
     choose,
-    start,
-    restart,
+    startRun: beginRun,
+    retry,
+    reviewMistakes,
+    backToSetup,
   };
 }
 

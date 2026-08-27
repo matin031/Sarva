@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
@@ -15,6 +15,7 @@ import type {
   Side,
 } from "@/lib/aruz-bridge/types";
 import { BridgeEnvironment } from "./BridgeEnvironment";
+import { publishInteractionDebug } from "./interactionDebug";
 import { GameCamera } from "./GameCamera";
 import { GlassTile } from "./GlassTile";
 import { Player } from "./Player";
@@ -50,6 +51,7 @@ function standVector(machine: MachineState, index: number): THREE.Vector3 {
 
 const CAMERA_MODE: Record<GameState, CameraMode> = {
   intro: "gameplay",
+  countdown: "gameplay",
   preparing: "gameplay",
   showingQuestion: "gameplay",
   waitingForAnswer: "gameplay",
@@ -66,6 +68,7 @@ const CAMERA_MODE: Record<GameState, CameraMode> = {
 
 const CHARACTER_ANIMATION: Record<GameState, CharacterAnimation> = {
   intro: "idle",
+  countdown: "idle",
   preparing: "idle",
   showingQuestion: "idle",
   waitingForAnswer: "idle",
@@ -88,6 +91,8 @@ export interface GameSceneProps {
   usePlayerModel: boolean;
   onChoose: (side: Side) => void;
   inputLocked: boolean;
+  /** حالتِ توسعه: جعبه‌های برخورد را دیدنی می‌کند. */
+  debugHitTargets?: boolean;
 }
 
 export function GameScene({
@@ -98,6 +103,7 @@ export function GameScene({
   usePlayerModel,
   onChoose,
   inputLocked,
+  debugHitTargets = false,
 }: GameSceneProps) {
   const { state, stepIndex, chosen, epoch } = machine;
   const step = machine.steps[stepIndex] ?? null;
@@ -110,6 +116,51 @@ export function GameScene({
   useEffect(() => {
     clock.current = 0;
   }, [state, epoch]);
+
+  /* یک شناسه برای کلِ صحنه. «کدام کاشی hover است» یک پرسشِ سراسری است، نه
+     حالتی که هر کاشی جدا برای خودش نگه دارد؛ وگرنه دو کاشی می‌توانند
+     هم‌زمان فکر کنند که انتخاب‌شده‌اند. */
+  const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
+
+  const handleHover = useCallback(
+    (tileId: string, entering: boolean) => {
+      setHoveredTileId((current) => {
+      if (entering) return tileId;
+      /* هنگامِ عبورِ سریع از یک کاشی به کاشیِ دیگر، «خروج» از اولی گاهی
+         *بعد* از «ورود» به دومی می‌رسد. اگر کورکورانه پاک می‌کردیم،
+         انتخابِ تازه بلافاصله خاموش می‌شد؛ پس فقط کسی که خودش روشن کرده
+         حق دارد خاموش کند. */
+      return current === tileId ? null : current;
+      });
+      if (debugHitTargets) {
+        publishInteractionDebug({ hoveredTileId: entering ? tileId : null });
+      }
+    },
+    [debugHitTargets],
+  );
+
+  /* انتخاب از همان شیئی می‌آید که hover و متن و مقصدِ پرش را هم تعیین
+     می‌کند — یعنی هیچ‌جا سمت دوباره حدس زده نمی‌شود. */
+  const handleSelect = useCallback(
+    (side: Side) => {
+      if (debugHitTargets) {
+        const target = machine.steps[machine.stepIndex];
+        publishInteractionDebug({
+          lastSelectedSide: side,
+          lastClickedTileId: target ? `${target.question.id}:${side}` : null,
+          lastJumpTarget: { x: tileX(side), z: stepZ(machine.stepIndex) },
+        });
+      }
+      onChoose(side);
+    },
+    [debugHitTargets, machine.steps, machine.stepIndex, onChoose],
+  );
+
+  /* hoverـِ *مؤثر* محاسبه می‌شود، نه همگام‌سازی.
+     تا وقتی ماشینِ حالت پاسخ نمی‌پذیرد، هیچ کاشی‌ای hover نیست — حتی اگر
+     اشاره‌گر هنوز رویش باشد. چون مشتق است، امکان ندارد یک hoverـِ جامانده
+     از مرحلهٔ قبل روی صفحه بماند. */
+  const effectiveHoverId = inputLocked ? null : hoveredTileId;
 
   const playerPos = useRef(new THREE.Vector3(0, BRIDGE_Y, 0));
   const jumpPhase = useRef(0);
@@ -302,8 +353,16 @@ export function GameScene({
                 shatterElapsedRef={shatterElapsed}
                 reveal={reveal}
                 seed={index * 31 + (side === "left" ? 1 : 2)}
+                /* یک شیء، یک هویت: همین `tileId` هم hover را تعیین می‌کند،
+                   هم انتخاب را، هم مقصدِ پرش — چون `side` از همان جفت
+                   آماده‌شده می‌آید و جای دیگری دوباره قرعه نمی‌خورد. */
+                tileId={`${pair.question.id}:${side}`}
+                side={side}
                 selectable={isCurrent && selectable}
-                onPointerSelect={isCurrent && selectable ? () => onChoose(side) : undefined}
+                hoveredTileId={effectiveHoverId}
+                onHover={handleHover}
+                onSelect={handleSelect}
+                debugHitTargets={debugHitTargets}
                 /* فقط جفتِ فعلی متن دارد. جفت‌های بعدی از دلِ مه پیدا
                    می‌شوند ولی هنوز خالی‌اند — چشمِ بازیکن نباید بینِ چند
                    وزن در چند عمق تقسیم شود. */

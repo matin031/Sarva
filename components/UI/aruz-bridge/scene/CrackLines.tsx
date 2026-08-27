@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { NO_RAYCAST } from "./AnswerHitTarget";
 import type { FractureResult } from "@/lib/aruz-bridge/fracture";
 
 /* ترک‌ها *همان* یال‌های نمودارِ شکست‌اند، نه یک بافتِ جدا. یعنی خطی که بازیکن
@@ -91,7 +92,14 @@ export function CrackLines({
   });
 
   return (
-    <lineSegments geometry={geometry} position={[0, y, 0]} visible={visible} renderOrder={3}>
+    <lineSegments
+      geometry={geometry}
+      position={[0, y, 0]}
+      visible={visible}
+      renderOrder={3}
+      // ترک تزئینی است — و خطوط با آستانهٔ یک‌متری تقاطع می‌گیرند
+      raycast={NO_RAYCAST}
+    >
       <shaderMaterial
         ref={materialRef}
         uniforms={uniforms}

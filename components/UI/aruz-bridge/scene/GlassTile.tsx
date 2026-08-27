@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { buildFracture } from "@/lib/aruz-bridge/fracture";
@@ -8,8 +8,9 @@ import { TILE_DEPTH, TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type { GlassState } from "@/lib/aruz-bridge/types";
 import { getEdgeMaterial, getGlassMaterial } from "./glassMaterial";
+import { AnswerHitTarget, NO_RAYCAST } from "./AnswerHitTarget";
 import { CrackLines } from "./CrackLines";
-import { GlassLabel, TileHighlightRing } from "./GlassLabel";
+import { GlassLabel } from "./GlassLabel";
 import { Shards } from "./Shards";
 
 /** هندسهٔ کاشی برای همهٔ کاشی‌ها یکی است — یک بار ساخته و یک بار به GPU
@@ -39,8 +40,16 @@ export interface GlassTileProps {
   /** شیشه‌ای که هنوز از مه بیرون نیامده. */
   reveal?: number;
   seed: number;
-  onPointerSelect?: () => void;
+  /** شناسهٔ یکتای این کاشی — hover و انتخاب هر دو با همین کار می‌کنند. */
+  tileId?: string;
+  side?: import("@/lib/aruz-bridge/types").Side;
+  /** آیا ماشینِ حالت همین حالا پاسخ می‌پذیرد. */
   selectable?: boolean;
+  /** کدام کاشیِ کلِ صحنه hover است. مقایسه با `tileId` تنها معیار است. */
+  hoveredTileId?: string | null;
+  onHover?: (tileId: string, entering: boolean) => void;
+  onSelect?: (side: import("@/lib/aruz-bridge/types").Side) => void;
+  debugHitTargets?: boolean;
   /** وزنی که روی این شیشه نوشته شده. نبودنش یعنی کاشیِ بی‌متن (سکوی آغاز). */
   label?: string;
   /** ۰..۱ — نمایانیِ متن. بازی از روی حالت می‌دهد. */
@@ -58,15 +67,23 @@ export function GlassTile({
   shatterElapsedRef,
   reveal = 1,
   seed,
-  onPointerSelect,
+  tileId,
+  side,
   selectable = false,
+  hoveredTileId = null,
+  onHover,
+  onSelect,
+  debugHitTargets = false,
   label,
   labelOpacity = 0,
   labelHighlight = null,
 }: GlassTileProps) {
   const groupRef = useRef<THREE.Group>(null);
   const slabRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHovered] = useState(false);
+  /* hover دیگر حالتِ *درونیِ* کاشی نیست. یک شناسه در سطحِ صحنه نگه داشته
+     می‌شود و هر کاشی فقط می‌پرسد «آن یکی من هستم؟» — پس دو کاشی نمی‌توانند
+     هم‌زمان روشن شوند، حتی اگر رویدادها اشتباه شلیک کنند. */
+  const hovered = tileId != null && hoveredTileId === tileId;
 
   // ماده و هندسهٔ کاشی بینِ همهٔ کاشی‌ها مشترک‌اند (توضیحش در glassMaterial.ts)
   const glassMaterial = getGlassMaterial(quality, TILE_THICKNESS);
@@ -122,23 +139,25 @@ export function GlassTile({
     <group ref={groupRef} position={position}>
       {/* تختهٔ اصلی. بعد از خردشدن پنهان می‌شود تا فقط قطعات بمانند —
           ولی حذف نمی‌شود، چون دورِ بعد دوباره لازمش داریم. */}
+      {/* تخته و هر چیزِ درونش صرفاً دیداری‌اند: هیچ‌کدام رویدادِ اشاره‌گر
+          نمی‌گیرند و هیچ‌کدام در پرتوافکنی شرکت نمی‌کنند. ثبتِ پاسخ فقط
+          کارِ `AnswerHitTarget` است. */}
       <mesh
         ref={slabRef}
         geometry={SLAB_GEOMETRY}
         material={glassMaterial}
         visible={!shattered && reveal > 0.02}
-        onPointerDown={
-          selectable && onPointerSelect
-            ? (e) => {
-                e.stopPropagation();
-                onPointerSelect();
-              }
-            : undefined
-        }
-        onPointerOver={selectable ? () => setHovered(true) : undefined}
-        onPointerOut={selectable ? () => setHovered(false) : undefined}
+        raycast={NO_RAYCAST}
       >
-        <lineSegments geometry={EDGE_GEOMETRY} material={edgeMaterial} renderOrder={2} />
+        <lineSegments
+          geometry={EDGE_GEOMETRY}
+          material={edgeMaterial}
+          renderOrder={2}
+          /* ریشهٔ باگِ «راست زدم، چپ پرید». خطوط با آستانهٔ یک‌متریِ
+             پیش‌فرض تقاطع می‌گرفتند و فاصله‌ای نزدیک‌تر از خودِ شیشه
+             گزارش می‌کردند. */
+          raycast={NO_RAYCAST}
+        />
 
         {/* متن و حلقه *فرزندِ خودِ تخته‌اند*. برای همین هیچ محاسبهٔ
             هم‌ترازی‌ای وجود ندارد که بتواند اشتباه شود: هرجا کاشی برود،
@@ -146,8 +165,19 @@ export function GlassTile({
         {label && !shattered && (
           <GlassLabel text={label} opacity={labelOpacity} highlight={labelHighlight} />
         )}
-        {selectable && <TileHighlightRing opacity={hovered ? 1 : 0} />}
       </mesh>
+
+      {/* تنها شنوندهٔ رویداد. بیرون از تخته است تا مقیاسِ hover رویش اثر نگذارد. */}
+      {selectable && tileId && side && onHover && onSelect && (
+        <AnswerHitTarget
+          side={side}
+          tileId={tileId}
+          enabled={selectable}
+          onHover={onHover}
+          onSelect={onSelect}
+          debug={debugHitTargets}
+        />
+      )}
 
       {fracture && !shattered && (
         <CrackLines

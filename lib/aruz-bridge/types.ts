@@ -5,7 +5,10 @@
 
 /** چرخهٔ عمرِ یک دور بازی. هر گذار در `lib/aruz-bridge/machine.ts` تعریف شده. */
 export type GameState =
+  /** صفحهٔ تنظیماتِ پیش از بازی. */
   | "intro"
+  /** شمارشِ کوتاهِ ۳-۲-۱ پیش از اولین پرسش. */
+  | "countdown"
   | "preparing"
   | "showingQuestion"
   | "waitingForAnswer"

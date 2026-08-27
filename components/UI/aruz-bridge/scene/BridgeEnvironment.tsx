@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { LANE_OFFSET, STEP_DEPTH, TILE_THICKNESS } from "@/lib/aruz-bridge/layout";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import { makeRng } from "@/lib/aruz-bridge/fracture";
+import { NO_RAYCAST } from "./AnswerHitTarget";
 import { useProceduralEnvironment } from "./useProceduralEnv";
 
 /* محیط: ارتفاع، خطر، تعلیق و عمق — ولی نه ترس.
@@ -62,7 +63,7 @@ function SuspendedParticles({ count }: { count: number }) {
   });
 
   if (count === 0) return null;
-  return <points ref={ref} geometry={geometry} material={material} frustumCulled={false} />;
+  return <points ref={ref} geometry={geometry} material={material} frustumCulled={false} raycast={NO_RAYCAST} />;
 }
 
 /** تیرهای کناری و بست‌ها — سازه‌ای که شیشه‌ها را نگه داشته. */
@@ -109,11 +110,11 @@ function BridgeStructure({ steps }: { steps: number }) {
       {/* دو تیرِ اصلیِ طولی، در دو طرف */}
       {[-railX, railX].map((x) => (
         <group key={x}>
-          <mesh position={[x, TILE_THICKNESS / 2 - 0.06, -length / 2 + STEP_DEPTH]} material={beamMaterial}>
+          <mesh position={[x, TILE_THICKNESS / 2 - 0.06, -length / 2 + STEP_DEPTH]} material={beamMaterial} raycast={NO_RAYCAST}>
             <boxGeometry args={[0.16, 0.16, length]} />
           </mesh>
           {/* نردهٔ بالایی — ارتفاع را خوانا می‌کند */}
-          <mesh position={[x, 1.5, -length / 2 + STEP_DEPTH]} material={beamMaterial}>
+          <mesh position={[x, 1.5, -length / 2 + STEP_DEPTH]} material={beamMaterial} raycast={NO_RAYCAST}>
             <boxGeometry args={[0.07, 0.07, length]} />
           </mesh>
         </group>
@@ -123,17 +124,17 @@ function BridgeStructure({ steps }: { steps: number }) {
       {posts.map((z, i) => (
         <group key={z} position={[0, 0, z]}>
           {[-railX, railX].map((x) => (
-            <mesh key={x} position={[x, 0.78, 0]} material={beamMaterial}>
+            <mesh key={x} position={[x, 0.78, 0]} material={beamMaterial} raycast={NO_RAYCAST}>
               <boxGeometry args={[0.075, 1.5, 0.075]} />
             </mesh>
           ))}
-          <mesh position={[0, -0.16, 0]} material={beamMaterial}>
+          <mesh position={[0, -0.16, 0]} material={beamMaterial} raycast={NO_RAYCAST}>
             <boxGeometry args={[railX * 2, 0.09, 0.11]} />
           </mesh>
           {/* چراغِ ظریفِ طلایی روی هر پایه، یکی‌درمیان */}
           {i % 2 === 0 &&
             [-railX, railX].map((x) => (
-              <mesh key={x} position={[x, 1.56, 0]} material={accentMaterial}>
+              <mesh key={x} position={[x, 1.56, 0]} material={accentMaterial} raycast={NO_RAYCAST}>
                 <sphereGeometry args={[0.045, 8, 8]} />
               </mesh>
             ))}

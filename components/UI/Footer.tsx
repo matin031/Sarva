@@ -26,7 +26,11 @@ const EMAIL = "matinjafaridev@gmail.com";
 
 function Footer() {
   return (
-    <footer dir="rtl" className="relative z-20 mt-20 w-full border-t border-border">
+    <footer
+      dir="rtl"
+      data-site-chrome="footer"
+      className="relative z-20 mt-20 w-full border-t border-border"
+    >
       {/* a hairline of colour along the very top edge, so the footer reads as a
           deliberate end to the page rather than where the content ran out */}
       <div

@@ -185,7 +185,13 @@ function Header() {
   ];
 
   return (
-    <nav className="mt-4 flex justify-between items-center flex-row-reverse container">
+    <nav
+      /* بازیِ تمام‌صفحهٔ موبایل (تقطیعِ سریع) با یک کلاس روی <html> این را
+         کنار می‌گذارد؛ نشانه‌گذاری اینجاست تا آن CSS به ساختارِ body وابسته
+         نباشد. */
+      data-site-chrome="header"
+      className="mt-4 flex justify-between items-center flex-row-reverse container"
+    >
       <motion.div
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}

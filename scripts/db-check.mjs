@@ -25,6 +25,8 @@ const EXPECTED_TABLES = [
   "vocab_words", "vocab_answers",
   // جاسوس
   "jasoos_answers",
+  // پلِ وزن
+  "aruz_bridge_questions",
   // نشان‌شده‌ها
   "user_bookmarks",
   // کلاب
@@ -136,7 +138,8 @@ async function main() {
     const { rows: trigs } = await client.query(
       `select tgname from pg_trigger where not tgisinternal`,
     );
-    check("تریگرها", trigs.length === 4, trigs.map((t) => t.tgname).join(", "));
+    // ۴ تریگرِ ۰۰۱ + تریگرِ touchـِ پرسش‌های پلِ وزن (۰۰۴)
+    check("تریگرها", trigs.length === 5, trigs.map((t) => t.tgname).join(", "));
 
     // --- مبدل‌های نوع، روی داده‌ای که واقعاً از سیم می‌آید --------------------
     console.log("\n  مبدل‌های نوع:");

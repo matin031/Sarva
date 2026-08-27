@@ -95,7 +95,7 @@ export function GameHeader({
       dir="rtl"
       /* روی صفحهٔ کوتاه (گوشیِ افقی) سرصفحه جمع می‌شود: ارتفاعِ کادرِ بازی
          آنجا فقط ~۲۴۰ پیکسل است و هر پیکسل ارزش دارد. */
-      className="rounded-2xl border border-border bg-card px-4 py-3 sm:px-6 sm:py-4 [@media(max-height:560px)]:px-3 [@media(max-height:560px)]:py-1.5"
+      className="rounded-2xl border border-border bg-card px-4 py-2.5 sm:px-6 sm:py-3 [@media(max-height:560px)]:px-3 [@media(max-height:560px)]:py-1.5"
     >
       {/* واژهٔ پرسش — محتوای آموزشیِ اصلی، و بزرگ‌ترین چیزِ صفحه */}
       <div className="text-center">
@@ -104,7 +104,7 @@ export function GameHeader({
         </p>
         <p
           aria-live="polite"
-          className={`mt-0.5 font-sans text-2xl font-black leading-tight text-foreground transition-opacity duration-200 sm:text-4xl [@media(max-height:560px)]:mt-0 [@media(max-height:560px)]:text-lg ${
+          className={`mt-0.5 font-sans text-2xl font-black leading-tight text-foreground transition-opacity duration-200 sm:text-3xl [@media(max-height:560px)]:mt-0 [@media(max-height:560px)]:text-lg ${
             active && promptText ? "opacity-100" : "opacity-30"
           }`}
         >
@@ -113,7 +113,7 @@ export function GameHeader({
       </div>
 
       {/* نوارِ زمان */}
-      <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted [@media(max-height:560px)]:mt-1.5">
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted [@media(max-height:560px)]:mt-1.5">
         <div
           ref={barRef}
           className="h-full w-full origin-right rounded-full"
@@ -122,7 +122,7 @@ export function GameHeader({
       </div>
 
       {/* آمار — یک ردیف، هم‌تراز، نه پراکنده */}
-      <div className="mt-2.5 flex items-center justify-center gap-4 sm:gap-6 [@media(max-height:560px)]:mt-1 [@media(max-height:560px)]:gap-3">
+      <div className="mt-2 flex items-center justify-center gap-4 sm:gap-6 [@media(max-height:560px)]:mt-1 [@media(max-height:560px)]:gap-3">
         <Stat
           label="مرحله"
           value={`${fa.format(Math.min(stepIndex + 1, totalSteps))} از ${fa.format(totalSteps)}`}

@@ -96,7 +96,7 @@ export default function AruzBridgeGame() {
   };
 
   return (
-    <div dir="rtl" className="container mx-auto max-w-5xl px-3 pb-8 pt-3 sm:px-4 sm:pt-4">
+    <div dir="rtl" className="container mx-auto max-w-6xl px-3 pb-8 pt-3 sm:px-4 sm:pt-4">
       {inSetup && (
         <SessionSetup
           session={game.session}
@@ -134,10 +134,26 @@ export default function AruzBridgeGame() {
           />
 
           <div
-            /* ارتفاع به *بلندیِ* پنجره حساس است، نه فقط پهنایش: گوشیِ افقی
-               حدودِ ۳۹۰ پیکسل ارتفاع دارد و کفِ ارتفاعِ ثابت آن را از صفحه
-               بیرون می‌انداخت. */
-            className="relative h-[46vh] min-h-[240px] w-full overflow-hidden rounded-2xl border border-border bg-[#060c14] [@media(min-height:561px)]:h-[calc(100dvh-22rem)] [@media(min-height:561px)]:min-h-[360px]"
+            /* ═══ اندازهٔ کادرِ بازی: *نسبت‌محور*، نه باقی‌ماندهٔ ارتفاعِ پنجره ═══
+               پیش‌تر ارتفاع از `calc(100dvh - 22rem)` می‌آمد، یعنی «هرچه از
+               پنجره بعدِ سربرگ‌ها ماند». چون پهنا ثابت بود (۹۹۰ پیکسل)، روی
+               هر نمایشگرِ کوتاه‌تر نسبت بی‌مهار خراب می‌شد:
+
+                 ۱۹۲۰×۱۰۸۰ → ۹۹۰×۷۲۶ (۱٫۳۶)
+                 ۱۳۶۶×۷۶۸  → ۹۹۰×۴۱۴ (۲٫۳۹)  ← نوارِ باریک
+                 ۱۲۸۰×۷۲۰  → ۹۹۰×۳۶۶ (۲٫۷۰)  ← بدتر
+
+               یعنی دقیقاً روی دو اندازهٔ رایجِ لپ‌تاپ، پل به یک نوارِ پانورامیک
+               تبدیل می‌شد. حالا ارتفاع از *نسبت* می‌آید، پس روی هر نمایشگری
+               ثابت است و اگر صفحه بلندتر شد، بگذار اسکرول شود — خوانایی
+               بازی مهم‌تر از جاشدنِ کلِ صفحه در یک پرده است.
+
+               سه حالتِ ناهم‌پوشان:
+                 • پیش‌فرض (دسکتاپ و لپ‌تاپ): ۱۶:۹
+                 • گوشیِ عمودی (باریک ولی بلند): ۴:۵ — نمای عمودیِ خودش
+                 • پنجرهٔ کوتاه (گوشیِ افقی): تنها جایی که ارتفاع واقعاً
+                   محدودکننده است و اجازه دارد نسبت را تعیین کند */
+            className="relative w-full overflow-hidden rounded-2xl border border-border bg-[#060c14] aspect-[16/9] max-h-[680px] min-h-[360px] [@media(max-width:639px)_and_(min-height:561px)]:aspect-[4/5] [@media(max-height:560px)]:aspect-auto [@media(max-height:560px)]:h-[70vh] [@media(max-height:560px)]:max-h-none [@media(max-height:560px)]:min-h-[190px]"
           >
             {webgl === null ? (
               <div className="absolute inset-0 flex items-center justify-center">

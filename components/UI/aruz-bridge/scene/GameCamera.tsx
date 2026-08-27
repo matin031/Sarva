@@ -4,7 +4,13 @@ import { useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
-import { BRIDGE_Y } from "@/lib/aruz-bridge/layout";
+import {
+  BRIDGE_Y,
+  LANE_OFFSET,
+  STEP_DEPTH,
+  TILE_DEPTH,
+  TILE_WIDTH,
+} from "@/lib/aruz-bridge/layout";
 import type { CameraMode } from "@/lib/aruz-bridge/types";
 
 /* دوربینِ سومْ‌شخصِ سه‌چهارم.
@@ -17,22 +23,50 @@ import type { CameraMode } from "@/lib/aruz-bridge/types";
  *
  * دوربین هیچ‌وقت نمی‌داند پاسخ درست بوده یا غلط. فقط «حالت» می‌گیرد. */
 
-const CAMERA_HEIGHT = 3.05;
-const CAMERA_BACK = 5.2;
+/* دوربین نسبت به قبل کمی *بالاتر* و نزدیک‌تر آمده. دلیلش مستقیماً به
+   نوشته‌شدنِ وزن‌ها روی خودِ شیشه برمی‌گردد: هرچه زاویهٔ دید به سطحِ کاشی
+   مورب‌تر باشد، متن در راستای عمق بیشتر فشرده می‌شود. زاویهٔ بازتر یعنی متنِ
+   خواناتر، بی‌آنکه نمای سه‌چهارم به نمای بالا-پایین تبدیل شود. */
+const CAMERA_HEIGHT = 3.2;
+const CAMERA_BACK = 3.6;
 const LATERAL_FOLLOW = 0.35;
-/** چقدر جلوترِ بازیکن را نگاه کند — همین عمقِ مسیر را نشان می‌دهد. */
-const LOOK_AHEAD = 2.8;
+/* دوربین به *مرکزِ ثقلِ چیزهایی که باید دیده شوند* نگاه می‌کند، نه به نقطه‌ای
+   با فاصلهٔ ثابت جلوترِ بازیکن.
 
-/* عرضی از دنیا که *همیشه* باید در کادر باشد: دو کاشی (مرکزهایشان ۲٫۱ متر از
-   هم) به‌علاوهٔ برچسب‌هایشان و کمی حاشیه.
+   فرقش را روی صفحه می‌شود دید: با نگاهِ ثابتِ رو به جلو، بازیکن و هر دو کاشی
+   همگی *زیرِ* محورِ دید می‌افتادند و کلِ نیمهٔ بالای کادر مه و تهی بود — همان
+   حسِ «کج و ناجور» بودنِ ترکیب‌بندی. با نگاه به مرکزِ ثقل، محتوا وسط می‌نشیند.
 
-   دلیلِ وجودِ این ثابت: `fov` در three عمودی است. روی نمایشگرِ بلند و باریکِ
-   موبایل (نسبتِ ~۰٫۴۶)، یک fovِ عمودیِ ثابت یعنی میدانِ دیدِ *افقی* به‌شدت
-   تنگ می‌شود — و برچسبِ شیشهٔ چپ از لبهٔ صفحه بیرون می‌افتد. با ثابت‌نگه‌داشتنِ
-   عرضِ کادر به‌جای زاویهٔ عمودی، ترکیب‌بندی روی هر نسبتی درست می‌ماند. */
-const FRAME_WIDTH = 5.6;
-const FOV_MIN = 42;
-const FOV_MAX = 88;
+   `LOOK_BIAS` بعد از آن، کادر را کمی پایین می‌آورد تا بالای تصویر برای HUD
+   خالی بماند و واژهٔ پرسش روی خودِ پل نیفتد. */
+const LOOK_BIAS = 0.45;
+
+/* ═══ کادربندیِ خودکار ═════════════════════════════════════════════════════
+   دوربین دیگر «فلان‌قدر جلوتر را نگاه کن» نیست؛ صریحاً *چیزهایی را که باید
+   دیده شوند* در کادر نگه می‌دارد.
+
+   چرا عوض شد: هر ثابتی — چه زاویهٔ دید، چه عرضِ ثابتِ کادر — فقط برای نسبتِ
+   تصویری‌ای درست است که با آن کوک شده. روی گوشیِ عمودی (۰٫۴۶) میدانِ دیدِ
+   افقی جمع می‌شد و کاشیِ چپ بیرون می‌افتاد؛ روی گوشیِ *افقی* (نسبتِ ۳٫۸، چون
+   ارتفاعِ کادر فقط ۲۲۲ پیکسل است) برعکس، میدانِ عمودی ته می‌کشید و خودِ
+   بازیکن از پایینِ کادر بیرون می‌زد.
+
+   حالا هر فریم چند نقطهٔ کلیدی به فضای دوربین برده می‌شوند و زاویهٔ دید از
+   روی دورترینشان حساب می‌شود. یعنی تضمین — نه تنظیم — که این‌ها همیشه دیده
+   می‌شوند:
+
+     • بازیکن (از پا تا بالای سر)
+     • هر دو کاشیِ گزینه، تا لبهٔ دورشان
+     • وزنی که روی هر کاشی نوشته شده
+
+   هیچ عددی به نسبتِ تصویری گره نخورده، پس روی هر صفحه‌ای — و در هر
+   چرخشِ گوشی — ترکیب‌بندی همان می‌ماند. */
+const FOV_MIN = 34;
+const FOV_MAX = 86;
+/** حاشیهٔ اطراف — کادرِ چسبیده به اشیا خفه به نظر می‌رسد. */
+const FRAME_MARGIN = 1.15;
+/** بالای سرِ بازیکن، برای اینکه کادر سرش را نبُرد. */
+const PLAYER_TOP = 1.25;
 
 interface GameCameraProps {
   /** ref و نه مقدار: موقعیتِ بازیکن هر فریم عوض می‌شود. */
@@ -48,10 +82,16 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
   /* دوربین را خودمان می‌سازیم و ref می‌گیریم، به‌جای دست‌کاریِ دوربینِ
      پیش‌فرضِ صحنه. `makeDefault` باعث می‌شود R3F همین را دوربینِ فعال بداند. */
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-  const lookAt = useRef(new THREE.Vector3(0, 0.8, -LOOK_AHEAD));
+  const lookAt = useRef(new THREE.Vector3(0, 0.8, -2.6));
   const desired = useRef(new THREE.Vector3());
   const desiredLook = useRef(new THREE.Vector3());
   const shake = useRef(new THREE.Vector3());
+  /* اشیای کمکی، یک بار ساخته می‌شوند. تخصیصِ حافظه در حلقهٔ فریم یعنی کارِ
+     مدام برای زباله‌روب و پرش‌های ریز در نرخِ فریم. */
+  const view = useRef(new THREE.Matrix4());
+  const scratch = useRef(new THREE.Vector3());
+  const framePoints = useRef(Array.from({ length: 6 }, () => new THREE.Vector3()));
+  const centroid = useRef(new THREE.Vector3());
   /** ارتفاعِ سطحِ پل، تا دوربین هنگامِ سقوط همان‌جا بماند. */
   const bridgeLevel = useRef(BRIDGE_Y);
 
@@ -61,11 +101,29 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
     const dt = Math.min(delta, 0.05);
     const p = targetRef.current;
 
+    /* نقاطی که ترکیب‌بندی حولِ آن‌ها بسته می‌شود: بازیکن (از پا تا بالای سر)
+       و چهار گوشهٔ دو کاشیِ گزینه. هم مرکزِ نگاه از این‌ها می‌آید، هم زاویهٔ
+       دید — پس «دیده‌شدن»شان محاسبه‌شده است، نه تنظیم‌شده. */
+    const zAhead = p.z - STEP_DEPTH;
+    const halfW = LANE_OFFSET + TILE_WIDTH / 2;
+    const farZ = zAhead - TILE_DEPTH / 2;
+    const nearZ = zAhead + TILE_DEPTH / 2;
+    framePoints.current[0].set(p.x, p.y, p.z);
+    framePoints.current[1].set(p.x, p.y + PLAYER_TOP, p.z);
+    framePoints.current[2].set(-halfW, BRIDGE_Y, farZ);
+    framePoints.current[3].set(halfW, BRIDGE_Y, farZ);
+    framePoints.current[4].set(-halfW, BRIDGE_Y, nearZ);
+    framePoints.current[5].set(halfW, BRIDGE_Y, nearZ);
+
+    centroid.current.set(0, 0, 0);
+    for (const point of framePoints.current) centroid.current.add(point);
+    centroid.current.divideScalar(framePoints.current.length);
+
     switch (mode) {
       case "jump":
         // کمی جلو می‌آید تا حرکت حس شود، ولی نه آن‌قدر که حالت تهوع بیاورد
-        desired.current.set(p.x * LATERAL_FOLLOW, bridgeLevel.current + CAMERA_HEIGHT, p.z + CAMERA_BACK - 0.5);
-        desiredLook.current.set(p.x * 0.45, p.y + 0.85, p.z - LOOK_AHEAD);
+        desired.current.set(p.x * LATERAL_FOLLOW, bridgeLevel.current + CAMERA_HEIGHT, p.z + CAMERA_BACK - 0.4);
+        desiredLook.current.set(centroid.current.x, centroid.current.y + LOOK_BIAS, centroid.current.z);
         break;
 
       case "fall":
@@ -85,7 +143,7 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
       default:
         bridgeLevel.current = p.y;
         desired.current.set(p.x * LATERAL_FOLLOW, p.y + CAMERA_HEIGHT, p.z + CAMERA_BACK);
-        desiredLook.current.set(p.x * 0.45, p.y + 0.85, p.z - LOOK_AHEAD);
+        desiredLook.current.set(centroid.current.x, centroid.current.y + LOOK_BIAS, centroid.current.z);
     }
 
     // میرایی مستقل از نرخِ فریم: روی ۳۰ و ۱۴۴ هرتز یک‌جور حرکت می‌کند
@@ -113,19 +171,36 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
 
     camera.lookAt(lookAt.current);
 
-    /* fov را طوری کوک کن که `FRAME_WIDTH` همیشه در کادر جا شود. روی نمایشگرِ
-       پهن این تقریباً همان fovِ پایه است؛ روی موبایلِ عمودی خودش را باز
-       می‌کند تا هر دو برچسب دیده شوند. */
-    const distance = camera.position.distanceTo(lookAt.current);
-    const neededHalfH = Math.atan(FRAME_WIDTH / 2 / Math.max(distance, 0.001));
-    const neededFov = THREE.MathUtils.radToDeg(
-      2 * Math.atan(Math.tan(neededHalfH) / camera.aspect),
-    );
-    const fov = THREE.MathUtils.clamp(neededFov, FOV_MIN, FOV_MAX);
-    // ماتریسِ تصویر گران است؛ فقط وقتی تغییرِ معنادار باشد بازسازی می‌شود.
-    if (Math.abs(camera.fov - fov) > 0.15) {
-      camera.fov = fov;
-      camera.updateProjectionMatrix();
+    /* ── زاویهٔ دید را از روی نقاطی که باید دیده شوند حساب کن ──────────
+       هنگامِ سقوط این کار متوقف می‌شود: بازیکن ده‌ها متر پایین می‌رود و
+       دنبال‌کردنش یعنی دوربین تا بی‌نهایت زوم بیرون می‌رود. */
+    if (mode === "gameplay" || mode === "jump") {
+      camera.updateMatrixWorld();
+      view.current.copy(camera.matrixWorld).invert();
+
+      let vHalf = 0;
+      let hHalf = 0;
+      for (const point of framePoints.current) {
+        scratch.current.copy(point).applyMatrix4(view.current);
+        // دوربین در فضای دید به سمتِ ‎-z نگاه می‌کند؛ نقاطِ پشتِ سر بی‌معنی‌اند.
+        const depth = -scratch.current.z;
+        if (depth < 0.2) continue;
+        vHalf = Math.max(vHalf, Math.atan(Math.abs(scratch.current.y) / depth));
+        hHalf = Math.max(hHalf, Math.atan(Math.abs(scratch.current.x) / depth));
+      }
+
+      // نیازِ افقی را به زبانِ زاویهٔ عمودی ترجمه کن، چون fov عمودی است.
+      const fromHorizontal = 2 * Math.atan(Math.tan(hHalf) / camera.aspect);
+      const needed = THREE.MathUtils.radToDeg(Math.max(2 * vHalf, fromHorizontal));
+      const fov = THREE.MathUtils.clamp(needed * FRAME_MARGIN, FOV_MIN, FOV_MAX);
+
+      // میرایی، تا تغییرِ نسبت یا پرش باعثِ جهشِ ناگهانیِ زوم نشود
+      const next = THREE.MathUtils.damp(camera.fov, fov, 6, dt);
+      // ماتریسِ تصویر گران است؛ فقط وقتی تغییرِ معنادار باشد بازسازی می‌شود.
+      if (Math.abs(camera.fov - next) > 0.05) {
+        camera.fov = next;
+        camera.updateProjectionMatrix();
+      }
     }
   });
 

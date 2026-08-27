@@ -1,4 +1,5 @@
 import { aruzBridgeAssets, type AruzBridgeSoundName } from "./assets";
+import { synthesizeSound } from "./synth";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    مدیرِ صدا — کاملاً مستقل از منطقِ بازی.
@@ -9,9 +10,14 @@ import { aruzBridgeAssets, type AruzBridgeSoundName } from "./assets";
    <audio> بینِ فراخوانیِ play() و شنیده‌شدنِ صدا تأخیرِ متغیر دارد؛
    AudioBufferSourceNode بافرِ از پیش رمزگشایی‌شده را در همان فریم شروع می‌کند.
 
-   نبودنِ فایل خطا نیست. هر صدایی که ۴۰۴ بدهد یا رمزگشایی نشود، «غایب» علامت
-   می‌خورد و از آن به بعد play() برایش یک no-op است — کلِ توالیِ دیداری بدون
-   هیچ صدایی هم کامل اجرا می‌شود.
+   نبودنِ فایل خطا نیست — ولی سکوت هم نیست. هر صدایی که ۴۰۴ بدهد یا رمزگشایی
+   نشود، جایش با یک نمونهٔ ساخته‌شده در `synth.ts` پر می‌شود. یعنی بازی همیشه
+   صدا دارد و کلِ زنجیره قابلِ‌شنیدن آزموده می‌شود؛ فایلِ واقعی که رسید،
+   بی‌سروصدا جایگزین می‌شود.
+
+   این تصمیم از یک اشتباهِ مشخص آمد: پیش‌تر خطاها بی‌صدا بلعیده می‌شدند و
+   هیچ‌کس نمی‌توانست بفهمد صدا خراب است یا فقط فایل ندارد. حالا هم صدا شنیده
+   می‌شود و هم `describe()` دقیقاً می‌گوید هر صدا از کجا آمده.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 type Ctor = typeof AudioContext;
@@ -29,7 +35,9 @@ export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private buffers = new Map<AruzBridgeSoundName, AudioBuffer>();
-  /** صداهایی که فایلشان نبود یا رمزگشایی نشد — دیگر تلاش نمی‌کنیم. */
+  /** منبعِ هر صدا: فایلِ واقعی یا نمونهٔ ساخته‌شده. مبنای گزارشِ تشخیصی. */
+  private origin = new Map<AruzBridgeSoundName, "file" | "synth">();
+  /** فایل‌هایی که پیدا نشدند — همان فهرستی که باید تهیه شوند. */
   private missing = new Set<AruzBridgeSoundName>();
   private heartbeat: AudioBufferSourceNode | null = null;
   private heartbeatGain: GainNode | null = null;
@@ -42,13 +50,20 @@ export class GameAudio {
     this.volume = volume;
   }
 
-  /** کدام صداها واقعاً در دسترس‌اند — برای گزارشِ «چه فایل‌هایی کم داریم». */
-  get availability(): Record<string, boolean> {
-    const out: Record<string, boolean> = {};
+  /** وضعیتِ کاملِ صدا — برای گزارش، اشکال‌زدایی و تستِ خودکار. */
+  describe() {
+    const sounds = {} as Record<AruzBridgeSoundName, "file" | "synth" | "none">;
     for (const name of Object.keys(aruzBridgeAssets.audio) as AruzBridgeSoundName[]) {
-      out[name] = this.buffers.has(name);
+      sounds[name] = this.origin.get(name) ?? "none";
     }
-    return out;
+    return {
+      contextState: this.ctx?.state ?? "none",
+      unlocked: this.ctx?.state === "running",
+      muted: this.muted,
+      volume: this.volume,
+      sounds,
+      missingFiles: [...this.missing].map((n) => aruzBridgeAssets.audio[n]),
+    };
   }
 
   /**
@@ -80,6 +95,12 @@ export class GameAudio {
         /* بعضی مرورگرها بدونِ ژستِ معتبر رد می‌کنند؛ دفعهٔ بعد دوباره تلاش می‌شود */
       }
     }
+    /* دستگیره‌ای برای اشکال‌زدایی و تستِ خودکار. از کنسول:
+       `__aruzBridgeAudio.describe()` وضعیتِ کاملِ زنجیره را می‌دهد. */
+    if (typeof window !== "undefined") {
+      (window as Window & { __aruzBridgeAudio?: GameAudio }).__aruzBridgeAudio = this;
+    }
+
     this.loading ??= this.loadAll();
     return this.loading;
   }
@@ -101,6 +122,50 @@ export class GameAudio {
         }
       }),
     );
+
+    /* هر فایلی که نیامد، جایش ساخته می‌شود. بازی هرگز بی‌صدا نمی‌ماند. */
+    for (const name of names) {
+      if (this.buffers.has(name)) {
+        this.origin.set(name, "file");
+        continue;
+      }
+      try {
+        this.buffers.set(name, synthesizeSound(name, ctx));
+        this.origin.set(name, "synth");
+      } catch {
+        // ساختِ صدا هم شکست خورد: همان no-opِ قدیمی، ولی حالا در گزارش دیده می‌شود.
+      }
+    }
+
+    this.report();
+  }
+
+  /**
+   * گزارشِ یک‌خطی در کنسول.
+   *
+   * دلیلِ وجودش: «هیچ صدایی نمی‌آید» می‌تواند ده علت داشته باشد و از بیرون
+   * همه یک شکل‌اند. این گزارش بلافاصله می‌گوید قفلِ مرورگر باز شده یا نه،
+   * هر صدا از فایل آمده یا ساخته شده، و کدام فایل‌ها هنوز کم‌اند.
+   */
+  private report(): void {
+    if (typeof console === "undefined") return;
+    const info = this.describe();
+    const synth = Object.entries(info.sounds).filter(([, v]) => v === "synth");
+
+    console.groupCollapsed(
+      `%c[پلِ وزن] صدا: ${info.unlocked ? "فعال" : "قفل"} — ` +
+        `${Object.values(info.sounds).filter((v) => v === "file").length} فایل، ${synth.length} ساخته‌شده`,
+      "color:#00a5a6;font-weight:bold",
+    );
+    console.table(info.sounds);
+    if (info.missingFiles.length) {
+      console.info(
+        "فایل‌های صوتیِ زیر موجود نیستند و فعلاً با نمونهٔ ساخته‌شده جایگزین شده‌اند.\n" +
+          "برای صدای نهایی، این‌ها را در public/ قرار دهید (راهنما: public/games/aruz-bridge/README.md):",
+      );
+      for (const path of info.missingFiles) console.info("  •", path);
+    }
+    console.groupEnd();
   }
 
   private playBuffer(

@@ -20,11 +20,23 @@ import { AnimatePresence, motion } from "motion/react";
 export default function GameShell({
   title,
   progressKeys = [],
+  dense = false,
   children,
 }: {
   title: string;
   /** localStorage keys holding this game's in-progress round */
   progressKeys?: string[];
+  /**
+   * روی صفحه‌های کوتاه (گوشیِ افقی) نوارِ بالا را جمع می‌کند.
+   *
+   * گوشیِ افقی حدودِ ۳۹۰ پیکسل ارتفاع دارد و همین نوار با فاصله‌اش نزدیکِ
+   * ۵۰ پیکسل از آن را می‌گیرد — که برای بازیِ سه‌بعدی تفاوتِ محسوسی است.
+   * در حالتِ فشرده فقط *متنِ* پیوند پنهان می‌شود؛ خودِ دکمه و پیکانش سرِ
+   * جایشان می‌مانند، پس راهِ خروج از دست نمی‌رود.
+   *
+   * پیش‌فرض خاموش است تا رفتارِ بقیهٔ بازی‌ها تغییر نکند.
+   */
+  dense?: boolean;
   children: ReactNode;
 }) {
   const [confirmExit, setConfirmExit] = useState(false);
@@ -51,7 +63,11 @@ export default function GameShell({
 
   return (
     <div dir="rtl" className="relative z-20">
-      <div className="container mx-auto max-w-4xl pt-6">
+      <div
+        className={`container mx-auto max-w-4xl pt-6 ${
+          dense ? "[@media(max-height:560px)]:pt-2" : ""
+        }`}
+      >
         <button
           onClick={() => setConfirmExit(true)}
           className="inline-flex items-center gap-x-1 text-sm text-muted-foreground transition-all hover:text-primary"
@@ -70,7 +86,9 @@ export default function GameShell({
               d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
             />
           </svg>
-          بازگشت به کهکشانِ بازی‌ها
+          <span className={dense ? "[@media(max-height:560px)]:hidden" : undefined}>
+            بازگشت به کهکشانِ بازی‌ها
+          </span>
         </button>
       </div>
 

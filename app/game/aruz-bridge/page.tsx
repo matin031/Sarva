@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <GameShell title="پلِ وزن">
+    <GameShell title="پلِ وزن" dense>
       <AruzBridgeGame />
     </GameShell>
   );

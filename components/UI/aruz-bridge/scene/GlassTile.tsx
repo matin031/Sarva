@@ -9,6 +9,7 @@ import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type { GlassState } from "@/lib/aruz-bridge/types";
 import { getEdgeMaterial, getGlassMaterial } from "./glassMaterial";
 import { CrackLines } from "./CrackLines";
+import { GlassLabel, TileHighlightRing } from "./GlassLabel";
 import { Shards } from "./Shards";
 
 /** هندسهٔ کاشی برای همهٔ کاشی‌ها یکی است — یک بار ساخته و یک بار به GPU
@@ -40,6 +41,11 @@ export interface GlassTileProps {
   seed: number;
   onPointerSelect?: () => void;
   selectable?: boolean;
+  /** وزنی که روی این شیشه نوشته شده. نبودنش یعنی کاشیِ بی‌متن (سکوی آغاز). */
+  label?: string;
+  /** ۰..۱ — نمایانیِ متن. بازی از روی حالت می‌دهد. */
+  labelOpacity?: number;
+  labelHighlight?: "correct" | "wrong" | null;
 }
 
 export function GlassTile({
@@ -54,6 +60,9 @@ export function GlassTile({
   seed,
   onPointerSelect,
   selectable = false,
+  label,
+  labelOpacity = 0,
+  labelHighlight = null,
 }: GlassTileProps) {
   const groupRef = useRef<THREE.Group>(null);
   const slabRef = useRef<THREE.Mesh>(null);
@@ -130,6 +139,14 @@ export function GlassTile({
         onPointerOut={selectable ? () => setHovered(false) : undefined}
       >
         <lineSegments geometry={EDGE_GEOMETRY} material={edgeMaterial} renderOrder={2} />
+
+        {/* متن و حلقه *فرزندِ خودِ تخته‌اند*. برای همین هیچ محاسبهٔ
+            هم‌ترازی‌ای وجود ندارد که بتواند اشتباه شود: هرجا کاشی برود،
+            نوشته‌اش هم می‌رود — روی هر نسبتِ تصویری و در هر زاویه. */}
+        {label && !shattered && (
+          <GlassLabel text={label} opacity={labelOpacity} highlight={labelHighlight} />
+        )}
+        {selectable && <TileHighlightRing opacity={hovered ? 1 : 0} />}
       </mesh>
 
       {fracture && !shattered && (

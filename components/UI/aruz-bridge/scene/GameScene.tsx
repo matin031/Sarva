@@ -4,13 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
-import {
-  BRIDGE_Y,
-  STEP_DEPTH,
-  TILE_THICKNESS,
-  stepZ,
-  tileX,
-} from "@/lib/aruz-bridge/layout";
+import { BRIDGE_Y, stepZ, tileX } from "@/lib/aruz-bridge/layout";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type {
@@ -23,7 +17,6 @@ import type {
 import { BridgeEnvironment } from "./BridgeEnvironment";
 import { GameCamera } from "./GameCamera";
 import { GlassTile } from "./GlassTile";
-import { OptionLabel, PromptLabel } from "./OptionLabel";
 import { Player } from "./Player";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -254,7 +247,6 @@ export function GameScene({
           ? 0.9
           : 1;
 
-  const promptOpacity = state === "showingQuestion" ? 1 : 0;
   const selectable = !inputLocked;
 
   const revealFor = (index: number) => (index <= stepIndex + 3 ? 1 : 0);
@@ -312,50 +304,16 @@ export function GameScene({
                 seed={index * 31 + (side === "left" ? 1 : 2)}
                 selectable={isCurrent && selectable}
                 onPointerSelect={isCurrent && selectable ? () => onChoose(side) : undefined}
+                /* فقط جفتِ فعلی متن دارد. جفت‌های بعدی از دلِ مه پیدا
+                   می‌شوند ولی هنوز خالی‌اند — چشمِ بازیکن نباید بینِ چند
+                   وزن در چند عمق تقسیم شود. */
+                label={isCurrent ? (side === "left" ? pair.leftPattern : pair.rightPattern) : undefined}
+                labelOpacity={isCurrent ? optionsOpacity : 0}
+                labelHighlight={
+                  revealAnswer ? (pair.correctSide === side ? "correct" : "wrong") : null
+                }
               />
             ))}
-
-            {isCurrent && (
-              <>
-                <group position={[tileX("left"), 0, stepZ(index)]}>
-                  <OptionLabel
-                    pattern={pair.leftPattern}
-                    side="left"
-                    y={TILE_THICKNESS / 2 + 0.62}
-                    opacity={optionsOpacity}
-                    dimmed={state === "showingQuestion"}
-                    highlight={
-                      revealAnswer ? (pair.correctSide === "left" ? "correct" : null) : null
-                    }
-                    selectable={selectable}
-                    onSelect={() => onChoose("left")}
-                  />
-                </group>
-                <group position={[tileX("right"), 0, stepZ(index)]}>
-                  <OptionLabel
-                    pattern={pair.rightPattern}
-                    side="right"
-                    y={TILE_THICKNESS / 2 + 0.62}
-                    opacity={optionsOpacity}
-                    dimmed={state === "showingQuestion"}
-                    highlight={
-                      revealAnswer ? (pair.correctSide === "right" ? "correct" : null) : null
-                    }
-                    selectable={selectable}
-                    onSelect={() => onChoose("right")}
-                  />
-                </group>
-
-                {/* پرسش بینِ دو شیشه و کمی بالاتر می‌ایستد، تا چشم برای
-                    خواندنش از گزینه‌ها دور نشود. */}
-                <PromptLabel
-                  text={pair.question.promptText}
-                  y={2.15}
-                  z={stepZ(index) + STEP_DEPTH * 0.32}
-                  opacity={promptOpacity}
-                />
-              </>
-            )}
           </group>
         );
       })}

@@ -11,7 +11,7 @@ import {
 } from "@/lib/aruz-bridge/quality";
 import { currentStep } from "@/lib/aruz-bridge/machine";
 import type { Difficulty } from "@/lib/aruz-bridge/types";
-import { GameHUD } from "./GameHUD";
+import { DemoDataNote, GameHUD } from "./GameHUD";
 import {
   FinishedScreen,
   GameOverScreen,
@@ -78,7 +78,12 @@ export default function AruzBridgeGame({ difficulty = 1 }: { difficulty?: Diffic
     <div
       dir="rtl"
       // ارتفاعِ ثابت و نسبت به viewport، تا روی موبایل نوارِ آدرس بازی را نبُرد
-      className="relative mx-auto mt-4 h-[calc(100dvh-11.5rem)] min-h-[420px] w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-[#060c14]"
+      /* ارتفاع به *بلندیِ* پنجره حساس است، نه فقط به پهنایش.
+         گوشیِ افقی حدودِ ۳۹۰ پیکسل ارتفاع دارد و بالای کادر هم سربرگِ سایت
+         و لینکِ بازگشت نشسته‌اند؛ با `min-h` ثابت، کادر ۱۸۹ پیکسل از پایینِ
+         صفحه بیرون می‌زد. روی صفحهٔ کوتاه، حاشیه کم و کفِ ارتفاع برداشته
+         می‌شود تا بازی کامل در کادر بماند. */
+      className="relative mx-auto mt-2 h-[calc(100dvh-10.5rem)] min-h-0 w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-[#060c14] sm:mt-4 [@media(min-height:561px)]:h-[calc(100dvh-11.5rem)] [@media(min-height:561px)]:min-h-[420px]"
     >
       {webgl === null ? (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -107,11 +112,16 @@ export default function AruzBridgeGame({ difficulty = 1 }: { difficulty?: Diffic
           totalSteps={machine.steps.length || defaultAruzBridgeConfig.questionsPerRun}
           muted={game.muted}
           onToggleMute={game.toggleMute}
-          isDemoData={game.isDemoData}
+          promptText={step?.question.promptText ?? null}
         />
       )}
 
-      {!showIntro && !showGameOver && !showFinished && <OrientationHint />}
+      {!showIntro && !showGameOver && !showFinished && (
+        <>
+          <OrientationHint />
+          {game.isDemoData && <DemoDataNote />}
+        </>
+      )}
 
       {showIntro && (
         <IntroScreen onStart={game.start} loading={game.loading} error={game.loadError} />

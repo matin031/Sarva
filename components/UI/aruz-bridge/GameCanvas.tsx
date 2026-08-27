@@ -42,7 +42,9 @@ export default function GameCanvas(props: GameCanvasProps) {
       // رندر می‌شد و همان‌جا نرخِ فریم نصف می‌شد.
       dpr={quality.dpr}
       gl={glSettings}
-      shadows={quality.shadows}
+      /* «percentage» یعنی PCFShadowMap. مقدارِ بولیِ `true` در three به
+         PCFSoftShadowMap نگاشته می‌شد که منسوخ شده و در کنسول هشدار می‌داد. */
+      shadows={quality.shadows ? "percentage" : false}
       camera={{ fov: 50, near: 0.1, far: 220, position: [0, 3.05, 5.2] }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;

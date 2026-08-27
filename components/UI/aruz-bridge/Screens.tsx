@@ -216,7 +216,7 @@ export function OrientationHint() {
   return (
     <div
       dir="rtl"
-      className="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center px-4 landscape:hidden"
+      className="pointer-events-none absolute inset-x-0 bottom-8 z-30 flex justify-center px-4 sm:bottom-10 landscape:hidden"
     >
       <p className="rounded-full border border-border/70 bg-card/85 px-3.5 py-1.5 text-[0.65rem] text-muted-foreground backdrop-blur-md">
         برای تجربهٔ بهتر گوشی را افقی کنید.

@@ -10,6 +10,7 @@ import {
 import { DEFAULT_RAPID_ARUZ_CONFIG, type RapidAruzConfig } from "@/lib/aruz-rapid/config";
 import { defaultRapidAruzSource, type RapidAruzQuestionSource } from "@/lib/aruz-rapid/source";
 import type { ScansionLength } from "@/lib/aruz-rapid/types";
+import { immersiveMode } from "@/lib/immersive-mode";
 import { rapidAruzMountCount, useRapidAruzGame } from "./useRapidAruzGame";
 import { useRapidAruzLayout } from "./useRapidAruzLayout";
 import { useRapidAruzAudio } from "./useRapidAruzAudio";
@@ -21,7 +22,7 @@ import CompactGameTopBar from "./CompactGameTopBar";
 import IntroScreen from "./IntroScreen";
 import ResultsScreen from "./ResultsScreen";
 
-/** کلاسِ سراسری‌ای که سربرگ و پابرگِ سایت را در بازیِ تمام‌صفحه کنار می‌گذارد. */
+/** کلاسِ سراسری‌ای که فقط اسکرولِ صفحه را در بازیِ تمام‌صفحه قفل می‌کند. */
 const IMMERSIVE_CLASS = "aruzr-immersive";
 
 export default function RapidAruzGame({
@@ -91,11 +92,19 @@ export default function RapidAruzGame({
     if (rootRef.current) rootRef.current.dataset.mount = String(rapidAruzMountCount());
   }, []);
 
-  // ── حالتِ تمام‌صفحه: فقط یک کلاس روی <html> ──
+  // ── پوستهٔ سایت ──
   //
-  // عمداً هیچ شاخهٔ تازه‌ای در درختِ React باز نمی‌شود. اگر سربرگ/پابرگ با
-  // شرطِ JSX برداشته می‌شدند، جای این کامپوننت در درخت عوض می‌شد و React
-  // کلِ بازی را از نو سوار می‌کرد — یعنی وسطِ بازی، همه‌چیز صفر.
+  // همان کلیدِ سراسریِ lib/immersive-mode که «پلِ وزن» هم از آن استفاده
+  // می‌کند: روی موبایلِ در حالِ بازی، سربرگ و پاورقی اصلاً رندر نمی‌شوند؛
+  // روی رومیزی سربرگ جمع می‌شود. شکلِ درختِ SiteChrome با این تغییر عوض
+  // نمی‌شود (جایگاه‌ها ثابت‌اند)، پس بازی وسطِ کار remount نمی‌شود.
+  useEffect(() => {
+    immersiveMode.set(immersive ? "fullscreen" : gameplay ? "compact" : "off");
+    return () => immersiveMode.set("off");
+  }, [immersive, gameplay]);
+
+  // قفلِ اسکرولِ صفحه فقط در حالتِ تمام‌صفحه. این تنها کاری است که کلاسِ
+  // روی <html> انجام می‌دهد.
   useEffect(() => {
     if (!immersive) return;
     const root = document.documentElement;

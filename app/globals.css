@@ -1401,16 +1401,11 @@ button {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* در بازیِ تمام‌صفحه، سربرگ و پابرگِ سایت نه دیده می‌شوند و نه در ترتیبِ
-   Tab و صفحه‌خوان می‌مانند. درختِ React دست‌نخورده می‌ماند — این فقط CSS
-   است — تا بازی وسطِ کار از نو سوار نشود. */
+/* در بازیِ تمام‌صفحه، سربرگ و پاورقیِ سایت را خودِ SiteChrome رندر نمی‌کند
+   (lib/immersive-mode). این کلاس فقط اسکرولِ صفحه را قفل می‌کند. */
 html.aruzr-immersive,
 html.aruzr-immersive body {
   overflow: hidden;
-}
-
-html.aruzr-immersive [data-site-chrome] {
-  display: none;
 }
 
 .aruzr-root-immersive .aruzr-stage,

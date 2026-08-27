@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useImmersiveMode } from "@/lib/immersive-mode";
 
 /** Wraps a single game page.
  *
@@ -40,6 +41,10 @@ export default function GameShell({
   children: ReactNode;
 }) {
   const [confirmExit, setConfirmExit] = useState(false);
+  /* وقتی بازی‌ای حالتِ غرق‌شده را روشن کرده، این نوار حذف می‌شود: راهِ خروج
+     همان لحظه داخلِ HUDـِ خودِ بازی هست و دو تا دکمهٔ بازگشت فقط ارتفاع
+     می‌خورند. بازی‌هایی که این حالت را روشن نمی‌کنند تغییری نمی‌بینند. */
+  const immersive = useImmersiveMode();
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -63,6 +68,7 @@ export default function GameShell({
 
   return (
     <div dir="rtl" className="relative z-20">
+      {!immersive && (
       <div
         className={`container mx-auto max-w-4xl pt-6 ${
           dense ? "[@media(max-height:560px)]:pt-2" : ""
@@ -91,6 +97,7 @@ export default function GameShell({
           </span>
         </button>
       </div>
+      )}
 
       {children}
 

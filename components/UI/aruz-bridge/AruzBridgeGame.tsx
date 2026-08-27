@@ -1,8 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import {
   detectQualityTier,
   isWebGLAvailable,
@@ -10,6 +9,8 @@ import {
   type QualityTier,
 } from "@/lib/aruz-bridge/quality";
 import { currentStep } from "@/lib/aruz-bridge/machine";
+import { immersiveMode } from "@/lib/immersive-mode";
+import { useGameViewportSize } from "./useGameViewportSize";
 import { GameHeader } from "./GameHeader";
 import { Countdown, SessionSetup } from "./SessionSetup";
 import {
@@ -75,12 +76,25 @@ export default function AruzBridgeGame() {
   const { state, machine } = game;
   const step = currentStep(machine);
 
-  if (webgl === false) return <WebGLFallback />;
+  const shellRef = useRef<HTMLDivElement>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
 
   const inSetup = state === "intro";
   const isOver = state === "gameOver";
   const isFinished = state === "finished";
   const showBridge = !inSetup && !isOver && !isFinished;
+
+  const viewport = useGameViewportSize({ containerRef: outerRef, hudRef, active: showBridge });
+
+  /* پوستهٔ سایت فقط در *حینِ بازی* جمع می‌شود. صفحهٔ تنظیمات و نتیجه
+     چیدمانِ عادیِ سروا را می‌گیرند، و با ترکِ صفحه همه‌چیز برمی‌گردد. */
+  useEffect(() => {
+    immersiveMode.set(showBridge);
+    return () => immersiveMode.set(false);
+  }, [showBridge]);
+
+  if (webgl === false) return <WebGLFallback />;
 
   const availableUnique = game.pool
     ? new Set(game.pool.map((q) => q.id)).size
@@ -96,7 +110,11 @@ export default function AruzBridgeGame() {
   };
 
   return (
-    <div dir="rtl" className="container mx-auto max-w-6xl px-3 pb-8 pt-3 sm:px-4 sm:pt-4">
+    <div
+      ref={outerRef}
+      dir="rtl"
+      className="container mx-auto max-w-6xl px-3 pb-3 pt-2 sm:px-4"
+    >
       {inSetup && (
         <SessionSetup
           session={game.session}
@@ -119,41 +137,36 @@ export default function AruzBridgeGame() {
       {isFinished && <FinishedScreen summary={game.summary} actions={resultActions} />}
 
       {showBridge && (
-        /* ساختارِ صفحه عمداً کم‌لایه است: سرصفحه، بعد کادرِ بازی. نه کارتی
-           داخلِ کارتِ دیگر، نه HUDـی که روی صحنه شناور بماند. */
-        <div className="space-y-3">
-          <GameHeader
-            state={state}
-            epoch={game.epoch}
-            config={game.config}
-            promptText={step?.question.promptText ?? null}
-            stepIndex={machine.stepIndex}
-            totalSteps={machine.steps.length}
-            score={machine.score}
-            streak={machine.streak}
-          />
+        /* ── یک پوسته، نه سه کارتِ تودرتو ────────────────────────────────
+           پیش‌تر صفحه سه سطح داشت: کارتِ پرسش، فاصله، و کارتِ بازی. روی هم
+           آن‌قدر ارتفاع می‌خوردند که کاربر مجبور بود بینِ پرسش و پل اسکرول
+           کند. حالا HUD و بوم *یک* جزء‌اند: یک حاشیه، یک شعاع، یک مرز. */
+        <div
+          ref={shellRef}
+          className="mx-auto overflow-hidden rounded-2xl border border-border bg-card"
+          style={{ width: viewport.width }}
+        >
+          <div ref={hudRef}>
+            <GameHeader
+              state={state}
+              epoch={game.epoch}
+              config={game.config}
+              promptText={step?.question.promptText ?? null}
+              stepIndex={machine.stepIndex}
+              totalSteps={machine.steps.length}
+              score={machine.score}
+              streak={machine.streak}
+              muted={game.muted}
+              onToggleMute={game.toggleMute}
+            />
+          </div>
 
+          {/* بومِ سه‌بعدی. اندازه‌اش را تنها یک جا تصمیم می‌گیرد
+              (`useGameViewportSize`), پس هیچ پرسمانِ CSSـی نمی‌تواند سرِ
+              ارتفاع با دیگری رقابت کند. */}
           <div
-            /* ═══ اندازهٔ کادرِ بازی: *نسبت‌محور*، نه باقی‌ماندهٔ ارتفاعِ پنجره ═══
-               پیش‌تر ارتفاع از `calc(100dvh - 22rem)` می‌آمد، یعنی «هرچه از
-               پنجره بعدِ سربرگ‌ها ماند». چون پهنا ثابت بود (۹۹۰ پیکسل)، روی
-               هر نمایشگرِ کوتاه‌تر نسبت بی‌مهار خراب می‌شد:
-
-                 ۱۹۲۰×۱۰۸۰ → ۹۹۰×۷۲۶ (۱٫۳۶)
-                 ۱۳۶۶×۷۶۸  → ۹۹۰×۴۱۴ (۲٫۳۹)  ← نوارِ باریک
-                 ۱۲۸۰×۷۲۰  → ۹۹۰×۳۶۶ (۲٫۷۰)  ← بدتر
-
-               یعنی دقیقاً روی دو اندازهٔ رایجِ لپ‌تاپ، پل به یک نوارِ پانورامیک
-               تبدیل می‌شد. حالا ارتفاع از *نسبت* می‌آید، پس روی هر نمایشگری
-               ثابت است و اگر صفحه بلندتر شد، بگذار اسکرول شود — خوانایی
-               بازی مهم‌تر از جاشدنِ کلِ صفحه در یک پرده است.
-
-               سه حالتِ ناهم‌پوشان:
-                 • پیش‌فرض (دسکتاپ و لپ‌تاپ): ۱۶:۹
-                 • گوشیِ عمودی (باریک ولی بلند): ۴:۵ — نمای عمودیِ خودش
-                 • پنجرهٔ کوتاه (گوشیِ افقی): تنها جایی که ارتفاع واقعاً
-                   محدودکننده است و اجازه دارد نسبت را تعیین کند */
-            className="relative w-full overflow-hidden rounded-2xl border border-border bg-[#060c14] aspect-[16/9] max-h-[680px] min-h-[360px] [@media(max-width:639px)_and_(min-height:561px)]:aspect-[4/5] [@media(max-height:560px)]:aspect-auto [@media(max-height:560px)]:h-[70vh] [@media(max-height:560px)]:max-h-none [@media(max-height:560px)]:min-h-[190px]"
+            className="relative w-full overflow-hidden bg-[#060c14]"
+            style={{ height: viewport.height }}
           >
             {webgl === null ? (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -173,46 +186,15 @@ export default function AruzBridgeGame() {
             )}
 
             {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
-
-            {/* تنها کنترل‌هایی که باید روی خودِ کادر باشند */}
-            <div className="pointer-events-auto absolute left-2 top-2 z-20 flex items-center gap-1.5 sm:left-3 sm:top-3">
-              <button
-                type="button"
-                onClick={game.toggleMute}
-                aria-label={game.muted ? "روشن‌کردن صدا" : "خاموش‌کردن صدا"}
-                aria-pressed={game.muted}
-                className="rounded-lg border border-white/15 bg-black/40 p-1.5 text-white/85 backdrop-blur-md transition-all hover:bg-black/60 active:scale-95"
-              >
-                {game.muted ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.7-.6-1.85-1.47a10 10 0 0 1 0-3.44c.15-.87.97-1.47 1.85-1.47h2.24Z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.7-.6-1.85-1.47a10 10 0 0 1 0-3.44c.15-.87.97-1.47 1.85-1.47h2.24Z" />
-                  </svg>
-                )}
-              </button>
-              <Link
-                href="/game"
-                aria-label="خروج از بازی"
-                className="rounded-lg border border-white/15 bg-black/40 p-1.5 text-white/85 backdrop-blur-md transition-all hover:bg-black/60 active:scale-95"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-                </svg>
-              </Link>
-            </div>
-
             <OrientationHint />
           </div>
-
-          {game.isDemoData && (
-            <p className="text-center text-[0.65rem] text-muted-foreground">
-              دادهٔ نمایشی — محتوای عروضیِ نهاییِ سروا نیست.
-            </p>
-          )}
         </div>
+      )}
+
+      {showBridge && game.isDemoData && (
+        <p className="mt-1.5 text-center text-[0.6rem] text-muted-foreground">
+          دادهٔ نمایشی — محتوای عروضیِ نهاییِ سروا نیست.
+        </p>
       )}
     </div>
   );

@@ -33,8 +33,9 @@ function shuffled<T>(items: readonly T[], random: () => number): T[] {
 /**
  * منبعِ محلی: دادهٔ نمایشیِ درونِ باندل.
  *
- * پرسش‌ها هر دور درهم می‌ریزند تا دو دورِ پیاپی یکسان نباشند، ولی خودِ
- * درهم‌ریزی بیرون از رندر انجام می‌شود (نگاه کنید به `machine.ts`).
+ * ⚠️ دیگر منبعِ پیش‌فرضِ بازی نیست — پرسش‌ها از دیتابیس می‌آیند. این کلاس
+ * برای تست و توسعهٔ آفلاین می‌ماند، و خروجی‌اش همچنان `isDemo` است تا اگر
+ * جایی به‌کار رفت، رابطِ کاربری نشانِ «دادهٔ نمایشی» را نشان بدهد.
  */
 export class LocalQuestionSource implements QuestionSource {
   readonly id = "local-demo";
@@ -55,17 +56,14 @@ export class LocalQuestionSource implements QuestionSource {
 }
 
 /**
- * منبعِ راه‌دور — آماده، ولی هنوز پشتِ آن endpointی نیست.
+ * منبعِ اصلیِ بازی: جدولِ `aruz_bridge_questions`.
  *
- * وقتی جدولِ پرسش‌ها ساخته شد، مسیرِ `/api/v1/aruz-bridge/questions` را بالا
- * بیاورید و همین کلاس را به بازی بدهید. شکلِ پاسخِ موردانتظار همان
- * `AruzBridgeQuestion[]` است، پیچیده در پوشش استانداردِ `lib/api/http`
- * (یعنی `{ data: ... }`) — دقیقاً مثلِ بقیهٔ endpointهای v1.
+ * پاسخ در پوششِ استانداردِ `lib/api/http` می‌آید — `{ ok, data }` — و
+ * `data.questions` آرایهٔ پرسش‌هاست.
  *
- * توجه: این پروژه دیگر روی Supabase نیست؛ دسترسی به داده از راهِ `lib/db`
- * و مسیرهای `app/api/v1/**` انجام می‌شود و *قاعدهٔ دسترسی در کدِ برنامه است،
- * نه در دیتابیس*. یعنی هر کوئریِ محتوای عمومی باید خودش شرطِ انتشار را
- * بگذارد؛ دیتابیس جلوی نشتِ داده را نمی‌گیرد.
+ * توجه: این پروژه روی Supabase نیست؛ دسترسی به داده از راهِ `lib/db` و
+ * مسیرهای `app/api/v1/**` انجام می‌شود و *قاعدهٔ دسترسی در کدِ برنامه است،
+ * نه در دیتابیس*. شرطِ `is_published` در خودِ کوئریِ آن مسیر نوشته شده.
  */
 export class RemoteQuestionSource implements QuestionSource {
   readonly id = "remote";
@@ -82,16 +80,30 @@ export class RemoteQuestionSource implements QuestionSource {
     count: number;
     signal?: AbortSignal;
   }): Promise<AruzBridgeQuestion[]> {
-    const url = `${this.endpoint}?difficulty=${difficulty}&count=${count}`;
+    /* بازی کلِ مخزن را می‌خواهد تا خودش نمونه‌گیری کند و بتواند پیش از شروع
+       بگوید چند پرسشِ یکتا موجود است. `count` اینجا فقط یک سقف است؛ سقفِ
+       واقعی سمتِ سرور اعمال می‌شود. */
+    const url = new URL(this.endpoint, window.location.origin);
+    if (Number.isFinite(count) && count > 0) {
+      url.searchParams.set("limit", String(Math.min(count, 1000)));
+    }
+    void difficulty; // صافیِ سختی سمتِ سرور هست ولی بازی خودش نمونه می‌گیرد
+
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`دریافتِ پرسش‌ها ناموفق بود (${res.status})`);
+
     const body: unknown = await res.json();
-    const data =
+    const payload =
       typeof body === "object" && body !== null && "data" in body
         ? (body as { data: unknown }).data
         : body;
-    if (!Array.isArray(data)) throw new Error("قالبِ پاسخِ پرسش‌ها نامعتبر است.");
-    return data as AruzBridgeQuestion[];
+    const rows =
+      typeof payload === "object" && payload !== null && "questions" in payload
+        ? (payload as { questions: unknown }).questions
+        : payload;
+
+    if (!Array.isArray(rows)) throw new Error("قالبِ پاسخِ پرسش‌ها نامعتبر است.");
+    return rows as AruzBridgeQuestion[];
   }
 }
 

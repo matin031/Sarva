@@ -17,7 +17,7 @@ import {
   summarize,
   type MachineState,
 } from "@/lib/aruz-bridge/machine";
-import { LocalQuestionSource, type QuestionSource } from "@/lib/aruz-bridge/source";
+import { RemoteQuestionSource, type QuestionSource } from "@/lib/aruz-bridge/source";
 import {
   buildReviewQuestions,
   defaultSessionConfig,
@@ -95,7 +95,10 @@ export function useAruzBridgeGame({
     (c) => initialMachineState(c, defaultScoring),
   );
 
-  const questionSource = useMemo(() => source ?? new LocalQuestionSource(), [source]);
+  /* پرسش‌ها از دیتابیس می‌آیند. اگر مسیر در دسترس نباشد، خطا نشان داده
+     می‌شود و به دادهٔ نمایشی عقب‌نشینی نمی‌کنیم: نمایشِ محتوای تأییدنشده
+     به‌جای محتوای واقعی، بدتر از یک پیامِ خطای صادق است. */
+  const questionSource = useMemo(() => source ?? new RemoteQuestionSource(), [source]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   /* بی‌صدایی مشتقِ همان `session.soundEnabled` است و حالتِ دومی ندارد؛ پس

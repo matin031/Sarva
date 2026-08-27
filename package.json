@@ -10,6 +10,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:check": "node scripts/db-check.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
+    "db:seed-aruz-bridge": "node scripts/seed-aruz-bridge.mjs",
     "db:seed-exams": "tsx scripts/seed-exams.ts"
   },
   "dependencies": {

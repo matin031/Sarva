@@ -25,22 +25,16 @@ function percent(value: number): string {
 function Stat({
   label,
   value,
-  strong = false,
+  primary = false,
 }: {
   label: string;
   value: string;
-  strong?: boolean;
+  primary?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-2xl border px-4 py-3 text-center ${
-        strong ? "border-primary/40 bg-primary/10" : "border-border bg-card"
-      }`}
-    >
-      <div className={`text-lg font-black ${strong ? "text-primary" : "text-foreground"}`}>
-        {value}
-      </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
+    <div className="aruzr-stat" data-primary={primary ? "true" : "false"}>
+      <div className="aruzr-stat-value">{value}</div>
+      <div className="aruzr-stat-label">{label}</div>
     </div>
   );
 }
@@ -82,36 +76,36 @@ export default function ResultsScreen({
 
   return (
     <div dir="rtl" className="container mx-auto max-w-2xl py-8 sm:py-12">
-      <div className="glass relative z-20 rounded-3xl p-6 text-center sm:p-8">
-        <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-primary/15 text-2xl">
-          {isSession ? "🏁" : "✓"}
-        </div>
-        <h2 className="text-xl font-black text-primary sm:text-2xl">
-          {isSession ? "نشست تمام شد" : "این را کامل تقطیع کردی"}
+      <div className="aruzr-card aruzr-night p-6 text-center sm:p-8">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--aruzr-line)] bg-[color:var(--aruzr-cyan)]/10 px-3.5 py-1 text-[11px] font-bold text-[color:var(--aruzr-cyan)]">
+          {isSession ? "پایانِ نشست" : "مصراع تمام شد"}
+        </span>
+
+        <h2 className="mt-4 text-xl font-black sm:text-2xl">
+          {isSession ? "این نشست را کامل کردی" : "این مصراع را کامل تقطیع کردی"}
         </h2>
 
         {question ? (
-          <p className="aruzr-result-text mt-4" dir="rtl" lang="fa">
-            {question.previewText}
-          </p>
+          <div className="aruzr-panel mt-5" data-state="open">
+            <p className="aruzr-result-text" dir="rtl" lang="fa">
+              {question.previewText}
+            </p>
+            {question.meter || question.attribution ? (
+              <p className="mt-2 text-xs text-[color:var(--aruzr-dim)]">
+                {[question.meter, question.attribution].filter(Boolean).join(" — ")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
-        {question?.explanation ? (
-          <p className="mt-2 text-sm text-muted-foreground">{question.explanation}</p>
-        ) : null}
-
-        <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          <Stat
-            strong
-            label="زمانِ دورِ موفق"
-            value={seconds(questionStats.successfulRunTimeMs)}
-          />
-          <Stat strong label="زمانِ فعالِ این سؤال" value={seconds(questionActiveTimeMs)} />
-          <Stat label="پاسخ‌های نادرست" value={fa(questionStats.wrongChoices)} />
-          <Stat label="وقت‌های تمام‌شده" value={fa(questionStats.timeouts)} />
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Stat primary label="زمانِ دورِ موفق" value={seconds(questionStats.successfulRunTimeMs)} />
+          <Stat primary label="زمانِ فعالِ مصراع" value={seconds(questionActiveTimeMs)} />
+          <Stat label="پاسخِ نادرست" value={fa(questionStats.wrongChoices)} />
+          <Stat label="وقتِ تمام‌شده" value={fa(questionStats.timeouts)} />
         </div>
 
-        <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Stat label="تلاش‌ها" value={fa(questionStats.attemptCount)} />
           <Stat label="بلندترین زنجیره" value={fa(questionStats.bestStreak)} />
           <Stat label="میانگینِ زمانِ پاسخ" value={seconds(average)} />
@@ -119,55 +113,47 @@ export default function ResultsScreen({
         </div>
 
         {isSession ? (
-          <div className="mt-6 rounded-2xl border border-border bg-card/60 p-4">
-            <h3 className="text-sm font-bold text-foreground">کلِ این نشست</h3>
-            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <div className="mt-6 rounded-2xl border border-[color:var(--aruzr-line)] bg-white/[0.03] p-4">
+            <h3 className="text-xs font-bold text-[color:var(--aruzr-dim)]">کلِ این نشست</h3>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Stat
-                label="سؤال‌های کامل‌شده"
+                label="مصراع‌های کامل‌شده"
                 value={`${fa(sessionStats.questionsCompleted)} / ${fa(questionCount)}`}
               />
               <Stat label="پاسخ‌های درست" value={fa(sessionStats.totalCorrectInputs)} />
-              <Stat label="نادرست و وقت‌تمام" value={fa(sessionStats.totalWrongChoices + sessionStats.totalTimeouts)} />
+              <Stat
+                label="نادرست و وقت‌تمام"
+                value={fa(sessionStats.totalWrongChoices + sessionStats.totalTimeouts)}
+              />
               <Stat label="زمانِ فعالِ کل" value={seconds(sessionActiveTimeMs)} />
             </div>
           </div>
         ) : (
-          <p className="mt-5 text-xs text-muted-foreground">
-            سؤالِ {fa(questionNumber)} از {fa(questionCount)}
+          <p className="mt-4 text-xs text-[color:var(--aruzr-faint)]">
+            مصراعِ {fa(questionNumber)} از {fa(questionCount)}
           </p>
         )}
 
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5">
           {isSession ? null : (
-            <button
-              type="button"
-              onClick={onNext}
-              className="min-h-11 rounded-xl bg-primary px-8 font-bold text-primary-foreground transition-[transform,border-color,filter,color] hover:brightness-90 active:scale-95"
-            >
-              سؤالِ بعدی
+            <button type="button" onClick={onNext} className="aruzr-cta">
+              مصراعِ بعدی
             </button>
           )}
-          <button
-            type="button"
-            onClick={onRetry}
-            className="min-h-11 rounded-xl border border-border bg-card px-6 text-sm transition-[transform,border-color,filter,color] hover:border-primary/50 active:scale-95"
-          >
+          <button type="button" onClick={onRetry} className="aruzr-ghost-btn">
             همین را دوباره
           </button>
-          <button
-            type="button"
-            onClick={onBackToIntro}
-            className="min-h-11 rounded-xl border border-border bg-card px-6 text-sm text-muted-foreground transition-[transform,border-color,filter,color] hover:border-primary/50 active:scale-95"
-          >
+          <button type="button" onClick={onBackToIntro} className="aruzr-ghost-btn">
             نشستِ تازه
           </button>
-          <Link
-            href="/game"
-            className="min-h-11 rounded-xl px-4 text-sm leading-[2.75rem] text-muted-foreground transition-[transform,border-color,filter,color] hover:text-primary"
-          >
-            کهکشانِ بازی‌ها
-          </Link>
         </div>
+
+        <Link
+          href="/game"
+          className="mt-5 inline-block text-xs text-[color:var(--aruzr-faint)] transition-colors hover:text-[color:var(--aruzr-cyan)]"
+        >
+          بازگشت به کهکشانِ بازی‌ها
+        </Link>
       </div>
     </div>
   );

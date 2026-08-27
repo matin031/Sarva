@@ -1,5 +1,3 @@
-import type { RapidAruzDifficulty } from "./types";
-
 /** حالتِ منبعِ صدا.
  *
  *  «procedural» یعنی هیچ فایلی از شبکه خواسته نمی‌شود — صداها همان‌جا با
@@ -8,10 +6,13 @@ import type { RapidAruzDifficulty } from "./types";
 export type AudioSourceMode = "procedural" | "assets";
 
 export interface RapidAruzConfig {
+  /** فرصتِ خواندنِ مصراعِ کامل، پیش از پوشیده‌شدنش. */
   previewDurationMs: number;
 
-  answerTimeByDifficulty: Record<RapidAruzDifficulty, number>;
+  /** مهلتِ پاسخ برای هر واحد. یک مدلِ منصف، بدونِ درجه‌بندیِ سختی. */
+  answerTimeMs: number;
 
+  /** واحدِ اولِ هر دور وقتِ بیشتری می‌گیرد. */
   firstUnitExtraTimeMs: number;
 
   /** فاصلهٔ کوتاهِ پوشاندنِ متن، بینِ پیش‌نمایش و اولین واحد. */
@@ -35,7 +36,7 @@ export interface RapidAruzConfig {
 
   audioSourceMode: AudioSourceMode;
 
-  /** بیشترین تعدادِ سؤالِ یک نشست. ترتیب یک‌بار در شروعِ نشست ساخته می‌شود. */
+  /** بیشترین تعدادِ مصراعِ یک نشست. ترتیب یک‌بار در شروعِ نشست ساخته می‌شود. */
   questionsPerSession: number;
 }
 
@@ -45,26 +46,26 @@ export interface RapidAruzConfig {
  * بازخوردِ «درست» نباید دروازهٔ ورود به واحدِ بعد باشد. لحظه‌ای که پاسخِ درست
  * ثبت شد، واحدِ بعد همان‌جا آماده می‌شود و به‌محضِ اولین paint مسلح می‌شود؛
  * انیمیشنِ سبزِ دکمه در کنارش ادامه می‌دهد و هیچ‌کس منتظرش نمی‌ماند.
+ *
+ * زمان‌ها پس از بازخوردِ واقعیِ بازی بازنگری شدند: پیش‌نمایشِ ۴ ثانیه‌ای برای
+ * خواندنِ یک مصراعِ اعراب‌گذاری‌شده کم بود و مهلتِ ۱٫۷۵ ثانیه‌ایِ سطحِ سه،
+ * بازی را از تمرینِ عروض به بازیِ واکنشی تبدیل می‌کرد. این اعداد عمداً
+ * سخاوتمندترند — بدونِ اینکه جایی وقتِ مرده اضافه شود.
  */
 export const DEFAULT_RAPID_ARUZ_CONFIG: RapidAruzConfig = {
-  previewDurationMs: 4000,
+  previewDurationMs: 7000,
 
-  answerTimeByDifficulty: {
-    1: 3000,
-    2: 2500,
-    3: 1750,
-  },
+  answerTimeMs: 2800,
+  firstUnitExtraTimeMs: 1200,
 
-  firstUnitExtraTimeMs: 500,
+  spoilerTransitionMs: 320,
 
-  spoilerTransitionMs: 260,
+  wrongFeedbackMs: 260,
+  timeoutFeedbackMs: 260,
+  resetDelayMs: 80,
 
-  wrongFeedbackMs: 300,
-  timeoutFeedbackMs: 300,
-  resetDelayMs: 100,
-
-  completionRevealMs: 800,
-  resumeOverlayMs: 700,
+  completionRevealMs: 850,
+  resumeOverlayMs: 650,
 
   replayPreviewOnReset: false,
   resetRevealOnMistake: true,
@@ -83,16 +84,10 @@ export const DEFAULT_RAPID_ARUZ_CONFIG: RapidAruzConfig = {
 /**
  * تنها جایی که مدتِ زمانِ یک واحد تعیین می‌شود.
  *
- * هیچ کامپوننتی حق ندارد عددِ زمانی خودش داشته باشد؛ اگر لازم شد سختیِ
- * تازه‌ای اضافه شود، فقط همین‌جا عوض می‌شود.
+ * هیچ کامپوننتی حق ندارد عددِ زمانی خودش داشته باشد.
  */
-export function getUnitDuration(
-  config: RapidAruzConfig,
-  difficulty: RapidAruzDifficulty | undefined,
-  unitIndex: number,
-): number {
-  const base = config.answerTimeByDifficulty[difficulty ?? 1] ?? config.answerTimeByDifficulty[1];
+export function getUnitDuration(config: RapidAruzConfig, unitIndex: number): number {
   // واحدِ اولِ هر دور کمی وقتِ بیشتر می‌گیرد: با ریست کامل، بازیکن بارها به
   // این واحد برمی‌گردد و باید فرصتِ دوباره جا افتادن داشته باشد.
-  return unitIndex === 0 ? base + config.firstUnitExtraTimeMs : base;
+  return unitIndex === 0 ? config.answerTimeMs + config.firstUnitExtraTimeMs : config.answerTimeMs;
 }

@@ -11,7 +11,7 @@ import {
   type RapidAruzState,
 } from "@/lib/aruz-rapid/machine";
 import type { RapidAruzConfig } from "@/lib/aruz-rapid/config";
-import type { RapidAruzDifficulty, RapidAruzInputMethod, ScansionLength } from "@/lib/aruz-rapid/types";
+import type { RapidAruzInputMethod, ScansionLength } from "@/lib/aruz-rapid/types";
 import type { RapidAruzQuestionSource } from "@/lib/aruz-rapid/source";
 import { useSuspendableTimeout } from "./useSuspendableTimeout";
 
@@ -54,7 +54,7 @@ export interface RapidAruzGameApi {
   acceptsInput: boolean;
   /** تنها درِ ورودیِ بازی: موس، لمس و صفحه‌کلید همه از همین‌جا می‌گذرند. */
   requestAnswer: (length: ScansionLength, inputMethod: RapidAruzInputMethod) => void;
-  startSession: (difficulty: RapidAruzDifficulty) => void;
+  startSession: () => void;
   nextQuestion: () => void;
   retryQuestion: () => void;
   backToIntro: () => void;
@@ -72,7 +72,6 @@ export function useRapidAruzGame({
   const [state, dispatch] = useReducer(rapidAruzReducer, config, createInitialState);
 
   const stateRef = useRef(state);
-  const difficultyRef = useRef<RapidAruzDifficulty>(1);
   const marksRef = useRef<TransitionMark[]>([]);
   const lastAnswerRef = useRef<number | null>(null);
 
@@ -114,8 +113,7 @@ export function useRapidAruzGame({
     [],
   );
 
-  const startSession = useCallback((difficulty: RapidAruzDifficulty) => {
-    difficultyRef.current = difficulty;
+  const startSession = useCallback(() => {
     dispatch({ type: "REQUEST_QUESTIONS" });
   }, []);
 
@@ -138,11 +136,7 @@ export function useRapidAruzGame({
     if (state.phase !== "loadingQuestion") return;
     let cancelled = false;
     source
-      .getQuestions({
-        difficulty: difficultyRef.current,
-        limit: config.questionsPerSession,
-        shuffle: true,
-      })
+      .getQuestions({ limit: config.questionsPerSession, shuffle: true })
       .then((questions) => {
         if (!cancelled) dispatch({ type: "QUESTIONS_LOADED", questions });
       })

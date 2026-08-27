@@ -10,8 +10,7 @@ import type { RapidAruzQuestion } from "../../lib/aruz-rapid/types";
 function baseQuestion(): RapidAruzQuestion {
   return {
     id: "q1",
-    type: "word",
-    difficulty: 1,
+    type: "hemistich",
     previewText: "سَحَر",
     units: [
       { id: "u1", display: "سَ", length: "short", revealProgress: 0.4 },
@@ -35,14 +34,7 @@ test("همهٔ سؤال‌های نمایشی معتبرند و هشدارِ ن�
   for (const q of DEMO_RAPID_ARUZ_QUESTIONS) {
     const result = validateRapidAruzQuestion(q);
     assert.equal(result.ok, true, `${q.id}: ${JSON.stringify(result.issues)}`);
-    // سه سؤال عمداً هشدارِ «متن با واحدها یکی نیست» دارند و درست‌اند:
-    // ادغامِ «نَو اَز» → «نَ»+«وَز»، حرفِ مشترکِ «سیاه» → «سی»+«یاه»، و
-    // تشدیدِ «مُعَلِّم» که «ل» را دو بار می‌شمارد.
-    const expectedMismatch = new Set(["demo-h-beshno", "demo-p-chashme-siah", "demo-p-moallem"]);
-    const unexpected = result.warnings.filter(
-      (w) => !(w.code === "units_text_mismatch" && expectedMismatch.has(q.id)),
-    );
-    assert.deepEqual(unexpected, [], `${q.id}: ${JSON.stringify(result.warnings)}`);
+    assert.deepEqual(result.warnings, [], `${q.id}: ${JSON.stringify(result.warnings)}`);
   }
 });
 
@@ -76,9 +68,10 @@ test("کمیتِ ناشناخته", () => {
   assert.ok(codes(q).includes("unit_length_invalid"));
 });
 
-test("نوع و سختیِ ناشناخته", () => {
+test("نوعِ ناشناخته — «واژه» و «ترکیب» دیگر معتبر نیستند", () => {
   assert.ok(codes({ ...baseQuestion(), type: "beyt" }).includes("question_type_invalid"));
-  assert.ok(codes({ ...baseQuestion(), difficulty: 7 }).includes("difficulty_invalid"));
+  assert.ok(codes({ ...baseQuestion(), type: "word" }).includes("question_type_invalid"));
+  assert.ok(codes({ ...baseQuestion(), type: "phrase" }).includes("question_type_invalid"));
 });
 
 test("revealProgress غیرعددی", () => {

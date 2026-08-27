@@ -371,7 +371,7 @@ export function rapidAruzReducer(
       if (!question || !unit) return state;
 
       const startedActive = state.activeAccumMs;
-      const durationMs = getUnitDuration(state.config, question.difficulty, state.unitIndex);
+      const durationMs = getUnitDuration(state.config, state.unitIndex);
 
       return {
         ...state,

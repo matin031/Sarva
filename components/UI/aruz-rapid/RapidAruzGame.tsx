@@ -16,7 +16,7 @@ import { useRapidAruzAudio } from "./useRapidAruzAudio";
 import { useRapidAruzKeyboard } from "./useRapidAruzKeyboard";
 import { useRapidAruzOrientationPause, useRapidAruzPause } from "./useRapidAruzPause";
 import SpoileredPreview from "./SpoileredPreview";
-import { AnswerControls, CurrentUnit, Progress, StepTimer } from "./GameController";
+import { AnswerControls, CurrentUnit, Progress, StepTimer, UnitDots } from "./GameController";
 import CompactGameTopBar from "./CompactGameTopBar";
 import IntroScreen from "./IntroScreen";
 import ResultsScreen from "./ResultsScreen";
@@ -129,14 +129,11 @@ export default function RapidAruzGame({
     return () => window.clearTimeout(id);
   }, [lastPressed]);
 
-  const startSession = useCallback(
-    (difficulty: 1 | 2 | 3) => {
-      // باز کردنِ AudioContext باید داخلِ همین رویدادِ کاربر باشد.
-      audio.unlock();
-      game.startSession(difficulty);
-    },
-    [audio, game],
-  );
+  const startSession = useCallback(() => {
+    // باز کردنِ AudioContext باید داخلِ همین رویدادِ کاربر باشد.
+    audio.unlock();
+    game.startSession();
+  }, [audio, game]);
 
   const toggleSound = useCallback(() => {
     setSoundOn((on) => {
@@ -168,7 +165,7 @@ export default function RapidAruzGame({
   return (
     <div
       ref={rootRef}
-      className={`aruzr-root ${immersive ? "aruzr-root-immersive" : ""}`}
+      className={`aruzr-root ${immersive ? "aruzr-root-immersive aruzr-night" : ""}`}
       data-phase={phase}
       data-immersive={immersive ? "true" : "false"}
       data-question={question?.id ?? ""}
@@ -179,8 +176,6 @@ export default function RapidAruzGame({
         {gameplay ? (
           <CompactGameTopBar onExit={game.backToIntro} soundOn={soundOn} onToggleSound={toggleSound}>
             <Progress
-              unitIndex={phase === "completed" ? (question?.units.length ?? 0) : state.unitIndex}
-              unitCount={question?.units.length ?? 0}
               attemptCount={Math.max(1, state.questionStats.attemptCount)}
               streak={state.currentStreak}
               compact={layout.compact}
@@ -192,37 +187,39 @@ export default function RapidAruzGame({
       {/* ── جای ثابتِ صحنه ── */}
       <div className="aruzr-stage">
         {phase === "intro" ? (
-          <IntroScreen config={config} onStart={startSession} loading={false} />
+          <IntroScreen
+            shortSymbol={config.shortSymbol}
+            longSymbol={config.longSymbol}
+            onStart={startSession}
+            loading={false}
+          />
         ) : null}
 
         {phase === "loadingQuestion" ? (
-          <div className="aruzr-notice" dir="rtl">
+          <div className="aruzr-notice aruzr-card aruzr-night container mx-auto my-10 max-w-md" dir="rtl">
             <span className="aruzr-spinner" aria-hidden="true" />
-            <p className="text-sm text-muted-foreground">در حالِ آماده‌سازی…</p>
+            <p className="text-sm">در حالِ آماده‌سازی…</p>
           </div>
         ) : null}
 
         {phase === "error" ? (
-          <div className="aruzr-notice" dir="rtl">
-            <p className="text-base font-bold text-destructive">{state.error}</p>
-            <button
-              type="button"
-              onClick={game.backToIntro}
-              className="min-h-11 rounded-xl border border-border bg-card px-6 text-sm transition-all hover:border-primary/50"
-            >
+          <div className="aruzr-notice aruzr-card aruzr-night container mx-auto my-10 max-w-md" dir="rtl">
+            <p className="text-base font-bold text-[color:var(--aruzr-rose)]">{state.error}</p>
+            <button type="button" onClick={game.backToIntro} className="aruzr-ghost-btn">
               بازگشت
             </button>
           </div>
         ) : null}
 
         {boardVisible && question ? (
-          <div className="aruzr-board">
+          <div className={`aruzr-board ${immersive ? "" : "aruzr-night"}`}>
             <div className="aruzr-preview-region">
               <SpoileredPreview
                 text={question.previewText}
                 reveal={state.revealProgress}
                 spoilered={spoilered}
                 accessible={previewUncovered && !paused && !state.resuming}
+                label={previewUncovered ? "مصراع را بخوان" : "مصراعِ پوشیده"}
               />
               <div
                 className="aruzr-preview-progress"
@@ -235,11 +232,20 @@ export default function RapidAruzGame({
                   style={{ animationDuration: `${config.previewDurationMs}ms` }}
                 />
               </div>
+              <UnitDots
+                count={question.units.length}
+                doneCount={phase === "completed" ? question.units.length : state.unitIndex}
+                active={phase === "playing" || phase === "armingUnit"}
+              />
             </div>
 
             <div className="aruzr-play-region">
+              {/* واحد و مهلتش یک بلوکِ کانونی‌اند: نوار به همان واحد تعلق
+                  دارد، نه به دکمه‌ها. */}
+              <div className="aruzr-focus">
               <CurrentUnit
                 display={unit?.display ?? ""}
+                unitKey={`${state.questionEpoch}:${state.unitAttemptId}`}
                 hidden={!(phase === "armingUnit" || phase === "playing") || paused || state.resuming}
                 feedback={
                   feedbackKind === "correct" || feedbackKind === "wrong" || feedbackKind === "timeout"
@@ -255,6 +261,7 @@ export default function RapidAruzGame({
                 running={timerRunning}
                 idle={!(phase === "playing" || phase === "armingUnit")}
               />
+              </div>
 
               <AnswerControls
                 config={config}

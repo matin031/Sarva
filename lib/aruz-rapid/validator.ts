@@ -22,8 +22,8 @@ export interface ValidationResult {
 }
 
 const LENGTHS: ReadonlySet<string> = new Set<ScansionLength>(["short", "long"]);
-const TYPES: ReadonlySet<string> = new Set(["word", "phrase", "hemistich"]);
-const DIFFICULTIES: ReadonlySet<number> = new Set([1, 2, 3]);
+// فعلاً فقط مصراع. «واژه» و «ترکیب» از محصول برداشته شدند.
+const TYPES: ReadonlySet<string> = new Set(["hemistich"]);
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
@@ -124,14 +124,6 @@ export function validateRapidAruzQuestion(question: unknown): ValidationResult {
       code: "question_type_invalid",
       message: `نوعِ ناشناخته: ${JSON.stringify(q.type)}`,
       path: "type",
-    });
-  }
-
-  if (q.difficulty !== undefined && !DIFFICULTIES.has(q.difficulty)) {
-    issues.push({
-      code: "difficulty_invalid",
-      message: `سختیِ ناشناخته: ${JSON.stringify(q.difficulty)}`,
-      path: "difficulty",
     });
   }
 

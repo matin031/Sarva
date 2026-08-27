@@ -16,8 +16,7 @@ import type { RapidAruzQuestion, ScansionLength } from "../../lib/aruz-rapid/typ
 
 const QUESTION: RapidAruzQuestion = {
   id: "q",
-  type: "phrase",
-  difficulty: 1, // ۳۰۰۰ms، واحدِ اول ۳۵۰۰ms
+  type: "hemistich",
   previewText: "بادِ صَبا",
   units: [
     { id: "u1", display: "با", length: "long", revealProgress: 0.25 },
@@ -85,14 +84,14 @@ test("تایمر و ورودی با هم زنده می‌شوند", () => {
   assert.ok(s.attempt);
   // یک گذارِ واحد: همان لحظه هم ورودی باز شد و هم مهلت شروع شد.
   assert.equal(s.attempt!.startedActive, 0);
-  assert.equal(s.attempt!.durationMs, 3500); // ۳۰۰۰ + ۵۰۰ برای واحدِ اول
-  assert.equal(s.attempt!.deadlineActive, 3500);
+  assert.equal(s.attempt!.durationMs, 4000); // ۲۸۰۰ + ۱۲۰۰ برای واحدِ اول
+  assert.equal(s.attempt!.deadlineActive, 4000);
   assert.equal(s.activeSince, 1000);
 });
 
 test("واحدهای بعدی وقتِ پایه می‌گیرند", () => {
   const s = correctAndArm(armedState(), 1400);
-  assert.equal(s.attempt!.durationMs, 3000);
+  assert.equal(s.attempt!.durationMs, 2800);
 });
 
 test("پاسخِ درست بدونِ وقتِ مرده به واحدِ بعد می‌رسد", () => {
@@ -135,7 +134,7 @@ test("پاسخِ نادرست کلِ دور را از اول شروع می‌ک�
 
 test("پایانِ زمان هم ریستِ کامل است ولی «پاسخِ نادرست» شمرده نمی‌شود", () => {
   let s = armedState();
-  s = reduce(s, { type: "DEADLINE_REACHED", unitAttemptId: s.attempt!.id, occurredAt: 1000 + 3500 });
+  s = reduce(s, { type: "DEADLINE_REACHED", unitAttemptId: s.attempt!.id, occurredAt: 1000 + 4000 });
   assert.equal(s.phase, "resetFeedbackTimeout");
   assert.equal(s.questionStats.timeouts, 1);
   assert.equal(s.questionStats.wrongChoices, 0);
@@ -149,7 +148,7 @@ test("ورودیِ بعد از مهلت، پایانِ زمان است — نه 
   const s = armedState();
   // پاسخِ درست ولی یک میلی‌ثانیه بعد از مهلت، در حالی که callbackِ timeout
   // هنوز در صف مانده.
-  const late = answer(s, "long", 1000 + 3501);
+  const late = answer(s, "long", 1000 + 4001);
   assert.equal(late.phase, "resetFeedbackTimeout");
   assert.equal(late.questionStats.correctInputs, 0);
   assert.equal(late.questionStats.timeouts, 1);
@@ -157,7 +156,7 @@ test("ورودیِ بعد از مهلت، پایانِ زمان است — نه 
 
 test("ورودیِ درست دقیقاً پیش از مهلت پذیرفته می‌شود", () => {
   const s = armedState();
-  const justInTime = answer(s, "long", 1000 + 3498);
+  const justInTime = answer(s, "long", 1000 + 3998);
   assert.equal(justInTime.phase, "armingUnit");
   assert.equal(justInTime.questionStats.correctInputs, 1);
 });

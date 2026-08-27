@@ -1,10 +1,9 @@
-import type { RapidAruzDifficulty, RapidAruzQuestion } from "./types";
+import type { RapidAruzQuestion } from "./types";
 import { screenRapidAruzQuestions } from "./validator";
 import { DEMO_RAPID_ARUZ_QUESTIONS } from "./demo-questions";
 
 export interface RapidAruzQuery {
-  difficulty?: RapidAruzDifficulty;
-  /** بیشترین تعدادِ سؤالِ خواسته‌شده. */
+  /** بیشترین تعدادِ مصراعِ خواسته‌شده. */
   limit?: number;
   /** ترتیبِ نشست یک‌بار همین‌جا قطعی می‌شود و بعد دیگر عوض نمی‌شود. */
   shuffle?: boolean;
@@ -38,12 +37,8 @@ export class LocalRapidAruzSource implements RapidAruzQuestionSource {
   }
 
   async getQuestions(query: RapidAruzQuery): Promise<RapidAruzQuestion[]> {
-    const { difficulty, limit, shuffle = true } = query;
-    let list = this.pool;
-    if (difficulty !== undefined) {
-      list = list.filter((q) => q.difficulty === difficulty);
-    }
-    const ordered = shuffle ? shuffled(list) : list.slice();
+    const { limit, shuffle = true } = query;
+    const ordered = shuffle ? shuffled(this.pool) : this.pool.slice();
     return limit != null ? ordered.slice(0, limit) : ordered;
   }
 }

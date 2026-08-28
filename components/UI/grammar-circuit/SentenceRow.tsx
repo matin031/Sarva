@@ -17,6 +17,8 @@ export interface SentenceRowProps {
   /** وقتی قطعه‌ای انتخاب شده، خودِ واژه هم هدفِ «لمس برای گذاشتن» است. */
   tapArmed: boolean;
   onTapToken: (tokenId: string, viaKeyboard: boolean) => void;
+  /** لنگرِ اندازه‌گیری: کادرِ معناییِ محتوا از این و نوارِ سوکت‌ها می‌آید. */
+  hostRef: React.RefObject<HTMLParagraphElement | null>;
   registerWord: (tokenId: string, el: HTMLElement | null) => void;
 }
 
@@ -27,9 +29,10 @@ export default function SentenceRow({
   tapArmed,
   onTapToken,
   registerWord,
+  hostRef,
 }: SentenceRowProps) {
   return (
-    <p className="gc-sentence">
+    <p ref={hostRef} className="gc-sentence">
       {tokens.map((token) => {
         if (!token.roleSlot) {
           return (

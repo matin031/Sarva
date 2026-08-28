@@ -21,11 +21,21 @@ export default function DragGhostLayer({
   if (!drag || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="gc-drag-layer gc-root" aria-hidden>
+    <div
+      className="gc-drag-layer gc-root"
+      style={{ position: "fixed", inset: 0, zIndex: 999, pointerEvents: "none" }}
+      aria-hidden
+    >
       <div
         ref={ghostRef}
         className="gc-drag-ghost gc-module"
-        style={{ width: drag.width, height: drag.height }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: drag.width,
+          height: drag.height,
+        }}
       >
         {label}
       </div>

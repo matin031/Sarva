@@ -77,7 +77,13 @@ export default function SlotLane({
   const laneOffsetX = geometry?.laneOffsetX ?? 0;
 
   return (
-    <div ref={laneRef} className="gc-lane" style={{ height: LANE_HEIGHT }}>
+    <div
+      ref={laneRef}
+      className="gc-lane"
+      /* `position` درون‌خطی است چون سوکت‌ها نسبت به همین کادر مطلق می‌نشینند؛
+         اگر این یکی از دست برود، سوکت‌ها به کلِ صفحه فرار می‌کنند. */
+      style={{ position: "relative", width: "100%", height: LANE_HEIGHT }}
+    >
       {slotTokenIds.map((tokenId) => {
         const slot = bySlot.get(tokenId);
         const pieceId = placements[tokenId];
@@ -91,6 +97,9 @@ export default function SlotLane({
             <div
               className={`gc-socket${rejectedTokenId === tokenId ? " gc-reject" : ""}`}
               style={{
+                position: "absolute",
+                top: "50%",
+                translate: "-50% -50%",
                 left: centerInLane,
                 width: slotWidth,
                 height: SLOT_HEIGHT,
@@ -127,6 +136,9 @@ export default function SlotLane({
                 }}
                 className="gc-socket-hit"
                 style={{
+                  position: "absolute",
+                  top: "50%",
+                  translate: "0 -50%",
                   left: centerInLane - slot.hitLeft,
                   width: slot.hitLeft + slot.hitRight,
                   height: HIT_HEIGHT,

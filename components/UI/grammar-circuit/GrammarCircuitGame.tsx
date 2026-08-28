@@ -29,6 +29,7 @@ import { useCircuitAudio } from "./hooks/useCircuitAudio";
 import { useCircuitDnD } from "./hooks/useCircuitDnD";
 import { useCircuitLayout } from "./hooks/useCircuitLayout";
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion";
+import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
  *
@@ -61,7 +62,8 @@ function metrics(): Metrics {
 }
 
 export default function GrammarCircuitGame() {
-  const config = GRAMMAR_CIRCUIT_CONFIG;
+  // هندسهٔ سوکت با عرضِ صفحه تنظیم می‌شود؛ بقیهٔ پیکربندی دست‌نخورده می‌ماند.
+  const config = useResponsiveConfig(GRAMMAR_CIRCUIT_CONFIG);
   const [state, dispatch] = useReducer(
     grammarCircuitReducer,
     initialGrammarCircuitState,
@@ -132,6 +134,7 @@ export default function GrammarCircuitGame() {
 
   /* ── هندسه ────────────────────────────────────────────────────────────── */
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const sentenceRef = useRef<HTMLParagraphElement | null>(null);
   const laneRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const powerRef = useRef<HTMLDivElement | null>(null);
@@ -144,6 +147,7 @@ export default function GrammarCircuitGame() {
 
   const { geometry, measured, registerWord } = useCircuitLayout({
     contentRef,
+    sentenceRef,
     laneRef,
     viewportRef,
     powerRef,
@@ -508,6 +512,7 @@ export default function GrammarCircuitGame() {
           reducedMotion={reducedMotion}
           epoch={state.epoch}
           contentRef={contentRef}
+          sentenceRef={sentenceRef}
           laneRef={laneRef}
           powerRef={powerRef}
           lampRef={lampRef}

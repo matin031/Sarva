@@ -47,8 +47,28 @@ export default function ActiveShell({
   banner,
 }: ActiveShellProps) {
   return (
-    <div dir="rtl" className="gc-shell gc-root">
-      <header className="gc-topbar">
+    <div
+      dir="rtl"
+      className="gc-shell gc-root"
+      /* مالکیتِ پنجره درون‌خطی اعلام می‌شود، نه فقط در کلاس.
+         در اجرای واقعی دیده شد که وقتی شیوه‌نامهٔ بازی به مرورگر نمی‌رسد،
+         پوسته یک بلوکِ عادی می‌شود و هدر و فوترِ سایت وسطِ بازی ظاهر می‌شوند.
+         پس‌زمینه هم مقدارِ جایگزین دارد تا حتی بدونِ توکن‌های تم مات بماند. */
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 300,
+        width: "100%",
+        height: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
+        background: "var(--gc-bg, #f7f3ea)",
+      }}
+    >
+      <header className="gc-topbar" style={{ flex: "0 0 auto" }}>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -108,8 +128,35 @@ export default function ActiveShell({
         </div>
       </header>
 
-      <div className="gc-board">
-        <div ref={viewportRef} className="gc-viewport">
+      {/* زنجیرهٔ کوچک‌شدن: هر حلقه باید بتواند داخلِ 100dvh جمع شود، وگرنه
+          محتوا پوسته را از پنجره بیرون می‌راند. */}
+      <div
+        className="gc-board"
+        style={{
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          minWidth: 0,
+        }}
+      >
+        <div
+          ref={viewportRef}
+          className="gc-viewport"
+          style={{
+            position: "relative",
+            flex: "0 1 auto",
+            marginBlock: "auto",
+            marginInline: "auto",
+            minHeight: "min(44vh, 400px)",
+            maxHeight: "100%",
+            width: "fit-content",
+            minWidth: "min(100%, 520px)",
+            maxWidth: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
           {children}
         </div>
         {tray}

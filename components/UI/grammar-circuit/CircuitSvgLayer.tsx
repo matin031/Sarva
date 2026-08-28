@@ -7,12 +7,16 @@ import { SLOT_HEIGHT } from "./constants";
 
 /** لایهٔ مدار.
  *
- *  دو قاعده که هرگز شکسته نمی‌شوند:
+ *  سه قاعده که هرگز شکسته نمی‌شوند:
  *
  *  • هیچ مختصاتی اینجا دستی نوشته نشده. هر نقطه از هندسهٔ واقعیِ DOM می‌آید.
- *  • هیچ‌چیزِ این لایه ورودیِ کاربر نمی‌گیرد (`pointer-events: none` روی خودِ
- *    svg و همهٔ فرزندانش). سیم و خطِ راهنما و هاله نباید بتوانند هدفِ رها کردن
- *    شوند.
+ *  • هیچ‌چیزِ این لایه ورودیِ کاربر نمی‌گیرد. سیم و خطِ راهنما و هاله نباید
+ *    بتوانند هدفِ رها کردن شوند.
+ *  • **این لایه یک روکش است: چیدمان را می‌خواند، ولی نمی‌سازد.** بیرون بودنش
+ *    از جریانِ چیدمان با style درون‌خطی تضمین می‌شود، نه با یک کلاسِ CSS که
+ *    ممکن است نرسد. یک بار همین اتفاق افتاد و چون اندازهٔ svg از کادرِ والدش
+ *    می‌آمد و خودش هم فرزندِ همان والد بود، ارتفاع تا ده‌ها هزار پیکسل بالا
+ *    رفت. حالا هم موقعیت درون‌خطی است و هم اندازه از لنگرهای معنایی می‌آید.
  *
  *  ترتیبِ مدار *معنایی* است و از `circuitOrder` می‌آید؛ جای عناصر روی صفحه
  *  هیچ‌وقت آن را تعیین نمی‌کند. */
@@ -202,13 +206,24 @@ export default function CircuitSvgLayer({
       className="gc-svg"
       data-measured={measured ? "true" : "false"}
       viewBox={`0 0 ${Math.max(width, 1)} ${Math.max(height, 1)}`}
-      width={width}
-      height={height}
+      /* اندازه و موقعیت هر دو درون‌خطی‌اند. حتی اگر شیوه‌نامهٔ بازی اصلاً
+         بارگذاری نشود، این عنصر از جریانِ چیدمان بیرون می‌ماند و نمی‌تواند
+         والدش را بزرگ کند. `width/height`ِ صریح هم می‌گذارد viewBox بدونِ
+         مقیاس‌خوردن با مختصاتِ محتوا یکی بماند. */
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: `${Math.max(width, 1)}px`,
+        height: `${Math.max(height, 1)}px`,
+        overflow: "visible",
+        pointerEvents: "none",
+      }}
       aria-hidden
       focusable="false"
     >
       {leaders.map((d, i) => (
-        <path key={`leader-${i}`} className="gc-leader" d={d} />
+        <path key={`leader-${i}`} className="gc-leader" d={d} fill="none" />
       ))}
       {segments.map((segment) => (
         <path
@@ -221,10 +236,13 @@ export default function CircuitSvgLayer({
                 : "gc-wire-open"
           }
           d={toPath(segment.points)}
+          /* `fill` صفتِ خودِ عنصر است، نه فقط CSS: مسیرِ بازِ بدونِ آن به یک
+             چندضلعیِ سیاهِ تمام‌پُر تبدیل می‌شود اگر شیوه‌نامه نرسد. */
+          fill="none"
         />
       ))}
       {phase !== "idle" && fullPath && (
-        <path ref={currentRef} className="gc-current" d={fullPath} />
+        <path ref={currentRef} className="gc-current" d={fullPath} fill="none" />
       )}
     </svg>
   );

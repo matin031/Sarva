@@ -36,6 +36,7 @@ export interface CircuitContentProps {
   reducedMotion: boolean;
   epoch: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  sentenceRef: React.RefObject<HTMLParagraphElement | null>;
   laneRef: React.RefObject<HTMLDivElement | null>;
   powerRef: React.RefObject<HTMLDivElement | null>;
   lampRef: React.RefObject<HTMLDivElement | null>;
@@ -61,6 +62,7 @@ export default function CircuitContent({
   reducedMotion,
   epoch,
   contentRef,
+  sentenceRef,
   laneRef,
   powerRef,
   lampRef,
@@ -83,10 +85,13 @@ export default function CircuitContent({
     <div
       ref={contentRef}
       className="gc-content"
-      /* مدت‌های بازخوردِ دیداری از همان پیکربندی می‌آیند، نه از عددی که در
-         CSS تکرار شده باشد. */
       style={
         {
+          /* `position` درون‌خطی است چون لایهٔ SVG و سوکت‌ها نسبت به همین کادر
+             مطلق می‌نشینند — این یکی نباید به بارگذاریِ شیوه‌نامه وابسته باشد. */
+          position: "relative",
+          /* مدت‌های بازخوردِ دیداری از همان پیکربندی می‌آیند، نه از عددی که در
+             CSS تکرار شده باشد. */
           "--gc-snap": `${config.snapDurationMs}ms`,
           "--gc-contact": `${config.localContactPulseDurationMs}ms`,
         } as React.CSSProperties
@@ -130,6 +135,7 @@ export default function CircuitContent({
           tapArmed={Boolean(selectedPieceId) && interactive}
           onTapToken={onTapToken}
           registerWord={registerWord}
+          hostRef={sentenceRef}
         />
         <div style={{ height: SENTENCE_LANE_GAP }} aria-hidden />
         <SlotLane

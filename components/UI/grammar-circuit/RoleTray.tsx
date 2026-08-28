@@ -26,7 +26,11 @@ export default function RoleTray({
 }: RoleTrayProps) {
   const remaining = pieces.length - usedPieceIds.size;
   return (
-    <section className="gc-tray" aria-label="سینیِ نقش‌ها">
+    <section
+      className="gc-tray"
+      style={{ flex: "0 0 auto", minHeight: 0 }}
+      aria-label="سینیِ نقش‌ها"
+    >
       <div className="flex items-center justify-between px-1 text-[0.7rem] font-semibold text-[var(--gc-text-muted)]">
         <span>قطعه‌های نقش</span>
         <span>{remaining.toLocaleString("fa-IR")} قطعهٔ باقی‌مانده</span>

@@ -11,7 +11,29 @@ import {
  *
  *  مختصاتِ پنجره و مختصاتِ محتوا هیچ‌جا با هم قاطی نمی‌شوند؛ برای همین با
  *  اسکرولِ افقیِ ناحیهٔ تحلیل، جمله و سوکت و سیم و باتری و لامپ همه با هم
- *  حرکت می‌کنند و سیم از سوکتش جدا نمی‌شود. */
+ *  حرکت می‌کنند و سیم از سوکتش جدا نمی‌شود.
+ *
+ *  ── قاعدهٔ سختِ این فایل ────────────────────────────────────────────────
+ *
+ *  اندازهٔ محتوا **هرگز** از کادرِ خودِ `CircuitContent` خوانده نمی‌شود؛ فقط از
+ *  چند لنگرِ معناییِ مشخص می‌آید:
+ *
+ *      ردیفِ جمله · نوارِ سوکت‌ها · پایانهٔ باتری · پایانهٔ لامپ
+ *
+ *  دلیلش یک باگِ واقعی است: لایهٔ SVG فرزندِ همان `CircuitContent` است. اگر
+ *  اندازهٔ محتوا از کادرِ والد خوانده شود و همان عدد به SVG داده شود، کافی است
+ *  یک بار SVG از جریانِ چیدمان بیرون نباشد تا حلقه بسته شود:
+ *
+ *      اندازه‌گیریِ والد → بزرگ‌شدنِ SVG → بزرگ‌شدنِ والد → اندازه‌گیریِ دوباره…
+ *
+ *  در عمل هم همین شد: وقتی قواعدِ `.gc-*` به مرورگر نرسیدند، `svg` با
+ *  `display:block`ِ preflight یک فرزندِ درون‌جریان شد و ارتفاع تا ده‌ها هزار
+ *  پیکسل بالا رفت. حالا لنگرها هیچ‌کدام به SVG وابسته نیستند، پس حلقه از
+ *  ریشه ممکن نیست — حتی اگر هیچ CSSی بارگذاری نشود.
+ *
+ *  به همین دلیل `ResizeObserver` هم *لنگرها* را می‌پاید، نه خودِ محتوا را:
+ *  اندازهٔ محتوا معلول است، نه علت. */
+
 export interface SlotGeometry {
   tokenId: string;
   /** مرکزِ نهاییِ سوکت (پس از حلِ هم‌پوشانی) در فضای محتوا. */
@@ -25,6 +47,7 @@ export interface SlotGeometry {
 
 export interface CircuitGeometry {
   epoch: number;
+  /** کادرِ *معناییِ* محتوا — از لنگرها، نه از کادرِ والد. */
   contentWidth: number;
   contentHeight: number;
   laneOffsetX: number;
@@ -37,6 +60,7 @@ export interface CircuitGeometry {
 
 interface Options {
   contentRef: RefObject<HTMLDivElement | null>;
+  sentenceRef: RefObject<HTMLElement | null>;
   laneRef: RefObject<HTMLDivElement | null>;
   viewportRef: RefObject<HTMLDivElement | null>;
   powerRef: RefObject<HTMLDivElement | null>;
@@ -51,8 +75,20 @@ interface Options {
  *  اندازه می‌گیریم — بازی نباید منتظرِ چیزی بماند که شاید هیچ‌وقت نیاید. */
 const FONT_READY_FALLBACK_MS = 1500;
 
+/** حاشیهٔ امنِ راست/پایینِ کادرِ معنایی، برای ضخامتِ سیم و هالهٔ لامپ. */
+const CONTENT_MARGIN = 8;
+
+/** این بازی افقی گسترده است، نه عمودی بی‌انتها. ارتفاعِ تخته هیچ‌وقت نباید از
+ *  چند برابرِ ناحیهٔ تحلیل بیشتر شود؛ اگر شد، یعنی چیزی در اندازه‌گیری خراب
+ *  است و باید سر و صدا کند، نه اینکه بی‌صدا رندر شود. */
+const MAX_CONTENT_HEIGHT_FACTOR = 4;
+const MAX_CONTENT_HEIGHT_FLOOR = 900;
+/** چند اندازه‌گیریِ پیاپیِ صعودی، بدونِ تغییرِ اندازهٔ پنجره = حلقهٔ بازخورد. */
+const GROWTH_STREAK_LIMIT = 4;
+
 export function useCircuitLayout({
   contentRef,
+  sentenceRef,
   laneRef,
   viewportRef,
   powerRef,
@@ -70,14 +106,31 @@ export function useCircuitLayout({
     else wordRefs.current.delete(tokenId);
   }, []);
 
+  /** نگهبانِ حلقهٔ بازخورد. اگر ارتفاع چند بار پشتِ سرِ هم و بدونِ دلیل بالا
+   *  برود، اندازه‌گیری «یخ» می‌زند تا به‌جای رندرِ یک SVGِ ۱۹۰۰۰ پیکسلی، خطای
+   *  روشنی در کنسول بیاید. */
+  const growthRef = useRef({ lastHeight: 0, streak: 0, frozen: false });
+
+  useEffect(() => {
+    growthRef.current = { lastHeight: 0, streak: 0, frozen: false };
+  }, [epoch, slotKey]);
+
   const measure = useCallback(() => {
     const content = contentRef.current;
     const lane = laneRef.current;
-    if (!content || !lane) return;
+    const sentence = sentenceRef.current;
+    if (!content || !lane || !sentence) return;
+    if (growthRef.current.frozen) return;
 
+    // فقط *مبدأ* از کادرِ والد می‌آید. مبدأ یک نقطه است، نه یک اندازه، پس
+    // نمی‌تواند به خودش بازخورد بدهد.
     const contentRect = content.getBoundingClientRect();
-    if (contentRect.width === 0 || contentRect.height === 0) return;
+    if (contentRect.width === 0) return;
+    const originX = contentRect.left;
+    const originY = contentRect.top;
+
     const laneRect = lane.getBoundingClientRect();
+    const sentenceRect = sentence.getBoundingClientRect();
 
     const ids = slotKey ? slotKey.split("|") : [];
     const desired: number[] = [];
@@ -86,13 +139,13 @@ export function useCircuitLayout({
       const el = wordRefs.current.get(id);
       if (!el) return; // هنوز همه‌چیز در DOM نیست؛ اندازه‌گیری معتبر نیست.
       const rect = el.getBoundingClientRect();
-      const x = rect.left + rect.width / 2 - contentRect.left;
+      const x = rect.left + rect.width / 2 - originX;
       desired.push(x);
-      words.push({ x, bottom: rect.bottom - contentRect.top });
+      words.push({ x, bottom: rect.bottom - originY });
     }
 
     const rtl = getComputedStyle(content).direction === "rtl";
-    const laneOffsetX = laneRect.left - contentRect.left;
+    const laneOffsetX = laneRect.left - originX;
     const half = config.slotWidth / 2;
 
     const centers = solveSlotCenters({
@@ -110,22 +163,91 @@ export function useCircuitLayout({
       config.hitTargetMinGap,
     );
 
-    const terminal = (host: HTMLElement | null) => {
-      const node = host?.querySelector<HTMLElement>("[data-gc-terminal]");
-      if (!node) return null;
-      const rect = node.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2 - contentRect.left,
-        y: rect.top + rect.height / 2 - contentRect.top,
-      };
-    };
+    const terminalRect = (host: HTMLElement | null) =>
+      host?.querySelector<HTMLElement>("[data-gc-terminal]")?.getBoundingClientRect() ??
+      null;
+    const powerHost = powerRef.current?.getBoundingClientRect() ?? null;
+    const lampHost = lampRef.current?.getBoundingClientRect() ?? null;
+    const point = (rect: DOMRect | null) =>
+      rect
+        ? {
+            x: rect.left + rect.width / 2 - originX,
+            y: rect.top + rect.height / 2 - originY,
+          }
+        : null;
+
+    /* ── کادرِ معنایی: اجتماعِ لنگرها، و بس ────────────────────────────────
+       لایهٔ SVG، بافتِ تزئینی، خطوطِ راهنما، هاله و پیش‌نمایشِ کشیدن عمداً
+       اینجا نیستند — نه با فیلتر، بلکه چون اصلاً اندازه‌گیری نمی‌شوند. */
+    const anchors = [sentenceRect, laneRect, powerHost, lampHost].filter(
+      (r): r is DOMRect => r !== null && r.width > 0,
+    );
+    let maxRight = 0;
+    let maxBottom = 0;
+    for (const rect of anchors) {
+      maxRight = Math.max(maxRight, rect.right - originX);
+      maxBottom = Math.max(maxBottom, rect.bottom - originY);
+    }
+
+    const contentWidth = Math.max(contentRect.width, maxRight + CONTENT_MARGIN);
+    const contentHeight = maxBottom + CONTENT_MARGIN;
+
+    /* ── بررسی‌های سلامتِ حالتِ توسعه ─────────────────────────────────── */
+    if (!Number.isFinite(contentWidth) || !Number.isFinite(contentHeight)) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error(
+          `[grammar-circuit] هندسهٔ نامعتبر: عرض=${contentWidth} ارتفاع=${contentHeight}`,
+        );
+      }
+      return;
+    }
+    if (contentWidth <= 0 || contentHeight <= 0) return;
+
+    const viewportHeight = viewportRef.current?.clientHeight ?? 0;
+    const ceiling = Math.max(
+      MAX_CONTENT_HEIGHT_FLOOR,
+      viewportHeight * MAX_CONTENT_HEIGHT_FACTOR,
+    );
+    if (contentHeight > ceiling) {
+      growthRef.current.frozen = true;
+      if (process.env.NODE_ENV !== "production") {
+        console.error(
+          `[grammar-circuit] ارتفاعِ محتوا (${Math.round(contentHeight)}px) از سقفِ ` +
+            `منطقی (${Math.round(ceiling)}px) گذشت. اندازه‌گیری متوقف شد تا به‌جای ` +
+            "رندرِ یک تختهٔ غول‌آسا، مشکل دیده شود. لنگرها را بررسی کنید.",
+        );
+      }
+      return;
+    }
+
+    const growth = growthRef.current;
+    if (contentHeight > growth.lastHeight + 1) {
+      growth.streak += 1;
+      if (growth.streak >= GROWTH_STREAK_LIMIT) {
+        growth.frozen = true;
+        if (process.env.NODE_ENV !== "production") {
+          console.error(
+            "[grammar-circuit] حلقهٔ بازخوردِ اندازه‌گیری تشخیص داده شد: ارتفاع " +
+              `${GROWTH_STREAK_LIMIT} بارِ پیاپی بالا رفت (${Math.round(
+                growth.lastHeight,
+              )}px → ${Math.round(contentHeight)}px) بدونِ تغییرِ پنجره. ` +
+              "یعنی چیزی که اندازه‌اش را از این هندسه می‌گیرد، خودش در همین " +
+              "هندسه شرکت می‌کند.",
+          );
+        }
+        return;
+      }
+    } else {
+      growth.streak = 0;
+    }
+    growth.lastHeight = contentHeight;
 
     const next: CircuitGeometry = {
       epoch,
-      contentWidth: contentRect.width,
-      contentHeight: contentRect.height,
+      contentWidth,
+      contentHeight,
       laneOffsetX,
-      laneCenterY: laneRect.top + laneRect.height / 2 - contentRect.top,
+      laneCenterY: laneRect.top + laneRect.height / 2 - originY,
       laneHeight: laneRect.height,
       slots: ids.map((tokenId, i) => ({
         tokenId,
@@ -135,14 +257,14 @@ export function useCircuitLayout({
         hitLeft: extents[i].left,
         hitRight: extents[i].right,
       })),
-      power: terminal(powerRef.current),
-      lamp: terminal(lampRef.current),
+      power: point(terminalRect(powerRef.current)),
+      lamp: point(terminalRect(lampRef.current)),
     };
 
-    // بدونِ این مقایسه، هر اندازه‌گیری یک رندر می‌سازد و ResizeObserver دوباره
-    // آتش می‌گیرد — حلقه‌ای که هیچ‌وقت آرام نمی‌گیرد.
+    // بدونِ این مقایسه، هر اندازه‌گیری یک رندر می‌سازد و ناظر دوباره آتش
+    // می‌گیرد؛ نویزِ زیرِ نیم‌پیکسل هم نباید state عوض کند.
     setGeometry((prev) => (sameGeometry(prev, next) ? prev : next));
-  }, [config, contentRef, epoch, laneRef, lampRef, powerRef, slotKey]);
+  }, [config, contentRef, epoch, lampRef, laneRef, powerRef, sentenceRef, slotKey, viewportRef]);
 
   useEffect(() => {
     let raf = 0;
@@ -168,9 +290,12 @@ export function useCircuitLayout({
       schedule();
     }
 
+    // فقط لنگرها و ناحیهٔ تحلیل پاییده می‌شوند — نه خودِ CircuitContent، که
+    // اندازه‌اش *نتیجهٔ* همین‌هاست.
     const observer = new ResizeObserver(schedule);
-    if (contentRef.current) observer.observe(contentRef.current);
     if (viewportRef.current) observer.observe(viewportRef.current);
+    if (sentenceRef.current) observer.observe(sentenceRef.current);
+    if (laneRef.current) observer.observe(laneRef.current);
 
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
@@ -183,7 +308,21 @@ export function useCircuitLayout({
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
     };
-  }, [contentRef, measure, viewportRef]);
+  }, [laneRef, measure, sentenceRef, viewportRef]);
+
+  // تغییرِ اندازهٔ پنجره باید نگهبان را آزاد کند: یخ‌زدگی مالِ حلقه است، نه
+  // مالِ چیدمانِ تازه.
+  useEffect(() => {
+    const unfreeze = () => {
+      growthRef.current = { lastHeight: 0, streak: 0, frozen: false };
+    };
+    window.addEventListener("resize", unfreeze);
+    window.addEventListener("orientationchange", unfreeze);
+    return () => {
+      window.removeEventListener("resize", unfreeze);
+      window.removeEventListener("orientationchange", unfreeze);
+    };
+  }, []);
 
   const measured = geometry !== null && geometry.epoch === epoch;
 

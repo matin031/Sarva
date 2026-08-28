@@ -16,6 +16,7 @@ export function StepTimer({
   elapsedMs,
   running,
   idle,
+  flash,
 }: {
   timerKey: string;
   durationMs: number;
@@ -23,10 +24,17 @@ export function StepTimer({
   running: boolean;
   /** بینِ دو دور یا بعد از تکمیل، نوار نباید «پُر» به نظر برسد. */
   idle: boolean;
+  /** پایانِ زمان: خودِ نوار یک بار کوتاه روشن می‌شود. */
+  flash: "timeout" | null;
 }) {
   const delay = `-${Math.max(0, elapsedMs)}ms`;
   return (
-    <div className="aruzr-timer" data-idle={idle ? "true" : "false"} aria-hidden="true">
+    <div
+      className="aruzr-timer"
+      data-idle={idle ? "true" : "false"}
+      data-flash={flash ?? "none"}
+      aria-hidden="true"
+    >
       <div
         key={timerKey}
         className="aruzr-timer-fill"

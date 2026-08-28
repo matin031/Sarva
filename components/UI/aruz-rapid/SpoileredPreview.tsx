@@ -17,6 +17,7 @@ export default function SpoileredPreview({
   spoilered,
   accessible,
   label,
+  complete = false,
   featherPx = 7,
 }: {
   text: string;
@@ -27,6 +28,8 @@ export default function SpoileredPreview({
   /** آیا متن برای صفحه‌خوان خوانده شود؟ در میانهٔ بازی نباید پاسخ لو برود. */
   accessible: boolean;
   label?: string;
+  /** لحظهٔ تکمیل: یک حلقهٔ نورِ کوتاه دورِ قاب. */
+  complete?: boolean;
   featherPx?: number;
 }) {
   const clamped = Math.min(Math.max(reveal, 0), 1);
@@ -36,6 +39,7 @@ export default function SpoileredPreview({
     <div
       className="aruzr-panel"
       data-state={spoilered ? "veiled" : "open"}
+      data-complete={complete ? "true" : "false"}
       dir="rtl"
       lang="fa"
     >

@@ -76,12 +76,10 @@ export default function ResultsScreen({
 
   return (
     <div dir="rtl" className="container mx-auto max-w-2xl py-8 sm:py-12">
-      <div className="aruzr-card aruzr-night p-6 text-center sm:p-8">
-        <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--aruzr-line)] bg-[color:var(--aruzr-cyan)]/10 px-3.5 py-1 text-[11px] font-bold text-[color:var(--aruzr-cyan)]">
-          {isSession ? "پایانِ نشست" : "مصراع تمام شد"}
-        </span>
+      <div className="aruzr-card aruzr-surface p-6 text-center sm:p-8">
+        <span className="aruzr-badge">{isSession ? "پایانِ نشست" : "مصراع تمام شد"}</span>
 
-        <h2 className="mt-4 text-xl font-black sm:text-2xl">
+        <h2 className="mt-4 text-xl font-black text-[color:var(--aruzr-text)] sm:text-2xl">
           {isSession ? "این نشست را کامل کردی" : "این مصراع را کامل تقطیع کردی"}
         </h2>
 
@@ -91,7 +89,7 @@ export default function ResultsScreen({
               {question.previewText}
             </p>
             {question.meter || question.attribution ? (
-              <p className="mt-2 text-xs text-[color:var(--aruzr-dim)]">
+              <p className="aruzr-muted mt-2 text-xs">
                 {[question.meter, question.attribution].filter(Boolean).join(" — ")}
               </p>
             ) : null}
@@ -113,8 +111,8 @@ export default function ResultsScreen({
         </div>
 
         {isSession ? (
-          <div className="mt-6 rounded-2xl border border-[color:var(--aruzr-line)] bg-white/[0.03] p-4">
-            <h3 className="text-xs font-bold text-[color:var(--aruzr-dim)]">کلِ این نشست</h3>
+          <div className="aruzr-panel mt-6 p-4">
+            <h3 className="aruzr-muted text-xs font-bold">کلِ این نشست</h3>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Stat
                 label="مصراع‌های کامل‌شده"
@@ -129,7 +127,7 @@ export default function ResultsScreen({
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-xs text-[color:var(--aruzr-faint)]">
+          <p className="aruzr-subtle mt-4 text-xs">
             مصراعِ {fa(questionNumber)} از {fa(questionCount)}
           </p>
         )}
@@ -150,7 +148,7 @@ export default function ResultsScreen({
 
         <Link
           href="/game"
-          className="mt-5 inline-block text-xs text-[color:var(--aruzr-faint)] transition-colors hover:text-[color:var(--aruzr-cyan)]"
+          className="aruzr-subtle mt-5 inline-block text-xs transition-colors hover:text-[color:var(--aruzr-accent)]"
         >
           بازگشت به کهکشانِ بازی‌ها
         </Link>

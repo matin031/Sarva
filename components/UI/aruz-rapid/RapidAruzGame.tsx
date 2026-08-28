@@ -131,6 +131,30 @@ export default function RapidAruzGame({
     }
   }, [state.feedback, audio]);
 
+  // ── نشانه‌های صوتیِ مرحله‌ها ──
+  //
+  // ورود به مطالعه، افتادنِ پرده، و آمدنِ هر واحد. هر کدام یک‌بار به ازای
+  // هویتِ خودش پخش می‌شود، پس دوبار سوارشدنِ افکت در StrictMode صدا را
+  // تکراری نمی‌کند. هیچ‌کدام چیزی را به تأخیر نمی‌اندازند.
+  const lastCueRef = useRef("");
+  useEffect(() => {
+    let cue: string | null = null;
+    let sound: "previewStart" | "spoilerTransition" | "unitAppear" | null = null;
+    if (phase === "preview") {
+      cue = `preview:${state.questionEpoch}`;
+      sound = "previewStart";
+    } else if (phase === "spoilerTransition") {
+      cue = `spoiler:${state.questionEpoch}:${state.runId}`;
+      sound = "spoilerTransition";
+    } else if (phase === "playing") {
+      cue = `unit:${state.unitAttemptId}`;
+      sound = "unitAppear";
+    }
+    if (!cue || !sound || cue === lastCueRef.current) return;
+    lastCueRef.current = cue;
+    audio.play(sound);
+  }, [phase, state.questionEpoch, state.runId, state.unitAttemptId, audio]);
+
   // بازخوردِ رنگیِ دکمه خودش محو می‌شود و هیچ‌وقت جلوی واحدِ بعد را نمی‌گیرد.
   useEffect(() => {
     if (!lastPressed) return;
@@ -174,7 +198,7 @@ export default function RapidAruzGame({
   return (
     <div
       ref={rootRef}
-      className={`aruzr-root ${immersive ? "aruzr-root-immersive aruzr-night" : ""}`}
+      className={`aruzr-root ${immersive ? "aruzr-root-immersive aruzr-surface" : ""}`}
       data-phase={phase}
       data-immersive={immersive ? "true" : "false"}
       data-question={question?.id ?? ""}
@@ -205,15 +229,15 @@ export default function RapidAruzGame({
         ) : null}
 
         {phase === "loadingQuestion" ? (
-          <div className="aruzr-notice aruzr-card aruzr-night container mx-auto my-10 max-w-md" dir="rtl">
+          <div className="aruzr-notice aruzr-card aruzr-surface container mx-auto my-10 max-w-md" dir="rtl">
             <span className="aruzr-spinner" aria-hidden="true" />
             <p className="text-sm">در حالِ آماده‌سازی…</p>
           </div>
         ) : null}
 
         {phase === "error" ? (
-          <div className="aruzr-notice aruzr-card aruzr-night container mx-auto my-10 max-w-md" dir="rtl">
-            <p className="text-base font-bold text-[color:var(--aruzr-rose)]">{state.error}</p>
+          <div className="aruzr-notice aruzr-card aruzr-surface container mx-auto my-10 max-w-md" dir="rtl">
+            <p className="text-base font-bold text-[color:var(--aruzr-failure)]">{state.error}</p>
             <button type="button" onClick={game.backToIntro} className="aruzr-ghost-btn">
               بازگشت
             </button>
@@ -221,7 +245,7 @@ export default function RapidAruzGame({
         ) : null}
 
         {boardVisible && question ? (
-          <div className={`aruzr-board ${immersive ? "" : "aruzr-night"}`}>
+          <div className={`aruzr-board ${immersive ? "" : "aruzr-surface"}`}>
             <div className="aruzr-preview-region">
               <SpoileredPreview
                 text={question.previewText}
@@ -229,6 +253,7 @@ export default function RapidAruzGame({
                 spoilered={spoilered}
                 accessible={previewUncovered && !paused && !state.resuming}
                 label={previewUncovered ? "مصراع را بخوان" : "مصراعِ پوشیده"}
+                complete={phase === "completed"}
               />
               <div
                 className="aruzr-preview-progress"
@@ -255,7 +280,20 @@ export default function RapidAruzGame({
               <CurrentUnit
                 display={unit?.display ?? ""}
                 unitKey={`${state.questionEpoch}:${state.unitAttemptId}`}
-                hidden={!(phase === "armingUnit" || phase === "playing") || paused || state.resuming}
+                /* در ۲۶۰ms بازخوردِ شکست، واحد را پنهان نمی‌کنیم: بازیکن
+                   باید ببیند روی کدام هجا اشتباه کرد، و فلاشِ قرمز جایی
+                   برای نشستن داشته باشد. چیزی هم لو نمی‌رود — دور به‌هرحال
+                   از اول شروع می‌شود. */
+                hidden={
+                  !(
+                    phase === "armingUnit" ||
+                    phase === "playing" ||
+                    phase === "resetFeedbackWrong" ||
+                    phase === "resetFeedbackTimeout"
+                  ) ||
+                  paused ||
+                  state.resuming
+                }
                 feedback={
                   feedbackKind === "correct" || feedbackKind === "wrong" || feedbackKind === "timeout"
                     ? feedbackKind
@@ -269,6 +307,7 @@ export default function RapidAruzGame({
                 elapsedMs={elapsedAtStart}
                 running={timerRunning}
                 idle={!(phase === "playing" || phase === "armingUnit")}
+                flash={phase === "resetFeedbackTimeout" ? "timeout" : null}
               />
               </div>
 
@@ -284,7 +323,7 @@ export default function RapidAruzGame({
               <div className="aruzr-pause-overlay">
                 <div className="aruzr-pause-card">
                   <p className="text-lg font-bold">{state.resuming ? "آماده؟" : "متوقف"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="aruzr-muted mt-1 text-xs">
                     {state.resuming
                       ? "بازی همین حالا ادامه پیدا می‌کند."
                       : "برای ادامه به همین صفحه برگرد."}

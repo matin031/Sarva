@@ -2,29 +2,64 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AudioSourceMode, RapidAruzConfig } from "@/lib/aruz-rapid/config";
+import {
+  createRapidAruzBus,
+  scheduleRapidAruzSound,
+  SOUND_DURATION_MS,
+  SOUND_PEAK,
+  type RapidAruzSoundName,
+} from "@/lib/aruz-rapid/sound-design";
 
-export type RapidAruzSoundName = "correct" | "wrong" | "timeout" | "complete";
+export type { RapidAruzSoundName };
 
 /**
- * صدای بازی.
+ * صدای بازی — لایهٔ React.
  *
- * دو تصمیمِ عمدی اینجا هست:
+ * خودِ طراحیِ صدا در lib/aruz-rapid/sound-design.ts است تا بشود همان کد را
+ * آفلاین رندر و اندازه‌گیری کرد. اینجا فقط چرخهٔ عمرِ AudioContext، قفلِ
+ * user gesture و حالتِ منبع را نگه می‌داریم.
+ *
+ * دو تصمیمِ عمدی که از نسخهٔ اول مانده‌اند:
  *
  * ۱. حالتِ منبع صریح است. در «procedural» هیچ URL ای درخواست نمی‌شود —
- *    نه امتحان می‌کنیم و نه در ۴۰۴ به fallback می‌افتیم. کنسولِ تمیز
- *    بخشی از کیفیت است. فایل‌های واقعی وقتی ساخته شدند در ASSET_SOURCES
- *    اعلام می‌شوند و حالت به «assets» تغییر می‌کند؛ تا آن روز هیچ‌کدام
- *    از آن مسیرها زده نمی‌شود.
+ *    نه امتحان می‌کنیم و نه در ۴۰۴ به fallback می‌افتیم. فایل‌های واقعی
+ *    وقتی ساخته شدند در ASSET_SOURCES اعلام می‌شوند و حالت به «assets»
+ *    تغییر می‌کند؛ تا آن روز هیچ‌کدام از آن مسیرها زده نمی‌شود.
  *
- * ۲. صداها عمداً بسیار کوچک‌اند. «نادرست» پایانِ بازی نیست؛ پس نه بوقِ
- *    تحقیر، نه جینگلِ باخت. اگر افکتی آزاردهنده بود، سکوت بهتر از آن است.
- *
- * هیچ‌جای منطقِ بازی منتظرِ صدا نمی‌ماند و هیچ خطای صوتی گذارِ حالت را
- * متوقف نمی‌کند.
+ * ۲. هیچ‌جای منطقِ بازی منتظرِ صدا نمی‌ماند. هیچ await ای در مسیرِ gameplay
+ *    نیست و هر خطای صوتی بی‌صدا بلعیده می‌شود.
  */
 
 /** وقتی بستهٔ صوتیِ واقعی آماده شد، این نقشه پر می‌شود. تا آن موقع خالی است. */
 const ASSET_SOURCES: Partial<Record<RapidAruzSoundName, string>> = {};
+
+/**
+ * پلِ QA: همان تابعِ زمان‌بندی را در اختیارِ ابزارِ آزمون می‌گذارد تا بشود
+ * صداها را در یک OfflineAudioContext رندر و اندازه‌گیری کرد (اوج، طول،
+ * روشناییِ طیف) و حتی به WAV گرفت. در production فقط وقتی روشن می‌شود که
+ * کسی صریحاً __aruzRapidDebugEnabled را گذاشته باشد.
+ */
+function exposeForQa() {
+  if (typeof window === "undefined") return;
+  if (process.env.NODE_ENV === "production" && !window.__aruzRapidDebugEnabled) return;
+  window.__aruzRapidSound = {
+    schedule: scheduleRapidAruzSound,
+    createBus: createRapidAruzBus,
+    peaks: SOUND_PEAK,
+    durations: SOUND_DURATION_MS,
+  };
+}
+
+declare global {
+  interface Window {
+    __aruzRapidSound?: {
+      schedule: typeof scheduleRapidAruzSound;
+      createBus: typeof createRapidAruzBus;
+      peaks: typeof SOUND_PEAK;
+      durations: typeof SOUND_DURATION_MS;
+    };
+  }
+}
 
 type Ctor = typeof AudioContext;
 
@@ -51,19 +86,29 @@ export interface RapidAruzAudio {
 
 export function useRapidAruzAudio(config: RapidAruzConfig, enabled: boolean): RapidAruzAudio {
   const ctxRef = useRef<AudioContext | null>(null);
+  const busRef = useRef<GainNode | null>(null);
   const buffersRef = useRef<Map<RapidAruzSoundName, AudioBuffer>>(new Map());
   const enabledRef = useRef(enabled);
   const modeRef = useRef<AudioSourceMode>(config.audioSourceMode);
   const volumeRef = useRef(config.soundVolume);
 
   useEffect(() => {
+    exposeForQa();
+  }, []);
+
+  useEffect(() => {
     enabledRef.current = enabled;
     modeRef.current = config.audioSourceMode;
     volumeRef.current = config.soundVolume;
+    if (busRef.current) busRef.current.gain.value = config.soundVolume;
   }, [enabled, config.audioSourceMode, config.soundVolume]);
 
   const ensureContext = useCallback((): AudioContext | null => {
-    if (!ctxRef.current) ctxRef.current = createContext();
+    if (!ctxRef.current) {
+      const ctx = createContext();
+      ctxRef.current = ctx;
+      if (ctx) busRef.current = createRapidAruzBus(ctx, ctx.destination, volumeRef.current);
+    }
     const ctx = ctxRef.current;
     if (ctx && ctx.state === "suspended") void ctx.resume();
     return ctx;
@@ -74,90 +119,29 @@ export function useRapidAruzAudio(config: RapidAruzConfig, enabled: boolean): Ra
     ensureContext();
   }, [ensureContext]);
 
-  /** یک نتِ کوتاه با شیبِ نرم — بدون کلیکِ خشک در ابتدا و انتها. */
-  const tone = useCallback(
-    (
-      ctx: AudioContext,
-      { freq, peak, durationMs, type = "sine", startOffsetMs = 0, endFreq }: {
-        freq: number;
-        peak: number;
-        durationMs: number;
-        type?: OscillatorType;
-        startOffsetMs?: number;
-        endFreq?: number;
-      },
-    ) => {
-      const start = ctx.currentTime + startOffsetMs / 1000;
-      const duration = durationMs / 1000;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, start);
-      if (endFreq !== undefined) {
-        osc.frequency.exponentialRampToValueAtTime(endFreq, start + duration);
-      }
-      const level = Math.max(0.0001, peak * volumeRef.current);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(level, start + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + duration + 0.02);
-    },
-    [],
-  );
-
-  const playProcedural = useCallback(
-    (ctx: AudioContext, name: RapidAruzSoundName) => {
-      switch (name) {
-        case "correct":
-          // یک تیکِ ریز و روشن. باید زیرِ صدای انگشت روی شیشه بماند.
-          tone(ctx, { freq: 1180, peak: 0.05, durationMs: 55 });
-          return;
-        case "wrong":
-          // کلیکِ نرم و کوتاه، نه بوق. «نادرست» یعنی از اول، نه باخت.
-          tone(ctx, { freq: 240, peak: 0.035, durationMs: 70, type: "triangle" });
-          return;
-        case "timeout":
-          // دو نتِ خیلی آرامِ فرودی — نشانهٔ «وقت تمام شد»، بی‌سرزنش.
-          tone(ctx, { freq: 380, peak: 0.03, durationMs: 60, type: "sine" });
-          tone(ctx, { freq: 300, peak: 0.03, durationMs: 70, type: "sine", startOffsetMs: 70 });
-          return;
-        case "complete":
-          tone(ctx, { freq: 660, peak: 0.05, durationMs: 90 });
-          tone(ctx, { freq: 990, peak: 0.045, durationMs: 160, startOffsetMs: 95 });
-          return;
-      }
-    },
-    [tone],
-  );
-
   const play = useCallback(
     (name: RapidAruzSoundName) => {
       if (!enabledRef.current) return;
       const ctx = ensureContext();
-      if (!ctx) return;
+      const bus = busRef.current;
+      if (!ctx || !bus) return;
       try {
         if (modeRef.current === "assets") {
           const buffer = buffersRef.current.get(name);
           // فایلی که اعلام نشده، درخواست هم نمی‌شود؛ در نبودش ساکت می‌مانیم.
           if (!buffer) return;
           const src = ctx.createBufferSource();
-          const gain = ctx.createGain();
-          gain.gain.value = volumeRef.current;
           src.buffer = buffer;
-          src.connect(gain);
-          gain.connect(ctx.destination);
+          src.connect(bus);
           src.start();
           return;
         }
-        playProcedural(ctx, name);
+        scheduleRapidAruzSound(ctx, bus, name, ctx.currentTime);
       } catch {
         // صدا هرگز نباید بازی را متوقف کند.
       }
     },
-    [ensureContext, playProcedural],
+    [ensureContext],
   );
 
   // بارگذاریِ فایل‌ها فقط در حالتِ assets و فقط برای مسیرهای اعلام‌شده.
@@ -189,6 +173,7 @@ export function useRapidAruzAudio(config: RapidAruzConfig, enabled: boolean): Ra
     return () => {
       const ctx = ctxRef.current;
       ctxRef.current = null;
+      busRef.current = null;
       if (ctx) void ctx.close().catch(() => {});
     };
   }, []);

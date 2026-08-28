@@ -115,6 +115,21 @@ const STOPS: Stop[] = [
     accent: "#4fd1c5",
     planet: { color: "#4fd1c5", ring: true, distort: 0.22 },
   },
+  {
+    index: "۰۷",
+    tag: "نقشِ واژه‌ها، شکلِ مدار",
+    title: "مدار دستور",
+    desc: "زیرِ هر واژه یک سوکتِ خالی است؛ نقشش را وصل کن تا مدار بسته شود و لامپ روشن شود.",
+    steps: [
+      "یک قطعهٔ نقش را از سینی بردار — با کشیدن یا فقط با یک لمس",
+      "آن را به سوکتِ زیرِ واژهٔ درست وصل کن",
+      "با بسته‌شدنِ آخرین شکاف، جریان راه می‌افتد و لامپ روشن می‌شود",
+    ],
+    href: "/game/grammar-circuit",
+    cta: "شروعِ مدار دستور",
+    accent: "#00a5a6",
+    planet: { color: "#00a5a6", ring: true, distort: 0.22 },
+  },
 ];
 
 export default function GamesGalaxy() {

@@ -33,7 +33,7 @@ export default function RoleTray({
     >
       <div className="flex items-center justify-between px-1 text-[0.7rem] font-semibold text-[var(--gc-text-muted)]">
         <span>قطعه‌های نقش</span>
-        <span>{remaining.toLocaleString("fa-IR")} قطعهٔ باقی‌مانده</span>
+        <span>{remaining.toLocaleString("fa-IR")} قطعهٔ آزاد</span>
       </div>
       <div className="gc-tray-items">
         {pieces.map((piece) => (

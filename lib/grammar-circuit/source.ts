@@ -1,38 +1,88 @@
+import { apiGet } from "@/lib/api/client";
 import { DEMO_GRAMMAR_CIRCUIT_QUESTIONS } from "./demo-data";
-import type { GrammarCircuitQuestion, GrammarCircuitQuestionSource } from "./types";
+import type { GradeKey } from "@/lib/doroos/types";
+import type {
+  GrammarCircuitAvailability,
+  GrammarCircuitQuestion,
+  GrammarCircuitQuestionSource,
+} from "./types";
 import { filterValidQuestions } from "./validator";
 
-/** منبعِ محلی — تا وقتی جدول/اندپوینتِ اختصاصیِ «مدار دستور» ساخته نشده.
+/** خطای قابلِ نمایش به کاربر. بازی باید بتواند صادقانه بگوید چه شد. */
+export class GrammarCircuitSourceError extends Error {}
+
+/** منبعِ تولید — پرسش‌ها از دیتابیس، از راهِ API.
  *
- *  هر سؤال پیش از تحویل از اعتبارسنج رد می‌شود، دقیقاً همان‌طور که منبعِ سمتِ
- *  سرور هم باید رد کند: سؤالِ خراب هرگز به دستِ دانش‌آموز نمی‌رسد. */
+ *  اینجا عمداً هیچ fallbackی به دادهٔ نمایشی وجود ندارد. اگر API خطا بدهد یا
+ *  درس‌های انتخابی پرسشِ سالمی نداشته باشند، بازی باید *صادقانه شکست بخورد*،
+ *  نه اینکه بی‌سروصدا محتوای تأییدنشده جلوی دانش‌آموز بگذارد. یک تمرینِ
+ *  ساختگی که دانش‌آموز فکر کند محتوای درسی است، از یک پیام خطا بدتر است. */
+export class ApiGrammarCircuitSource implements GrammarCircuitQuestionSource {
+  async getQuestions(options: {
+    grade: GradeKey;
+    lessons: readonly number[];
+    limit?: number;
+    signal?: AbortSignal;
+  }): Promise<GrammarCircuitQuestion[]> {
+    if (options.lessons.length === 0) {
+      throw new GrammarCircuitSourceError("هیچ درسی انتخاب نشده است.");
+    }
+    const params = new URLSearchParams({
+      grade: options.grade,
+      lessons: [...options.lessons].join(","),
+    });
+    if (options.limit) params.set("limit", String(options.limit));
+
+    const result = await apiGet<{ questions: GrammarCircuitQuestion[] }>(
+      `/api/v1/grammar-circuit/questions?${params.toString()}`,
+    );
+    if (!result.ok) {
+      throw new GrammarCircuitSourceError(
+        result.errors.join(" ") || "دریافتِ پرسش‌ها ممکن نشد.",
+      );
+    }
+    // سرور خودش اعتبارسنجی کرده؛ این یک لایهٔ دوم است، نه تکرارِ بی‌دلیل:
+    // کلاینت نباید به سالم‌بودنِ چیزی که از شبکه می‌آید تکیه کند.
+    return filterValidQuestions(result.data.questions);
+  }
+}
+
+export async function fetchGrammarCircuitAvailability(): Promise<GrammarCircuitAvailability> {
+  const result = await apiGet<GrammarCircuitAvailability>(
+    "/api/v1/grammar-circuit/availability",
+  );
+  if (!result.ok) {
+    throw new GrammarCircuitSourceError(
+      result.errors.join(" ") || "دریافتِ فهرستِ درس‌ها ممکن نشد.",
+    );
+  }
+  return result.data;
+}
+
+/** منبعِ محلی — فقط برای تست‌های واحد و توسعهٔ جدا از دیتابیس.
+ *
+ *  هیچ‌وقت در مسیرِ تولید استفاده نمی‌شود. دادهٔ پشتش `isDemo: true` دارد و
+ *  محتوای آموزشیِ تأییدشده نیست. */
 export class LocalGrammarCircuitSource implements GrammarCircuitQuestionSource {
   constructor(
     private readonly pool: readonly GrammarCircuitQuestion[] = DEMO_GRAMMAR_CIRCUIT_QUESTIONS,
   ) {}
 
-  async getQuestions(options?: {
+  async getQuestions(options: {
+    grade: GradeKey;
+    lessons: readonly number[];
     limit?: number;
-    difficulty?: 1 | 2 | 3;
   }): Promise<GrammarCircuitQuestion[]> {
     let questions = filterValidQuestions(this.pool);
-    if (options?.difficulty) {
-      questions = questions.filter((q) => q.difficulty === options.difficulty);
+    if (options.lessons.length > 0) {
+      questions = questions.filter(
+        (q) => q.lesson === undefined || options.lessons.includes(q.lesson),
+      );
     }
-    if (options?.limit != null) questions = questions.slice(0, options.limit);
+    if (options.limit != null) questions = questions.slice(0, options.limit);
     return questions;
   }
 }
 
-/* منبعِ سمتِ سرور هنوز وجود ندارد: در این مخزن نه جدولی برای «مدار دستور» هست
-   و نه اندپوینتی زیر app/api/v1. طرحِ پیشنهادیِ جدول و مسیر در گزارشِ این
-   تغییر آمده؛ ساختِ migration بدونِ درخواستِ صریح انجام نشده است.
-
-   وقتی آن اندپوینت ساخته شد، فقط همین‌جا یک
-   `ApiGrammarCircuitSource implements GrammarCircuitQuestionSource`
-   اضافه می‌شود که با `lib/api/client` سؤال‌ها را می‌گیرد و از همان
-   `filterValidQuestions` می‌گذراند؛ خودِ بازی دست نمی‌خورد. کلاینت هرگز
-   نباید مستقیم به دیتابیس وصل شود. */
-
 export const defaultGrammarCircuitSource: GrammarCircuitQuestionSource =
-  new LocalGrammarCircuitSource();
+  new ApiGrammarCircuitSource();

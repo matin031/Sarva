@@ -27,6 +27,15 @@ export interface DragState {
   pointerType: string;
   width: number;
   height: number;
+  /** جای اولیهٔ پیش‌نمایش، در مختصاتِ *پنجره*.
+   *
+   *  چرا در خودِ state و نه فقط در ref: پیش‌نمایش در یک پورتال رندر می‌شود و
+   *  React اول آن را با `transform`ِ پیش‌فرض می‌نشاند و بعد افکت‌ها اجرا
+   *  می‌شوند. در آن یک فریم، عنصر روی `translate3d(0,0,0)` است — یعنی گوشهٔ
+   *  بالا-چپِ صفحه. همان یک فریم بود که به‌شکلِ «پرشِ قطعه از گوشهٔ صفحه»
+   *  دیده می‌شد. حالا جای درست از همان اولین رندر روی عنصر می‌نشیند. */
+  originLeft: number;
+  originTop: number;
 }
 
 interface Options {
@@ -45,10 +54,13 @@ interface Pending {
   pointerType: string;
   startX: number;
   startY: number;
+  /** فاصلهٔ نقطهٔ گرفتن تا گوشهٔ قطعه — در مختصاتِ پنجره. */
   grabDx: number;
   grabDy: number;
   width: number;
   height: number;
+  /** عنصرِ مبدأ، برای رها کردنِ pointer capture و گذاشتنِ جای‌خالی. */
+  sourceEl: HTMLElement | null;
   active: boolean;
 }
 
@@ -122,22 +134,43 @@ export function useCircuitDnD({
     return { kind: "ambiguous", tokenIds: matches };
   }, []);
 
+  /** جای پیش‌نمایش را می‌نویسد.
+   *
+   *  همه‌چیز در مختصاتِ *پنجره* است چون پیش‌نمایش `position: fixed` است.
+   *  هیچ‌جا `pageX/pageY`، `scrollX/scrollY` یا `devicePixelRatio` قاطی
+   *  نمی‌شود؛ قاطی‌کردنِ همین‌ها بود که قطعه را چند صد پیکسل آن‌طرف‌تر
+   *  می‌نشاند وقتی ناحیهٔ تحلیل افقی اسکرول شده بود. */
+  const ghostPosition = useCallback(
+    (pending: Pending, x: number, y: number) => {
+      const lift = pending.pointerType === "touch" ? touchLiftPx : 0;
+      return { left: x - pending.grabDx, top: y - pending.grabDy - lift };
+    },
+    [touchLiftPx],
+  );
+
   const paintGhost = useCallback(() => {
     rafRef.current = 0;
     const pending = pendingRef.current;
     const ghost = ghostRef.current;
     if (!pending?.active || !ghost) return;
-    const lift = pending.pointerType === "touch" ? touchLiftPx : 0;
     const { x, y } = lastPointRef.current;
-    ghost.style.transform = `translate3d(${x - pending.grabDx}px, ${
-      y - pending.grabDy - lift
-    }px, 0)`;
-  }, [touchLiftPx]);
+    const { left, top } = ghostPosition(pending, x, y);
+    ghost.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+  }, [ghostPosition]);
 
   const finish = useCallback(
     (mode: "drop" | "cancel", x?: number, y?: number) => {
       const pending = pendingRef.current;
       pendingRef.current = null;
+      if (pending?.sourceEl) {
+        try {
+          if (pending.sourceEl.hasPointerCapture(pending.pointerId)) {
+            pending.sourceEl.releasePointerCapture(pending.pointerId);
+          }
+        } catch {
+          /* عنصر ممکن است از DOM رفته باشد. */
+        }
+      }
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
@@ -179,6 +212,10 @@ export function useCircuitDnD({
       if (!enabled) return;
       if (event.button !== undefined && event.button !== 0) return;
       if (pendingRef.current) return;
+      /* `getBoundingClientRect` مختصاتِ پنجره می‌دهد و `clientX/clientY` هم
+         مختصاتِ پنجره است. تفاضلشان یعنی «انگشت کجای قطعه را گرفته» — عددی
+         که تا پایانِ کشیدن ثابت می‌ماند و باعث می‌شود قطعه دقیقاً از زیرِ
+         همان نقطه بلند شود. */
       const rect = event.currentTarget.getBoundingClientRect();
       pendingRef.current = {
         pointerId: event.pointerId,
@@ -190,6 +227,7 @@ export function useCircuitDnD({
         grabDy: event.clientY - rect.top,
         width: rect.width,
         height: rect.height,
+        sourceEl: event.currentTarget,
         active: false,
       };
       lastPointRef.current = { x: event.clientX, y: event.clientY };
@@ -209,12 +247,24 @@ export function useCircuitDnD({
         // آستانهٔ کوچک ولی واقعی: لمسِ ساده نباید تصادفاً کشیدن شود.
         if (Math.hypot(dx, dy) < activationDistance) return;
         pending.active = true;
+        /* گرفتنِ pointer: از این لحظه همهٔ رویدادهای همین اشاره‌گر به این
+           عنصر می‌رسند، حتی اگر انگشت از روی عنصرِ دیگری رد شود یا از پنجره
+           بیرون برود. */
+        try {
+          pending.sourceEl?.setPointerCapture(event.pointerId);
+        } catch {
+          // بعضی مرورگرها روی عنصرِ از‌بین‌رفته خطا می‌دهند؛ کشیدن باید ادامه
+          // پیدا کند چون شنونده‌ها روی window هستند.
+        }
         onPickup(pending.pieceId);
+        const origin = ghostPosition(pending, event.clientX, event.clientY);
         setDrag({
           pieceId: pending.pieceId,
           pointerType: pending.pointerType,
           width: pending.width,
           height: pending.height,
+          originLeft: origin.left,
+          originTop: origin.top,
         });
       }
 
@@ -270,7 +320,7 @@ export function useCircuitDnD({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       releaseClickSwallower();
     };
-  }, [activationDistance, finish, hitTest, onPickup, paintGhost, releaseClickSwallower]);
+  }, [activationDistance, finish, ghostPosition, hitTest, onPickup, paintGhost, releaseClickSwallower]);
 
   /** آیا این کلیک، دنبالهٔ یک کشیدنِ تمام‌شده است؟ */
   const shouldSuppressClick = useCallback(

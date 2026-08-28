@@ -1,75 +1,88 @@
 "use client";
 
 import Link from "next/link";
+import {
+  formatLessonList,
+  gradeLabel,
+} from "@/lib/grammar-circuit/curriculum";
+import type { GrammarCircuitSessionConfig } from "@/lib/grammar-circuit";
 import type { QuestionResult } from "@/lib/grammar-circuit/reducer";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
 export default function SessionResults({
   results,
+  session,
   onRestart,
+  onChangeLessons,
 }: {
   results: readonly QuestionResult[];
+  session: GrammarCircuitSessionConfig | null;
   onRestart: () => void;
+  onChangeLessons: () => void;
 }) {
   const totals = results.reduce(
     (acc, r) => ({
-      correct: acc.correct + r.correctPlacements,
-      wrong: acc.wrong + r.wrongAttempts,
-      firstTry: acc.firstTry + r.firstTryPlacements,
+      attempts: acc.attempts + r.attempts,
+      firstTry: acc.firstTry + (r.solvedOnFirstAttempt ? 1 : 0),
       slots: acc.slots + r.requiredSlots,
       time: acc.time + r.activeTimeMs,
     }),
-    { correct: 0, wrong: 0, firstTry: 0, slots: 0, time: 0 },
+    { attempts: 0, firstTry: 0, slots: 0, time: 0 },
   );
 
-  const accuracy =
-    totals.slots === 0 ? 0 : Math.round((totals.firstTry / totals.slots) * 100);
+  const rate =
+    results.length === 0 ? 0 : Math.round((totals.firstTry / results.length) * 100);
 
   return (
     <div dir="rtl" className="gc-root container mx-auto max-w-2xl py-10">
-      <div className="glass rounded-3xl p-6 text-center sm:p-9">
-        <h1 className="text-2xl font-extrabold sm:text-3xl">مدارها کامل شد</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {fa(results.length)} مدار را بستی؛ {fa(accuracy)}٪ از نقش‌ها را بارِ اول
-          درست وصل کردی.
+      <div className="gc-setup text-center">
+        <h1 className="gc-setup-title">مدارها کامل شد</h1>
+        {session && (
+          <p className="gc-setup-sub">
+            پایهٔ {gradeLabel(session.grade)} — درس‌های {formatLessonList(session.lessons)}
+          </p>
+        )}
+        <p className="gc-setup-note">
+          {fa(results.length)} مدار را بستی؛ {fa(rate)}٪ را در همان بررسیِ اول درست بستی.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="اتصالِ درست" value={fa(totals.correct)} />
+          <Stat label="مدارِ کامل" value={fa(results.length)} />
           <Stat label="بارِ اول درست" value={fa(totals.firstTry)} />
-          <Stat label="تلاشِ نادرست" value={fa(totals.wrong)} />
+          <Stat label="مجموعِ بررسی‌ها" value={fa(totals.attempts)} />
           <Stat label="زمانِ فعال" value={`${fa(Math.round(totals.time / 1000))} ثانیه`} />
         </div>
 
         <ul className="mt-6 flex flex-col gap-2 text-right">
           {results.map((r, i) => (
-            <li
-              key={`${r.questionId}-${i}`}
-              className="flex items-center justify-between rounded-xl border border-border bg-background/60 px-4 py-2.5 text-sm"
-            >
-              <span className="font-semibold">مدارِ {fa(i + 1)}</span>
-              <span className="text-muted-foreground">
-                {fa(r.firstTryPlacements)} از {fa(r.requiredSlots)} بارِ اول •{" "}
-                {fa(r.wrongAttempts)} تلاشِ نادرست •{" "}
-                {fa(Math.round(r.activeTimeMs / 1000))} ثانیه
+            <li key={`${r.questionId}-${i}`} className="gc-result-row">
+              <span className="font-semibold">
+                مدارِ {fa(i + 1)}
+                {r.lesson !== undefined && (
+                  <span className="text-[var(--gc-text-muted)]"> — درس {fa(r.lesson)}</span>
+                )}
+              </span>
+              <span className="text-[var(--gc-text-muted)]">
+                {fa(r.requiredSlots)} خانه •{" "}
+                {r.solvedOnFirstAttempt
+                  ? "بارِ اول"
+                  : `${fa(r.attempts)} بار بررسی`}{" "}
+                • {fa(Math.round(r.activeTimeMs / 1000))} ثانیه
               </span>
             </li>
           ))}
         </ul>
 
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <button
-            onClick={onRestart}
-            className="rounded-xl bg-primary px-7 py-3 text-base font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
-          >
-            یک دورِ دیگر
+          <button onClick={onRestart} className="gc-btn gc-btn-primary">
+            تمرین دوباره
           </button>
-          <Link
-            href="/game"
-            className="rounded-xl border border-border px-7 py-3 text-base font-medium transition-all hover:brightness-110 active:scale-95"
-          >
-            بازگشت به کهکشانِ بازی‌ها
+          <button onClick={onChangeLessons} className="gc-btn gc-btn-ghost">
+            انتخابِ درس‌های دیگر
+          </button>
+          <Link href="/game" className="gc-btn gc-btn-ghost">
+            کهکشانِ بازی‌ها
           </Link>
         </div>
       </div>
@@ -79,9 +92,9 @@ export default function SessionResults({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/60 px-3 py-4">
-      <div className="text-xl font-extrabold text-primary">{value}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+    <div className="gc-stat">
+      <div className="gc-stat-value">{value}</div>
+      <div className="gc-stat-label">{label}</div>
     </div>
   );
 }

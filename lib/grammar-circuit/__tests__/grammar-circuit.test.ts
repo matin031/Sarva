@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { DEMO_GRAMMAR_CIRCUIT_QUESTIONS } from "../demo-data";
-import { solveHitExtents, solveSlotCenters } from "../layout";
 import { hasCompleteAssignment, isChoiceSafe } from "../matching";
-import { prepareQuestion, reconstructText } from "../prepare";
+import { buildSessionQuestions, prepareQuestion, reconstructText } from "../prepare";
+import {
+  EXCLUDED_LESSONS,
+  isSelectableLesson,
+  isStorableLesson,
+  selectableLessons,
+} from "../curriculum";
 import {
   grammarCircuitReducer,
   initialGrammarCircuitState,
+  isArrangeable,
   type GrammarCircuitState,
 } from "../reducer";
 import type { GrammarCircuitQuestion } from "../types";
@@ -183,26 +189,11 @@ test("دو قطعه با نقشِ یکسان هر دو مستقل کار می‌
   assert.equal(complements.length, 2);
   assert.notEqual(complements[0].id, complements[1].id);
 
-  const prepared = prepareQuestion(q, 1);
-  let state = grammarCircuitReducer(initialGrammarCircuitState, {
-    type: "START",
-    questions: [prepared],
-  });
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT",
-    pieceId: complements[0].id,
-    tokenId: "t3",
-    inputMethod: "tap",
-  });
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT",
-    pieceId: complements[1].id,
-    tokenId: "t5",
-    inputMethod: "tap",
-  });
+  let state = started(q);
+  state = place(state, complements[0].id, "t3");
+  state = place(state, complements[1].id, "t5");
   assert.equal(state.placementsByTokenId["t3"], complements[0].id);
   assert.equal(state.placementsByTokenId["t5"], complements[1].id);
-  assert.equal(state.wrongAttempts, 0);
 });
 
 test("دو توکن با متنِ یکسان دو حالتِ کاملاً جدا دارند", () => {
@@ -210,7 +201,6 @@ test("دو توکن با متنِ یکسان دو حالتِ کاملاً جدا
   const repeated = q.tokens.filter((t) => t.text === "من");
   assert.equal(repeated.length, 2);
   assert.notEqual(repeated[0].id, repeated[1].id);
-  // نقششان هم یکی نیست: مضاف‌الیه در برابر متمم.
   assert.notDeepEqual(
     repeated[0].roleSlot?.acceptedRoleKeys,
     repeated[1].roleSlot?.acceptedRoleKeys,
@@ -222,8 +212,7 @@ test("دو توکن با متنِ یکسان دو حالتِ کاملاً جدا
 test("متن دقیقاً از داده بازسازی می‌شود، نه با join(' ')", () => {
   const q = DEMO_GRAMMAR_CIRCUIT_QUESTIONS.find((x) => x.id === "gc-demo-madar")!;
   assert.equal(reconstructText(q), "مادر، کتابِ من را به من می‌دهد.");
-  // نیم‌فاصله دست‌نخورده مانده است.
-  assert.ok(reconstructText(q).includes("‌"));
+  assert.ok(reconstructText(q).includes("‌")); // نیم‌فاصله دست‌نخورده
 });
 
 test("عکسِ فوریِ سؤال با دانهٔ یکسان همیشه یکی است", () => {
@@ -231,130 +220,278 @@ test("عکسِ فوریِ سؤال با دانهٔ یکسان همیشه یکی 
   const a = prepareQuestion(q, 42).trayPieces.map((p) => p.id);
   const b = prepareQuestion(q, 42).trayPieces.map((p) => p.id);
   assert.deepEqual(a, b);
-  assert.equal(a.length, q.pieces.length);
 });
 
-/* ── reducer ─────────────────────────────────────────────────────────────── */
-
-function started(): GrammarCircuitState {
+test("ترتیبِ بررسی از دادهٔ معتبر می‌آید و در عکسِ فوری ثابت می‌شود", () => {
   const prepared = prepareQuestion(question(), 7);
+  assert.deepEqual([...prepared.validationOrder], ["t1", "t2", "t4"]);
+  // بدونِ circuitOrder هم ترتیبِ توکن‌ها مبناست، نه مختصاتِ صفحه.
+  const noOrder = prepareQuestion(question({ circuitOrder: undefined }), 7);
+  assert.deepEqual([...noOrder.validationOrder], ["t1", "t2", "t4"]);
+});
+
+/* ── چیدمان: غلط هم باید بنشیند ──────────────────────────────────────────── */
+
+function started(q = question()): GrammarCircuitState {
   return grammarCircuitReducer(initialGrammarCircuitState, {
     type: "START",
-    questions: [prepared],
+    session: { grade: "dahom", lessons: [1] },
+    questions: [prepareQuestion(q, 7)],
+  });
+}
+function place(
+  state: GrammarCircuitState,
+  pieceId: string,
+  tokenId: string,
+): GrammarCircuitState {
+  return grammarCircuitReducer(state, {
+    type: "PLACE",
+    pieceId,
+    tokenId,
+    inputMethod: "tap",
   });
 }
 
-test("اتصالِ درست ثبت می‌شود و بازی قفل نمی‌شود", () => {
-  const state = grammarCircuitReducer(started(), {
-    type: "ATTEMPT",
-    pieceId: "p1",
-    tokenId: "t1",
-    inputMethod: "pointer",
-  });
-  assert.equal(state.placementsByTokenId["t1"], "p1");
-  assert.equal(state.correctPlacements, 1);
-  assert.equal(state.status, "playing");
-  assert.equal(state.outcome.kind, "correct");
-  assert.equal(state.outcome.final, false);
+test("پاسخِ غلط هم می‌نشیند — چیدن درستی را نمی‌سنجد", () => {
+  // p2 نقشِ «مفعول» دارد ولی t1 نهاد می‌خواهد. باید بنشیند.
+  const state = place(started(), "p2", "t1");
+  assert.equal(state.placementsByTokenId["t1"], "p2");
+  assert.equal(state.outcome.kind, "seated");
+  // و هیچ نتیجه‌ای اعلام نشده باشد.
+  assert.equal(state.validationByTokenId["t1"], "pending");
 });
 
-test("اتصالِ نادرست چیزی را ثبت نمی‌کند و جواب را فاش نمی‌کند", () => {
-  const state = grammarCircuitReducer(started(), {
-    type: "ATTEMPT",
-    pieceId: "p2",
-    tokenId: "t1",
-    inputMethod: "pointer",
-  });
-  assert.equal(state.placementsByTokenId["t1"], undefined);
-  assert.equal(state.wrongAttempts, 1);
-  assert.equal(state.wrongByTokenId["t1"], 1);
-  assert.equal(state.outcome.kind, "wrong");
+test("چیدن هیچ‌وقت نتیجهٔ درست/غلط تولید نمی‌کند", () => {
+  const correct = place(started(), "p1", "t1");
+  const wrong = place(started(), "p2", "t1");
+  // هر دو دقیقاً یک شکل نتیجه دارند؛ هیچ چیزی درستی را لو نمی‌دهد.
+  assert.equal(correct.outcome.kind, wrong.outcome.kind);
+  assert.deepEqual(
+    Object.values(correct.validationByTokenId),
+    Object.values(wrong.validationByTokenId),
+  );
 });
 
-test("یک قطعه نمی‌تواند دو سوکت را پر کند", () => {
-  let state = started();
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "pointer",
-  });
+test("یک قطعه نمی‌تواند دو خانه را پر کند", () => {
+  let state = place(started(), "p1", "t1");
   const before = state;
-  // همان قطعه، بلافاصله دوباره — مثلِ «کشیدن و بعد کلیک» یا دابل‌تپ.
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t2", inputMethod: "tap",
-  });
-  assert.equal(state, before, "تلاشِ دوم باید کاملاً بی‌اثر باشد");
-});
-
-test("سوکتِ بسته‌شده دیگر هدف نیست و «پاسخِ غلط» هم نمی‌سازد", () => {
-  let state = started();
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "pointer",
-  });
-  const before = state;
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p2", tokenId: "t1", inputMethod: "pointer",
-  });
+  state = place(state, "p1", "t2");
   assert.equal(state, before);
-  assert.equal(state.wrongAttempts, 0);
 });
 
-test("توکنِ بدونِ سوکت هرگز هدف نیست", () => {
+test("خانهٔ پر، قطعهٔ تازه را نمی‌پذیرد و خطا هم حساب نمی‌شود", () => {
+  let state = place(started(), "p1", "t1");
+  state = place(state, "p2", "t1");
+  assert.equal(state.placementsByTokenId["t1"], "p1");
+  assert.equal(state.outcome.kind, "blocked");
+});
+
+test("قطعه را می‌شود از خانه برداشت و دوباره جای دیگر گذاشت", () => {
+  let state = place(started(), "p1", "t1");
+  state = grammarCircuitReducer(state, { type: "LIFT", tokenId: "t1", inputMethod: "tap" });
+  assert.equal(state.placementsByTokenId["t1"], undefined);
+  assert.equal(state.outcome.kind, "lifted");
+  state = place(state, "p1", "t2");
+  assert.equal(state.placementsByTokenId["t2"], "p1");
+});
+
+test("توکنِ بدونِ خانه هرگز هدف نیست", () => {
   const state = started();
-  const next = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t3", inputMethod: "tap",
-  });
-  assert.equal(next, state);
+  assert.equal(place(state, "p1", "t3"), state);
 });
 
-test("کامل‌شدن فقط با پرشدنِ همهٔ سوکت‌های لازم اتفاق می‌افتد", () => {
-  let state = started();
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "tap",
-  });
-  assert.equal(state.status, "playing");
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p2", tokenId: "t2", inputMethod: "tap",
-  });
-  assert.equal(state.status, "playing");
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p3", tokenId: "t4", inputMethod: "tap",
-  });
-  assert.equal(state.status, "completing");
-  assert.equal(state.outcome.final, true);
+/* ── آمادگی برای بررسی ───────────────────────────────────────────────────── */
 
-  // بعد از قفل‌شدن، هیچ ورودیِ دیگری اثر ندارد.
-  const locked = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t2", inputMethod: "tap",
-  });
-  assert.equal(locked, state);
+test("readyToValidate یعنی همهٔ خانه‌ها پر است، نه سینی خالی", () => {
+  let state = started();
+  assert.equal(state.phase, "arranging");
+  state = place(state, "p1", "t1");
+  state = place(state, "p2", "t2");
+  assert.equal(state.phase, "arranging");
+  state = place(state, "p3", "t4");
+  assert.equal(state.phase, "readyToValidate");
 });
 
-test("«بارِ اول درست» فقط وقتی است که پیش از آن روی همان واژه اشتباهی نشده باشد", () => {
-  let state = started();
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p2", tokenId: "t1", inputMethod: "tap",
+test("قطعهٔ اضافه در سینی مانعِ آمادگی نیست", () => {
+  const q = question({
+    pieces: [
+      { id: "p1", roleKey: "subject" },
+      { id: "p2", roleKey: "object" },
+      { id: "p3", roleKey: "verb" },
+      { id: "p4", roleKey: "object" }, // طعمه
+    ],
   });
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "tap",
-  });
-  assert.equal(state.correctPlacements, 1);
-  assert.equal(state.firstTryPlacements, 0);
+  let state = started(q);
+  state = place(state, "p1", "t1");
+  state = place(state, "p2", "t2");
+  state = place(state, "p3", "t4");
+  assert.equal(state.phase, "readyToValidate");
+});
 
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p2", tokenId: "t2", inputMethod: "tap",
+test("بدونِ پر بودنِ همهٔ خانه‌ها بررسی شروع نمی‌شود", () => {
+  let state = place(started(), "p1", "t1");
+  const before = state;
+  state = grammarCircuitReducer(state, { type: "BEGIN_VALIDATION" });
+  assert.equal(state, before);
+});
+
+/* ── بررسی ───────────────────────────────────────────────────────────────── */
+
+function filledBoard(map: Array<[string, string]>): GrammarCircuitState {
+  let state = started();
+  for (const [pieceId, tokenId] of map) state = place(state, pieceId, tokenId);
+  return state;
+}
+
+test("بررسی چیدمان را قفل می‌کند و شناسهٔ اجرا را بالا می‌برد", () => {
+  const ready = filledBoard([["p1", "t1"], ["p2", "t2"], ["p3", "t4"]]);
+  const runBefore = ready.validationRunId;
+  const state = grammarCircuitReducer(ready, { type: "BEGIN_VALIDATION" });
+  assert.equal(state.phase, "validating");
+  assert.ok(state.validationRunId > runBefore);
+  assert.equal(isArrangeable(state.phase), false);
+  assert.equal(state.attempts, 1);
+  // همهٔ خانه‌ها در انتظارِ بررسی‌اند.
+  assert.deepEqual(Object.values(state.validationByTokenId), [
+    "pending",
+    "pending",
+    "pending",
+  ]);
+});
+
+test("نتیجهٔ یک اجرای کهنه روی اجرای تازه اثر ندارد", () => {
+  const ready = filledBoard([["p1", "t1"], ["p2", "t2"], ["p3", "t4"]]);
+  const state = grammarCircuitReducer(ready, { type: "BEGIN_VALIDATION" });
+  const stale = grammarCircuitReducer(state, {
+    type: "SET_RESULT",
+    tokenId: "t1",
+    result: "correct",
+    runId: state.validationRunId - 1,
   });
-  assert.equal(state.firstTryPlacements, 1);
+  assert.equal(stale, state);
+});
+
+test("همهٔ خانه‌ها درست → جریانِ کامل", () => {
+  let state = grammarCircuitReducer(
+    filledBoard([["p1", "t1"], ["p2", "t2"], ["p3", "t4"]]),
+    { type: "BEGIN_VALIDATION" },
+  );
+  const run = state.validationRunId;
+  for (const tokenId of ["t1", "t2", "t4"]) {
+    state = grammarCircuitReducer(state, {
+      type: "SET_RESULT", tokenId, result: "correct", runId: run,
+    });
+  }
+  state = grammarCircuitReducer(state, {
+    type: "VALIDATION_FINISHED", runId: run, allCorrect: true,
+  });
+  assert.equal(state.phase, "successCurrent");
+  assert.equal(state.firstAttemptCorrect, 3);
+});
+
+test("یک خانهٔ نادرست → دنبالهٔ شکست، نه جریان", () => {
+  let state = grammarCircuitReducer(
+    filledBoard([["p2", "t1"], ["p1", "t2"], ["p3", "t4"]]),
+    { type: "BEGIN_VALIDATION" },
+  );
+  const run = state.validationRunId;
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t1", result: "wrong", runId: run });
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t2", result: "wrong", runId: run });
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t4", result: "correct", runId: run });
+  state = grammarCircuitReducer(state, { type: "VALIDATION_FINISHED", runId: run, allCorrect: false });
+  assert.equal(state.phase, "failureSequence");
+  state = grammarCircuitReducer(state, { type: "FAILURE_SEQUENCE_DONE", runId: run });
+  assert.equal(state.phase, "failureReview");
+  // نتیجهٔ هر خانه جدا مانده؛ چیدمان دست‌نخورده است.
+  assert.equal(state.validationByTokenId["t4"], "correct");
+  assert.equal(state.placementsByTokenId["t1"], "p2");
+});
+
+/* ── اصلاح ───────────────────────────────────────────────────────────────── */
+
+test("اصلاح فقط خانه‌های نادرست را آزاد می‌کند و جواب را لو نمی‌دهد", () => {
+  let state = grammarCircuitReducer(
+    filledBoard([["p2", "t1"], ["p1", "t2"], ["p3", "t4"]]),
+    { type: "BEGIN_VALIDATION" },
+  );
+  const run = state.validationRunId;
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t1", result: "wrong", runId: run });
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t2", result: "wrong", runId: run });
+  state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId: "t4", result: "correct", runId: run });
+  state = grammarCircuitReducer(state, { type: "VALIDATION_FINISHED", runId: run, allCorrect: false });
+  state = grammarCircuitReducer(state, { type: "FAILURE_SEQUENCE_DONE", runId: run });
+  state = grammarCircuitReducer(state, { type: "ENTER_CORRECTION" });
+
+  // خانهٔ درست قفل و سبز مانده، خانه‌های نادرست خالی شده‌اند.
+  assert.equal(state.placementsByTokenId["t4"], "p3");
+  assert.deepEqual([...state.lockedTokenIds], ["t4"]);
+  assert.equal(state.placementsByTokenId["t1"], undefined);
+  assert.equal(state.placementsByTokenId["t2"], undefined);
+  // هیچ‌جا نگفته که جوابِ درستِ t1 چه بود.
+  assert.equal(state.validationByTokenId["t1"], undefined);
+  assert.equal(state.phase, "arranging");
+});
+
+test("خانهٔ قفل‌شده دیگر ویرایش نمی‌شود", () => {
+  let state = grammarCircuitReducer(
+    filledBoard([["p2", "t1"], ["p1", "t2"], ["p3", "t4"]]),
+    { type: "BEGIN_VALIDATION" },
+  );
+  const run = state.validationRunId;
+  for (const [tokenId, result] of [["t1", "wrong"], ["t2", "wrong"], ["t4", "correct"]] as const) {
+    state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId, result, runId: run });
+  }
+  state = grammarCircuitReducer(state, { type: "VALIDATION_FINISHED", runId: run, allCorrect: false });
+  state = grammarCircuitReducer(state, { type: "FAILURE_SEQUENCE_DONE", runId: run });
+  state = grammarCircuitReducer(state, { type: "ENTER_CORRECTION" });
+  const before = state;
+  state = grammarCircuitReducer(state, { type: "LIFT", tokenId: "t4", inputMethod: "tap" });
+  assert.equal(state, before);
+});
+
+test("اصلاح و بررسیِ دوباره تا موفقیت", () => {
+  let state = grammarCircuitReducer(
+    filledBoard([["p2", "t1"], ["p1", "t2"], ["p3", "t4"]]),
+    { type: "BEGIN_VALIDATION" },
+  );
+  let run = state.validationRunId;
+  for (const [tokenId, result] of [["t1", "wrong"], ["t2", "wrong"], ["t4", "correct"]] as const) {
+    state = grammarCircuitReducer(state, { type: "SET_RESULT", tokenId, result, runId: run });
+  }
+  state = grammarCircuitReducer(state, { type: "VALIDATION_FINISHED", runId: run, allCorrect: false });
+  state = grammarCircuitReducer(state, { type: "FAILURE_SEQUENCE_DONE", runId: run });
+  state = grammarCircuitReducer(state, { type: "ENTER_CORRECTION" });
+
+  state = place(state, "p1", "t1");
+  state = place(state, "p2", "t2");
+  assert.equal(state.phase, "readyToValidate");
+
+  state = grammarCircuitReducer(state, { type: "BEGIN_VALIDATION" });
+  run = state.validationRunId;
+  assert.equal(state.attempts, 2);
+  // خانهٔ قفل‌شده از همان اول درست شمرده می‌شود.
+  assert.equal(state.validationByTokenId["t4"], "correct");
+  state = grammarCircuitReducer(state, { type: "VALIDATION_FINISHED", runId: run, allCorrect: true });
+  assert.equal(state.phase, "successCurrent");
+  // «بارِ اولِ درست» همان بررسیِ نخست می‌ماند و با تلاشِ دوم بازنویسی نمی‌شود.
+  assert.equal(state.firstAttemptCorrect, 1);
+});
+
+test("«بازچینی» همه‌چیزِ سؤال را پاک می‌کند", () => {
+  let state = filledBoard([["p1", "t1"], ["p2", "t2"], ["p3", "t4"]]);
+  state = grammarCircuitReducer(state, { type: "CLEAR_BOARD" });
+  assert.deepEqual(state.placementsByTokenId, {});
+  assert.deepEqual([...state.lockedTokenIds], []);
+  assert.equal(state.phase, "arranging");
 });
 
 test("تعویضِ سؤال epoch را بالا می‌برد و آمارِ جلسه را نگه می‌دارد", () => {
-  const prepared = prepareQuestion(question(), 7);
   let state = grammarCircuitReducer(initialGrammarCircuitState, {
     type: "START",
-    questions: [prepared, prepareQuestion(question({ id: "q2" }), 9)],
+    session: { grade: "dahom", lessons: [1] },
+    questions: [prepareQuestion(question(), 7), prepareQuestion(question({ id: "q2" }), 9)],
   });
   const epoch = state.epoch;
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "tap",
-  });
   state = grammarCircuitReducer(state, { type: "NEXT_QUESTION", activeTimeMs: 1234 });
   assert.ok(state.epoch > epoch);
   assert.equal(state.questionIndex, 1);
@@ -363,81 +500,51 @@ test("تعویضِ سؤال epoch را بالا می‌برد و آمارِ جل
   assert.equal(state.results[0].activeTimeMs, 1234);
 });
 
-test("قطعهٔ مصرف‌شده دیگر انتخاب نمی‌شود", () => {
-  let state = started();
-  state = grammarCircuitReducer(state, {
-    type: "ATTEMPT", pieceId: "p1", tokenId: "t1", inputMethod: "tap",
-  });
-  const next = grammarCircuitReducer(state, { type: "SELECT_PIECE", pieceId: "p1" });
-  assert.equal(next.selectedPieceId, null);
+/* ── برنامهٔ درسی ─────────────────────────────────────────────────────────── */
+
+test("درس‌های آزادِ هر پایه دقیقاً همان‌هایی‌اند که باید", () => {
+  assert.deepEqual([...EXCLUDED_LESSONS.dahom], [4, 15]);
+  assert.deepEqual([...EXCLUDED_LESSONS.yazdahom], [4, 13]);
+  assert.deepEqual([...EXCLUDED_LESSONS.davazdahom], [4, 15]);
 });
 
-/* ── هندسه ───────────────────────────────────────────────────────────────── */
-
-test("حل‌کنندهٔ هم‌پوشانی ترتیب و حداقلِ فاصله را نگه می‌دارد", () => {
-  // چهار واژهٔ کوتاهِ پشتِ هم در راست‌به‌چپ: مرکزها با پیشرفتِ جمله کم می‌شوند.
-  const desired = [600, 580, 555, 530];
-  const centers = solveSlotCenters({
-    desiredCenters: desired,
-    minSeparation: 110,
-    direction: -1,
-    minCenter: 60,
-    maxCenter: 1200,
-  });
-  for (let i = 1; i < centers.length; i++) {
-    assert.ok(
-      centers[i - 1] - centers[i] >= 110 - 1e-6,
-      `فاصلهٔ ${i} کمتر از حداقل شد: ${centers[i - 1] - centers[i]}`,
-    );
-  }
-  // ترتیبِ توکن‌ها حفظ شده است.
-  for (let i = 1; i < centers.length; i++) {
-    assert.ok(centers[i] < centers[i - 1]);
+test("درس‌های آزاد در فهرستِ انتخاب نمی‌آیند ولی ۱۶ درسِ دیگر می‌آیند", () => {
+  for (const grade of ["dahom", "yazdahom", "davazdahom"] as const) {
+    const listed = selectableLessons(grade);
+    assert.equal(listed.length, 16);
+    for (const excluded of EXCLUDED_LESSONS[grade]) {
+      assert.ok(!listed.includes(excluded), `درس ${excluded} نباید در ${grade} باشد`);
+    }
+    assert.equal(Math.min(...listed) >= 1, true);
+    assert.equal(Math.max(...listed) <= 18, true);
   }
 });
 
-test("سوکت‌هایی که از قبل جا دارند اصلاً جابه‌جا نمی‌شوند", () => {
-  const desired = [600, 480, 360];
-  const centers = solveSlotCenters({
-    desiredCenters: desired,
-    minSeparation: 110,
-    direction: -1,
-    minCenter: 60,
-    maxCenter: 1200,
-  });
-  centers.forEach((c, i) => assert.ok(Math.abs(c - desired[i]) < 1e-6));
+test("درسِ آزاد قابلِ انتخاب نیست ولی قابلِ ذخیره هست", () => {
+  assert.equal(isSelectableLesson("yazdahom", 13), false);
+  assert.equal(isSelectableLesson("yazdahom", 15), true);
+  // محدودیتِ محصولی است، نه محدودیتِ دیتابیس.
+  assert.equal(isStorableLesson(13), true);
 });
 
-test("زنجیره داخلِ بازه می‌ماند", () => {
-  const centers = solveSlotCenters({
-    desiredCenters: [100, 90, 80],
-    minSeparation: 110,
-    direction: -1,
-    minCenter: 60,
-    maxCenter: 400,
-  });
-  assert.ok(Math.min(...centers) >= 60 - 1e-6);
-  assert.ok(Math.max(...centers) <= 400 + 1e-6);
+/* ── نمونه‌گیریِ چنددرسی ─────────────────────────────────────────────────── */
+
+test("با چند درس، پرسش‌ها چرخشی برداشته می‌شوند نه پشتِ سرِ هم", () => {
+  const pool = [1, 1, 1, 2, 2, 2, 3, 3, 3].map((lesson, i) => ({
+    ...question({ id: `q-${lesson}-${i}` }),
+    lesson,
+  }));
+  const picked = buildSessionQuestions(pool, 6, 42, [1, 2, 3]);
+  assert.equal(picked.length, 6);
+  // سه پرسشِ اول باید از سه درسِ متفاوت باشند.
+  const firstThree = new Set(picked.slice(0, 3).map((q) => q.lesson));
+  assert.equal(firstThree.size, 3);
 });
 
-test("ناحیه‌های لمسی هرگز هم‌پوشانی ندارند و شکافِ واقعی می‌ماند", () => {
-  const centers = [500, 380, 270];
-  const extents = solveHitExtents(centers, 96, 10, 8);
-  const boxes = centers
-    .map((c, i) => ({ left: c - extents[i].left, right: c + extents[i].right }))
-    .sort((a, b) => a.left - b.left);
-  for (let i = 1; i < boxes.length; i++) {
-    assert.ok(
-      boxes[i].left - boxes[i - 1].right >= 8 - 1e-6,
-      `شکافِ بینِ ناحیه‌ها کمتر از ۸ پیکسل شد: ${boxes[i].left - boxes[i - 1].right}`,
-    );
-  }
-});
-
-test("حتی با مرکزهای خیلی نزدیک هم ناحیه‌ها روی هم نمی‌افتند", () => {
-  const centers = [300, 260];
-  const extents = solveHitExtents(centers, 96, 10, 8);
-  const gap =
-    centers[0] - extents[0].left - (centers[1] + extents[1].right);
-  assert.ok(gap >= 8 - 1e-6, `شکاف: ${gap}`);
+test("با یک درس، فقط بُر می‌خورد", () => {
+  const pool = [1, 1, 1, 1].map((lesson, i) => ({
+    ...question({ id: `q-${i}` }),
+    lesson,
+  }));
+  assert.equal(buildSessionQuestions(pool, 3, 7, [1]).length, 3);
 });

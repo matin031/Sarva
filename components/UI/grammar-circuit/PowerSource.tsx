@@ -1,10 +1,12 @@
 "use client";
 
-/** منبعِ تغذیه — ابتدای مسیرِ مدار در سمتِ راست (ابتدای خواندنِ فارسی).
+/** منبعِ تغذیه — ابتدای مسیرِ مدار، سمتِ راست.
  *
- *  کاملاً تزئینی است و هیچ رویدادِ اشاره‌گری نمی‌گیرد؛ `data-gc-terminal`
- *  نقطه‌ای است که سیم از آن بیرون می‌آید و مختصاتش از خودِ DOM خوانده می‌شود،
- *  نه از عددی که در کد نوشته شده باشد. */
+ *  چیدمان عمداً از راست به چپ است: باتری سمتِ راست، خانه‌ها به ترتیبِ خواندنِ
+ *  فارسی، و لامپ در انتهای سمتِ چپ. همان جهتی که پالسِ تشخیصی هم می‌رود.
+ *
+ *  کاملاً تزئینی است و هیچ رویدادی نمی‌گیرد؛ `data-gc-terminal` نقطه‌ای است
+ *  که سیم از آن بیرون می‌آید و مختصاتش از خودِ DOM خوانده می‌شود. */
 export default function PowerSource({
   live,
   hostRef,
@@ -14,41 +16,36 @@ export default function PowerSource({
 }) {
   return (
     <div ref={hostRef} className="gc-power" data-live={live || undefined} aria-hidden>
-      <svg width="44" height="56" viewBox="0 0 44 56" fill="none">
+      <svg width="52" height="72" viewBox="0 0 52 72" fill="none">
+        <rect x="8" y="4" width="14" height="5" rx="1.6" fill="var(--gc-metal)" />
         <rect
-          x="7"
-          y="10"
-          width="30"
-          height="38"
-          rx="6"
+          x="4"
+          y="9"
+          width="44"
+          height="54"
+          rx="7"
           fill="var(--gc-board-elevated)"
           stroke="var(--gc-border-strong)"
-          strokeWidth="1.5"
+          strokeWidth="1.6"
         />
-        <rect x="17" y="5" width="10" height="6" rx="2" fill="var(--gc-metal)" />
-        <rect
-          className="gc-power-core"
-          x="13"
-          y="17"
-          width="18"
-          height="10"
-          rx="3"
-          fill="var(--gc-wire)"
-        />
+        {/* نوارِ شارژ — سه پله، برای حسِ «دستگاه» بدونِ شلوغی. */}
+        <rect className="gc-power-cell" x="11" y="16" width="30" height="8" rx="2.5" />
+        <rect className="gc-power-cell" x="11" y="28" width="30" height="8" rx="2.5" />
+        <rect className="gc-power-cell" x="11" y="40" width="30" height="8" rx="2.5" />
         <path
-          d="M18 32h8M22 32v8M16 40h12"
+          d="M22 53h8M26 53v5"
           stroke="var(--gc-text-muted)"
           strokeWidth="1.6"
           strokeLinecap="round"
         />
       </svg>
-      <span>باتری</span>
+      <span className="gc-endcap-label">باتری</span>
       <span
         data-gc-terminal
         style={{
           position: "absolute",
-          top: "28px",
-          insetInlineEnd: "2px",
+          top: "36px",
+          insetInlineEnd: "4px",
           width: 2,
           height: 2,
         }}

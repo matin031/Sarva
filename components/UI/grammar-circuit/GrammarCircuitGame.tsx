@@ -2,26 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import GameIntro from "@/components/UI/games/GameIntro";
+import type { GradeKey } from "@/lib/doroos/types";
 import {
+  ApiGrammarCircuitSource,
   GRAMMAR_CIRCUIT_CONFIG,
+  GrammarCircuitSourceError,
   buildSessionQuestions,
-  defaultGrammarCircuitSource,
+  fetchGrammarCircuitAvailability,
   prepareQuestion,
+  type GrammarCircuitAvailability,
   type GrammarCircuitQuestion,
   type PlacementInputMethod,
 } from "@/lib/grammar-circuit";
 import {
   grammarCircuitReducer,
   initialGrammarCircuitState,
+  isArrangeable,
   usedPieceIds,
 } from "@/lib/grammar-circuit/reducer";
 import ActiveShell from "./ActiveShell";
 import CircuitContent from "./CircuitContent";
 import DragGhostLayer from "./DragGhostLayer";
-import GrammarCircuitPreview from "./GrammarCircuitPreview";
+import QuestionRegion from "./QuestionRegion";
 import RoleTray from "./RoleTray";
 import SessionResults from "./SessionResults";
+import SetupScreen from "./SetupScreen";
+import ValidationBar from "./ValidationBar";
 import type { CurrentPhase } from "./CircuitSvgLayer";
 import type { LampState } from "./Lamp";
 import { useActiveTime } from "./hooks/useActiveTime";
@@ -33,98 +39,121 @@ import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
  *
- *  این کامپوننت عمداً *یک بار* mount می‌شود و تا خروج از مسیر همان‌جا می‌ماند:
- *  عوض‌شدنِ تم، چرخشِ دستگاه، تغییرِ اندازهٔ پنجره و جابه‌جاییِ چیدمانِ موبایل/
- *  دسکتاپ همه با CSS و کلاس انجام می‌شوند، نه با جابه‌جا کردنِ درختِ React.
- *  اگر این کامپوننت ری‌مانت شود، reducer صفر می‌شود و بازیِ نیمه‌کارهٔ
- *  دانش‌آموز از بین می‌رود. */
+ *  یک بار mount می‌شود و تا خروج از مسیر همان‌جا می‌ماند: تمِ صفحه، چرخشِ
+ *  دستگاه و تغییرِ اندازه همه با CSS انجام می‌شوند، نه با جابه‌جا کردنِ درختِ
+ *  React. اگر ری‌مانت شود، بازیِ نیمه‌کارهٔ دانش‌آموز از بین می‌رود. */
 
 interface Metrics {
   mounts: number;
-  lastCommitAt: number | null;
-  lastCurrentStartAt: number | null;
-  lastFinalCommitAt: number | null;
-  finalCommitToCurrentMs: number | null;
-  commitToInteractionReadyMs: number | null;
+  validationPressedAt: number | null;
+  steps: Array<{ tokenId: string; checkingAt: number; resultAt: number | null }>;
+  validationFinishedAt: number | null;
+  fullCurrentStartedAt: number | null;
+  lampOnAt: number | null;
+  lampFlickerStartedAt: number | null;
+  lampPopAt: number | null;
+  failureReviewReadyAt: number | null;
 }
 
 function metrics(): Metrics {
   const w = window as unknown as { __grammarCircuit?: Metrics };
   w.__grammarCircuit ??= {
     mounts: 0,
-    lastCommitAt: null,
-    lastCurrentStartAt: null,
-    lastFinalCommitAt: null,
-    finalCommitToCurrentMs: null,
-    commitToInteractionReadyMs: null,
+    validationPressedAt: null,
+    steps: [],
+    validationFinishedAt: null,
+    fullCurrentStartedAt: null,
+    lampOnAt: null,
+    lampFlickerStartedAt: null,
+    lampPopAt: null,
+    failureReviewReadyAt: null,
   };
   return w.__grammarCircuit;
 }
 
+const source = new ApiGrammarCircuitSource();
+
 export default function GrammarCircuitGame() {
-  // هندسهٔ سوکت با عرضِ صفحه تنظیم می‌شود؛ بقیهٔ پیکربندی دست‌نخورده می‌ماند.
   const config = useResponsiveConfig(GRAMMAR_CIRCUIT_CONFIG);
-  const [state, dispatch] = useReducer(
-    grammarCircuitReducer,
-    initialGrammarCircuitState,
-  );
-  const [pool, setPool] = useState<GrammarCircuitQuestion[]>([]);
-  const [loadError, setLoadError] = useState(false);
+  const [state, dispatch] = useReducer(grammarCircuitReducer, initialGrammarCircuitState);
   const reducedMotion = usePrefersReducedMotion();
 
   const prepared = state.questions[state.questionIndex] ?? null;
-  const interactive = state.screen === "playing" && state.status === "playing";
+  const arrangeable = state.screen === "playing" && isArrangeable(state.phase);
 
-  // برای کالبک‌های ناهمگام. بعد از هر commit تازه می‌شود، پس هر تایمر یا
-  // انیمیشنی که بعداً آتش بگیرد epoch درست را می‌بیند.
   const epochRef = useRef(state.epoch);
+  const runIdRef = useRef(state.validationRunId);
   useEffect(() => {
     epochRef.current = state.epoch;
-  }, [state.epoch]);
+    runIdRef.current = state.validationRunId;
+  }, [state.epoch, state.validationRunId]);
 
-  /* ── سنجه‌ها. ارزان‌اند و همان‌ها هستند که در QA اندازه گرفته می‌شوند. ── */
   useEffect(() => {
     metrics().mounts += 1;
   }, []);
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    if (config.allowCorrectModuleRemoval) {
-      console.warn(
-        "[grammar-circuit] allowCorrectModuleRemoval هنوز پیاده‌سازی نشده؛ " +
-          "سوکتِ بسته همچنان هدفِ هیچ تعاملی نیست.",
-      );
-    }
-  }, [config.allowCorrectModuleRemoval]);
+  /* ── موجودیِ محتوا برای صفحهٔ انتخاب ─────────────────────────────────── */
+  /* موجودیِ محتوا در *یک* حالت نگه داشته می‌شود، نه سه حالتِ موازی که
+     می‌توانند با هم ناسازگار شوند («در حالِ خواندن» و «خطا» هم‌زمان). */
+  const [availabilityState, setAvailabilityState] = useState<{
+    nonce: number;
+    status: "loading" | "ready" | "error";
+    data: GrammarCircuitAvailability | null;
+    error: string | null;
+  }>({ nonce: 0, status: "loading", data: null, error: null });
 
-  /* ── منبعِ سؤال ───────────────────────────────────────────────────────── */
+  const availability = availabilityState.data;
+  const availabilityLoading = availabilityState.status === "loading";
+  const availabilityError =
+    availabilityState.status === "error" ? availabilityState.error : null;
+
+  const reloadAvailability = useCallback(() => {
+    setAvailabilityState((prev) => ({
+      nonce: prev.nonce + 1,
+      status: "loading",
+      data: null,
+      error: null,
+    }));
+  }, []);
+
+  const availabilityNonce = availabilityState.nonce;
   useEffect(() => {
     let alive = true;
-    void defaultGrammarCircuitSource
-      .getQuestions()
-      .then((questions) => {
-        if (alive) setPool(questions);
+    void fetchGrammarCircuitAvailability()
+      .then((data) => {
+        if (alive) {
+          setAvailabilityState({ nonce: availabilityNonce, status: "ready", data, error: null });
+        }
       })
-      .catch(() => {
-        if (alive) setLoadError(true);
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setAvailabilityState({
+          nonce: availabilityNonce,
+          status: "error",
+          data: null,
+          error:
+            err instanceof GrammarCircuitSourceError
+              ? err.message
+              : "ارتباط با سرور برقرار نشد.",
+        });
       });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [availabilityNonce]);
 
   /* ── زمانِ فعال ───────────────────────────────────────────────────────── */
   const { reset: resetTime, setRunning: setTimeRunning, read: readTime } = useActiveTime();
   const timedEpochRef = useRef(-1);
   useEffect(() => {
-    const running = state.screen === "playing" && state.status === "playing";
+    const running = state.screen === "playing" && isArrangeable(state.phase);
     if (timedEpochRef.current !== state.epoch) {
       timedEpochRef.current = state.epoch;
       resetTime(running);
     } else {
       setTimeRunning(running);
     }
-  }, [resetTime, setTimeRunning, state.epoch, state.screen, state.status]);
+  }, [resetTime, setTimeRunning, state.epoch, state.phase, state.screen]);
 
   /* ── صدا ──────────────────────────────────────────────────────────────── */
   const { play, unlock, toggle: toggleSound, enabled: soundOn } = useCircuitAudio(
@@ -134,8 +163,7 @@ export default function GrammarCircuitGame() {
 
   /* ── هندسه ────────────────────────────────────────────────────────────── */
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const sentenceRef = useRef<HTMLParagraphElement | null>(null);
-  const laneRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const powerRef = useRef<HTMLDivElement | null>(null);
   const lampRef = useRef<HTMLDivElement | null>(null);
@@ -145,37 +173,34 @@ export default function GrammarCircuitGame() {
     [prepared],
   );
 
-  const { geometry, measured, registerWord } = useCircuitLayout({
+  const { geometry, measured, registerSocket } = useCircuitLayout({
     contentRef,
-    sentenceRef,
-    laneRef,
+    stripRef,
     viewportRef,
     powerRef,
     lampRef,
     slotTokenIds,
     epoch: state.epoch,
-    config,
   });
 
-  /* ── خطِ لولهٔ واحدِ گذاشتن ─────────────────────────────────────────────
-     کشیدن، لمس و صفحه‌کلید هر سه از همین یک در وارد می‌شوند؛ اعتبارسنجیِ
-     دستوری فقط و فقط داخلِ reducer است. */
-  const attemptPlacement = useCallback(
+  /* ── خطِ لولهٔ واحدِ چیدن ───────────────────────────────────────────────
+     کشیدن، لمس و صفحه‌کلید هر سه از همین یک در وارد می‌شوند. هیچ‌کدام
+     درستی را نمی‌سنجند — آن کار فقط با «بررسی اتصال» انجام می‌شود. */
+  const placePiece = useCallback(
     (pieceId: string, tokenId: string, inputMethod: PlacementInputMethod) => {
-      dispatch({ type: "ATTEMPT", pieceId, tokenId, inputMethod });
+      dispatch({ type: "PLACE", pieceId, tokenId, inputMethod });
     },
     [],
   );
 
-  const onPickup = useCallback(() => play("pickup"), [play]);
+  const onPickup = useCallback(() => play("chipPick"), [play]);
   const onDrop = useCallback(
-    (pieceId: string, tokenId: string) =>
-      attemptPlacement(pieceId, tokenId, "pointer"),
-    [attemptPlacement],
+    (pieceId: string, tokenId: string) => placePiece(pieceId, tokenId, "pointer"),
+    [placePiece],
   );
   const onDragCancel = useCallback(() => {
-    // رها کردن در شکاف، بیرونِ برد، لغوِ لمس، چرخشِ دستگاه یا از دست رفتنِ
-    // فوکوس هیچ‌کدام «پاسخِ غلط» نیستند و در آمار ثبت نمی‌شوند.
+    // رها کردن در شکاف، بیرونِ برد، لغوِ لمس یا چرخشِ دستگاه: هیچ‌کدام خطا
+    // نیستند و در آمار ثبت نمی‌شوند.
     dispatch({ type: "CLEAR_SELECTION" });
   }, []);
 
@@ -187,7 +212,7 @@ export default function GrammarCircuitGame() {
     ghostRef,
     shouldSuppressClick,
   } = useCircuitDnD({
-    enabled: interactive,
+    enabled: arrangeable,
     activationDistance: config.dragActivationDistance,
     touchLiftPx: config.touchDragLiftPx,
     onPickup,
@@ -195,12 +220,8 @@ export default function GrammarCircuitGame() {
     onCancel: onDragCancel,
   });
 
-  /* مسیرِ صفحه‌کلید هیچ‌وقت به `allowTapToPlace` وابسته نیست: تعاملِ بدونِ
-     کشیدن یک الزامِ دسترس‌پذیری است، نه یک قابلیتِ اختیاری. آن پرچم فقط
-     «لمس برای گذاشتن» با اشاره‌گر را روشن و خاموش می‌کند. */
   const onModuleActivate = useCallback(
     (pieceId: string, viaKeyboard: boolean) => {
-      // کلیکی که دنبالهٔ یک کشیدنِ تمام‌شده است نباید دوباره انتخاب کند.
       if (shouldSuppressClick()) return;
       unlock();
       if (!viaKeyboard && !config.allowTapToPlace) return;
@@ -209,21 +230,29 @@ export default function GrammarCircuitGame() {
     [config.allowTapToPlace, shouldSuppressClick, unlock],
   );
 
-  const onTapToken = useCallback(
+  /** لمسِ خانه: اگر قطعه‌ای انتخاب شده بگذارش، وگرنه قطعهٔ داخلش را بردار. */
+  const onSocketActivate = useCallback(
     (tokenId: string, viaKeyboard: boolean) => {
       if (shouldSuppressClick()) return;
       if (!viaKeyboard && !config.allowTapToPlace) return;
-      if (!state.selectedPieceId) return;
-      attemptPlacement(
-        state.selectedPieceId,
-        tokenId,
-        viaKeyboard ? "keyboard" : "tap",
-      );
+      const method: PlacementInputMethod = viaKeyboard ? "keyboard" : "tap";
+      if (state.selectedPieceId) {
+        placePiece(state.selectedPieceId, tokenId, method);
+        return;
+      }
+      if (state.placementsByTokenId[tokenId]) {
+        dispatch({ type: "LIFT", tokenId, inputMethod: method });
+      }
     },
-    [attemptPlacement, config.allowTapToPlace, shouldSuppressClick, state.selectedPieceId],
+    [
+      config.allowTapToPlace,
+      placePiece,
+      shouldSuppressClick,
+      state.placementsByTokenId,
+      state.selectedPieceId,
+    ],
   );
 
-  // Escape بیرون از حالتِ کشیدن هم باید انتخاب را رها کند.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") dispatch({ type: "CLEAR_SELECTION" });
@@ -232,117 +261,150 @@ export default function GrammarCircuitGame() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  /* ── بازخوردِ کوتاهِ نادرست ─────────────────────────────────────────────
-     نتیجه *مشتق* می‌شود، پس هیچ setStateی داخلِ افکت لازم نیست؛ فقط
-     پاک‌کردنش با تایمر انجام می‌شود. */
-  const [clearedRejectNonce, setClearedRejectNonce] = useState(0);
-  const rejectedTokenId =
-    state.outcome.kind === "wrong" && state.outcome.nonce > clearedRejectNonce
-      ? state.outcome.tokenId
-      : null;
-  const freshTokenId =
-    state.outcome.kind === "correct" ? state.outcome.tokenId : null;
-
-  useEffect(() => {
-    if (!rejectedTokenId) return;
-    const nonce = state.outcome.nonce;
-    const timer = window.setTimeout(
-      () => setClearedRejectNonce(nonce),
-      config.wrongReturnDurationMs,
-    );
-    return () => clearTimeout(timer);
-  }, [config.wrongReturnDurationMs, rejectedTokenId, state.outcome.nonce]);
-
-  /* ── صدا و سنجهٔ هر نتیجه ─────────────────────────────────────────────── */
+  /* ── صدای چیدن ────────────────────────────────────────────────────────
+     صدای نشستنِ قطعه *همیشه یکسان* است، چه پاسخ درست باشد چه غلط. اگر
+     غلط‌ها صدای دیگری بدهند، بازی همان چیزی را لو می‌دهد که قرار بود تا
+     «بررسی اتصال» پنهان بماند. */
   const handledNonceRef = useRef(0);
   useEffect(() => {
     const outcome = state.outcome;
     if (outcome.kind === "none" || outcome.nonce === handledNonceRef.current) return;
     handledNonceRef.current = outcome.nonce;
-
-    const now = performance.now();
-    const m = metrics();
-    if (outcome.kind === "correct") {
-      m.lastCommitAt = now;
-      // هیچ انتظاری برای پایانِ انیمیشن وجود ندارد: همان لحظه‌ای که اتصال ثبت
-      // می‌شود، تعاملِ بعدی در دسترس است (مگر خودِ سؤال تمام شده باشد).
-      m.commitToInteractionReadyMs = 0;
-      if (outcome.final) m.lastFinalCommitAt = now;
-      play("connect");
-    } else {
-      play("wrong");
-    }
+    if (outcome.kind === "seated") play("chipPlaceNeutral");
+    else if (outcome.kind === "lifted") play("chipPick");
   }, [play, state.outcome]);
 
-  /* ── دنبالهٔ کامل‌شدن ──────────────────────────────────────────────────── */
-  const [sequence, setSequence] = useState<{
-    epoch: number;
-    phase: CurrentPhase;
-    lamp: LampState;
-  }>({ epoch: -1, phase: "idle", lamp: "off" });
-
-  const phase: CurrentPhase = sequence.epoch === state.epoch ? sequence.phase : "idle";
-  const lampState: LampState = sequence.epoch === state.epoch ? sequence.lamp : "off";
-
+  /* ── دنبالهٔ تشخیص و نتیجه ─────────────────────────────────────────────
+     همهٔ تایمرها با epoch و شناسهٔ اجرا محافظت می‌شوند: یک اجرای کهنه هرگز
+     نتیجهٔ اصلاحِ تازه را دست نمی‌زند. */
   const timersRef = useRef<number[]>([]);
   const clearTimers = useCallback(() => {
     for (const id of timersRef.current) clearTimeout(id);
     timersRef.current = [];
   }, []);
-  useEffect(() => clearTimers, [clearTimers, state.epoch]);
+  useEffect(() => clearTimers, [clearTimers, state.epoch, state.validationRunId]);
 
+  const [sequence, setSequence] = useState<{
+    epoch: number;
+    runId: number;
+    current: CurrentPhase;
+    lamp: LampState;
+  }>({ epoch: -1, runId: -1, current: "idle", lamp: "off" });
+
+  const seqLive = sequence.epoch === state.epoch && sequence.runId === state.validationRunId;
+  const currentPhase: CurrentPhase = seqLive ? sequence.current : "idle";
+  const lampState: LampState = seqLive ? sequence.lamp : "off";
+
+  /* پالسِ تشخیصی: خانه‌به‌خانه، از راست به چپ. */
   useEffect(() => {
-    if (state.status !== "completing") return;
+    if (state.phase !== "validating" || !prepared) return;
     const epoch = state.epoch;
+    const runId = state.validationRunId;
+    const m = metrics();
+    m.validationPressedAt = performance.now();
+    m.steps = [];
+    m.validationFinishedAt = null;
 
-    // اگر لامپ بیرون از ناحیهٔ دیدِ فعلی است، قبل از روشن‌شدن به شکلِ کنترل‌شده
-    // به آن می‌رسیم؛ پاداشی که دیده نشود پاداش نیست.
-    const viewport = viewportRef.current;
-    const lamp = lampRef.current;
-    if (viewport && lamp) {
-      const vr = viewport.getBoundingClientRect();
-      const lr = lamp.getBoundingClientRect();
-      if (lr.left < vr.left || lr.right > vr.right) {
-        const delta =
-          lr.left < vr.left ? lr.left - vr.left - 24 : lr.right - vr.right + 24;
-        viewport.scrollBy({
-          left: delta,
-          behavior: reducedMotion ? "auto" : "smooth",
-        });
-      }
-    }
+    const order = prepared.validationOrder;
+    let t = reducedMotion ? 60 : config.diagnosticLeadInMs;
+    const checkMs = reducedMotion ? 90 : config.diagnosticCheckMs;
+    const gapMs = reducedMotion ? 60 : config.diagnosticStepGapMs;
+    let allCorrect = true;
 
+    order.forEach((tokenId) => {
+      const pieceId = state.placementsByTokenId[tokenId];
+      const slot = prepared.slotByTokenId.get(tokenId);
+      const piece = pieceId ? prepared.pieceById.get(pieceId) : undefined;
+      // تنها جایی در کلِ بازی که درستی سنجیده می‌شود.
+      const correct = Boolean(
+        slot && piece && slot.acceptedRoleKeys.includes(piece.roleKey),
+      );
+      if (!correct) allCorrect = false;
+
+      timersRef.current.push(
+        window.setTimeout(() => {
+          if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+          metrics().steps.push({ tokenId, checkingAt: performance.now(), resultAt: null });
+          dispatch({ type: "SET_CHECKING", tokenId, runId });
+          play("diagnosticStep");
+        }, t),
+      );
+      t += checkMs;
+
+      timersRef.current.push(
+        window.setTimeout(() => {
+          if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+          const step = metrics().steps.find((s) => s.tokenId === tokenId);
+          if (step) step.resultAt = performance.now();
+          dispatch({
+            type: "SET_RESULT",
+            tokenId,
+            result: correct ? "correct" : "wrong",
+            runId,
+          });
+          play(correct ? "slotCorrect" : "slotWrong");
+        }, t),
+      );
+      t += gapMs;
+    });
+
+    t += reducedMotion ? 80 : config.diagnosticTailMs;
+    timersRef.current.push(
+      window.setTimeout(() => {
+        if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+        metrics().validationFinishedAt = performance.now();
+        dispatch({ type: "VALIDATION_FINISHED", runId, allCorrect });
+      }, t),
+    );
+
+    play("validationStart");
+    return clearTimers;
+  }, [
+    clearTimers,
+    config.diagnosticCheckMs,
+    config.diagnosticLeadInMs,
+    config.diagnosticStepGapMs,
+    config.diagnosticTailMs,
+    play,
+    prepared,
+    reducedMotion,
+    state.epoch,
+    state.phase,
+    state.placementsByTokenId,
+    state.validationRunId,
+  ]);
+
+  /* موفقیت: جریانِ کامل از باتری تا لامپ — فقط وقتی همه درست بوده‌اند. */
+  useEffect(() => {
+    if (state.phase !== "successCurrent") return;
+    const epoch = state.epoch;
+    const runId = state.validationRunId;
+    scrollLampIntoView(viewportRef.current, lampRef.current, reducedMotion);
     const timer = window.setTimeout(() => {
-      if (epochRef.current !== epoch) return;
-      metrics().lastCurrentStartAt = performance.now();
-      const m = metrics();
-      if (m.lastFinalCommitAt != null && m.lastCurrentStartAt != null) {
-        m.finalCommitToCurrentMs = Math.round(
-          m.lastCurrentStartAt - m.lastFinalCommitAt,
-        );
-      }
-      setSequence({ epoch, phase: "traveling", lamp: "receivingCurrent" });
-      play("current");
+      if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+      metrics().fullCurrentStartedAt = performance.now();
+      setSequence({ epoch, runId, current: "traveling", lamp: "receiving" });
+      play("fullCurrent");
     }, config.finalCompletionLeadInMs);
     timersRef.current.push(timer);
-
     return () => clearTimeout(timer);
-  }, [config.finalCompletionLeadInMs, play, reducedMotion, state.epoch, state.status]);
+  }, [config.finalCompletionLeadInMs, play, reducedMotion, state.epoch, state.phase, state.validationRunId]);
 
   const onCurrentFinished = useCallback(
-    (epoch: number) => {
-      // کالبکِ کهنه حقِ دست‌زدن به حالتِ جدید را ندارد.
-      if (epochRef.current !== epoch) return;
-      setSequence({ epoch, phase: "done", lamp: "turningOn" });
+    (epoch: number, runId: number) => {
+      if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+      metrics().lampOnAt = performance.now();
+      setSequence({ epoch, runId, current: "live", lamp: "turningOn" });
       play("lampOn");
       timersRef.current.push(
         window.setTimeout(() => {
-          if (epochRef.current !== epoch) return;
-          setSequence({ epoch, phase: "done", lamp: "on" });
+          if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+          setSequence({ epoch, runId, current: "live", lamp: "on" });
           timersRef.current.push(
             window.setTimeout(() => {
-              if (epochRef.current !== epoch) return;
-              dispatch({ type: "COMPLETE_QUESTION" });
+              if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+              dispatch({ type: "CURRENT_FINISHED", runId });
+              dispatch({ type: "REWARD_DONE", runId });
             }, config.rewardDisplayDurationMs),
           );
         }, config.lampTurnOnDurationMs),
@@ -350,6 +412,49 @@ export default function GrammarCircuitGame() {
     },
     [config.lampTurnOnDurationMs, config.rewardDisplayDurationMs, play],
   );
+
+  /* شکست: تلاشِ ناموفقِ روشن‌شدن — چشمک، تق، خاموشی. */
+  useEffect(() => {
+    if (state.phase !== "failureSequence") return;
+    const epoch = state.epoch;
+    const runId = state.validationRunId;
+    /* شروعِ چشمک در یک تایمرِ صفر می‌نشیند، نه در بدنهٔ افکت: به‌روزرسانیِ
+       همگامِ state داخلِ افکت یک رندرِ آبشاری می‌سازد. */
+    timersRef.current.push(
+      window.setTimeout(() => {
+        if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+        metrics().lampFlickerStartedAt = performance.now();
+        setSequence({ epoch, runId, current: "idle", lamp: "flicker" });
+        play("lampFlicker");
+      }, 0),
+    );
+
+    timersRef.current.push(
+      window.setTimeout(() => {
+        if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+        metrics().lampPopAt = performance.now();
+        setSequence({ epoch, runId, current: "idle", lamp: "failed" });
+        play("lampPop");
+        timersRef.current.push(
+          window.setTimeout(() => {
+            if (epochRef.current !== epoch || runIdRef.current !== runId) return;
+            metrics().failureReviewReadyAt = performance.now();
+            dispatch({ type: "FAILURE_SEQUENCE_DONE", runId });
+          }, reducedMotion ? 120 : config.failureTailMs),
+        );
+      }, reducedMotion ? 120 : config.lampPopDelayMs),
+    );
+    return clearTimers;
+  }, [
+    clearTimers,
+    config.failureTailMs,
+    config.lampPopDelayMs,
+    play,
+    reducedMotion,
+    state.epoch,
+    state.phase,
+    state.validationRunId,
+  ]);
 
   /* ── قفلِ اسکرولِ صفحه در حالِ بازی ─────────────────────────────────────── */
   useEffect(() => {
@@ -363,15 +468,10 @@ export default function GrammarCircuitGame() {
     };
   }, [state.screen]);
 
-  /* ── جای شروعِ اسکرولِ افقی ─────────────────────────────────────────────
-     بازهٔ `scrollLeft` در راست‌به‌چپ بینِ مرورگرها یکسان نیست: کروم/فایرفاکسِ
-     امروز [‎-max, 0] می‌دهند و وبکیتِ قدیمی [0, max]. حدس زدنِ قرارداد لازم
-     نیست، چون یک چیز در *همهٔ* آن‌ها یکی است: بزرگ‌ترین مقدارِ قابلِ رسیدن
-     یعنی «پنجره تا انتهای سمتِ راستِ محتوا رفته». در فارسی خواندن از همان‌جا
-     شروع می‌شود.
-
-     پس یک عددِ بزرگ می‌نویسیم و می‌گذاریم مرورگر خودش به سقفِ خودش برش بزند؛
-     در چپ‌به‌راست هم قرینه‌اش (کفِ بازه) همان ابتدای خواندن است. */
+  /* ── جای شروعِ اسکرولِ افقی ───────────────────────────────────────────────
+     بازهٔ `scrollLeft` در RTL بینِ مرورگرها یکسان نیست، ولی یک چیز در همه‌شان
+     یکی است: بزرگ‌ترین مقدارِ قابلِ رسیدن یعنی «پنجره تا انتهای سمتِ راستِ
+     محتوا رفته» — همان‌جا که خواندنِ فارسی شروع می‌شود. */
   useEffect(() => {
     const el = viewportRef.current;
     if (!el || !measured) return;
@@ -380,18 +480,42 @@ export default function GrammarCircuitGame() {
     el.scrollLeft = rtl ? el.scrollWidth : -el.scrollWidth;
   }, [measured, state.epoch]);
 
-  /* ── شروع / ادامه ─────────────────────────────────────────────────────── */
-  const startSession = useCallback(() => {
-    if (pool.length === 0) return;
-    unlock();
-    const seed = Date.now();
-    // ترتیبِ سؤال‌ها و بُرِ سینی هر دو همین‌جا و فقط یک بار ساخته می‌شوند.
-    const session = buildSessionQuestions(pool, config.questionsPerSession, seed);
-    const preparedList = session.map((question, index) =>
-      prepareQuestion(question, seed + index * 7919),
-    );
-    dispatch({ type: "START", questions: preparedList });
-  }, [config.questionsPerSession, pool, unlock]);
+  /* ── شروعِ جلسه ───────────────────────────────────────────────────────── */
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  const startSession = useCallback(
+    async (grade: GradeKey, lessons: number[]) => {
+      setStarting(true);
+      setStartError(null);
+      unlock();
+      try {
+        const pool: GrammarCircuitQuestion[] = await source.getQuestions({
+          grade,
+          lessons,
+        });
+        if (pool.length === 0) {
+          setStartError("برای درس‌های انتخابی پرسشِ آماده‌ای پیدا نشد.");
+          return;
+        }
+        const seed = Date.now();
+        const session = buildSessionQuestions(pool, config.questionsPerSession, seed, lessons);
+        const preparedList = session.map((question, index) =>
+          prepareQuestion(question, seed + index * 7919),
+        );
+        dispatch({ type: "START", session: { grade, lessons }, questions: preparedList });
+      } catch (err: unknown) {
+        setStartError(
+          err instanceof GrammarCircuitSourceError
+            ? err.message
+            : "دریافتِ پرسش‌ها ممکن نشد. دوباره تلاش کن.",
+        );
+      } finally {
+        setStarting(false);
+      }
+    },
+    [config.questionsPerSession, unlock],
+  );
 
   const goNext = useCallback(() => {
     dispatch({ type: "NEXT_QUESTION", activeTimeMs: readTime() });
@@ -399,65 +523,72 @@ export default function GrammarCircuitGame() {
 
   /* ── رندر ─────────────────────────────────────────────────────────────── */
   if (state.screen === "results") {
-    return <SessionResults results={state.results} onRestart={startSession} />;
+    return (
+      <SessionResults
+        results={state.results}
+        session={state.session}
+        onRestart={() =>
+          state.session && void startSession(state.session.grade, state.session.lessons)
+        }
+        onChangeLessons={() => dispatch({ type: "EXIT_TO_SETUP" })}
+      />
+    );
   }
 
   if (state.screen !== "playing" || !prepared) {
     return (
-      <div dir="rtl" className="container mx-auto py-8">
-        <GameIntro
-          title="مدار دستور"
-          tagline="نقش هر کلمه را در جای درست قرار بده و مدار را روشن کن."
-          steps={[
-            "یک قطعهٔ نقش را از سینی بردار — با کشیدن یا فقط با یک لمس.",
-            "آن را به سوکتِ زیرِ واژهٔ درست وصل کن.",
-            "با بسته‌شدنِ آخرین شکاف، جریان راه می‌افتد و لامپ روشن می‌شود.",
-          ]}
-          accent="text-primary"
-          chipBg="bg-primary/15 text-primary"
-          Preview={GrammarCircuitPreview}
-          onStart={startSession}
-          cta={pool.length === 0 ? (loadError ? "سؤالی در دسترس نیست" : "در حالِ آماده‌سازی…") : "شروع"}
-        />
-      </div>
+      <SetupScreen
+        availability={availability}
+        loading={availabilityLoading}
+        error={availabilityError}
+        onRetry={reloadAvailability}
+        onStart={(grade, lessons) => void startSession(grade, lessons)}
+        starting={starting}
+        startError={startError}
+      />
     );
   }
 
   const used = usedPieceIds(state.placementsByTokenId);
-  const connectedCount = Object.keys(state.placementsByTokenId).length;
+  const filled = Object.keys(state.placementsByTokenId).length;
   const draggedPiece = drag ? prepared.pieceById.get(drag.pieceId) : undefined;
-  const labelOf = (roleKey: string) =>
-    prepared.roleByKey.get(roleKey)?.label ?? roleKey;
+  const labelOf = (roleKey: string) => prepared.roleByKey.get(roleKey)?.label ?? roleKey;
 
-  // دو ناحیهٔ زندهٔ متناوب: پیامِ یکسانِ پشتِ سرِ هم هم واقعاً دوباره خوانده
-  // می‌شود. جوابِ درست هیچ‌وقت فاش نمی‌شود.
-  const liveMessage =
-    state.outcome.kind === "correct"
-      ? "اتصال درست بود."
-      : state.outcome.kind === "wrong"
-        ? "این اتصال درست نیست."
-        : "";
+  // دو ناحیهٔ زندهٔ متناوب، تا پیامِ یکسانِ پشتِ سرِ هم هم واقعاً خوانده شود.
+  const liveMessage = announcement(state.phase, state.outcome.kind);
   const evenTurn = state.outcome.nonce % 2 === 0;
 
-  /* پوسته در پورتالی کنارِ `<body>` رندر می‌شود.
-     دلیلش صرفاً «بالاتر بودن» نیست: مسیرِ بازی داخلِ `GameShell` است که خودش
-     `position:relative; z-index:20` دارد و یک stacking context می‌سازد؛ داخلِ
-     آن، هیچ z-indexی نمی‌تواند از فوترِ سایت (که هم‌رتبه و بعد از main است)
-     بالاتر برود. پورتال، پوسته را از آن context بیرون می‌آورد.
-     درختِ React ثابت می‌ماند، پس این کار هیچ ری‌مانتی نمی‌سازد. */
   const shell = (
     <>
       <ActiveShell
         questionNumber={state.questionIndex + 1}
         questionCount={state.questions.length}
-        connected={connectedCount}
+        filled={filled}
         required={prepared.requiredSlotCount}
-        wrongAttempts={state.wrongAttempts}
+        attempts={state.attempts}
         soundOn={soundOn}
         onToggleSound={toggleSound}
-        onExit={() => dispatch({ type: "EXIT_TO_INTRO" })}
-        onRestartQuestion={() => dispatch({ type: "RESTART_QUESTION" })}
+        onExit={() => dispatch({ type: "EXIT_TO_SETUP" })}
+        onClearBoard={() => dispatch({ type: "CLEAR_BOARD" })}
+        clearDisabled={!arrangeable || filled === 0}
         viewportRef={viewportRef}
+        question={
+          <QuestionRegion
+            tokens={prepared.question.tokens}
+            attribution={prepared.question.attribution}
+          />
+        }
+        controls={
+          <ValidationBar
+            phase={state.phase}
+            filled={filled}
+            required={prepared.requiredSlotCount}
+            onValidate={() => dispatch({ type: "BEGIN_VALIDATION" })}
+            onCorrect={() => dispatch({ type: "ENTER_CORRECTION" })}
+            onNext={goNext}
+            isLastQuestion={state.questionIndex + 1 >= state.questions.length}
+          />
+        }
         tray={
           <RoleTray
             pieces={prepared.trayPieces}
@@ -465,36 +596,12 @@ export default function GrammarCircuitGame() {
             usedPieceIds={used}
             selectedPieceId={state.selectedPieceId}
             draggingPieceId={drag?.pieceId ?? null}
-            disabled={!interactive}
+            disabled={!arrangeable}
             onPointerDown={beginPointerDrag}
             onActivate={onModuleActivate}
           />
         }
-        banner={
-          state.status === "complete" ? (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-4">
-              <div className="pointer-events-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-[var(--gc-border)] bg-[var(--gc-board-elevated)] p-4 text-center shadow-lg">
-                <p className="text-base font-extrabold text-[var(--gc-accent)]">
-                  مدار کامل شد!
-                </p>
-                {prepared.question.explanation && (
-                  <p className="text-xs leading-relaxed text-[var(--gc-text-muted)]">
-                    {prepared.question.explanation}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="mt-1 rounded-xl bg-primary px-6 py-2 text-sm font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
-                >
-                  {state.questionIndex + 1 >= state.questions.length
-                    ? "دیدنِ نتیجه"
-                    : "مدارِ بعدی"}
-                </button>
-              </div>
-            </div>
-          ) : null
-        }
+        banner={null}
       >
         <CircuitContent
           prepared={prepared}
@@ -502,23 +609,24 @@ export default function GrammarCircuitGame() {
           geometry={geometry}
           measured={measured}
           placements={state.placementsByTokenId}
-          selectedPieceId={state.selectedPieceId}
+          validation={state.validationByTokenId}
+          lockedTokenIds={state.lockedTokenIds}
           activeTargetTokenId={activeTargetTokenId}
-          rejectedTokenId={rejectedTokenId}
-          freshTokenId={freshTokenId}
-          interactive={interactive}
-          phase={phase}
+          armed={Boolean(state.selectedPieceId)}
+          interactive={arrangeable}
+          freshTokenId={state.outcome.kind === "seated" ? state.outcome.tokenId : null}
+          currentPhase={currentPhase}
           lampState={lampState}
           reducedMotion={reducedMotion}
           epoch={state.epoch}
+          runId={state.validationRunId}
           contentRef={contentRef}
-          sentenceRef={sentenceRef}
-          laneRef={laneRef}
+          stripRef={stripRef}
           powerRef={powerRef}
           lampRef={lampRef}
-          registerWord={registerWord}
+          registerSocket={registerSocket}
           registerHitTarget={registerHitTarget}
-          onTapToken={onTapToken}
+          onSocketActivate={onSocketActivate}
           onCurrentFinished={onCurrentFinished}
         />
       </ActiveShell>
@@ -538,7 +646,32 @@ export default function GrammarCircuitGame() {
     </>
   );
 
-  return typeof document === "undefined"
-    ? shell
-    : createPortal(shell, document.body);
+  /* پوسته در پورتالی کنارِ `<body>` رندر می‌شود: مسیرِ بازی داخلِ `GameShell`
+     است که خودش یک stacking context می‌سازد، و داخلِ آن هیچ z-indexی از
+     فوترِ سایت بالاتر نمی‌رود. درختِ React ثابت می‌ماند، پس ری‌مانتی نیست. */
+  return typeof document === "undefined" ? shell : createPortal(shell, document.body);
+}
+
+/** پیامِ صفحه‌خوان — هیچ‌وقت جوابِ درست را نمی‌گوید. */
+function announcement(phase: string, outcome: string): string {
+  if (phase === "validating") return "بررسیِ مدار آغاز شد.";
+  if (phase === "failureReview") return "مدار بسته نشد؛ خانه‌های نادرست مشخص شدند.";
+  if (phase === "successReward" || phase === "questionComplete") return "مدار کامل شد.";
+  if (outcome === "seated") return "قطعه در خانه نشست.";
+  if (outcome === "lifted") return "قطعه از خانه برداشته شد.";
+  if (outcome === "blocked") return "این خانه پر است.";
+  return "";
+}
+
+function scrollLampIntoView(
+  viewport: HTMLDivElement | null,
+  lamp: HTMLDivElement | null,
+  reducedMotion: boolean,
+) {
+  if (!viewport || !lamp) return;
+  const vr = viewport.getBoundingClientRect();
+  const lr = lamp.getBoundingClientRect();
+  if (lr.left >= vr.left && lr.right <= vr.right) return;
+  const delta = lr.left < vr.left ? lr.left - vr.left - 24 : lr.right - vr.right + 24;
+  viewport.scrollBy({ left: delta, behavior: reducedMotion ? "auto" : "smooth" });
 }

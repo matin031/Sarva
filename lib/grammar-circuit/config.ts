@@ -16,6 +16,23 @@ export interface GrammarCircuitConfig {
   /** فاصلهٔ آخرین اتصالِ درست تا شروعِ جریانِ کامل. عمداً کوتاه. */
   finalCompletionLeadInMs: number;
 
+  /* ── دنبالهٔ تشخیص ─────────────────────────────────────────────────────
+     پالسِ تشخیصی خانه‌به‌خانه از راست به چپ می‌رود. باید آن‌قدر آهسته باشد
+     که دانش‌آموز هر نتیجه را ببیند و آن‌قدر تند که کسل‌کننده نشود. */
+  /** مکث پیش از رسیدنِ پالس به اولین خانه. */
+  diagnosticLeadInMs: number;
+  /** مدتِ حالتِ «در حالِ بررسی» هر خانه. */
+  diagnosticCheckMs: number;
+  /** فاصله تا شروعِ بررسیِ خانهٔ بعدی، پس از نمایشِ نتیجه. */
+  diagnosticStepGapMs: number;
+  /** مکث پس از آخرین نتیجه، پیش از دنبالهٔ موفقیت/شکست. */
+  diagnosticTailMs: number;
+
+  /* ── دنبالهٔ شکست ──────────────────────────────────────────────────── */
+  lampFlickerDurationMs: number;
+  lampPopDelayMs: number;
+  failureTailMs: number;
+
   /** سرعتِ جریان بر حسبِ پیکسل بر ثانیه — مدت از طولِ *واقعیِ* مسیر درمی‌آید،
    *  نه یک عددِ ثابت که روی صفحهٔ بزرگ کند و روی موبایل تند به نظر برسد. */
   currentTravelSpeedPxPerSec: number;
@@ -26,6 +43,7 @@ export interface GrammarCircuitConfig {
   rewardDisplayDurationMs: number;
 
   slotWidth: number;
+  slotHeight: number;
   slotGap: number;
   /** کمینهٔ فاصلهٔ واقعی که باید بینِ دو ناحیهٔ لمسی باز بماند. */
   hitTargetMinGap: number;
@@ -54,6 +72,8 @@ export interface GrammarCircuitConfig {
   audioSourceMode: AudioSourceMode;
 
   questionsPerSession: number;
+  /** سقفِ درس‌های انتخابیِ یک جلسه — هم برای UI و هم برای اعتبارسنجیِ API. */
+  maxLessonsPerSession: number;
 }
 
 export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
@@ -67,6 +87,15 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
 
   finalCompletionLeadInMs: 120,
 
+  diagnosticLeadInMs: 260,
+  diagnosticCheckMs: 200,
+  diagnosticStepGapMs: 150,
+  diagnosticTailMs: 320,
+
+  lampFlickerDurationMs: 520,
+  lampPopDelayMs: 360,
+  failureTailMs: 420,
+
   currentTravelSpeedPxPerSec: 900,
   currentTravelMinDurationMs: 450,
   currentTravelMaxDurationMs: 1200,
@@ -75,6 +104,7 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
   rewardDisplayDurationMs: 950,
 
   slotWidth: 96,
+  slotHeight: 46,
   slotGap: 14,
   hitTargetMinGap: 8,
   hitTargetPadding: 10,
@@ -92,4 +122,5 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
   audioSourceMode: "procedural",
 
   questionsPerSession: 5,
+  maxLessonsPerSession: 18,
 };

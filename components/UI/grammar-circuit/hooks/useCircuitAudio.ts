@@ -15,12 +15,16 @@ import type { AudioSourceMode } from "@/lib/grammar-circuit";
  *  `await playSound()`ی وجود ندارد و شکستِ صدا بازی را متوقف نمی‌کند. */
 
 export type CircuitSoundEvent =
-  | "pickup"
-  | "connect"
-  | "contact"
-  | "wrong"
-  | "current"
-  | "lampOn";
+  | "chipPick"
+  | "chipPlaceNeutral"
+  | "validationStart"
+  | "diagnosticStep"
+  | "slotCorrect"
+  | "slotWrong"
+  | "fullCurrent"
+  | "lampOn"
+  | "lampFlicker"
+  | "lampPop";
 
 /** تا وقتی این خالی است، حالتِ `assets` هیچ چیزی برای پخش ندارد و بی‌صدا
  *  می‌ماند؛ باز هم هیچ درخواستِ غایبی فرستاده نمی‌شود. */
@@ -150,26 +154,72 @@ export function useCircuitAudio(mode: AudioSourceMode, volume: number) {
         osc.stop(start + duration + 0.03);
       };
 
+      /** پفِ کوتاهِ نویزِ فیلترشده — برای «تق»ِ الکتریکی. */
+      const pop = (peak: number, duration: number, cutoff: number, delay = 0) => {
+        const frames = Math.max(1, Math.floor(ctx.sampleRate * duration));
+        const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < frames; i++) {
+          // نویزِ سفید با افتِ نمایی — شکلِ طبیعیِ یک ضربهٔ کوتاه.
+          data[i] = (Math.random() * 2 - 1) * Math.exp((-i / frames) * 6);
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.value = cutoff;
+        filter.Q.value = 1.1;
+        const gain = ctx.createGain();
+        const start = t + delay;
+        gain.gain.setValueAtTime(peak, start);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(master);
+        src.start(start);
+      };
+
       switch (event) {
         // برداشتنِ قطعه: خیلی زیرِ پوستی، فقط تأییدِ لمس.
-        case "pickup":
+        case "chipPick":
           tone(320, 0.05, 0.07, "sine", 1400);
           break;
-        // جا افتادنِ قطعه: یک کلیکِ کوتاهِ راضی‌کننده، نه زنگِ آرکید.
-        case "connect":
-          tone(880, 0.09, 0.05, "triangle", 2600);
-          tone(1320, 0.05, 0.08, "sine", 3200, 0, 0.03);
+        /* نشستنِ قطعه — *همیشه یکسان*، چه پاسخ درست باشد چه غلط. اگر این صدا
+           به درستی وابسته می‌شد، همان چیزی را لو می‌داد که قرار است تا
+           «بررسی اتصال» پنهان بماند. */
+        case "chipPlaceNeutral":
+          tone(700, 0.075, 0.05, "triangle", 2400);
+          tone(1050, 0.04, 0.07, "sine", 3000, 0, 0.025);
           break;
-        case "contact":
-          tone(660, 0.045, 0.06, "sine", 2000);
+        // شروعِ بررسی: یک سوییپِ کوتاهِ رو به بالا، مثلِ روشن‌شدنِ دستگاه.
+        case "validationStart":
+          tone(300, 0.05, 0.12, "sine", 1600);
+          tone(450, 0.045, 0.14, "sine", 1800, 0, 0.06);
           break;
-        // ردِ اتصال: یک تُکِ خفهٔ کوتاه. نه بوق، نه آهنگِ باخت.
-        case "wrong":
-          tone(180, 0.075, 0.13, "sine", 520);
-          tone(120, 0.05, 0.16, "sine", 400, 0, 0.02);
+        // هر قدمِ پالس: خیلی ریز، وگرنه در یک مدارِ پنج‌خانه‌ای آزاردهنده می‌شود.
+        case "diagnosticStep":
+          tone(520, 0.028, 0.045, "sine", 1800);
+          break;
+        // خانهٔ درست: یک نتِ کوتاهِ روشن.
+        case "slotCorrect":
+          tone(784, 0.06, 0.1, "sine", 2600);
+          break;
+        // خانهٔ نادرست: یک تُکِ خفه و کوتاه. نه بوق، نه آهنگِ باخت.
+        case "slotWrong":
+          tone(196, 0.06, 0.12, "sine", 620);
+          break;
+        // چشمکِ ناپایدارِ لامپ: دو پالسِ کوتاهِ لرزان.
+        case "lampFlicker":
+          tone(240, 0.05, 0.05, "triangle", 900);
+          tone(210, 0.045, 0.05, "triangle", 800, 0, 0.13);
+          break;
+        // «تق»ِ الکتریکی: یک پفِ نویزِ باندپَس، بدونِ هیچ دنبالهٔ بلند.
+        case "lampPop":
+          pop(0.16, 0.075, 1500);
+          tone(120, 0.05, 0.07, "sine", 400, 0, 0.01);
           break;
         // حرکتِ جریان: یک سوییپِ نرم و کم‌جان.
-        case "current": {
+        case "fullCurrent": {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           const filter = ctx.createBiquadFilter();

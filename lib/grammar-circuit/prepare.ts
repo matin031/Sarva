@@ -55,8 +55,16 @@ export function prepareQuestion(
     mulberry32(seed),
   );
 
+  /* ترتیبِ بررسی: از راست‌ترین هدف به چپ‌ترین — یعنی همان ترتیبِ خواندنِ
+     فارسی. مبنایش `circuitOrder`ِ دادهٔ معتبر است و در نبودش ترتیبِ توکن‌ها؛
+     هیچ‌وقت از مرتب‌کردنِ مختصاتِ x در DOM درنمی‌آید، وگرنه اسکرول و چیدمانِ
+     واکنش‌گرا می‌توانستند ترتیبِ آموزشی را عوض کنند. اینجا یک بار ثابت
+     می‌شود و تا پایانِ سؤال دست‌نخورده می‌ماند. */
+  const validationOrder: string[] = circuitSlots.map((s) => s.tokenId);
+
   return {
     question,
+    validationOrder,
     circuitSlots,
     layoutSlots,
     trayPieces,
@@ -67,13 +75,56 @@ export function prepareQuestion(
   };
 }
 
-/** ترتیبِ سؤال‌های یک جلسه، یک بار و در لحظهٔ شروع ساخته می‌شود. */
+/** ترتیبِ سؤال‌های یک جلسه، یک بار و در لحظهٔ شروع ساخته می‌شود.
+ *
+ *  وقتی چند درس انتخاب شده، نمونه‌گیری *چرخشی* است نه پشتِ‌سرِهم: اول یک
+ *  پرسش از هر درس، بعد دورِ دوم، و همین‌طور. وگرنه یک جلسهٔ پنج‌تایی از سه
+ *  درس، عملاً فقط درسِ اول را تمرین می‌داد.
+ *
+ *  داخلِ هر درس ترتیب بُر می‌خورد تا دو جلسهٔ پشتِ سرِ هم یکسان نباشند. */
 export function buildSessionQuestions(
   questions: readonly GrammarCircuitQuestion[],
   count: number,
   seed: number,
+  lessons?: readonly number[],
 ): GrammarCircuitQuestion[] {
-  return shuffled(questions, mulberry32(seed)).slice(0, Math.max(1, count));
+  const rand = mulberry32(seed);
+  const take = Math.max(1, count);
+
+  if (!lessons || lessons.length <= 1) {
+    return shuffled(questions, rand).slice(0, take);
+  }
+
+  const byLesson = new Map<number, GrammarCircuitQuestion[]>();
+  for (const lesson of lessons) byLesson.set(lesson, []);
+  const orphans: GrammarCircuitQuestion[] = [];
+  for (const q of questions) {
+    const bucket = q.lesson !== undefined ? byLesson.get(q.lesson) : undefined;
+    if (bucket) bucket.push(q);
+    else orphans.push(q);
+  }
+  for (const [lesson, bucket] of byLesson) {
+    byLesson.set(lesson, shuffled(bucket, rand));
+  }
+
+  const out: GrammarCircuitQuestion[] = [];
+  let round = 0;
+  let added = true;
+  while (out.length < take && added) {
+    added = false;
+    for (const lesson of lessons) {
+      const bucket = byLesson.get(lesson);
+      const item = bucket?.[round];
+      if (item) {
+        out.push(item);
+        added = true;
+        if (out.length === take) break;
+      }
+    }
+    round += 1;
+  }
+  if (out.length < take) out.push(...shuffled(orphans, rand).slice(0, take - out.length));
+  return out;
 }
 
 /** بازسازیِ دقیقِ متن — بدونِ ساختنِ فاصله یا نشانه‌گذاریِ من‌درآوردی. */

@@ -43,7 +43,7 @@ function RoleModuleImpl({
     >
       <span aria-hidden className="gc-module-pin" style={{ insetInlineStart: 10 }} />
       <span aria-hidden className="gc-module-pin" style={{ insetInlineEnd: 10 }} />
-      {label}
+      <span className="gc-module-label">{label}</span>
     </button>
   );
 }

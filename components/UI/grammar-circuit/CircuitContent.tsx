@@ -1,49 +1,43 @@
 "use client";
 
-import { minimumLaneWidth, type GrammarCircuitConfig, type PreparedQuestion } from "@/lib/grammar-circuit";
+import type { GrammarCircuitConfig, PreparedQuestion } from "@/lib/grammar-circuit";
+import type { SlotValidation } from "@/lib/grammar-circuit/reducer";
+import AnalysisStrip from "./AnalysisStrip";
 import CircuitSvgLayer, { type CurrentPhase } from "./CircuitSvgLayer";
 import Lamp, { type LampState } from "./Lamp";
 import PowerSource from "./PowerSource";
-import SentenceRow from "./SentenceRow";
-import SlotLane from "./SlotLane";
-import { SENTENCE_LANE_GAP } from "./constants";
 import type { CircuitGeometry } from "./hooks/useCircuitLayout";
 
 /** یک فضای مختصات، یک ردیف.
  *
- *  جمله، سوکت‌ها، سیم‌ها، باتری و لامپ همه فرزندِ همین یک عنصرند و همهٔ
- *  اندازه‌ها نسبت به آن سنجیده می‌شوند. نتیجه‌اش این است که با اسکرولِ افقیِ
- *  ناحیهٔ تحلیل، همه با هم حرکت می‌کنند و سیم از سوکتش جدا نمی‌شود. */
-const TYPE_LABEL: Record<string, string> = {
-  sentence: "جمله",
-  hemistich: "مصراع",
-  verse: "بیت",
-};
-
+ *  باتری، ردیفِ تحلیل و لامپ همه فرزندِ همین عنصرند و همهٔ اندازه‌ها نسبت به
+ *  آن سنجیده می‌شوند؛ پس با اسکرولِ افقی همه با هم حرکت می‌کنند و سیم از
+ *  سوکتش جدا نمی‌شود. */
 export interface CircuitContentProps {
   prepared: PreparedQuestion;
   config: GrammarCircuitConfig;
   geometry: CircuitGeometry | null;
   measured: boolean;
   placements: Readonly<Record<string, string>>;
-  selectedPieceId: string | null;
+  validation: Readonly<Record<string, SlotValidation>>;
+  lockedTokenIds: readonly string[];
   activeTargetTokenId: string | null;
-  rejectedTokenId: string | null;
-  freshTokenId: string | null;
+  armed: boolean;
   interactive: boolean;
-  phase: CurrentPhase;
+  freshTokenId: string | null;
+  currentPhase: CurrentPhase;
   lampState: LampState;
   reducedMotion: boolean;
   epoch: number;
+  runId: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
-  sentenceRef: React.RefObject<HTMLParagraphElement | null>;
-  laneRef: React.RefObject<HTMLDivElement | null>;
+  stripRef: React.RefObject<HTMLDivElement | null>;
   powerRef: React.RefObject<HTMLDivElement | null>;
   lampRef: React.RefObject<HTMLDivElement | null>;
-  registerWord: (tokenId: string, el: HTMLElement | null) => void;
+  registerSocket: (tokenId: string, el: HTMLElement | null) => void;
   registerHitTarget: (tokenId: string, el: HTMLElement | null) => void;
-  onTapToken: (tokenId: string, viaKeyboard: boolean) => void;
-  onCurrentFinished: (epoch: number) => void;
+  onSocketActivate: (tokenId: string, viaKeyboard: boolean) => void;
+  onCurrentFinished: (epoch: number, runId: number) => void;
 }
 
 export default function CircuitContent({
@@ -52,31 +46,29 @@ export default function CircuitContent({
   geometry,
   measured,
   placements,
-  selectedPieceId,
+  validation,
+  lockedTokenIds,
   activeTargetTokenId,
-  rejectedTokenId,
-  freshTokenId,
+  armed,
   interactive,
-  phase,
+  freshTokenId,
+  currentPhase,
   lampState,
   reducedMotion,
   epoch,
+  runId,
   contentRef,
-  sentenceRef,
-  laneRef,
+  stripRef,
   powerRef,
   lampRef,
-  registerWord,
+  registerSocket,
   registerHitTarget,
-  onTapToken,
+  onSocketActivate,
   onCurrentFinished,
 }: CircuitContentProps) {
-  const slotTokenIds = prepared.layoutSlots.map((s) => s.tokenId);
-  const circuitTokenIds = prepared.circuitSlots.map((s) => s.tokenId);
-
   const labelOf = (roleKey: string) =>
     prepared.roleByKey.get(roleKey)?.label ?? roleKey;
-  const labelForPlacement = (pieceId: string) => {
+  const labelForPiece = (pieceId: string) => {
     const piece = prepared.pieceById.get(pieceId);
     return piece ? labelOf(piece.roleKey) : "";
   };
@@ -87,13 +79,16 @@ export default function CircuitContent({
       className="gc-content"
       style={
         {
-          /* `position` درون‌خطی است چون لایهٔ SVG و سوکت‌ها نسبت به همین کادر
-             مطلق می‌نشینند — این یکی نباید به بارگذاریِ شیوه‌نامه وابسته باشد. */
+          // `position` درون‌خطی است چون لایهٔ SVG نسبت به همین کادر مطلق
+          // می‌نشیند — نباید به بارگذاریِ شیوه‌نامه وابسته باشد.
           position: "relative",
-          /* مدت‌های بازخوردِ دیداری از همان پیکربندی می‌آیند، نه از عددی که در
-             CSS تکرار شده باشد. */
+          // اندازهٔ سوکت از پیکربندیِ واکنش‌گرا می‌آید، نه از عددی که در CSS
+          // تکرار شده باشد؛ ستونِ بدونِ سوکت هم از همین ارتفاع استفاده می‌کند.
+          "--gc-socket-w": `${config.slotWidth}px`,
+          "--gc-socket-h": `${config.slotHeight}px`,
           "--gc-snap": `${config.snapDurationMs}ms`,
           "--gc-contact": `${config.localContactPulseDurationMs}ms`,
+          "--gc-check": `${config.diagnosticCheckMs}ms`,
         } as React.CSSProperties
       }
     >
@@ -102,63 +97,43 @@ export default function CircuitContent({
       <CircuitSvgLayer
         geometry={geometry}
         measured={measured}
-        circuitTokenIds={circuitTokenIds}
+        circuitTokenIds={prepared.validationOrder}
         placements={placements}
-        slotWidth={config.slotWidth}
-        leaderLineThreshold={config.leaderLineThreshold}
-        phase={phase}
+        validation={validation}
+        phase={currentPhase}
         reducedMotion={reducedMotion}
         config={config}
         epoch={epoch}
+        runId={runId}
         onCurrentFinished={onCurrentFinished}
       />
 
-      <PowerSource live={phase !== "idle"} hostRef={powerRef} />
+      {/* در RTL ستونِ اول سمتِ راست است: باتری ← خانه‌ها ← لامپ. */}
+      <PowerSource live={currentPhase !== "idle"} hostRef={powerRef} />
 
-      <div
-        className="gc-column"
-        style={{
-          // عرضِ لازمِ نوارِ سوکت‌ها *پیش از* اندازه‌گیری رزرو می‌شود تا
-          // حل‌کننده هیچ‌وقت مجبور به فشردنِ سوکت‌ها نشود — و حلقهٔ
-          // اندازه‌گیری ← چیدمان ← اندازه‌گیری پیش نیاید.
-          minWidth: minimumLaneWidth(
-            slotTokenIds.length,
-            config.slotWidth,
-            config.slotGap,
-          ),
-        }}
-      >
-        <SentenceRow
-          tokens={prepared.question.tokens}
-          placements={placements}
-          armedTokenId={activeTargetTokenId}
-          tapArmed={Boolean(selectedPieceId) && interactive}
-          onTapToken={onTapToken}
-          registerWord={registerWord}
-          hostRef={sentenceRef}
-        />
-        <div style={{ height: SENTENCE_LANE_GAP }} aria-hidden />
-        <SlotLane
-          laneRef={laneRef}
-          geometry={geometry}
-          slotTokenIds={slotTokenIds}
-          placements={placements}
-          labelForPlacement={labelForPlacement}
-          slotWidth={config.slotWidth}
-          activeTargetTokenId={activeTargetTokenId}
-          rejectedTokenId={rejectedTokenId}
-          freshTokenId={freshTokenId}
-          interactive={interactive}
-          onTapSlot={onTapToken}
-          registerHitTarget={registerHitTarget}
-        />
-        <p className="gc-caption">
-          {TYPE_LABEL[prepared.question.type]}
-          {prepared.question.attribution ? ` — ${prepared.question.attribution}` : ""}
-        </p>
-      </div>
+      <AnalysisStrip
+        tokens={prepared.question.tokens}
+        placements={placements}
+        validation={validation}
+        lockedTokenIds={lockedTokenIds}
+        labelForPiece={labelForPiece}
+        activeTargetTokenId={activeTargetTokenId}
+        armed={armed}
+        interactive={interactive}
+        freshTokenId={freshTokenId}
+        onSocketActivate={onSocketActivate}
+        registerSocket={registerSocket}
+        registerHitTarget={registerHitTarget}
+        stripRef={stripRef}
+      />
 
-      <Lamp state={lampState} turnOnMs={config.lampTurnOnDurationMs} hostRef={lampRef} />
+      <Lamp
+        state={lampState}
+        turnOnMs={config.lampTurnOnDurationMs}
+        flickerMs={config.lampFlickerDurationMs}
+        reducedMotion={reducedMotion}
+        hostRef={lampRef}
+      />
     </div>
   );
 }

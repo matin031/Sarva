@@ -1,3 +1,5 @@
+import type { GradeKey } from "@/lib/doroos/types";
+
 /** مدلِ دادهٔ «مدار دستور».
  *
  *  دو قاعدهٔ سفت‌وسختِ این مدل که همه‌جای بازی به آن تکیه می‌کند:
@@ -49,6 +51,11 @@ export type GrammarCircuitQuestionType = "sentence" | "hemistich" | "verse";
 
 export interface GrammarCircuitQuestion {
   id: string;
+  /** شناسهٔ پایدارِ ردیف در بستهٔ محتوایی — مبنای ورودِ دوبارهٔ idempotent. */
+  sourceId?: string;
+  /** پایه و درس؛ برای صفحهٔ نتیجه و تحلیل‌های بعدی همراهِ سؤال می‌مانند. */
+  grade?: GradeKey;
+  lesson?: number;
   type: GrammarCircuitQuestionType;
   tokens: GrammarCircuitToken[];
   roleDefinitions: GrammarRoleDefinition[];
@@ -79,6 +86,9 @@ export interface PreparedSlot {
  *  نباید سینی را دوباره بُر بزند. */
 export interface PreparedQuestion {
   question: GrammarCircuitQuestion;
+  /** ترتیبِ *معناییِ* بررسی: از راست‌ترین هدف به چپ‌ترین. یک بار در همین
+   *  عکسِ فوری ثابت می‌شود و هیچ‌وقت از مختصاتِ DOM بازمحاسبه نمی‌شود. */
+  validationOrder: readonly string[];
   /** سوکت‌ها به ترتیبِ معناییِ مدار (Power ← ... ← Lamp). */
   circuitSlots: readonly PreparedSlot[];
   /** سوکت‌ها به ترتیبِ ظاهرشدن در جمله — مبنای چیدمانِ افقی. */
@@ -94,11 +104,27 @@ export interface PreparedQuestion {
 /** منبعِ سؤال. پیاده‌سازیِ محلی و پیاده‌سازیِ سمتِ سرور هر دو این را برآورده
  *  می‌کنند تا جایگزینیِ منبع، بازی را دست نزند. */
 export interface GrammarCircuitQuestionSource {
-  getQuestions(options?: {
+  getQuestions(options: {
+    grade: GradeKey;
+    lessons: readonly number[];
     limit?: number;
-    difficulty?: 1 | 2 | 3;
     signal?: AbortSignal;
   }): Promise<GrammarCircuitQuestion[]>;
+}
+
+/** پایه و درس‌هایی که یک جلسه رویشان بسته شده. بعد از «شروع تمرین» تغییر
+ *  نمی‌کند — نه با تمِ صفحه، نه با چرخش، نه با رندرِ دوباره. */
+export interface GrammarCircuitSessionConfig {
+  grade: GradeKey;
+  lessons: number[];
+}
+
+/** موجودیِ محتوا برای صفحهٔ انتخاب. */
+export interface GrammarCircuitAvailability {
+  grades: Array<{
+    grade: GradeKey;
+    lessons: Array<{ lesson: number; available: boolean; questionCount: number }>;
+  }>;
 }
 
 export type PlacementInputMethod = "pointer" | "tap" | "keyboard";

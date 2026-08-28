@@ -6,27 +6,32 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
 
 /** پوستهٔ بازیِ فعال.
  *
- *  «واکنش‌گرا» به‌تنهایی کافی نیست: در حالِ بازی، *خودِ صفحه* نباید اسکرول
- *  داشته باشد. برای همین این پوسته `fixed` و `100dvh` است، هدر و فوترِ سایت را
- *  می‌پوشاند، و اسکرول فقط داخلِ ناحیهٔ تحلیل و سینی اتفاق می‌افتد.
+ *  در حالِ بازی، *خودِ صفحه* اسکرول ندارد. پوسته `fixed` و `100dvh` است، هدر و
+ *  فوترِ سایت را می‌پوشاند، و اسکرول فقط داخلِ ناحیهٔ مدار اتفاق می‌افتد.
  *
- *  زنجیرهٔ `min-height:0` از خودِ پوسته تا ناحیهٔ تحلیل ادامه دارد؛ بدونِ آن،
- *  فرزندِ flex کوچک نمی‌شود و `overflow:hidden`ِ ریشه هیچ کاری نمی‌کند.
+ *  ترتیبِ عمودی عمداً همین است:
+ *      نوارِ فشرده → صورتِ کاملِ سؤال → مدار → دکمهٔ بررسی → سینیِ نقش‌ها
+ *  صورتِ سؤال *بیرونِ* ناحیهٔ اسکرولِ افقی است، چون دانش‌آموز هیچ‌وقت نباید
+ *  برای خواندنِ سؤال صفحه را کنار بکشد.
  *
- *  نوارِ بالا شبکهٔ `1fr auto 1fr` است تا ستونِ میانی دقیقاً وسط بماند و
- *  دکمه‌های دو طرف مرکزِ دیداری را جابه‌جا نکنند. */
+ *  همهٔ ویژگی‌های حیاتیِ چیدمان درون‌خطی‌اند نه فقط در کلاس: یک بار دیدیم که
+ *  وقتی شیوه‌نامهٔ بازی به مرورگر نمی‌رسد، پوسته یک بلوکِ عادی می‌شود و
+ *  سایت از زیرش بیرون می‌زند. */
 export interface ActiveShellProps {
   questionNumber: number;
   questionCount: number;
-  connected: number;
+  filled: number;
   required: number;
-  wrongAttempts: number;
+  attempts: number;
   soundOn: boolean;
   onToggleSound: () => void;
   onExit: () => void;
-  onRestartQuestion: () => void;
+  onClearBoard: () => void;
+  clearDisabled: boolean;
   viewportRef: React.RefObject<HTMLDivElement | null>;
+  question: ReactNode;
   children: ReactNode;
+  controls: ReactNode;
   tray: ReactNode;
   banner: ReactNode;
 }
@@ -34,15 +39,18 @@ export interface ActiveShellProps {
 export default function ActiveShell({
   questionNumber,
   questionCount,
-  connected,
+  filled,
   required,
-  wrongAttempts,
+  attempts,
   soundOn,
   onToggleSound,
   onExit,
-  onRestartQuestion,
+  onClearBoard,
+  clearDisabled,
   viewportRef,
+  question,
   children,
+  controls,
   tray,
   banner,
 }: ActiveShellProps) {
@@ -50,10 +58,6 @@ export default function ActiveShell({
     <div
       dir="rtl"
       className="gc-shell gc-root"
-      /* مالکیتِ پنجره درون‌خطی اعلام می‌شود، نه فقط در کلاس.
-         در اجرای واقعی دیده شد که وقتی شیوه‌نامهٔ بازی به مرورگر نمی‌رسد،
-         پوسته یک بلوکِ عادی می‌شود و هدر و فوترِ سایت وسطِ بازی ظاهر می‌شوند.
-         پس‌زمینه هم مقدارِ جایگزین دارد تا حتی بدونِ توکن‌های تم مات بماند. */
       style={{
         position: "fixed",
         inset: 0,
@@ -69,20 +73,17 @@ export default function ActiveShell({
       }}
     >
       <header className="gc-topbar" style={{ flex: "0 0 auto" }}>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onExit}
-            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--gc-text-muted)] transition-colors hover:text-[var(--gc-accent)]"
-          >
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={onExit} className="gc-topbar-btn">
             خروج
           </button>
           <button
             type="button"
-            onClick={onRestartQuestion}
-            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--gc-text-muted)] transition-colors hover:text-[var(--gc-accent)]"
+            onClick={onClearBoard}
+            disabled={clearDisabled}
+            className="gc-topbar-btn"
           >
-            از نو
+            بازچینی
           </button>
         </div>
 
@@ -90,16 +91,14 @@ export default function ActiveShell({
           <span className="text-xs font-bold">
             مدارِ {fa(questionNumber)} از {fa(questionCount)}
           </span>
-          {/* جداکننده یک عنصرِ جداست: نقطهٔ وسطِ متنی بینِ ارقامِ فارسی به‌راحتی
-              با «۰» اشتباه گرفته می‌شود. */}
           <span className="flex items-center gap-1.5 text-[0.68rem] text-[var(--gc-text-muted)]">
             <span>
-              {fa(connected)}/{fa(required)} نقش وصل شده
+              {fa(filled)}/{fa(required)} خانه پر شده
             </span>
-            {wrongAttempts > 0 && (
+            {attempts > 0 && (
               <>
                 <span aria-hidden className="inline-block size-1 rounded-full bg-current opacity-50" />
-                <span>{fa(wrongAttempts)} تلاشِ نادرست</span>
+                <span>بررسیِ {fa(attempts)}</span>
               </>
             )}
           </span>
@@ -111,7 +110,7 @@ export default function ActiveShell({
             onClick={onToggleSound}
             aria-pressed={soundOn}
             aria-label={soundOn ? "خاموش کردنِ صدا" : "روشن کردنِ صدا"}
-            className="rounded-lg p-1.5 text-[var(--gc-text-muted)] transition-colors hover:text-[var(--gc-accent)]"
+            className="gc-topbar-btn gc-topbar-icon"
           >
             {soundOn ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
@@ -128,8 +127,9 @@ export default function ActiveShell({
         </div>
       </header>
 
-      {/* زنجیرهٔ کوچک‌شدن: هر حلقه باید بتواند داخلِ 100dvh جمع شود، وگرنه
-          محتوا پوسته را از پنجره بیرون می‌راند. */}
+      {/* صورتِ سؤال — همیشه کامل و بدونِ اسکرولِ افقی. */}
+      {question}
+
       <div
         className="gc-board"
         style={{
@@ -148,10 +148,12 @@ export default function ActiveShell({
             flex: "0 1 auto",
             marginBlock: "auto",
             marginInline: "auto",
-            minHeight: "min(44vh, 400px)",
+            /* `min-height` عمداً درون‌خطی نیست: کفِ ارتفاعِ تخته یک تصمیمِ
+               *واکنش‌گراست* و در شیوه‌نامه با media query تنظیم می‌شود. زنجیرهٔ
+               کوچک‌شدن روی *نیاکان* (پوسته و برد) تأمین شده، نه اینجا. */
             maxHeight: "100%",
             width: "fit-content",
-            minWidth: "min(100%, 520px)",
+            minWidth: "min(100%, 300px)",
             maxWidth: "100%",
             overflowX: "auto",
             overflowY: "hidden",
@@ -159,9 +161,10 @@ export default function ActiveShell({
         >
           {children}
         </div>
-        {tray}
       </div>
 
+      {controls}
+      {tray}
       {banner}
     </div>
   );

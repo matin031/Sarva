@@ -12,18 +12,25 @@ import type { GrammarCircuitConfig } from "@/lib/grammar-circuit";
  *
  *  ناحیهٔ لمسی همچنان `slotWidth + ۲×padding` است، یعنی حتی در کوچک‌ترین حالت
  *  حدودِ ۹۲ پیکسل عرض و ۶۰ پیکسل ارتفاع — به‌راحتی انگشتی‌پسند. */
-function readBucket(): "compact" | "medium" | "roomy" {
+function readBucket(): "short" | "compact" | "medium" | "roomy" {
   if (typeof window === "undefined") return "roomy";
   const w = window.innerWidth;
+  const h = window.innerHeight;
+  /* ارتفاع هم به‌اندازهٔ عرض مهم است: گوشیِ خوابیده عریض ولی خیلی کوتاه است،
+     و اگر فقط عرض را ببینیم سوکتِ بزرگ انتخاب می‌شود و تخته بریده می‌شود. */
+  if (h <= 430) return "short";
   if (w < 480) return "compact";
   if (w < 760) return "medium";
   return "roomy";
 }
 
-const SLOT: Record<string, { slotWidth: number; slotGap: number }> = {
-  compact: { slotWidth: 72, slotGap: 10 },
-  medium: { slotWidth: 84, slotGap: 12 },
-  roomy: { slotWidth: 96, slotGap: 14 },
+const SLOT: Record<string, { slotWidth: number; slotHeight: number; slotGap: number }> = {
+  // ناحیهٔ لمسی همیشه ارتفاعِ سوکت + ۱۴ پیکسل است، پس حتی این کوتاه‌ترین
+  // حالت هم ۴۸ پیکسل هدفِ انگشتی می‌دهد.
+  short: { slotWidth: 74, slotHeight: 34, slotGap: 8 },
+  compact: { slotWidth: 74, slotHeight: 42, slotGap: 10 },
+  medium: { slotWidth: 92, slotHeight: 48, slotGap: 13 },
+  roomy: { slotWidth: 108, slotHeight: 52, slotGap: 16 },
 };
 
 export function useResponsiveConfig(base: GrammarCircuitConfig): GrammarCircuitConfig {

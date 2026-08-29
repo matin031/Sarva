@@ -59,6 +59,17 @@ interface SeedRecord {
 }
 
 function requireDatabaseUrl(): string {
+  /* پیامِ خطای پایین می‌گوید «در .env.local بگذارید»، پس باید همان‌جا را هم
+     واقعاً بخوانیم — همان کاری که `db:seed-exams` می‌کند. در داکر این فایل
+     وجود ندارد و متغیرها از compose می‌آیند، پس نبودنش خطا نیست. */
+  if (!process.env.DATABASE_URL) {
+    try {
+      process.loadEnvFile(".env.local");
+    } catch {
+      // فایل نیست؛ اشکالی ندارد.
+    }
+  }
+
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.error(

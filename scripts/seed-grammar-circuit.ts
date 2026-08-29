@@ -16,8 +16,8 @@
  * اجرای دوباره بی‌خطر است: `source_id` یکتاست، پس ردیف‌های موجود *به‌روز*
  * می‌شوند نه تکرار. حذف هیچ‌وقت پیش‌فرض نیست و فقط با `--prune` انجام می‌شود.
  */
-import { readFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
@@ -26,7 +26,21 @@ import type { GrammarCircuitQuestion } from "../lib/grammar-circuit/types";
 import { validateGrammarCircuitQuestion } from "../lib/grammar-circuit/validator";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_DATA = join(ROOT, "lib", "grammar-circuit", "seed-data", "questions-v1.json");
+const SEED_DIR = join(ROOT, "lib", "grammar-circuit", "seed-data");
+
+/** همهٔ بسته‌های محتوایی، به ترتیبِ نام.
+ *
+ *  محتوا در چند فایل زندگی می‌کند نه یکی: بستهٔ هر پایه جدا رشد می‌کند و
+ *  یک فایلِ چندهزارخطی که همه با هم ویرایشش کنند، دیر یا زود merge conflict
+ *  می‌شود. بارگذاری همیشه *همهٔ* بسته‌ها را با هم می‌بیند، چون یکتاییِ
+ *  `sourceId` باید در کلِ مجموعه برقرار باشد، نه فقط داخلِ یک فایل. */
+async function discoverPacks(): Promise<string[]> {
+  const entries = await readdir(SEED_DIR);
+  return entries
+    .filter((name) => name.endsWith(".json"))
+    .sort()
+    .map((name) => join(SEED_DIR, name));
+}
 
 interface SeedRecord {
   sourceId: string;
@@ -57,12 +71,13 @@ function requireDatabaseUrl(): string {
 }
 
 /** اعتبارسنجیِ کامل، *پیش از* هر نوشتنی. */
-function validateBatch(records: SeedRecord[]): string[] {
+function validateBatch(records: SeedRecord[], originOf: (i: number) => string): string[] {
   const errors: string[] = [];
   const seen = new Set<string>();
 
   records.forEach((record, index) => {
-    const at = (msg: string) => errors.push(`رکوردِ ${index + 1} (${record?.sourceId ?? "?"}): ${msg}`);
+    const at = (msg: string) =>
+      errors.push(`${originOf(index)} — رکوردِ ${record?.sourceId ?? `#${index + 1}`}: ${msg}`);
 
     if (!record || typeof record !== "object") return at("شیء معتبر نیست.");
     if (!record.sourceId || typeof record.sourceId !== "string") return at("sourceId ندارد.");
@@ -98,24 +113,44 @@ function validateBatch(records: SeedRecord[]): string[] {
 async function main() {
   const args = process.argv.slice(2);
   const prune = args.includes("--prune");
-  const fileArg = args.find((a) => !a.startsWith("--"));
-  const dataPath = fileArg ? resolve(process.cwd(), fileArg) : DEFAULT_DATA;
+  const fileArgs = args.filter((a) => !a.startsWith("--"));
+  const paths =
+    fileArgs.length > 0
+      ? fileArgs.map((a) => resolve(process.cwd(), a))
+      : await discoverPacks();
+
+  if (paths.length === 0) {
+    console.error(`[seed-grammar-circuit] هیچ بستهٔ محتوایی‌ای در ${SEED_DIR} نیست.`);
+    process.exit(1);
+  }
 
   const databaseUrl = requireDatabaseUrl();
 
-  let records: SeedRecord[];
-  try {
-    records = JSON.parse(await readFile(dataPath, "utf8"));
-  } catch (err) {
-    console.error(`[seed-grammar-circuit] خواندنِ ${dataPath} ناموفق بود:`, err);
-    process.exit(1);
-  }
-  if (!Array.isArray(records)) {
-    console.error("[seed-grammar-circuit] فایل باید یک آرایه باشد.");
-    process.exit(1);
+  // `origins` برای هر رکورد می‌گوید از کدام فایل آمده، تا خطا قابلِ ردیابی
+  // باشد؛ در یک مجموعهٔ چندصدتایی «رکوردِ ۴۱۲» به‌تنهایی بی‌فایده است.
+  const records: SeedRecord[] = [];
+  const origins: string[] = [];
+  for (const dataPath of paths) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readFile(dataPath, "utf8"));
+    } catch (err) {
+      console.error(`[seed-grammar-circuit] خواندنِ ${dataPath} ناموفق بود:`, err);
+      process.exit(1);
+    }
+    if (!Array.isArray(parsed)) {
+      console.error(`[seed-grammar-circuit] ${basename(dataPath)} باید یک آرایه باشد.`);
+      process.exit(1);
+    }
+    const label = basename(dataPath);
+    for (const record of parsed as SeedRecord[]) {
+      records.push(record);
+      origins.push(label);
+    }
+    console.log(`[seed-grammar-circuit] ${label}: ${parsed.length} رکورد`);
   }
 
-  const errors = validateBatch(records);
+  const errors = validateBatch(records, (i) => origins[i] ?? "?");
   if (errors.length > 0) {
     console.error(
       `[seed-grammar-circuit] ${errors.length} خطا در بسته. هیچ ردیفی نوشته نشد:\n` +

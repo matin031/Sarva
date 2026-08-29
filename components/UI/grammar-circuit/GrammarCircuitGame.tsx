@@ -483,7 +483,27 @@ export default function GrammarCircuitGame() {
     if (el.scrollWidth - el.clientWidth <= 0) return;
     const rtl = getComputedStyle(el).direction === "rtl";
     el.scrollLeft = rtl ? el.scrollWidth : -el.scrollWidth;
-  }, [measured, state.epoch]);
+
+    /* جمله‌های بلند یک استثنا دارند: ممکن است اولین خانهٔ خالی آن‌قدر چپ
+       باشد که در قابِ اول اصلاً دیده نشود. آن‌وقت بازی با یک تختهٔ ظاهراً
+       خالی باز می‌شود و کاربر نمی‌داند باید اسکرول کند. پس اگر *هیچ* خانه‌ای
+       در دید نبود — و فقط آن‌وقت — به‌اندازهٔ لازم می‌لغزیم تا نزدیک‌ترین
+       خانه پیدا شود. برای جمله‌های کوتاه این شرط هیچ‌وقت برقرار نمی‌شود و
+       رفتار همان «از ابتدای خواندن» می‌ماند. */
+    const targets = Array.from(el.querySelectorAll<HTMLElement>(".gc-col[data-target]"));
+    if (targets.length === 0) return;
+
+    const frame = el.getBoundingClientRect();
+    const visible = (node: HTMLElement) => {
+      const r = node.getBoundingClientRect();
+      return r.right > frame.left + 8 && r.left < frame.right - 8;
+    };
+    if (targets.some(visible)) return;
+
+    const first = targets[0];
+    const r = first.getBoundingClientRect();
+    el.scrollLeft += r.left + r.width / 2 - (frame.left + frame.width / 2);
+  }, [measured, state.epoch, state.phase]);
 
   /* ── شروعِ جلسه ───────────────────────────────────────────────────────── */
   const [starting, setStarting] = useState(false);

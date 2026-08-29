@@ -508,9 +508,12 @@ export default function GrammarCircuitGame() {
   /* ── شروعِ جلسه ───────────────────────────────────────────────────────── */
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  /* طولِ آخرین تمرین، تا «تمرینِ دوباره» همان طول را تکرار کند
+     نه اینکه بی‌صدا به پیش‌فرض برگردد. */
+  const lastLengthRef = useRef<number | undefined>(undefined);
 
   const startSession = useCallback(
-    async (grade: GradeKey, lessons: number[]) => {
+    async (grade: GradeKey, lessons: number[], length?: number) => {
       setStarting(true);
       setStartError(null);
       unlock();
@@ -524,7 +527,12 @@ export default function GrammarCircuitGame() {
           return;
         }
         const seed = Date.now();
-        const session = buildSessionQuestions(pool, config.questionsPerSession, seed, lessons);
+        /* `0` یعنی «همه»؛ نبودنش یعنی پیش‌فرض. در هر دو حالت
+           سازنده خودش بیش از اندازهٔ استخر برنمی‌دارد. */
+        lastLengthRef.current = length;
+        const take =
+          length === 0 ? pool.length : (length ?? config.questionsPerSession);
+        const session = buildSessionQuestions(pool, take, seed, lessons);
         const preparedList = session.map((question, index) =>
           prepareQuestion(question, seed + index * 7919),
         );
@@ -553,7 +561,8 @@ export default function GrammarCircuitGame() {
         results={state.results}
         session={state.session}
         onRestart={() =>
-          state.session && void startSession(state.session.grade, state.session.lessons)
+          state.session &&
+          void startSession(state.session.grade, state.session.lessons, lastLengthRef.current)
         }
         onChangeLessons={() => dispatch({ type: "EXIT_TO_SETUP" })}
       />
@@ -567,7 +576,7 @@ export default function GrammarCircuitGame() {
         loading={availabilityLoading}
         error={availabilityError}
         onRetry={reloadAvailability}
-        onStart={(grade, lessons) => void startSession(grade, lessons)}
+        onStart={(grade, lessons, length) => void startSession(grade, lessons, length)}
         starting={starting}
         startError={startError}
       />

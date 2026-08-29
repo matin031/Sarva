@@ -1313,6 +1313,74 @@ body.gc-locked {
 .gc-lesson-chip[data-selected] .gc-lesson-meta {
   color: var(--gc-accent);
 }
+/* ── طولِ تمرین ────────────────────────────────────────────────────────
+   همان زبانِ دیداریِ chipهای درس، ولی در یک ردیف و کوتاه‌تر: انتخابی است
+   که یک‌بار انجام می‌شود و نباید به‌اندازهٔ فهرستِ درس‌ها جا بگیرد. */
+.gc-length-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gc-length-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 4.6rem;
+  border-radius: 0.85rem;
+  border: 1.5px solid var(--gc-border);
+  background: color-mix(in oklab, var(--gc-board) 50%, transparent);
+  padding: 0.5rem 0.85rem;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    transform 0.14s ease,
+    box-shadow 0.16s ease;
+}
+.gc-length-chip:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--gc-accent) 55%, var(--gc-border));
+  transform: translateY(-2px);
+  box-shadow: var(--gc-shadow-sm);
+}
+.gc-length-chip[data-selected] {
+  border-color: var(--gc-accent);
+  background: color-mix(in oklab, var(--gc-accent) 16%, var(--gc-board));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gc-accent) 20%, transparent);
+}
+.gc-length-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+  border-style: dashed;
+  background: transparent;
+}
+.gc-length-chip:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 2px;
+}
+.gc-length-num {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--gc-text);
+}
+.gc-length-chip:disabled .gc-length-num {
+  color: var(--gc-text-muted);
+}
+.gc-length-meta {
+  font-size: 0.62rem;
+  color: var(--gc-text-muted);
+}
+.gc-length-chip[data-selected] .gc-length-meta {
+  color: var(--gc-accent);
+}
+/* «از N پرسشِ موجود» — کنارِ عنوانِ گام، نه زیرِ آن. */
+.gc-setup-hint {
+  margin-inline-start: auto;
+  font-size: 0.72rem;
+  color: var(--gc-text-muted);
+}
+
 /* تیکِ گوشه — تأییدِ فوریِ انتخاب. */
 .gc-lesson-tick {
   position: absolute;

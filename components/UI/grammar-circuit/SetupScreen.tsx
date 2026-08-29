@@ -8,6 +8,7 @@ import {
   selectableLessons,
 } from "@/lib/grammar-circuit/curriculum";
 import type { GrammarCircuitAvailability } from "@/lib/grammar-circuit";
+import { GRAMMAR_CIRCUIT_CONFIG } from "@/lib/grammar-circuit/config";
 import CircuitPersianBackground from "./CircuitPersianBackground";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
@@ -25,7 +26,7 @@ export interface SetupScreenProps {
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  onStart: (grade: GradeKey, lessons: number[]) => void;
+  onStart: (grade: GradeKey, lessons: number[], length: number) => void;
   starting: boolean;
   startError: string | null;
 }
@@ -41,6 +42,7 @@ export default function SetupScreen({
 }: SetupScreenProps) {
   const [grade, setGrade] = useState<GradeKey>("dahom");
   const [selected, setSelected] = useState<number[]>([]);
+  const [length, setLength] = useState<number>(GRAMMAR_CIRCUIT_CONFIG.questionsPerSession);
 
   const lessons = useMemo(() => {
     const listed = selectableLessons(grade);
@@ -76,6 +78,10 @@ export default function SetupScreen({
   const totalQuestions = lessons
     .filter((l) => selected.includes(l.lesson))
     .reduce((sum, l) => sum + l.questionCount, 0);
+
+  /* «۰» یعنی همهٔ پرسش‌های درس‌های انتخابی. در هر حال بیشتر از آنچه هست
+     نمی‌شود تمرین کرد، پس عددِ نمایش‌داده‌شده همان چیزی است که واقعاً می‌آید. */
+  const plannedCount = length === 0 ? totalQuestions : Math.min(length, totalQuestions);
 
   return (
     <div dir="rtl" className="gc-root gc-setup-page">
@@ -200,6 +206,43 @@ export default function SetupScreen({
           )}
         </section>
 
+        {/* ── طولِ تمرین ── */}
+        {selected.length > 0 && (
+          <section className="gc-setup-block">
+            <div className="gc-setup-legend">
+              <span className="gc-setup-step">۳</span>
+              <h2 className="gc-setup-label">چند پرسش تمرین کنی؟</h2>
+              <span className="gc-setup-hint">
+                از {fa(totalQuestions)} پرسشِ موجود
+              </span>
+            </div>
+            <div className="gc-length-row" role="radiogroup" aria-label="طولِ تمرین">
+              {GRAMMAR_CIRCUIT_CONFIG.sessionLengthOptions.map((option) => {
+                const disabled = option !== 0 && option > totalQuestions;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={length === option}
+                    disabled={disabled}
+                    data-selected={length === option || undefined}
+                    className="gc-length-chip"
+                    onClick={() => setLength(option)}
+                  >
+                    <span className="gc-length-num">
+                      {option === 0 ? "همه" : fa(option)}
+                    </span>
+                    <span className="gc-length-meta">
+                      {option === 0 ? `${fa(totalQuestions)} پرسش` : "پرسش"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {startError && <p className="gc-setup-error-inline">{startError}</p>}
 
         <div className="gc-setup-actions">
@@ -207,7 +250,7 @@ export default function SetupScreen({
             {selected.length > 0 ? (
               <>
                 <span className="gc-setup-count">
-                  {fa(selected.length)} درس · {fa(totalQuestions)} پرسش
+                  {fa(selected.length)} درس · {fa(plannedCount)} پرسش
                 </span>
                 <span className="gc-setup-chips">
                   {selected.map((n) => (
@@ -231,7 +274,7 @@ export default function SetupScreen({
               type="button"
               className="gc-btn gc-btn-primary gc-btn-lg"
               disabled={!canStart}
-              onClick={() => onStart(grade, selected)}
+              onClick={() => onStart(grade, selected, length)}
             >
               {starting ? "در حالِ آماده‌سازی…" : "شروع تمرین"}
               {!starting && (

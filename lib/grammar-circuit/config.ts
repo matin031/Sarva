@@ -75,7 +75,11 @@ export interface GrammarCircuitConfig {
   soundVolume: number;
   audioSourceMode: AudioSourceMode;
 
+  /** طولِ پیش‌فرضِ تمرین، وقتی کاربر چیزی انتخاب نکرده. */
   questionsPerSession: number;
+  /** طول‌هایی که کاربر می‌تواند برگزیند. `0` یعنی «هرچه در درس‌های انتخابی
+   *  هست» — با ۸۸ پرسش در یک درس، عددِ ثابت جوابگو نیست. */
+  sessionLengthOptions: readonly number[];
   /** سقفِ درس‌های انتخابیِ یک جلسه — هم برای UI و هم برای اعتبارسنجیِ API. */
   maxLessonsPerSession: number;
 }
@@ -126,6 +130,7 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
   // در این حالت هیچ URL صوتیِ غایبی درخواست نمی‌شود.
   audioSourceMode: "procedural",
 
-  questionsPerSession: 5,
+  questionsPerSession: 10,
+  sessionLengthOptions: [5, 10, 20, 0],
   maxLessonsPerSession: 18,
 };

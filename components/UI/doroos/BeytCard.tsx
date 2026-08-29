@@ -95,7 +95,11 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
               {/* keyed on the view so switching remounts rather than carrying
                   the previous diagram's measurements into the new one */}
               <div className="min-w-[30rem]">
-                <BeytSyntaxMap key={active.id} beyt={beyt} roles={active.roles} />
+                <BeytSyntaxMap
+                  key={active.id}
+                  lines={beyt.hemistichs}
+                  roles={active.roles}
+                />
               </div>
             </div>
           ) : (

@@ -60,18 +60,52 @@ export function isLessonInBook(number: number): boolean {
 const TITLES: Record<GradeKey, Record<number, string>> = {
   dahom: {},
   yazdahom: { 1: "روباهِ بی‌دست‌وپا" },
-  davazdahom: {},
+  davazdahom: {
+    1: "شکر نعمت",
+    2: "مست و هشیار",
+    3: "آزادی و دفتر زمانه",
+    5: " دماوندیه",
+    6: "نی‌نامه",
+    7: "در حقیقت عشق",
+    10: "فصل شکوفایی",
+    12: "گذر سیاوش از آتش",
+  },
 };
 
-/** Lesson numbers that have content wired up, per grade. */
-const READY: Record<GradeKey, number[]> = {
-  dahom: [],
-  yazdahom: [1],
-  davazdahom: [],
+/** Content modules, imported lazily so a lesson's text is only shipped to the
+ *  reader who opens that lesson — 54 lessons of analysis must never all land in
+ *  one bundle. */
+const CONTENT: Partial<
+  Record<GradeKey, Record<number, () => Promise<{ default: Lesson }>>>
+> = {
+  yazdahom: {
+    1: () => import("@/lib/doroos/content/yazdahom-01"),
+  },
+
+  davazdahom: {
+    1: () => import("@/lib/doroos/content/davazdahom-01"),
+    2: () => import("@/lib/doroos/content/davazdahom-02"),
+    3: () => import("@/lib/doroos/content/davazdahom-03"),
+    5: () => import("@/lib/doroos/content/davazdahom-05"),
+    6: () => import("@/lib/doroos/content/davazdahom-06"),
+    7: () => import("@/lib/doroos/content/davazdahom-07"),
+    10: () => import("@/lib/doroos/content/davazdahom-10"),
+    12: () => import("@/lib/doroos/content/davazdahom-12"),
+  },
 };
+
+
+/** Which lessons are ready, derived from the map above rather than listed
+ *  separately. The two used to be hand-kept lists and had drifted: eight
+ *  davazdahom lessons were marked ready with no module behind them, so the
+ *  فهرست offered «خواندن» and the page then had to apologise. Derived, they
+ *  cannot disagree. */
+function readySet(grade: GradeKey): Set<number> {
+  return new Set(Object.keys(CONTENT[grade] ?? {}).map(Number));
+}
 
 function buildLessons(grade: GradeKey): LessonRef[] {
-  const ready = new Set(READY[grade]);
+  const ready = readySet(grade);
   return Array.from({ length: LESSONS_PER_BOOK }, (_, i) => {
     const number = i + 1;
     return { number, title: TITLES[grade][number], ready: ready.has(number) };
@@ -105,16 +139,6 @@ export function getGrade(key: string): Grade | undefined {
   return GRADES.find((g) => g.key === key);
 }
 
-/** Content modules, imported lazily so a lesson's text is only shipped to the
- *  reader who opens that lesson — 54 lessons of analysis must never all land in
- *  one bundle. */
-const CONTENT: Partial<
-  Record<GradeKey, Record<number, () => Promise<{ default: Lesson }>>>
-> = {
-  yazdahom: {
-    1: () => import("@/lib/doroos/content/yazdahom-01"),
-  },
-};
 
 export async function getLesson(
   grade: string,

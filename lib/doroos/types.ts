@@ -46,8 +46,9 @@ export type ExamQuestion = { q: string; a: string };
  *  worse than no diagram, and matching prose was exactly how the earlier
  *  attempt went wrong. */
 export type WordRole = {
-  /** 0 = مصراع اول, 1 = مصراع دوم */
-  h: 0 | 1;
+  /** which line of the passage — 0 = مصراع اول, 1 = مصراع دوم for a بیت, and
+   *  an index into a prose passage's `lines` otherwise */
+  h: number;
   /** word indices this role covers, in order */
   words: number[];
   /** what to write in the box, e.g. «نهاد» or «جناس با سیر» */
@@ -113,17 +114,38 @@ export type ProseLesson = {
   author?: string;
   section?: string;
   intro?: string;
-  passages: {
-    n: number;
-    text: string;
-    meaning?: string;
-    linguistic: string[];
-    literary: string[];
-    intellectual: string;
-    notes?: BeytNote[];
-    exam?: ExamQuestion;
-  }[];
+  passages: Passage[];
   wrapUp?: WrapUpTopic[];
+};
+
+/** One بند of a prose lesson.
+ *
+ *  A prose lesson is not uniformly prose: گلستان and its like run a paragraph
+ *  of نثر, then break into a بیت, then carry on. So each بند says which it is,
+ *  and `lines` holds however many it needs — several paragraphs for نثر, and
+ *  exactly the two مصراع for a بیت. */
+export type Passage = {
+  n: number;
+  /** «quotation» is an آیه or حدیث quoted inside the نثر — Arabic, and set
+   *  apart from the author's own prose */
+  form: "prose" | "verse" | "quotation";
+  /** paragraphs for «prose»; the two مصراع for «verse»; the quoted text for
+   *  «quotation» */
+  lines: string[];
+  /** a heading that opens a new part of the lesson */
+  section?: string;
+  meaning?: string;
+  concept?: string;
+  linguistic: string[];
+  literary: string[];
+  intellectual: string;
+  /** تعدادِ جمله */
+  clauses?: number;
+  syntax?: WordRole[];
+  devices?: WordRole[];
+  affinity?: string[];
+  notes?: BeytNote[];
+  exam?: ExamQuestion;
 };
 
 export type Lesson = PoemLesson | ProseLesson;

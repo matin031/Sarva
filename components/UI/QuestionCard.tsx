@@ -31,7 +31,13 @@ function QuestionCard({
       {/* پخش وزن */}
       {questions[currentIndex].type == "audio-to-poem" && (
         <>
-          <p className="">کدام وزن با ریتم پخش‌ شده مطابقت دارد؟</p>
+          {/* ⚠️ «بیت» و نه «وزن». در این نوع، گزینه‌ها ابیات‌اند نه ارکان —
+              پرسیدنِ «کدام وزن…» و بعد نشان دادنِ چهار بیت، خودِ صورتِ سؤال را
+              اشتباه می‌کند. نوعِ بعدی (audio-to-weight) که گزینه‌هایش واقعاً
+              وزن‌اند همان جملهٔ قبلی را نگه می‌دارد. (دموی صفحهٔ اصلی،
+              components/UI/orouz-demo/OrouzDemo.tsx، از اول همین را درست
+              نوشته بود.) */}
+          <p className="">کدام بیت با ریتم پخش‌ شده مطابقت دارد؟</p>
           <CircularVisualizer
             audioSrc={questions[currentIndex].audioSrc || ""}
           />

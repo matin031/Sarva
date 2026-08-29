@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import CircuitPersianBackground from "./CircuitPersianBackground";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -72,6 +73,9 @@ export default function ActiveShell({
         background: "var(--gc-bg, #f7f3ea)",
       }}
     >
+      {/* هندسهٔ ایرانیِ سروا، برق‌دار. زیرِ همه‌چیز و بی‌اثر روی ورودی. */}
+      <CircuitPersianBackground />
+
       <header className="gc-topbar" style={{ flex: "0 0 auto" }}>
         <div className="flex items-center gap-1">
           <button type="button" onClick={onExit} className="gc-topbar-btn">

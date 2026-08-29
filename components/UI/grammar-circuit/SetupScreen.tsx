@@ -8,6 +8,7 @@ import {
   selectableLessons,
 } from "@/lib/grammar-circuit/curriculum";
 import type { GrammarCircuitAvailability } from "@/lib/grammar-circuit";
+import CircuitPersianBackground from "./CircuitPersianBackground";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -78,6 +79,7 @@ export default function SetupScreen({
 
   return (
     <div dir="rtl" className="gc-root gc-setup-page">
+      <CircuitPersianBackground />
       <div className="gc-setup">
         <header className="gc-setup-head">
           <span className="gc-setup-badge">

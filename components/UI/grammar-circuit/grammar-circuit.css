@@ -54,6 +54,12 @@
   --gc-shadow-md: 0 4px 14px oklch(0.4 0.05 240 / 0.12);
   --gc-shadow-lg: 0 14px 40px oklch(0.35 0.06 240 / 0.16);
   --gc-trace: oklch(0.58 0.06 195 / 0.16);
+  /* نقشِ ایرانیِ پس‌زمینه: سرمه‌ایِ عمیق روی کرم، خیلی کم‌رنگ. */
+  --gc-motif: oklch(0.32 0.06 258);
+  --gc-motif-opacity: 0.07;
+  /* دو رنگِ تپشِ الکتریکی. */
+  --gc-pulse-teal: oklch(0.6 0.13 192);
+  --gc-pulse-gold: oklch(0.62 0.12 82);
 
   color: var(--gc-text);
 }
@@ -92,6 +98,11 @@
   --gc-shadow-md: 0 4px 16px oklch(0 0 0 / 0.45);
   --gc-shadow-lg: 0 18px 46px oklch(0 0 0 / 0.55);
   --gc-trace: oklch(0.6 0.06 195 / 0.13);
+  /* روی شبِ لاجوردی، نقش با طلاییِ بسیار کم‌رنگ خوانده می‌شود نه سفید. */
+  --gc-motif: oklch(0.75 0.09 85);
+  --gc-motif-opacity: 0.055;
+  --gc-pulse-teal: oklch(0.82 0.14 192);
+  --gc-pulse-gold: oklch(0.83 0.13 85);
 }
 
 /* ── پوستهٔ بازیِ فعال ───────────────────────────────────────────────────── */
@@ -137,16 +148,101 @@ body.gc-locked {
     var(--gc-bg);
 }
 
-/* بافتِ بسیار ظریفِ نقطه‌ای روی کلِ پوسته — عمق می‌دهد بدونِ اینکه دیده شود. */
-.gc-shell::before {
-  content: "";
+/* ── پس‌زمینهٔ هندسیِ برق‌دار ─────────────────────────────────────────────
+   نقشِ سروا به‌عنوان لایهٔ پایه، و چند گره که هر چند ثانیه یک بار آرام روشن
+   می‌شوند. همیشه زیردستِ بازی می‌ماند: کدریِ پایه زیرِ ۸٪ و تپش‌ها کوتاه و
+   کم‌جان‌اند. */
+.gc-bg {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
-  opacity: 0.5;
-  background-image: radial-gradient(var(--gc-trace) 1px, transparent 1px);
-  background-size: 26px 26px;
-  mask-image: radial-gradient(100% 70% at 50% 40%, #000 20%, transparent 85%);
+  /* لایهٔ خودش را می‌سازد تا تپش‌ها بقیهٔ صفحه را repaint نکنند. */
+  contain: strict;
+  z-index: 0;
+}
+
+.gc-bg-base {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--gc-motif);
+  opacity: var(--gc-motif-opacity);
+  /* لبه‌ها محو می‌شوند تا نقش به متن و تخته فشار نیاورد. */
+  mask-image: radial-gradient(120% 85% at 50% 45%, #000 35%, transparent 92%);
+}
+
+/* یک گرهٔ نقش که روشن می‌شود. جای‌گیری با `transform` است و در ابتدا نامرئی؛
+   انیمیشن فقط `opacity` و `transform` را دست می‌زند. */
+.gc-bg-node {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.gc-bg-node[data-tone="teal"] {
+  color: var(--gc-pulse-teal);
+}
+.gc-bg-node[data-tone="gold"] {
+  color: var(--gc-pulse-gold);
+}
+
+/* هالهٔ نرمِ پشتِ گره — گرادیانِ آماده، نه فیلترِ زنده. */
+.gc-bg-halo {
+  position: absolute;
+  inset: -26px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, currentColor 22%, transparent) 0%,
+    color-mix(in oklab, currentColor 8%, transparent) 45%,
+    transparent 72%
+  );
+}
+
+/* ردِ کوتاهِ بینِ دو گرهٔ همسایه — اشارهٔ ظریفِ عبورِ جریان. */
+.gc-bg-trace {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.gc-bg-trace[data-tone="teal"] {
+  color: var(--gc-pulse-teal);
+}
+.gc-bg-trace[data-tone="gold"] {
+  color: var(--gc-pulse-gold);
+}
+.gc-bg-trace[data-dir="h"] {
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, currentColor 58%, transparent),
+    transparent
+  );
+}
+.gc-bg-trace[data-dir="v"] {
+  width: 2px;
+  height: 80px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, currentColor 58%, transparent),
+    transparent
+  );
+}
+
+/* محتوای بازی همیشه بالای پس‌زمینه. */
+.gc-shell > *:not(.gc-bg) {
+  position: relative;
+  z-index: 1;
 }
 
 .gc-topbar {
@@ -977,6 +1073,7 @@ body.gc-locked {
    یک پنلِ پیکربندیِ تمام‌شده، نه یک فرمِ پیش‌نویس. سه بخشِ شماره‌دار
    (پایه → درس‌ها → شروع) با سلسله‌مراتبِ واضح. */
 .gc-setup-page {
+  position: relative;
   min-height: 100%;
   padding: clamp(1rem, 4vh, 2.5rem) 1rem clamp(2rem, 6vh, 3.5rem);
   background:
@@ -993,6 +1090,8 @@ body.gc-locked {
 }
 
 .gc-setup {
+  position: relative;
+  z-index: 1;
   width: min(100%, 46rem);
   margin-inline: auto;
   border-radius: 1.6rem;
@@ -1432,6 +1531,12 @@ body.gc-locked {
 
 /* ── احترام به کاهشِ حرکت ────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* نقشِ ثابت می‌ماند؛ گره‌ها و ردها هرگز روشن نمی‌شوند. زمان‌بندی هم در
+     خودِ کامپوننت اصلاً شروع نمی‌شود. */
+  .gc-bg-node,
+  .gc-bg-trace {
+    display: none;
+  }
   .gc-socket[data-fresh="true"] .gc-seated,
   .gc-socket[data-check="checking"] .gc-seated,
   .gc-controls-scanning,

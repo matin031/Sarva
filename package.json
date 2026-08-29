@@ -14,7 +14,8 @@
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "db:seed-aruz-bridge": "node scripts/seed-aruz-bridge.mjs",
     "db:seed-exams": "tsx scripts/seed-exams.ts",
-    "db:seed-grammar-circuit": "tsx scripts/seed-grammar-circuit.ts"
+    "db:seed-grammar-circuit": "tsx scripts/seed-grammar-circuit.ts",
+    "db:seed-aruz": "tsx scripts/seed-aruz.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

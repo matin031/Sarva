@@ -11,6 +11,7 @@ import {
   RevealLine,
 } from "@/components/UI/aruz/reveal";
 import BeytCard from "@/components/UI/doroos/BeytCard";
+import PassageCard from "@/components/UI/doroos/PassageCard";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
 import { REALMS } from "@/lib/doroos/types";
 
@@ -129,55 +130,7 @@ export default function LessonView({
           {lesson.kind === "poem"
             ? lesson.beyts.map((b) => <BeytCard key={b.n} beyt={b} />)
             : lesson.passages.map((p) => (
-                <article
-                  key={p.n}
-                  id={`band-${p.n}`}
-                  className="relative z-20 scroll-mt-28"
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                    transition={{ duration: 0.7, ease: EASE }}
-                    className="relative z-20 rounded-3xl border border-primary/25 bg-card p-6 shadow-xl sm:p-9"
-                  >
-                    <span className="inline-flex rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
-                      بند {faNum(p.n)}
-                    </span>
-                    <p className="mt-5 font-serif text-lg leading-[2.1] text-foreground">
-                      {p.text}
-                    </p>
-                    {p.meaning ? (
-                      <div className="relative z-20 mt-6 rounded-2xl border border-border bg-background p-4">
-                        <h3 className="mb-1.5 text-xs font-black text-muted-foreground">
-                          معنی
-                        </h3>
-                        <p className="text-sm leading-relaxed text-foreground">
-                          {p.meaning}
-                        </p>
-                      </div>
-                    ) : null}
-                  </motion.div>
-                  <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                    <RealmPanel
-                      label={REALMS[0].label}
-                      token={REALMS[0].token}
-                      items={p.linguistic}
-                    />
-                    <RealmPanel
-                      label={REALMS[1].label}
-                      token={REALMS[1].token}
-                      items={p.literary}
-                      delay={0.08}
-                    />
-                    <RealmPanel
-                      label={REALMS[2].label}
-                      token={REALMS[2].token}
-                      body={p.intellectual}
-                      delay={0.16}
-                    />
-                  </div>
-                </article>
+                <PassageCard key={p.n} passage={p} />
               ))}
         </section>
 

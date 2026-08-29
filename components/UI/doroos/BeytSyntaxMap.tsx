@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Beyt, WordRole } from "@/lib/doroos/types";
+import type { WordRole } from "@/lib/doroos/types";
 
 /** نقشِ دستوریِ واژه‌ها — the بیت with a wire from every word to its role.
  *
@@ -51,20 +51,23 @@ type Wire = {
   lane: number;
 };
 
+/** `lines` rather than a بیت: a بیت is two مصراع, but a verse بند inside a
+ *  prose lesson is the same two lines under a different name, and taking the
+ *  lines directly lets both use this without one pretending to be the other. */
 export default function BeytSyntaxMap({
-  beyt,
+  lines,
   roles,
 }: {
-  beyt: Beyt;
+  lines: string[];
   roles: WordRole[];
 }) {
   if (!roles.length) return null;
   return (
     <div dir="rtl" className="relative z-20 space-y-10">
-      {([0, 1] as const).map((h) => (
+      {lines.map((line, h) => (
         <Hemistich
           key={h}
-          words={beyt.hemistichs[h].split(/\s+/).filter(Boolean)}
+          words={line.split(/\s+/).filter(Boolean)}
           roles={roles.filter((r) => r.h === h)}
           above={h === 0}
         />

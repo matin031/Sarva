@@ -72,17 +72,38 @@ export default function SetupScreen({
 
   const canStart = selected.length > 0 && !starting;
 
+  const totalQuestions = lessons
+    .filter((l) => selected.includes(l.lesson))
+    .reduce((sum, l) => sum + l.questionCount, 0);
+
   return (
-    <div dir="rtl" className="gc-root container mx-auto max-w-3xl py-8">
+    <div dir="rtl" className="gc-root gc-setup-page">
       <div className="gc-setup">
-        <header className="text-center">
+        <header className="gc-setup-head">
+          <span className="gc-setup-badge">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-4">
+              <path
+                d="M4 12h3l2-4 3 8 2.5-5 1.5 3h4"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            بازیِ نقشِ دستوری
+          </span>
           <h1 className="gc-setup-title">مدار دستور</h1>
-          <p className="gc-setup-sub">کدام درس‌ها را می‌خواهی تمرین کنی؟</p>
+          <p className="gc-setup-sub">
+            نقشِ هر واژه را در جای درست بگذار، مدار را ببند و لامپ را روشن کن.
+          </p>
         </header>
 
         {/* ── پایه ── */}
-        <div className="gc-setup-block">
-          <h2 className="gc-setup-label">پایه</h2>
+        <section className="gc-setup-block">
+          <div className="gc-setup-legend">
+            <span className="gc-setup-step">۱</span>
+            <h2 className="gc-setup-label">کتاب و پایه را انتخاب کن</h2>
+          </div>
           <div className="gc-grade-row" role="radiogroup" aria-label="انتخابِ پایه">
             {GRAMMAR_CIRCUIT_GRADES.map((g) => (
               <button
@@ -99,12 +120,14 @@ export default function SetupScreen({
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* ── درس‌ها ── */}
-        <div className="gc-setup-block">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="gc-setup-label">درس‌ها</h2>
+        <section className="gc-setup-block">
+          <div className="gc-setup-legend">
+            <span className="gc-setup-step">۲</span>
+            <h2 className="gc-setup-label">درس‌ها را انتخاب کن</h2>
+            <span className="gc-setup-legend-note">می‌توانی چند درس را با هم تمرین کنی</span>
             {availableLessons.length > 0 && (
               <button
                 type="button"
@@ -119,7 +142,7 @@ export default function SetupScreen({
               >
                 {selected.length === availableLessons.length
                   ? "برداشتنِ همه"
-                  : "انتخابِ همهٔ درس‌های دارای محتوا"}
+                  : "انتخابِ همه"}
               </button>
             )}
           </div>
@@ -154,33 +177,72 @@ export default function SetupScreen({
                   onClick={() => toggle(lesson)}
                   title={available ? `${fa(questionCount)} پرسش` : "به‌زودی"}
                 >
-                  <span className="gc-lesson-num">درس {fa(lesson)}</span>
+                  <span className="gc-lesson-num">{fa(lesson)}</span>
                   <span className="gc-lesson-meta">
                     {available ? `${fa(questionCount)} پرسش` : "به‌زودی"}
                   </span>
+                  {selected.includes(lesson) && (
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden className="gc-lesson-tick">
+                      <path
+                        d="m5 13 4 4L19 7"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         {startError && <p className="gc-setup-error-inline">{startError}</p>}
 
         <div className="gc-setup-actions">
-          <span className="gc-setup-count">
-            {selected.length > 0 ? `${fa(selected.length)} درس انتخاب شده` : "هنوز درسی انتخاب نشده"}
-          </span>
-          <div className="flex items-center gap-3">
+          <div className="gc-setup-summary">
+            {selected.length > 0 ? (
+              <>
+                <span className="gc-setup-count">
+                  {fa(selected.length)} درس · {fa(totalQuestions)} پرسش
+                </span>
+                <span className="gc-setup-chips">
+                  {selected.map((n) => (
+                    <span key={n} className="gc-setup-chip">
+                      درس {fa(n)}
+                    </span>
+                  ))}
+                </span>
+              </>
+            ) : (
+              <span className="gc-setup-count gc-setup-count-empty">
+                برای شروع، دستِ‌کم یک درس انتخاب کن
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5">
             <Link href="/game" className="gc-btn gc-btn-ghost">
               بازگشت
             </Link>
             <button
               type="button"
-              className="gc-btn gc-btn-primary"
+              className="gc-btn gc-btn-primary gc-btn-lg"
               disabled={!canStart}
               onClick={() => onStart(grade, selected)}
             >
               {starting ? "در حالِ آماده‌سازی…" : "شروع تمرین"}
+              {!starting && (
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-[18px]">
+                  <path
+                    d="M9 6 3 12l6 6M21 12H4"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </button>
           </div>
         </div>

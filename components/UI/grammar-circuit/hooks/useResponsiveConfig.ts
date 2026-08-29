@@ -24,13 +24,16 @@ function readBucket(): "short" | "compact" | "medium" | "roomy" {
   return "roomy";
 }
 
-const SLOT: Record<string, { slotWidth: number; slotHeight: number; slotGap: number }> = {
-  // ناحیهٔ لمسی همیشه ارتفاعِ سوکت + ۱۴ پیکسل است، پس حتی این کوتاه‌ترین
-  // حالت هم ۴۸ پیکسل هدفِ انگشتی می‌دهد.
-  short: { slotWidth: 74, slotHeight: 34, slotGap: 8 },
-  compact: { slotWidth: 74, slotHeight: 42, slotGap: 10 },
-  medium: { slotWidth: 92, slotHeight: 48, slotGap: 13 },
-  roomy: { slotWidth: 108, slotHeight: 52, slotGap: 16 },
+const SLOT: Record<
+  string,
+  { slotMinWidth: number; slotWordPadding: number; slotHeight: number; slotGap: number }
+> = {
+  // ناحیهٔ لمسی همیشه ارتفاعِ سوکت + لقیِ عمودی است، پس حتی کوتاه‌ترین حالت
+  // هم هدفِ انگشتیِ راحتی می‌دهد.
+  short: { slotMinWidth: 52, slotWordPadding: 22, slotHeight: 34, slotGap: 8 },
+  compact: { slotMinWidth: 54, slotWordPadding: 24, slotHeight: 42, slotGap: 10 },
+  medium: { slotMinWidth: 60, slotWordPadding: 28, slotHeight: 48, slotGap: 13 },
+  roomy: { slotMinWidth: 64, slotWordPadding: 34, slotHeight: 54, slotGap: 16 },
 };
 
 export function useResponsiveConfig(base: GrammarCircuitConfig): GrammarCircuitConfig {

@@ -28,8 +28,17 @@ export interface AnalysisStripProps {
   freshTokenId: string | null;
   onSocketActivate: (tokenId: string, viaKeyboard: boolean) => void;
   registerSocket: (tokenId: string, el: HTMLElement | null) => void;
+  registerWord: (tokenId: string, el: HTMLElement | null) => void;
   registerHitTarget: (tokenId: string, el: HTMLElement | null) => void;
   stripRef: React.RefObject<HTMLDivElement | null>;
+  /** عرضِ اندازه‌گیری‌شدهٔ هر واژهٔ هدف — مبنای عرضِ سوکتش. */
+  wordWidths: ReadonlyMap<string, number>;
+  /** پهن‌ترین متنِ برچسبِ نقش — کفِ عرضِ سوکت از این می‌آید. */
+  roleFloorWidth: number;
+  /** کفِ مطلق، برای وقتی که هنوز چیزی اندازه گرفته نشده. */
+  slotMinWidth: number;
+  /** لقیِ افقیِ سوکت نسبت به عرضِ واژه. */
+  slotWordPadding: number;
 }
 
 export default function AnalysisStrip({
@@ -44,9 +53,16 @@ export default function AnalysisStrip({
   freshTokenId,
   onSocketActivate,
   registerSocket,
+  registerWord,
   registerHitTarget,
   stripRef,
+  wordWidths,
+  roleFloorWidth,
+  slotMinWidth,
+  slotWordPadding,
 }: AnalysisStripProps) {
+  // لقیِ کمِ برچسب داخلِ خانه؛ کمتر از لقیِ قطعه در سینی.
+  const floor = Math.max(slotMinWidth, roleFloorWidth + 18);
   return (
     <div ref={stripRef} className="gc-strip" dir="rtl">
       {tokens.map((token) => {
@@ -58,7 +74,11 @@ export default function AnalysisStrip({
         return (
           <Fragment key={token.id}>
             <div className="gc-col" data-target={isTarget || undefined}>
-              <span className="gc-col-word" aria-hidden>
+              <span
+                ref={isTarget ? (el) => registerWord(token.id, el) : undefined}
+                className="gc-col-word"
+                aria-hidden
+              >
                 {token.text}
               </span>
 
@@ -66,6 +86,16 @@ export default function AnalysisStrip({
                 <div
                   ref={(el) => registerSocket(token.id, el)}
                   className="gc-socket"
+                  /* عرضِ سوکت از عرضِ *همان واژه* می‌آید، نه از یک عددِ
+                     یکسان برای همه. نتیجه‌اش این است که تخته دیگر «چند واژه
+                     بالا و چند جعبهٔ هم‌اندازه پایین» نیست؛ هر خانه به‌اندازهٔ
+                     واژهٔ خودش است و رابطه فوری خوانده می‌شود. */
+                  style={{
+                    width: `${Math.max(
+                      floor,
+                      (wordWidths.get(token.id) ?? 0) + slotWordPadding,
+                    )}px`,
+                  }}
                   data-filled={pieceId ? "true" : undefined}
                   data-check={state && state !== "pending" ? state : undefined}
                   data-locked={locked || undefined}

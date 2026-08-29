@@ -35,6 +35,7 @@ export interface CircuitContentProps {
   powerRef: React.RefObject<HTMLDivElement | null>;
   lampRef: React.RefObject<HTMLDivElement | null>;
   registerSocket: (tokenId: string, el: HTMLElement | null) => void;
+  registerWord: (tokenId: string, el: HTMLElement | null) => void;
   registerHitTarget: (tokenId: string, el: HTMLElement | null) => void;
   onSocketActivate: (tokenId: string, viaKeyboard: boolean) => void;
   onCurrentFinished: (epoch: number, runId: number) => void;
@@ -62,6 +63,7 @@ export default function CircuitContent({
   powerRef,
   lampRef,
   registerSocket,
+  registerWord,
   registerHitTarget,
   onSocketActivate,
   onCurrentFinished,
@@ -82,9 +84,9 @@ export default function CircuitContent({
           // `position` درون‌خطی است چون لایهٔ SVG نسبت به همین کادر مطلق
           // می‌نشیند — نباید به بارگذاریِ شیوه‌نامه وابسته باشد.
           position: "relative",
-          // اندازهٔ سوکت از پیکربندیِ واکنش‌گرا می‌آید، نه از عددی که در CSS
-          // تکرار شده باشد؛ ستونِ بدونِ سوکت هم از همین ارتفاع استفاده می‌کند.
-          "--gc-socket-w": `${config.slotWidth}px`,
+          // ارتفاعِ سوکت از پیکربندیِ واکنش‌گرا می‌آید (عرضش از عرضِ واژه)؛
+          // ستونِ بدونِ سوکت هم از همین ارتفاع استفاده می‌کند تا خطِ واژه‌ها
+          // نشکند.
           "--gc-socket-h": `${config.slotHeight}px`,
           "--gc-snap": `${config.snapDurationMs}ms`,
           "--gc-contact": `${config.localContactPulseDurationMs}ms`,
@@ -123,8 +125,13 @@ export default function CircuitContent({
         freshTokenId={freshTokenId}
         onSocketActivate={onSocketActivate}
         registerSocket={registerSocket}
+        registerWord={registerWord}
         registerHitTarget={registerHitTarget}
         stripRef={stripRef}
+        wordWidths={geometry?.wordWidths ?? new Map()}
+        roleFloorWidth={geometry?.roleFloorWidth ?? 0}
+        slotMinWidth={config.slotMinWidth}
+        slotWordPadding={config.slotWordPadding}
       />
 
       <Lamp

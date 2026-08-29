@@ -1,5 +1,8 @@
 "use client";
 
+// شیوه‌نامهٔ همین بازی، کنارِ خودش. توضیحِ دلیلش بالای همان فایل است.
+import "./grammar-circuit.css";
+
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GradeKey } from "@/lib/doroos/types";
@@ -167,15 +170,17 @@ export default function GrammarCircuitGame() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const powerRef = useRef<HTMLDivElement | null>(null);
   const lampRef = useRef<HTMLDivElement | null>(null);
+  const trayRef = useRef<HTMLElement | null>(null);
 
   const slotTokenIds = useMemo(
     () => prepared?.layoutSlots.map((s) => s.tokenId) ?? [],
     [prepared],
   );
 
-  const { geometry, measured, registerSocket } = useCircuitLayout({
+  const { geometry, measured, registerSocket, registerWord } = useCircuitLayout({
     contentRef,
     stripRef,
+    trayRef,
     viewportRef,
     powerRef,
     lampRef,
@@ -591,6 +596,7 @@ export default function GrammarCircuitGame() {
         }
         tray={
           <RoleTray
+            hostRef={trayRef}
             pieces={prepared.trayPieces}
             labelOf={labelOf}
             usedPieceIds={used}
@@ -625,6 +631,7 @@ export default function GrammarCircuitGame() {
           powerRef={powerRef}
           lampRef={lampRef}
           registerSocket={registerSocket}
+          registerWord={registerWord}
           registerHitTarget={registerHitTarget}
           onSocketActivate={onSocketActivate}
           onCurrentFinished={onCurrentFinished}

@@ -148,6 +148,26 @@ export function useCircuitDnD({
     [touchLiftPx],
   );
 
+  /** نقطه‌ای که مقصد با آن سنجیده می‌شود: **مرکزِ خودِ قطعه**، نه نوکِ انگشت.
+   *
+   *  این همان باگی بود که کاربر گزارش کرد «باید قطعه را *بالای* خانه ببرم تا
+   *  بچسبد». روی لمس، پیش‌نمایش عمداً چند ده پیکسل بالاتر از انگشت کشیده
+   *  می‌شود تا انگشت رویش را نپوشاند؛ ولی مقصد با مختصاتِ *انگشت* سنجیده
+   *  می‌شد. پس وقتی کاربر قطعه را روی خانه می‌دید، انگشتش همان‌قدر پایین‌تر
+   *  از خانه بود و هیچ برخوردی رخ نمی‌داد — و تنها راهِ موفقیت این بود که
+   *  قطعه را بالاتر از خانه ببرد.
+   *
+   *  قاعدهٔ درست همانی است که چشم می‌بیند: «قطعه روی خانه است یا نه». پس
+   *  مرکزِ قطعه مبنا می‌شود، برای موس و لمس یکسان. معناشناسیِ «داخل یا هیچ»
+   *  دست‌نخورده می‌ماند: مرکزِ قطعه یا داخلِ یک ناحیهٔ لمسی است یا نیست. */
+  const dropAnchor = useCallback(
+    (pending: Pending, x: number, y: number) => {
+      const { left, top } = ghostPosition(pending, x, y);
+      return { x: left + pending.width / 2, y: top + pending.height / 2 };
+    },
+    [ghostPosition],
+  );
+
   const paintGhost = useCallback(() => {
     rafRef.current = 0;
     const pending = pendingRef.current;
@@ -189,7 +209,8 @@ export function useCircuitDnD({
         return;
       }
 
-      const result = hitTest(x, y);
+      const anchor = dropAnchor(pending, x, y);
+      const result = hitTest(anchor.x, anchor.y);
       if (result.kind === "hit") {
         onDrop(pending.pieceId, result.tokenId);
         return;
@@ -203,7 +224,7 @@ export function useCircuitDnD({
       // شکاف، بیرونِ برد یا ابهام → لغو، نه پاسخِ غلط.
       onCancel(pending.pieceId);
     },
-    [armClickSwallower, hitTest, onCancel, onDrop],
+    [armClickSwallower, dropAnchor, hitTest, onCancel, onDrop],
   );
 
   /** از `onPointerDown`ی خودِ ماژول صدا زده می‌شود. */
@@ -271,7 +292,8 @@ export function useCircuitDnD({
       event.preventDefault();
       if (!rafRef.current) rafRef.current = requestAnimationFrame(paintGhost);
 
-      const result = hitTest(event.clientX, event.clientY);
+      const anchor = dropAnchor(pending, event.clientX, event.clientY);
+      const result = hitTest(anchor.x, anchor.y);
       const next = result.kind === "hit" ? result.tokenId : null;
       // فقط یک هدف در هر لحظه، و فقط وقتی *عوض* شد رندر می‌گیریم.
       if (next !== activeTargetRef.current) {
@@ -320,7 +342,7 @@ export function useCircuitDnD({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       releaseClickSwallower();
     };
-  }, [activationDistance, finish, ghostPosition, hitTest, onPickup, paintGhost, releaseClickSwallower]);
+  }, [activationDistance, dropAnchor, finish, ghostPosition, hitTest, onPickup, paintGhost, releaseClickSwallower]);
 
   /** آیا این کلیک، دنبالهٔ یک کشیدنِ تمام‌شده است؟ */
   const shouldSuppressClick = useCallback(

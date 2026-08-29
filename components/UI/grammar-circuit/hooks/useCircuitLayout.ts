@@ -35,11 +35,28 @@ export interface SlotGeometry {
   halfHeight: number;
 }
 
+/** عرضِ *ذاتیِ* واژهٔ هدف — مبنای عرضِ سوکتش.
+ *
+ *  متن `nowrap` است، پس این عدد به عرضِ ستون وابسته نیست و با پهن‌شدنِ سوکت
+ *  تغییر نمی‌کند. همین باعث می‌شود چرخهٔ «اندازه بگیر ← سوکت را پهن کن ←
+ *  دوباره اندازه بگیر» در یک قدم آرام بگیرد. */
+export type WordWidths = ReadonlyMap<string, number>;
+
 export interface CircuitGeometry {
   epoch: number;
   contentWidth: number;
   contentHeight: number;
   slots: SlotGeometry[];
+  wordWidths: WordWidths;
+  /** پهن‌ترین *متنِ* برچسبِ نقش در این سؤال — نه پهنای کلِ قطعه.
+   *
+   *  کفِ عرضِ سوکت از همین می‌آید: خانه باید بتواند «مضاف‌الیه» را جا بدهد،
+   *  وگرنه برچسب بعد از نشستن بیرون می‌زند. ولی *متنِ* برچسب مبناست نه
+   *  کادرِ قطعه در سینی، چون قطعهٔ سینی لقیِ سخاوتمندانه‌ای دارد که خانه
+   *  لازمش ندارد. اگر کادرِ قطعه را مبنا می‌گرفتیم، کف آن‌قدر بالا می‌رفت که
+   *  همهٔ خانه‌ها هم‌اندازه شوند و رابطهٔ «این خانه مالِ این واژه است» از
+   *  بین برود — دقیقاً همان چیزی که قرار بود درست شود. */
+  roleFloorWidth: number;
   power: { x: number; y: number } | null;
   lamp: { x: number; y: number } | null;
 }
@@ -47,6 +64,8 @@ export interface CircuitGeometry {
 interface Options {
   contentRef: RefObject<HTMLDivElement | null>;
   stripRef: RefObject<HTMLElement | null>;
+  /** سینیِ نقش‌ها — برای اندازه‌گیریِ پهن‌ترین برچسبِ نقش. */
+  trayRef: RefObject<HTMLElement | null>;
   viewportRef: RefObject<HTMLDivElement | null>;
   powerRef: RefObject<HTMLDivElement | null>;
   lampRef: RefObject<HTMLDivElement | null>;
@@ -64,6 +83,7 @@ const GROWTH_STREAK_LIMIT = 4;
 export function useCircuitLayout({
   contentRef,
   stripRef,
+  trayRef,
   viewportRef,
   powerRef,
   lampRef,
@@ -72,11 +92,17 @@ export function useCircuitLayout({
 }: Options) {
   const [geometry, setGeometry] = useState<CircuitGeometry | null>(null);
   const socketRefs = useRef(new Map<string, HTMLElement>());
+  const wordRefs = useRef(new Map<string, HTMLElement>());
   const slotKey = slotTokenIds.join("|");
 
   const registerSocket = useCallback((tokenId: string, el: HTMLElement | null) => {
     if (el) socketRefs.current.set(tokenId, el);
     else socketRefs.current.delete(tokenId);
+  }, []);
+
+  const registerWord = useCallback((tokenId: string, el: HTMLElement | null) => {
+    if (el) wordRefs.current.set(tokenId, el);
+    else wordRefs.current.delete(tokenId);
   }, []);
 
   /** نگهبانِ حلقهٔ بازخورد. */
@@ -99,6 +125,7 @@ export function useCircuitLayout({
 
     const ids = slotKey ? slotKey.split("|") : [];
     const slots: SlotGeometry[] = [];
+    const wordWidths = new Map<string, number>();
     for (const tokenId of ids) {
       const el = socketRefs.current.get(tokenId);
       if (!el) return; // هنوز همه‌چیز در DOM نیست
@@ -110,6 +137,11 @@ export function useCircuitLayout({
         halfWidth: r.width / 2,
         halfHeight: r.height / 2,
       });
+      /* عرضِ خودِ واژه. `scrollWidth` عمداً به‌جای `getBoundingClientRect`:
+         عرضِ *محتوا* را می‌دهد و اگر ستون پهن‌تر از متن شود بزرگ نمی‌شود. */
+      const wordEl = wordRefs.current.get(tokenId);
+      if (!wordEl) return;
+      wordWidths.set(tokenId, Math.ceil(wordEl.scrollWidth));
     }
 
     const terminal = (host: HTMLElement | null) => {
@@ -123,6 +155,14 @@ export function useCircuitLayout({
     };
     const power = terminal(powerRef.current);
     const lamp = terminal(lampRef.current);
+
+    let roleFloorWidth = 0;
+    const tray = trayRef.current;
+    if (tray) {
+      for (const el of tray.querySelectorAll<HTMLElement>(".gc-module-label")) {
+        roleFloorWidth = Math.max(roleFloorWidth, Math.ceil(el.scrollWidth));
+      }
+    }
 
     /* کادرِ معنایی: اجتماعِ لنگرها. لایهٔ SVG، هاله و بافتِ تزئینی نه فیلتر
        می‌شوند بلکه اصلاً اندازه‌گیری نمی‌شوند. */
@@ -202,11 +242,13 @@ export function useCircuitLayout({
       contentWidth,
       contentHeight,
       slots,
+      wordWidths,
+      roleFloorWidth,
       power,
       lamp,
     };
     setGeometry((prev) => (sameGeometry(prev, next) ? prev : next));
-  }, [contentRef, epoch, lampRef, powerRef, slotKey, stripRef, viewportRef]);
+  }, [contentRef, epoch, lampRef, powerRef, slotKey, stripRef, trayRef, viewportRef]);
 
   useEffect(() => {
     let raf = 0;
@@ -260,7 +302,7 @@ export function useCircuitLayout({
   }, []);
 
   const measured = geometry !== null && geometry.epoch === epoch;
-  return { geometry: measured ? geometry : null, measured, registerSocket, measure };
+  return { geometry: measured ? geometry : null, measured, registerSocket, registerWord, measure };
 }
 
 function sameGeometry(a: CircuitGeometry | null, b: CircuitGeometry): boolean {
@@ -270,6 +312,7 @@ function sameGeometry(a: CircuitGeometry | null, b: CircuitGeometry): boolean {
     a.epoch !== b.epoch ||
     !near(a.contentWidth, b.contentWidth) ||
     !near(a.contentHeight, b.contentHeight) ||
+    !near(a.roleFloorWidth, b.roleFloorWidth) ||
     a.slots.length !== b.slots.length
   ) {
     return false;
@@ -281,7 +324,8 @@ function sameGeometry(a: CircuitGeometry | null, b: CircuitGeometry): boolean {
       s.tokenId !== t.tokenId ||
       !near(s.centerX, t.centerX) ||
       !near(s.centerY, t.centerY) ||
-      !near(s.halfWidth, t.halfWidth)
+      !near(s.halfWidth, t.halfWidth) ||
+      a.wordWidths.get(s.tokenId) !== b.wordWidths.get(t.tokenId)
     ) {
       return false;
     }

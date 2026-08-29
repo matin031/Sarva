@@ -4,6 +4,7 @@ import type { GrammarRolePiece } from "@/lib/grammar-circuit";
 import { RoleModule } from "./RoleModule";
 
 export interface RoleTrayProps {
+  hostRef?: React.RefObject<HTMLElement | null>;
   pieces: readonly GrammarRolePiece[];
   labelOf: (roleKey: string) => string;
   usedPieceIds: ReadonlySet<string>;
@@ -15,6 +16,7 @@ export interface RoleTrayProps {
 }
 
 export default function RoleTray({
+  hostRef,
   pieces,
   labelOf,
   usedPieceIds,
@@ -27,28 +29,31 @@ export default function RoleTray({
   const remaining = pieces.length - usedPieceIds.size;
   return (
     <section
+      ref={hostRef as React.RefObject<HTMLElement>}
       className="gc-tray"
       style={{ flex: "0 0 auto", minHeight: 0 }}
       aria-label="سینیِ نقش‌ها"
     >
-      <div className="flex items-center justify-between px-1 text-[0.7rem] font-semibold text-[var(--gc-text-muted)]">
-        <span>قطعه‌های نقش</span>
-        <span>{remaining.toLocaleString("fa-IR")} قطعهٔ آزاد</span>
-      </div>
-      <div className="gc-tray-items">
-        {pieces.map((piece) => (
-          <RoleModule
-            key={piece.id}
-            pieceId={piece.id}
-            label={labelOf(piece.roleKey)}
-            used={usedPieceIds.has(piece.id)}
-            selected={selectedPieceId === piece.id}
-            dragging={draggingPieceId === piece.id}
-            disabled={disabled}
-            onPointerDown={onPointerDown}
-            onActivate={onActivate}
-          />
-        ))}
+      <div className="gc-tray-inner">
+        <div className="flex items-center justify-between px-1 text-[0.7rem] font-semibold text-[var(--gc-text-muted)]">
+          <span>قطعه‌های نقش</span>
+          <span>{remaining.toLocaleString("fa-IR")} قطعهٔ آزاد</span>
+        </div>
+        <div className="gc-tray-items">
+          {pieces.map((piece) => (
+            <RoleModule
+              key={piece.id}
+              pieceId={piece.id}
+              label={labelOf(piece.roleKey)}
+              used={usedPieceIds.has(piece.id)}
+              selected={selectedPieceId === piece.id}
+              dragging={draggingPieceId === piece.id}
+              disabled={disabled}
+              onPointerDown={onPointerDown}
+              onActivate={onActivate}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

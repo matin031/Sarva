@@ -42,7 +42,11 @@ export interface GrammarCircuitConfig {
   lampTurnOnDurationMs: number;
   rewardDisplayDurationMs: number;
 
-  slotWidth: number;
+  /** کفِ عرضِ سوکت — واژهٔ خیلی کوتاه («را») نباید خانه‌ای بسازد که انگشت
+   *  نتواند بزندش. */
+  slotMinWidth: number;
+  /** لقیِ افقیِ سوکت نسبت به عرضِ واژه. */
+  slotWordPadding: number;
   slotHeight: number;
   slotGap: number;
   /** کمینهٔ فاصلهٔ واقعی که باید بینِ دو ناحیهٔ لمسی باز بماند. */
@@ -103,7 +107,8 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
   lampTurnOnDurationMs: 320,
   rewardDisplayDurationMs: 950,
 
-  slotWidth: 96,
+  slotMinWidth: 76,
+  slotWordPadding: 30,
   slotHeight: 46,
   slotGap: 14,
   hitTargetMinGap: 8,

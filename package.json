@@ -10,7 +10,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:check": "node scripts/db-check.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
-    "db:seed-exams": "tsx scripts/seed-exams.ts"
+    "db:seed-exams": "tsx scripts/seed-exams.ts",
+    "db:seed-aruz": "tsx scripts/seed-aruz.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

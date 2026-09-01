@@ -7,21 +7,6 @@ import CircuitSvgLayer, { type CurrentPhase } from "./CircuitSvgLayer";
 import Lamp, { type LampState } from "./Lamp";
 import PowerSource from "./PowerSource";
 import type { CircuitGeometry } from "./hooks/useCircuitLayout";
-import dynamic from "next/dynamic";
-import type { RenderTier } from "./hooks/useRenderTier";
-
-/** صحنه *جدا* بارگذاری می‌شود.
- *
- *  three و react-three-fiber روی هم چند صد کیلوبایت‌اند. اگر ایستا وارد
- *  شوند، همان گوشیِ ضعیفی که عمداً به ردهٔ سبک فرستادیمش، کدی را دانلود و
- *  پارس می‌کند که هیچ‌وقت اجرا نمی‌شود — یعنی دقیقاً برعکسِ چیزی که ردهٔ
- *  سبک برایش هست.
- *
- *  `ssr: false` چون صحنه به `window` و WebGL نیاز دارد و روی سرور اصلاً
- *  معنایی ندارد. */
-const CircuitScene = dynamic(() => import("./scene/CircuitScene"), {
-  ssr: false,
-});
 
 /** یک فضای مختصات، یک ردیف.
  *
@@ -45,8 +30,6 @@ export interface CircuitContentProps {
   reducedMotion: boolean;
   epoch: number;
   runId: number;
-  /** «غنی» یعنی لایهٔ WebGL هم رندر می‌شود و نسخهٔ تختِ آن پنهان می‌ماند. */
-  tier: RenderTier;
   contentRef: React.RefObject<HTMLDivElement | null>;
   stripRef: React.RefObject<HTMLDivElement | null>;
   powerRef: React.RefObject<HTMLDivElement | null>;
@@ -75,7 +58,6 @@ export default function CircuitContent({
   reducedMotion,
   epoch,
   runId,
-  tier,
   contentRef,
   stripRef,
   powerRef,
@@ -97,7 +79,6 @@ export default function CircuitContent({
     <div
       ref={contentRef}
       className="gc-content"
-      data-tier={tier}
       style={
         {
           // `position` درون‌خطی است چون لایهٔ SVG نسبت به همین کادر مطلق
@@ -128,20 +109,6 @@ export default function CircuitContent({
         runId={runId}
         onCurrentFinished={onCurrentFinished}
       />
-
-      {/* صحنهٔ سه‌بعدی — فقط وقتی دستگاه توانش را دارد.
-          `geometry` شرطِ لازم است: پیش از اندازه‌گیری هیچ مختصاتِ درستی
-          وجود ندارد و صحنه جای اشتباه ساخته می‌شود. */}
-      {tier === "rich" && geometry && measured && (
-        <CircuitScene
-          geometry={geometry}
-          circuitTokenIds={prepared.validationOrder}
-          placements={placements}
-          validation={validation}
-          phase={currentPhase}
-          lampState={lampState}
-        />
-      )}
 
       {/* در RTL ستونِ اول سمتِ راست است: باتری ← خانه‌ها ← لامپ. */}
       <PowerSource live={currentPhase !== "idle"} hostRef={powerRef} />

@@ -31,12 +31,8 @@ const SLOT: Record<
   // ناحیهٔ لمسی همیشه ارتفاعِ سوکت + لقیِ عمودی است، پس حتی کوتاه‌ترین حالت
   // هم هدفِ انگشتیِ راحتی می‌دهد.
   short: { slotMinWidth: 52, slotWordPadding: 22, slotHeight: 34, slotGap: 8 },
-  /* روی گوشیِ ایستاده جا هست و قبلاً از آن استفاده نمی‌شد: خانه‌ها کوتاه
-     بودند و مدار یک نوارِ نازک می‌شد. ارتفاعِ بیشتر هم هدفِ لمسی را بهتر
-     می‌کند و هم به تخته وزن می‌دهد. عرض دست نخورده تا مدارِ کوتاه همچنان
-     یکجا دیده شود. */
-  compact: { slotMinWidth: 54, slotWordPadding: 24, slotHeight: 50, slotGap: 11 },
-  medium: { slotMinWidth: 60, slotWordPadding: 28, slotHeight: 54, slotGap: 14 },
+  compact: { slotMinWidth: 54, slotWordPadding: 24, slotHeight: 42, slotGap: 10 },
+  medium: { slotMinWidth: 60, slotWordPadding: 28, slotHeight: 48, slotGap: 13 },
   roomy: { slotMinWidth: 64, slotWordPadding: 34, slotHeight: 54, slotGap: 16 },
 };
 

@@ -14,7 +14,7 @@ export default async function Page() {
     return { settings, adapters };
   });
 
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
 
   return <SettingsPanel settings={result.data.settings} adapters={result.data.adapters} />;
 }

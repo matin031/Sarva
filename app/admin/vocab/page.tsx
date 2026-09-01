@@ -11,6 +11,6 @@ export const metadata: Metadata = {
 export default async function Page() {
   // open on the seeded lesson (فارسی دهم — درس دوم) by default
   const result = await loadAdminData(() => vocabAdminList("dahom", 2));
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   return <VocabAdminPanel initialGrade="dahom" initialLesson={2} initialWords={result.data} />;
 }

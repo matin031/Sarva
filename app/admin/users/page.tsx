@@ -11,6 +11,6 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const result = await loadAdminData(() => adminListUsers({ limit: USER_PAGE_SIZE }));
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   return <UserAdminPanel initialUsers={result.data.users} initialTotal={result.data.total} />;
 }

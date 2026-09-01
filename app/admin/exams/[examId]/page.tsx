@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function Page({ params }: { params: Promise<{ examId: string }> }) {
   const { examId } = await params;
   const result = await loadAdminData(() => adminGetExamDetail(examId));
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   if (!result.data) notFound();
   return <ExamDetailPanel exam={result.data} />;
 }

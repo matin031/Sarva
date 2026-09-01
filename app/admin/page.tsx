@@ -69,7 +69,7 @@ function StatIcon({ kind }: { kind: keyof typeof STAT_ICON_PATH }) {
 
 export default async function Page() {
   const result = await loadAdminData(loadStats);
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   const stats = result.data;
   const { recent } = stats;
 

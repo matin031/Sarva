@@ -23,7 +23,7 @@ async function loadUserDetail(userId: string) {
 export default async function Page({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
   const result = await loadAdminData(() => loadUserDetail(userId));
-  if (!result.ok) return <AdminAccessDenied message={result.message} />;
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   if (!result.data.user) notFound();
 
   return (

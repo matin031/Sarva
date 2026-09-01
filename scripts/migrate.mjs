@@ -22,9 +22,29 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "migr
 const LOCK_ID = 947231;
 
 function requireEnv(name) {
+  /* در داکر متغیرها از compose می‌آیند و این فایل اصلاً وجود ندارد، پس
+     نبودنش خطا نیست. ولی در اجرای محلی، `.env.local` همان‌جایی است که بقیهٔ
+     اسکریپت‌ها (db:seed-exams و db:seed-grammar-circuit) DATABASE_URL را از
+     آن می‌خوانند و README هم به همان اشاره می‌کند.
+
+     تا امروز این یکی نمی‌خواندش، و نتیجه‌اش بدترین شکلِ ممکن بود: توسعه‌دهنده
+     دقیقاً همان کاری را می‌کرد که مستندات گفته بود و «DATABASE_URL تنظیم نشده
+     است» می‌گرفت — بعد بازی را بالا می‌آورد و به‌جای آن، «relation ... does
+     not exist» از دلِ صفحهٔ ادمین بیرون می‌زد. */
+  if (!process.env[name]) {
+    try {
+      process.loadEnvFile(".env.local");
+    } catch {
+      // فایل نیست؛ اشکالی ندارد.
+    }
+  }
+
   const value = process.env[name];
   if (!value) {
-    console.error(`[migrate] ${name} تنظیم نشده است.`);
+    console.error(
+      `[migrate] ${name} تنظیم نشده است.\n` +
+        "  در داکر از docker-compose می‌آید؛ برای اجرای محلی در .env.local بگذارید.",
+    );
     process.exit(1);
   }
   return value;

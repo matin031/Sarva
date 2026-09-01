@@ -963,6 +963,53 @@ body.gc-locked {
   filter: drop-shadow(0 0 6px rgb(var(--gc-glow) / 0.75));
 }
 
+
+/* ── ردهٔ «غنی»: صحنهٔ سه‌بعدی جای نسخهٔ تخت را می‌گیرد ────────────────────
+   نکتهٔ مهم: هیچ‌کدام از این‌ها `display: none` نمی‌شوند. هندسهٔ مدار از
+   *همین* عناصر اندازه‌گیری می‌شود (باتری، لامپ، سوکت‌ها) و برداشتنشان از
+   چیدمان یعنی صحنهٔ سه‌بعدی مختصاتی برای نشستن ندارد. پس فقط نامرئی
+   می‌شوند و سرِ جایشان می‌مانند.
+
+   لایهٔ SVG هم زنده می‌ماند چون *زمان‌سنجِ* دنبالهٔ جریان است؛ فقط دیده
+   نمی‌شود. */
+.gc-content[data-tier="rich"] .gc-svg,
+.gc-content[data-tier="rich"] .gc-trace-bg {
+  opacity: 0;
+}
+.gc-content[data-tier="rich"] .gc-power > *,
+.gc-content[data-tier="rich"] .gc-lamp > svg,
+.gc-content[data-tier="rich"] .gc-lamp > div {
+  opacity: 0;
+}
+/* برچسبِ «باتری» و «لامپ» می‌ماند: متن است و باید DOM بماند. */
+.gc-content[data-tier="rich"] .gc-endcap-label {
+  opacity: 1;
+}
+/* خانه‌ها شیشه‌ای می‌شوند تا چاهکِ سه‌بعدی از پشتشان دیده شود؛ ولی کادر و
+   برچسب — یعنی چیزی که کاربر باید بخواند و لمس کند — همان DOM می‌ماند. */
+.gc-content[data-tier="rich"] .gc-socket {
+  background: color-mix(in oklab, var(--gc-socket) 22%, transparent);
+  box-shadow: inset 0 1px 3px oklch(0 0 0 / 0.22);
+}
+
+/* ── لایهٔ صحنه ───────────────────────────────────────────────────────────
+   ترتیبِ نقاشیِ CSS: عنصرِ *موقعیت‌دار* بالای محتوای در-جریان می‌نشیند، حتی
+   بدونِ z-index. بومِ صحنه absolute است، پس بدونِ این قاعده روی واژه‌ها
+   می‌افتد و متن ناپدید می‌شود — دقیقاً همین اتفاق افتاد. پس بچه‌های واقعیِ
+   محتوا صریح بالا آورده می‌شوند. */
+.gc-scene {
+  z-index: 0;
+}
+.gc-content > .gc-strip,
+.gc-content > .gc-power,
+.gc-content > .gc-lamp {
+  position: relative;
+  z-index: 1;
+}
+.gc-scene canvas {
+  display: block;
+}
+
 /* ── باتری و لامپ ───────────────────────────────────────────────────────── */
 .gc-power,
 .gc-lamp {
@@ -1616,5 +1663,130 @@ body.gc-locked {
   .gc-lamp-halo,
   .gc-lamp-glass {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   بازطراحیِ مدرن — لایهٔ روییِ ظاهر
+
+   این بخش عمداً *بعد* از تعریف‌های پایه می‌آید و فقط ظاهر را جلو می‌برد:
+   هیچ اندازه‌ای که هندسه از آن خوانده می‌شود (عرضِ سوکت، ارتفاع، فاصله‌ها)
+   اینجا دست نمی‌خورد، چون تراز و آزمون‌ها به آن‌ها بسته‌اند.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── شیشه ────────────────────────────────────────────────────────────────
+   `saturate` کنارِ `blur` است تا پشتِ شیشه رنگ‌مرده نشود — همان کاری که
+   شیشهٔ واقعی با نور می‌کند. */
+.gc-topbar,
+.gc-tray {
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+
+.gc-viewport {
+  /* تخته بزرگ‌ترین سطحِ صفحه است و `backdrop-filter` روی آن در هر فریم
+     دوباره حساب می‌شود — با بومِ WebGL که پشتش می‌کشد، این گران‌ترین چیزِ
+     صفحه بود. نوارها کوچک‌اند و بلورِ سنگین را تحمل می‌کنند؛ تخته نه. */
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  border-radius: 1.7rem;
+  box-shadow:
+    0 32px 64px -28px oklch(0 0 0 / 0.55),
+    0 12px 28px -16px oklch(0 0 0 / 0.4),
+    inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, var(--gc-accent) 9%, transparent);
+}
+
+/* ── قطعه‌های نقش: جسمِ واقعی، نه دکمهٔ تخت ──────────────────────────────
+   سینی پرسپکتیو می‌گیرد تا چرخشِ کوچکِ قطعه‌ها واقعاً عمق بدهد؛ بدونِ آن
+   `rotateX` فقط قطعه را کوتاه می‌کند. */
+.gc-tray-items {
+  perspective: 800px;
+}
+.gc-module {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease;
+}
+.gc-module:hover:not(:disabled):not([data-used="true"]) {
+  transform: translateY(-4px) rotateX(9deg) scale(1.02);
+  box-shadow:
+    0 18px 30px -14px oklch(0 0 0 / 0.55),
+    0 6px 12px -8px oklch(0 0 0 / 0.4),
+    inset 0 1px 0 color-mix(in oklab, #fff 36%, transparent),
+    inset 0 -2px 0 color-mix(in oklab, var(--gc-module-edge) 70%, transparent);
+}
+.gc-module:active:not(:disabled) {
+  transform: translateY(-1px) rotateX(3deg) scale(0.99);
+}
+/* پیش‌نمایشِ کشیدن نباید هیچ‌کدام از این‌ها را بگیرد: جایش را کد می‌نویسد
+   و هر ترنزیشنی روی transform یعنی عقب‌ماندن از انگشت. */
+.gc-drag-ghost,
+.gc-drag-ghost:hover {
+  transform: none;
+  transition: none !important;
+}
+
+/* ── سوکت: گودیِ نرم‌تر و هدفِ فعالِ روشن‌تر ────────────────────────────── */
+.gc-socket {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.gc-col[data-armed="true"] .gc-socket {
+  transform: scale(1.04);
+}
+
+/* ── دکمه‌ها ─────────────────────────────────────────────────────────────- */
+.gc-btn {
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease;
+}
+.gc-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.gc-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.gc-btn-primary:not(:disabled) {
+  box-shadow:
+    0 14px 26px -14px color-mix(in oklab, var(--gc-accent) 70%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 30%, transparent);
+}
+
+/* ── حلقهٔ فوکوس: یکدست و همه‌جا دیده‌شدنی ─────────────────────────────── */
+.gc-module:focus-visible,
+.gc-btn:focus-visible,
+.gc-lesson-chip:focus-visible,
+.gc-length-chip:focus-visible,
+.gc-grade-card:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
+
+/* ── احترام به کاهشِ حرکت ────────────────────────────────────────────────
+   در این حالت لایهٔ سه‌بعدی اصلاً ساخته نمی‌شود؛ اینجا هم چرخش و جابه‌جایی
+   برداشته می‌شود تا ظاهر یکدست بماند. */
+@media (prefers-reduced-motion: reduce) {
+  .gc-module,
+  .gc-btn,
+  .gc-socket {
+    transition-duration: 0.01ms;
+  }
+  .gc-module:hover:not(:disabled):not([data-used="true"]),
+  .gc-module:active:not(:disabled),
+  .gc-btn:hover:not(:disabled),
+  .gc-col[data-armed="true"] .gc-socket {
+    transform: none;
   }
 }

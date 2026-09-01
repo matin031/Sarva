@@ -25,6 +25,7 @@ import {
 } from "@/lib/grammar-circuit/reducer";
 import ActiveShell from "./ActiveShell";
 import CircuitContent from "./CircuitContent";
+import { useRenderTier } from "./hooks/useRenderTier";
 import DragGhostLayer from "./DragGhostLayer";
 import QuestionRegion from "./QuestionRegion";
 import RoleTray from "./RoleTray";
@@ -80,6 +81,8 @@ export default function GrammarCircuitGame() {
   const config = useResponsiveConfig(GRAMMAR_CIRCUIT_CONFIG);
   const [state, dispatch] = useReducer(grammarCircuitReducer, initialGrammarCircuitState);
   const reducedMotion = usePrefersReducedMotion();
+  /* یک‌بار و برای همیشه: صحنهٔ سه‌بعدی وسطِ بازی روشن/خاموش نمی‌شود. */
+  const tier = useRenderTier();
 
   const prepared = state.questions[state.questionIndex] ?? null;
   const arrangeable = state.screen === "playing" && isArrangeable(state.phase);
@@ -639,6 +642,7 @@ export default function GrammarCircuitGame() {
         banner={null}
       >
         <CircuitContent
+          tier={tier}
           prepared={prepared}
           config={config}
           geometry={geometry}

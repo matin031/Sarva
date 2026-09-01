@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { GrammarCircuitConfig } from "@/lib/grammar-circuit";
 import type { SlotValidation } from "@/lib/grammar-circuit/reducer";
 import type { CircuitGeometry } from "./hooks/useCircuitLayout";
+import { buildCircuitChain, toSvgPath } from "@/lib/grammar-circuit/circuit-path";
 
 /** لایهٔ مدار.
  *
@@ -19,11 +20,6 @@ import type { CircuitGeometry } from "./hooks/useCircuitLayout";
 
 export type CurrentPhase = "idle" | "traveling" | "live";
 
-interface Point {
-  x: number;
-  y: number;
-}
-
 export interface CircuitSvgLayerProps {
   geometry: CircuitGeometry | null;
   measured: boolean;
@@ -37,23 +33,6 @@ export interface CircuitSvgLayerProps {
   epoch: number;
   runId: number;
   onCurrentFinished: (epoch: number, runId: number) => void;
-}
-
-function toPath(points: readonly Point[]): string {
-  if (points.length === 0) return "";
-  return points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
-}
-
-/** مسیرِ زانویی — ظاهرِ ردِ مدارِ چاپی و بی‌ابهام از نظر هندسی. */
-function elbow(from: Point, to: Point): Point[] {
-  if (Math.abs(from.y - to.y) < 0.5) return [];
-  const mid = (from.x + to.x) / 2;
-  return [
-    { x: mid, y: from.y },
-    { x: mid, y: to.y },
-  ];
 }
 
 export default function CircuitSvgLayer({
@@ -75,52 +54,34 @@ export default function CircuitSvgLayer({
     if (!geometry?.power || !geometry.lamp) {
       return { segments: [] as Array<{ key: string; d: string; kind: string }>, fullPath: "" };
     }
-    const bySlot = new Map(geometry.slots.map((s) => [s.tokenId, s]));
-    const segs: Array<{ key: string; d: string; kind: string }> = [];
-    const chain: Point[] = [geometry.power];
-    let prev = geometry.power;
+    const chain = buildCircuitChain(
+      geometry.power,
+      geometry.lamp,
+      geometry.slots,
+      circuitTokenIds,
+    );
 
-    circuitTokenIds.forEach((tokenId, index) => {
-      const slot = bySlot.get(tokenId);
-      if (!slot) return;
-      const right: Point = { x: slot.centerX + slot.halfWidth, y: slot.centerY };
-      const left: Point = { x: slot.centerX - slot.halfWidth, y: slot.centerY };
-      // ورودی = سرِ نزدیک‌تر به نقطهٔ قبلی، پس ترتیبِ معنایی هرچه باشد سیم
-      // منطقی می‌ماند.
-      const entry =
-        Math.hypot(prev.x - right.x, prev.y - right.y) <=
-        Math.hypot(prev.x - left.x, prev.y - left.y)
-          ? right
-          : left;
-      const exit = entry === right ? left : right;
-
-      const lead = [...elbow(prev, entry), entry];
-      segs.push({ key: `w-${index}`, d: toPath([prev, ...lead]), kind: "wire" });
-      chain.push(...lead);
-
+    const segs = chain.segments.map(({ key, tokenId, from, to, via, kind }) => {
+      if (kind === "wire") {
+        return { key, d: toSvgPath([from, ...via, to]), kind: "wire" };
+      }
       /* خودِ سوکت، شکافِ مدار است. رنگش را *نتیجهٔ تشخیص* تعیین می‌کند، نه
          پر بودنِ خانه: تا پیش از «بررسی اتصال» همه خنثی‌اند. */
-      const state = validation[tokenId];
-      const kind =
+      const state = tokenId ? validation[tokenId] : undefined;
+      const gapKind =
         state === "correct"
           ? "ok"
           : state === "wrong"
             ? "bad"
             : state === "checking"
               ? "scan"
-              : placements[tokenId]
+              : tokenId && placements[tokenId]
                 ? "seated"
                 : "open";
-      segs.push({ key: `g-${index}`, d: toPath([entry, exit]), kind });
-      chain.push(exit);
-      prev = exit;
+      return { key, d: toSvgPath([from, to]), kind: gapKind };
     });
 
-    const tail = [...elbow(prev, geometry.lamp), geometry.lamp];
-    segs.push({ key: "w-lamp", d: toPath([prev, ...tail]), kind: "wire" });
-    chain.push(...tail);
-
-    return { segments: segs, fullPath: toPath(chain) };
+    return { segments: segs, fullPath: toSvgPath(chain.points) };
   }, [circuitTokenIds, geometry, placements, validation]);
 
   /* جریانِ کامل — فقط وقتی همهٔ خانه‌ها تأیید شده‌اند. با WAAPI اجرا می‌شود،

@@ -8,6 +8,7 @@ import {
   rowsToQuestions,
   type GrammarCircuitRow,
 } from "@/lib/grammar-circuit/server/rows";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * GET /api/v1/grammar-circuit/availability
@@ -26,7 +27,7 @@ import {
  * درس‌های آزادِ هر پایه (۴ و ۱۵ / ۴ و ۱۳ / ۴ و ۱۵) اصلاً در پاسخ نمی‌آیند:
  * آن‌ها بخشی از انتخابِ این بازی نیستند.
  */
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/grammar-circuit/availability", async (request: NextRequest) => {
   try {
     const { ip } = requestMeta(request);
     const limit = rateLimit(`gc-availability:${ip ?? "unknown"}`, 60, 60);
@@ -65,4 +66,4 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

@@ -7,6 +7,8 @@ import { passwordResetEmail } from "@/lib/mail/templates";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
+import { withRoute } from "@/lib/api/route";
+import { logger } from "@/lib/observability";
 
 const schema = z.object({ email: emailField, turnstileToken: turnstileField });
 
@@ -20,7 +22,7 @@ const TTL_MINUTES = 30;
  * ثبت‌نام (که آنجا فاش کردن، عمدی و به نفع کاربر بود)، اینجا هیچ سودی برای
  * کاربر ندارد: کسی که ایمیلش را درست وارد کرده، ایمیل را می‌گیرد.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Request) => {
   try {
     const meta = requestMeta(request);
 
@@ -72,7 +74,11 @@ export async function POST(request: Request) {
       // شکست ارسال ایمیل نباید پاسخ را عوض کند — وگرنه اختلافِ پاسخ باز هم
       // می‌گفت کدام ایمیل‌ها حساب دارند.
       await sendMail({ ...template, to: email }).catch((err) => {
-        console.error("[auth] ارسال ایمیل بازنشانی ناموفق بود:", err);
+        // ⚠️ نه آدرس گیرنده، نه توکنِ داخل لینک.
+        logger.error("ارسال ایمیل بازنشانی رمز ناموفق بود", {
+          event: "auth.password_reset.mail_failed",
+          err,
+        });
       });
     }
 
@@ -80,7 +86,6 @@ export async function POST(request: Request) {
   } catch (err) {
     // حتی خطای غیرمنتظره هم نباید وجود/عدم وجود حساب را لو بدهد؛ ولی خطای
     // اعتبارسنجی بالاتر برگشته و به اینجا نمی‌رسد.
-    console.error("[auth] forgot-password:", err);
-    return handleError(err);
+    return handleError(err, "POST /api/v1/auth/forgot-password");
   }
-}
+});

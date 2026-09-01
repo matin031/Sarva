@@ -8,6 +8,8 @@ import { createSession, findUserById, revokeAllSessions } from "@/lib/auth/sessi
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { attachUserId, logger } from "@/lib/observability";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   token: z.string().min(10, "لینک بازنشانی معتبر نیست"),
@@ -22,7 +24,7 @@ const schema = z.object({
  * می‌زد. یعنی لینکِ ایمیل عملاً یک ورودِ کامل بود. حالا توکن فقط اجازهٔ همین
  * یک کار را می‌دهد و تا رمز عوض نشود هیچ سشنی صادر نمی‌شود.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/reset-password", async (request: Request) => {
   try {
     const meta = requestMeta(request);
 
@@ -65,12 +67,24 @@ export async function POST(request: Request) {
     });
 
     if (!userId) {
+      // ⚠️ خودِ توکن هرگز لاگ نمی‌شود — نه اینجا و نه جای دیگر.
+      logger.info("بازنشانی رمز با توکن نامعتبر", {
+        event: "auth.password_reset.rejected",
+        reason: "invalid_or_expired_token",
+      });
       return fail("لینک بازنشانی نامعتبر یا منقضی شده است. دوباره درخواست کنید.", 400);
     }
 
     // کسی که رمز را فراموش کرده بود، احتمالاً دلیلی داشته. همهٔ سشن‌های قبلی
     // باطل می‌شوند تا اگر کسی دسترسی داشته، از دست بدهد.
-    await revokeAllSessions(userId);
+    const revoked = await revokeAllSessions(userId);
+
+    attachUserId(userId);
+    logger.info("رمز بازنشانی شد و سشن‌های قبلی باطل شدند", {
+      event: "auth.password_reset.completed",
+      user_id: userId,
+      revoked_sessions: revoked,
+    });
 
     const user = await findUserById(userId);
     if (!user) return fail("حساب کاربری پیدا نشد.", 404);
@@ -84,4 +98,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import type { ZodType } from "zod";
 import { AuthError } from "@/lib/auth/types";
 import type { CookieSpec } from "@/lib/auth/cookies";
+import {
+  REQUEST_ID_HEADER,
+  currentRequestContext,
+  currentRequestId,
+  logger,
+} from "@/lib/observability";
 
 /**
  * شکل پاسخ همهٔ endpoint ها.
@@ -214,18 +220,39 @@ export function handleError(err: unknown, context?: string): NextResponse<ApiRes
   // ثبتش در لاگ خطا فقط آن را با هزاران ردیف بی‌معنی پر می‌کرد.
   if (err instanceof AuthError) return fail(err.message, err.status);
 
-  console.error("[api] خطای مدیریت‌نشده:", err);
+  const requestId = currentRequestId();
 
-  // ...و در جدول، تا از پنل مدیریت هم دیده شود. تا امروز تنها راهِ دیدنِ این
-  // خطاها SSH زدن به سرور و `docker compose logs` بود — یعنی برای کسی که با
-  // سرور کار نمی‌کند، عملاً نامرئی.
+  // ثبت — هم یک خط JSON در stdout و هم یک ردیف در app_error_log، با یک
+  // شناسهٔ مشترک. هر دو کار داخل recordError انجام می‌شود تا یک نقطهٔ واحد
+  // برای «گزارش خطا» باشد و ثبت تکراری ممکن نشود (خودش با wasReported
+  // جلوی ردیف دوم را می‌گیرد، اگر wrapper یا onRequestError زودتر رسیده
+  // باشند).
   //
   // import پویاست تا این ماژول (که proxy.ts هم از آن استفاده می‌کند) وابستگیِ
   // دیتابیس را وارد باندل خودش نکند، و بی‌انتظار است تا ثبت لاگ پاسخ کاربر را
-  // معطل نکند. اگر خودِ ثبت هم شکست بخورد، recordError بی‌صدا ردش می‌کند.
+  // معطل نکند.
   void import("@/lib/admin/audit")
-    .then((m) => m.recordError("api", err, context))
-    .catch(() => {});
+    .then((m) =>
+      m.recordError("api", err, context, {
+        requestId,
+        metadata: { route: currentRequestContext()?.route, method: currentRequestContext()?.method },
+      }),
+    )
+    .catch(() => {
+      // ماژول ثبت بار نشد — دستِ‌کم خطا در stdout بماند، وگرنه کاملاً گم
+      // می‌شود.
+      logger.error("خطای مدیریت‌نشدهٔ API", {
+        event: "app.error.recorded",
+        err,
+        error_source: "api",
+        error_context: context,
+        request_id: requestId ?? undefined,
+      });
+    });
 
-  return fail("خطای غیرمنتظره‌ای رخ داد. دوباره تلاش کنید.", 500);
+  // شناسه در پاسخ می‌آید تا کاربری که خطا دیده بتواند بگوید «کد پیگیری من این
+  // است» — و شما همان یک عدد را در لاگ و در /admin/activity بگردید.
+  const response = fail("خطای غیرمنتظره‌ای رخ داد. دوباره تلاش کنید.", 500);
+  if (requestId) response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
 }

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
 import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * GET /api/v1/aruz-bridge/questions[?difficulty=1|2|3][&limit=n]
@@ -32,7 +33,7 @@ interface Row {
   audio_url: string | null;
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/aruz-bridge/questions", async (request: NextRequest) => {
   try {
     /* همان سیاستِ واژه‌یاب: این هم یک endpointِ عمومی و نسبتاً گران است، پس
        سقفی می‌خواهد که یک دورِ عادیِ بازی هرگز به آن نخورد. */
@@ -87,4 +88,4 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

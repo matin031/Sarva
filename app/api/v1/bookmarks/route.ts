@@ -4,6 +4,7 @@ import { query, queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * نشان‌شده‌ها.
@@ -49,7 +50,7 @@ function writeLimit(userId: string) {
  * GET /api/v1/bookmarks?area=aruz  — یک حوزه
  * GET /api/v1/bookmarks?area=aruz&refId=x — فقط بررسی وجود (برای دکمهٔ نشان)
  */
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/bookmarks", async (request: NextRequest) => {
   try {
     const user = await requireUser();
     const params = request.nextUrl.searchParams;
@@ -101,10 +102,10 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 /** POST — نشان کردن. تکراری، بازنویسی است نه خطا (ایندکس یکتا). */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/bookmarks", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -133,10 +134,10 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 /** DELETE — با شناسه، یا با (حوزه، مرجع) برای حالت toggle. */
-export async function DELETE(request: Request) {
+export const DELETE = withRoute("/api/v1/bookmarks", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -164,10 +165,10 @@ export async function DELETE(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 /** PATCH — یادداشت شخصی روی یک نشان‌شده. */
-export async function PATCH(request: Request) {
+export const PATCH = withRoute("/api/v1/bookmarks", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -189,6 +190,6 @@ export async function PATCH(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 export const dynamic = "force-dynamic";

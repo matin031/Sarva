@@ -157,7 +157,6 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
     if (isUniqueViolation(err)) {
       return { ok: false, error: `«${work}» از قبل در ${where} هست.` };
     }
-    console.error("[pairs] ذخیرهٔ جفت ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "pairsAdminUpsert");
     return { ok: false, error: "ذخیرهٔ جفت ناموفق بود." };
@@ -251,7 +250,6 @@ export async function pairsAdminBulkAdd(input: {
 
     return { ok: true, added, skipped, duplicates: parsed.length - added };
   } catch (err) {
-    console.error("[pairs] افزودن گروهی ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "pairsAdminBulkAdd");
     return { ok: false, error: "افزودن گروهی ناموفق بود." };

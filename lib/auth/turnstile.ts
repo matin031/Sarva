@@ -1,4 +1,5 @@
 import "server-only";
+import { logger } from "@/lib/observability";
 
 /**
  * Cloudflare Turnstile — تأیید سمت سرور.
@@ -41,9 +42,9 @@ let warned = false;
 function warnOnce() {
   if (warned) return;
   warned = true;
-  console.warn(
-    "[turnstile] TURNSTILE_SECRET_KEY تنظیم نشده — کپچا غیرفعال است. " +
-      "برای فعال کردنش راهنمای بالای lib/auth/turnstile.ts را ببینید.",
+  logger.warn(
+    "TURNSTILE_SECRET_KEY تنظیم نشده — کپچا غیرفعال است. برای فعال کردنش راهنمای بالای lib/auth/turnstile.ts را ببینید.",
+    { event: "captcha.disabled" },
   );
 }
 
@@ -105,7 +106,8 @@ export async function verifyTurnstile(
     //
     // اگر روزی این تصمیم به مشکل خورد، راهش برداشتن TURNSTILE_SECRET_KEY از
     // .env است (یعنی خاموش کردنِ آگاهانهٔ کپچا)، نه نرم کردن این خط.
-    console.error("[turnstile] تأیید توکن ناموفق بود:", err);
+    // ⚠️ خودِ توکن هرگز لاگ نمی‌شود؛ فقط اینکه ارتباط برقرار نشد.
+    logger.error("تأیید کپچا ناموفق بود", { event: "captcha.verify_failed", err });
     return { ok: false, error: "ارتباط با سرویس تأیید امنیتی برقرار نشد. کمی بعد تلاش کنید." };
   }
 
@@ -113,7 +115,10 @@ export async function verifyTurnstile(
     const codes = payload["error-codes"] ?? [];
     // کدها فقط به لاگ می‌روند: به کاربر می‌گویند دقیقاً چرا رد شد، که برای
     // کسی که دارد دور زدن را امتحان می‌کند اطلاعات مفیدی است.
-    console.warn(`[turnstile] توکن رد شد: ${codes.join(", ") || "بدون کد"}`);
+    logger.warn("توکن کپچا رد شد", {
+      event: "captcha.rejected",
+      captcha_error_codes: codes.slice(0, 5),
+    });
     return { ok: false, error: GENERIC_ERROR };
   }
 
@@ -125,9 +130,11 @@ export async function verifyTurnstile(
     try {
       const expectedHost = new URL(expected).hostname;
       if (payload.hostname !== expectedHost && payload.hostname !== "localhost") {
-        console.warn(
-          `[turnstile] hostname نامنتظره: ${payload.hostname} (انتظار: ${expectedHost})`,
-        );
+        logger.warn("hostname کپچا با دامنهٔ سایت نمی‌خواند", {
+          event: "captcha.hostname_mismatch",
+          captcha_hostname: payload.hostname,
+          expected_hostname: expectedHost,
+        });
         return { ok: false, error: GENERIC_ERROR };
       }
     } catch {

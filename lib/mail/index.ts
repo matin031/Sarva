@@ -1,5 +1,6 @@
 import "server-only";
 import { requireSetting } from "@/lib/settings";
+import { logger } from "@/lib/observability";
 
 /**
  * ارسال ایمیل، پشت یک واسط.
@@ -104,14 +105,46 @@ export function mailAdapter(): MailAdapter {
   cached = driver === "resend" ? new ResendAdapter() : new SmtpAdapter();
 
   if (driver !== "resend" && driver !== "smtp") {
-    console.warn(`[mail] MAIL_DRIVER ناشناخته «${driver}» — از smtp استفاده شد.`);
+    logger.warn("MAIL_DRIVER ناشناخته بود؛ از smtp استفاده شد", {
+      event: "mail.driver.unknown",
+      mail_driver: driver,
+    });
   }
 
   return cached;
 }
 
-/** ارسال، با آدرس فرستنده‌ای که از تنظیمات می‌آید. */
+/**
+ * ارسال، با آدرس فرستنده‌ای که از تنظیمات می‌آید.
+ *
+ * ⚠️ چه چیزی لاگ می‌شود و چه چیزی نه:
+ *
+ *   • **می‌شود**: سرویس، مدت، موفق/ناموفق، و طولِ موضوع. با همین‌ها می‌شود
+ *     فهمید «ایمیل‌ها امروز کند شده‌اند» یا «از دیروز هیچ ایمیلی نرفته».
+ *
+ *   • **نمی‌شود**: آدرس گیرنده، موضوع، متن. یک ایمیلِ تأیید یا بازنشانی رمز
+ *     لینکِ توکن‌دار داخلش دارد؛ لاگ کردن متن یعنی گذاشتن آن توکن در
+ *     `docker compose logs`.
+ */
 export async function sendMail(message: MailMessage): Promise<void> {
   const from = await requireSetting("mail.from");
-  await mailAdapter().send({ ...message, from });
+  const adapter = mailAdapter();
+  const startedAt = performance.now();
+
+  try {
+    await adapter.send({ ...message, from });
+    logger.info("ایمیل ارسال شد", {
+      event: "mail.send.succeeded",
+      mail_driver: adapter.name,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+  } catch (err) {
+    logger.error("ارسال ایمیل ناموفق بود", {
+      event: "mail.send.failed",
+      err,
+      mail_driver: adapter.name,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+    throw err;
+  }
 }

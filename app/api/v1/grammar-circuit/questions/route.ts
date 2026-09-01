@@ -13,6 +13,7 @@ import {
   rowsToQuestions,
   type GrammarCircuitRow,
 } from "@/lib/grammar-circuit/server/rows";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * GET /api/v1/grammar-circuit/questions?grade=yazdahom&lessons=1,2,6
@@ -30,7 +31,7 @@ import {
 /** سقفِ سختِ تعداد. بدونِ آن `?limit=999999` یک کوئریِ گرانِ رایگان است. */
 const MAX_LIMIT = 200;
 
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/grammar-circuit/questions", async (request: NextRequest) => {
   try {
     const { ip } = requestMeta(request);
     const limit = rateLimit(`gc-questions:${ip ?? "unknown"}`, 60, 60);
@@ -103,4 +104,4 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

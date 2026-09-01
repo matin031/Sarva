@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { query, queryOne, execute, transaction } from "@/lib/db";
+import { logger } from "@/lib/observability";
 
 /** Scoped to the three types the admin panel authors today. The DB/UI
  *  (Quiz.tsx, QuestionCard.tsx, QuestionOption.tsx) also support
@@ -265,7 +266,7 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
 
     return { ok: true, data: { id: questionId } };
   } catch (err) {
-    console.error("[quiz] ذخیرهٔ سؤال ناموفق بود:", err);
+    logger.error("ذخیرهٔ سؤال عروض سماعی ناموفق بود", { event: "quiz.question_save_failed", err });
     return { ok: false, errors: ["ذخیرهٔ سؤال ناموفق بود. هیچ تغییری اعمال نشد."] };
   }
 }

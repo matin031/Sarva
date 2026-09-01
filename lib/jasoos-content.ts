@@ -62,7 +62,6 @@ export async function loadJasoosLevels(): Promise<JasoosLevelData> {
         order by l.sort_index, l.id`,
     );
   } catch (err) {
-    console.error("[jasoos] خواندن سطح‌ها ناموفق بود:", err);
     await recordError("db", err, "loadJasoosLevels");
     rows = [];
   }

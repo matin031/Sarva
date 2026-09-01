@@ -37,7 +37,6 @@ export async function loadMemoryDecks(): Promise<MemoryDeckData> {
     );
   } catch (err) {
     // خواندنِ ناموفق نباید صفحهٔ بازی را از کار بیندازد؛ دادهٔ ثابت همیشه هست.
-    console.error("[pairs] خواندن جفت‌ها ناموفق بود:", err);
     await recordError("db", err, "loadMemoryDecks");
     rows = [];
   }

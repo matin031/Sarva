@@ -3,6 +3,7 @@ import type { GradeKey } from "@/lib/doroos/types";
 import { isStorableLesson } from "../curriculum";
 import type { GrammarCircuitQuestion } from "../types";
 import { validateGrammarCircuitQuestion } from "../validator";
+import { logger } from "@/lib/observability";
 
 /** تبدیلِ ردیفِ دیتابیس به پرسشِ *معتبرِ* بازی.
  *
@@ -89,11 +90,14 @@ export function logRejected(
   rejected: ReadonlyArray<{ sourceId: string; errors: string[] }>,
 ): void {
   if (rejected.length === 0) return;
-  console.error(
-    `[grammar-circuit/${scope}] ${rejected.length} ردیف به‌خاطرِ دادهٔ نامعتبر کنار گذاشته شد:\n` +
-      rejected
-        .slice(0, 10)
-        .map((r) => `  • ${r.sourceId}: ${r.errors.join(" | ")}`)
-        .join("\n"),
-  );
+  logger.error("ردیف‌هایی به‌خاطرِ دادهٔ نامعتبر کنار گذاشته شدند", {
+    event: "grammar_circuit.rows_rejected",
+    scope,
+    rejected_count: rejected.length,
+    // فقط شناسه و دلیل — نه متنِ خودِ پرسش.
+    rejected_sample: rejected.slice(0, 10).map((r) => ({
+      source_id: r.sourceId,
+      errors: r.errors.slice(0, 3),
+    })),
+  });
 }

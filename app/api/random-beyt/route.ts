@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
+import { logger } from "@/lib/observability";
 
 /** A random بیت from گنجور, for the وزن‌یاب's "بیتِ تصادفی" button.
  *
@@ -169,7 +171,7 @@ async function fetchRandomPoem(): Promise<unknown> {
   return res.json();
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/random-beyt", async (request: NextRequest) => {
   // One call here can mean up to MAX_ATTEMPTS requests to Ganjoor, and the
   // endpoint needs no session. Without a cap it amplifies traffic ~5x against
   // a third party we do not own, and ties up our own connections while doing
@@ -199,14 +201,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  console.error(
-    `random-beyt: no usable couplet after ${MAX_ATTEMPTS} draws.`,
-    lastError ? `last error: ${String(lastError)}` : "",
-    lastShape.length ? `last payload keys: ${lastShape.join(", ")}` : "",
-  );
+  logger.warn("گنجور بیتِ قابل‌استفاده‌ای نداد", {
+    event: "ganjoor.no_usable_beyt",
+    attempts: MAX_ATTEMPTS,
+    err: lastError ?? undefined,
+    payload_keys: lastShape.slice(0, 12),
+  });
 
   return NextResponse.json(
     { error: "بیتی از گنجور به دست نیامد. دوباره تلاش کن." },
     { status: 502 },
   );
-}
+});

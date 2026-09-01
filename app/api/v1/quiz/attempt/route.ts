@@ -3,6 +3,7 @@ import { transaction } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   answers: z
@@ -28,7 +29,7 @@ const schema = z.object({
  * quiz_attempt_answers در درخواستی جدا — اگر دومی شکست می‌خورد، یک دورِ بدون
  * هیچ پاسخی در کارنامه می‌ماند.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -94,4 +95,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

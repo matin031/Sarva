@@ -7,6 +7,8 @@ import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { changePasswordSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
+import { attachUserId, logger } from "@/lib/observability";
 
 /**
  * POST /api/v1/auth/change-password — تغییر رمز از داخل حساب.
@@ -15,10 +17,12 @@ import { rateLimit } from "@/lib/api/rate-limit";
  * signInWithPassword می‌کند: اگر کسی پشت یک لپ‌تاپِ باز بنشیند، نباید بتواند
  * رمز را عوض کند و صاحب حساب را بیرون بیندازد.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/change-password", async (request: Request) => {
   try {
     const user = await requireUser();
     const meta = requestMeta(request);
+
+    attachUserId(user.id);
 
     const limit = rateLimit(`change-password:${user.id}`, 5, 15 * 60);
     if (!limit.allowed) {
@@ -49,7 +53,13 @@ export async function POST(request: Request) {
 
     // تغییر رمز یعنی «هرکسی جز من که وارد است باید بیرون برود» — این تنها
     // کاری است که کاربر می‌تواند بعد از دزدیده شدن سشنش انجام بدهد.
-    await revokeAllSessions(user.id);
+    const revoked = await revokeAllSessions(user.id);
+
+    logger.info("رمز عبور تغییر کرد", {
+      event: "auth.password_changed",
+      user_id: user.id,
+      revoked_sessions: revoked,
+    });
 
     // ...ولی خودِ او نباید بیرون بیفتد. سشن تازه بلافاصله صادر می‌شود، وگرنه
     // موفق شدن در تغییر رمز از دید کاربر مثل بیرون انداخته شدن به نظر می‌رسد.
@@ -62,4 +72,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

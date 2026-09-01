@@ -47,7 +47,6 @@ export async function loadNinjaRounds(): Promise<NinjaRoundData> {
         order by c.sort_index, c.label`,
     );
   } catch (err) {
-    console.error("[ninja] خواندن نقش‌ها ناموفق بود:", err);
     await recordError("db", err, "loadNinjaRounds");
     rows = [];
   }

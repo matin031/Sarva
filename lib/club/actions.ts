@@ -5,6 +5,7 @@ import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { isUuid } from "@/lib/api/action-input";
+import { logger } from "@/lib/observability";
 import {
   DAILY_COMMENT_LIMIT,
   DAILY_POST_LIMIT,
@@ -192,7 +193,7 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
     revalidateClub();
     return { ok: true, data: { id: row!.id } };
   } catch (err) {
-    console.error("[club] ثبت سروده ناموفق بود:", err);
+    logger.error("ثبت سروده ناموفق بود", { event: "club.post.create_failed", err });
     return { ok: false, error: "ثبت سروده ممکن نشد." };
   }
 }
@@ -347,7 +348,7 @@ export async function createClubComment(
       ],
     );
   } catch (err) {
-    console.error("[club] ثبت دیدگاه ناموفق بود:", err);
+    logger.error("ثبت دیدگاه ناموفق بود", { event: "club.comment.create_failed", err });
     return { ok: false, error: "ثبت دیدگاه ممکن نشد." };
   }
 
@@ -432,7 +433,7 @@ export async function toggleClubLike(
     revalidatePath(`/sarvaclub/${postId}`);
     return { ok: true, data: result };
   } catch (err) {
-    console.error("[club] پسندیدن ناموفق بود:", err);
+    logger.error("پسندیدن سروده ناموفق بود", { event: "club.like_failed", err });
     return { ok: false, error: "این سروده در دسترس نیست." };
   }
 }
@@ -503,7 +504,7 @@ export async function reportClubContent(
       ],
     );
   } catch (err) {
-    console.error("[club] ثبت گزارش ناموفق بود:", err);
+    logger.error("ثبت گزارش ناموفق بود", { event: "club.report_failed", err });
     return { ok: false, error: "ثبت گزارش ممکن نشد." };
   }
 

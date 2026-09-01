@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { checkOtp } from "@/lib/auth/otp";
 import { findUserById } from "@/lib/auth/session";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   code: z
@@ -27,7 +28,7 @@ function toLatinDigits(input: string): string {
  * اثر واقعی در دیتابیس دارد — users.email_verified_at ست می‌شود — و نتیجه‌اش
  * از سشن خوانده می‌شود، نه از حرفِ مرورگر.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/verify-email", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -48,4 +49,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

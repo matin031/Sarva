@@ -38,6 +38,8 @@ export type AuditRow = {
   summary: string;
   metadata: Record<string, unknown>;
   ip: string | null;
+  /** شناسهٔ درخواستی که این عمل در آن انجام شد — برای وصل کردن به لاگ سرور. */
+  requestId: string | null;
   createdAt: string;
   destructive: boolean;
 };
@@ -96,11 +98,12 @@ export async function adminListAudit(
     summary: string;
     metadata: Record<string, unknown> | null;
     ip: string | null;
+    request_id: string | null;
     created_at: string;
     total_count: number;
   }>(
     `select id, actor_id, actor_email, action, target_type, target_id,
-            summary, metadata, host(ip) as ip, created_at,
+            summary, metadata, host(ip) as ip, request_id, created_at,
             count(*) over () as total_count
        from admin_audit_log
        ${where}
@@ -122,6 +125,7 @@ export async function adminListAudit(
       summary: r.summary,
       metadata: r.metadata ?? {},
       ip: r.ip,
+      requestId: r.request_id,
       createdAt: r.created_at,
       destructive: DESTRUCTIVE_ACTIONS.has(r.action as AuditAction),
     })),
@@ -164,11 +168,26 @@ export type ErrorRow = {
   source: string;
   message: string;
   context: string | null;
+  /** stack trace. فقط برای مدیر — همان‌طور که بود. */
   detail: string | null;
   occurrences: number;
   firstSeenAt: string;
   lastSeenAt: string;
   resolvedAt: string | null;
+  /** نام کلاس خطا: TypeError، AuthError، … */
+  errorName: string | null;
+  /** کد ماشینی: `23505` پستگرس، `ECONNREFUSED` شبکه. */
+  errorCode: string | null;
+  /** digest ای که Next روی خطاهای رندر می‌گذارد — همان چیزی که کاربر در
+   *  مرورگر می‌بیند. */
+  digest: string | null;
+  environment: string | null;
+  release: string | null;
+  /** شناسهٔ اولین و آخرین درخواستی که این خطا در آن دیده شد. */
+  firstRequestId: string | null;
+  lastRequestId: string | null;
+  /** زمینهٔ ساختاریافته و پاک‌سازی‌شده: مسیر، متد، نوع route… */
+  metadata: Record<string, unknown>;
 };
 
 export async function adminListErrors(
@@ -190,10 +209,20 @@ export async function adminListErrors(
     first_seen_at: string;
     last_seen_at: string;
     resolved_at: string | null;
+    error_name: string | null;
+    error_code: string | null;
+    digest: string | null;
+    environment: string | null;
+    release: string | null;
+    first_request_id: string | null;
+    last_request_id: string | null;
+    metadata: Record<string, unknown> | null;
     total_count: number;
   }>(
     `select id, source, message, context, detail, occurrences,
             first_seen_at, last_seen_at, resolved_at,
+            error_name, error_code, digest, environment, release,
+            first_request_id, last_request_id, metadata,
             count(*) over () as total_count
        from app_error_log
        ${where}
@@ -219,6 +248,14 @@ export async function adminListErrors(
       firstSeenAt: r.first_seen_at,
       lastSeenAt: r.last_seen_at,
       resolvedAt: r.resolved_at,
+      errorName: r.error_name,
+      errorCode: r.error_code,
+      digest: r.digest,
+      environment: r.environment,
+      release: r.release,
+      firstRequestId: r.first_request_id,
+      lastRequestId: r.last_request_id,
+      metadata: r.metadata ?? {},
     })),
   };
 }

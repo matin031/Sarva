@@ -7,6 +7,8 @@ import { registerSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
+import { attachUserId, logger } from "@/lib/observability";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * POST /api/v1/auth/register — ساخت حساب.
@@ -20,7 +22,7 @@ import { verifyTurnstile } from "@/lib/auth/turnstile";
  * دانش‌آموزی که ثبت‌نام کرده وارد سایت نمی‌شود. تأیید ایمیل چیزی است که اپ
  * می‌تواند بعداً برایش اصرار کند.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/register", async (request: Request) => {
   try {
     const meta = requestMeta(request);
 
@@ -28,6 +30,11 @@ export async function POST(request: Request) {
     // ثبت‌نام می‌کند و ممکن است همه پشت یک IP مدرسه باشند.
     const limit = rateLimit(`register:${meta.ip ?? "unknown"}`, 10, 15 * 60);
     if (!limit.allowed) {
+      logger.warn("ثبت‌نام به‌خاطر سقف نرخ رد شد", {
+        event: "auth.register.rate_limited",
+        limit_scope: "ip",
+        retry_after_seconds: limit.retryAfterSeconds,
+      });
       return fail(`تعداد تلاش‌ها زیاد بود. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }
 
@@ -83,11 +90,15 @@ export async function POST(request: Request) {
       // فرستادیم») کاربری را که ایمیلش را فراموش کرده در حلقهٔ بی‌پایان
       // می‌اندازد. صفحهٔ ورود هم همین اطلاعات را از راه «رمز را فراموش
       // کرده‌اید» می‌دهد، پس پنهان‌کاری اینجا چیزی اضافه نمی‌کرد.
+      logger.info("ثبت‌نام تکراری", { event: "auth.register.duplicate" });
       return fail("این ایمیل قبلاً ثبت شده است. وارد شوید یا رمز را بازیابی کنید.", 409);
     }
 
     const user = toAuthUser(row);
     const tokens = await createSession(user, meta);
+
+    attachUserId(user.id);
+    logger.info("حساب تازه ساخته شد", { event: "auth.register.succeeded", user_id: user.id });
 
     return withCookies(ok({ user }, 201), [
       accessCookie(tokens.accessToken),
@@ -96,4 +107,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

@@ -3,6 +3,7 @@ import { execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   grade: z.enum(["dahom", "yazdahom", "davazdahom"]),
@@ -26,7 +27,7 @@ const schema = z.object({
  * پیامدش محدود است: این جدول فقط تاریخچهٔ شخصیِ «کدام واژه‌ها را اشتباه زدم»
  * را می‌سازد و هیچ نمره یا رتبه‌بندی‌ای از آن در نمی‌آید.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/vocab/answer", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -53,4 +54,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

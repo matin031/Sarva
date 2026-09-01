@@ -99,6 +99,7 @@ lib/storage/     آداپتر ذخیرهٔ فایل  (STORAGE_DRIVER)
 lib/mail/        آداپتر ایمیل         (MAIL_DRIVER)
 lib/sms/         آداپتر پیامک         (SMS_DRIVER)
 lib/settings/    تنظیمات قابل‌ویرایش از پنل (دیتابیس → env)
+lib/observability/  لاگر، شناسهٔ درخواست، پاک‌سازی داده‌های حساس
 ```
 
 سه پوشهٔ آداپتر عمداً پشت واسط‌اند تا تعویض سرویس، تغییر یک مقدار در `.env`
@@ -148,7 +149,14 @@ lib/settings/    تنظیمات قابل‌ویرایش از پنل (دیتاب�
 
 - **خطاها هم باید دیده شوند.** `handleError` در `lib/api/http.ts` خودش
   `recordError` را صدا می‌زند؛ برای خطاهای داخل server action ها دستی
-  صدایش بزنید تا در `/admin/activity` ظاهر شود.
+  صدایش بزنید تا در `/admin/activity` ظاهر شود. خطاهای گرفته‌نشدهٔ رندر و
+  Server Action را `onRequestError` در `instrumentation.ts` می‌گیرد، پس
+  چیزی بی‌صدا گم نمی‌شود.
+
+- **هر Route Handler تازه با `withRoute` پوشیده می‌شود** (`lib/api/route.ts`):
+  `export const POST = withRoute("/api/v1/…", async (request) => { … })`.
+  همین یک پوشش، شناسهٔ درخواست، خطِ لاگِ پایانی و تورِ ایمنیِ ۵۰۰ را با هم
+  می‌آورد. بدون آن، آن مسیر در لاگ نامرئی است.
 
 - **تنظیمات تازه** به `SETTING_SPECS` در `lib/settings/index.ts` اضافه
   می‌شوند. کلیدی که `secret: true` داشته باشد هرگز مقدارش به مرورگر فرستاده
@@ -182,6 +190,137 @@ lib/settings/    تنظیمات قابل‌ویرایش از پنل (دیتاب�
 
 ---
 
+## وقتی چیزی خراب شد: لاگ‌ها
+
+این بخش برای همان روزی نوشته شده که کاربری می‌گوید «سایت خطا داد» و شما باید
+بفهمید چه شد. لازم نیست چیزی از سرور بدانید.
+
+### سه لاگ، سه کار متفاوت
+
+| کجا | چه چیزی | چطور می‌بینید | چقدر می‌ماند |
+|---|---|---|---|
+| **لاگ عملیاتی** | هر درخواست، هر کوئری کند، هر ایمیل و آپلود | `docker compose logs -f app` | تا ۵۰ مگابایت، بعد می‌چرخد |
+| **لاگ خطا** | خطاهایی که باید رسیدگی شوند | `/admin/activity` ← «خطاهای سرور» | تا وقتی خودتان پاک کنید |
+| **لاگ ممیزی** | هر کاری که مدیران کرده‌اند | `/admin/activity` ← «فعالیت مدیران» | برای همیشه |
+
+اولی موقتی است و برای فهمیدنِ «چه اتفاقی افتاد». دومی و سومی در دیتابیس‌اند و
+از پنل دیده می‌شوند — یعنی برای دیدنشان لازم نیست به سرور SSH بزنید.
+
+### شناسهٔ درخواست: چیزی که هر سه را به هم می‌دوزد
+
+هر درخواست یک uuid می‌گیرد که `proxy.ts` می‌سازد. همان شناسه:
+
+- در هدر `x-request-id` پاسخ برمی‌گردد (در تب Network مرورگر دیده می‌شود)،
+- کنار هر خطا در `/admin/activity` نشان داده می‌شود، با دکمهٔ کپی،
+- روی همهٔ خطوطِ لاگ عملیاتیِ همان درخواست می‌نشیند.
+
+پس مسیر عیب‌یابی همیشه همین سه قدم است:
+
+```bash
+# ۱) شناسه را از /admin/activity کپی کنید (یا از کاربر بگیرید)
+# ۲) روی سرور:
+docker compose logs app | grep 8f0c1c2e-1111-4222-8333-444455556666
+# ۳) حالا همهٔ خطوطِ آن درخواست را دارید — از ورودش تا کوئری دیتابیس و
+#    ایمیلی که فرستاده شد.
+```
+
+هر خط یک JSON کامل است، پس اگر `jq` دارید می‌شود دقیق‌تر گشت:
+
+```bash
+# فقط خطاها
+docker compose logs app | jq -R 'fromjson? | select(.level == "error")'
+
+# فقط کوئری‌های کند
+docker compose logs app | jq -R 'fromjson? | select(.event == "db.query.slow")'
+
+# کندترین درخواست‌ها
+docker compose logs app | jq -R 'fromjson? | select(.duration_ms > 1000) | {route, duration_ms}'
+```
+
+نمونهٔ یک خط:
+
+```json
+{"timestamp":"2026-03-04T09:12:44.108Z","level":"error","event":"http.request.failed",
+ "message":"درخواست پردازش شد","service":"sarva","environment":"production",
+ "release":"a1b2c3d","request_id":"8f0c1c2e-1111-4222-8333-444455556666",
+ "route":"/api/v1/auth/login","method":"POST","status_code":500,"duration_ms":83,
+ "outcome":"server_error",
+ "err":{"name":"DatabaseError","message":"connection terminated","code":"ECONNRESET"}}
+```
+
+### چه چیزی هرگز در لاگ نمی‌آید
+
+رمز، هش رمز، توکن (JWT، refresh، بازنشانی)، کد یک‌بارمصرف، کوکی، کلید API،
+ایمیل، شمارهٔ موبایل، آدرس IP، متن سروده و دیدگاه، پاسخ آزمون، نام فایلی که
+کاربر آپلود کرده، بدنهٔ درخواست یا پاسخ، و پارامترهای SQL.
+
+این «قول» نیست، تست است: `tests/observability/` دقیقاً همین را می‌سنجد. اگر
+روزی یکی از آن تست‌ها قرمز شد یعنی چیزی دارد نشت می‌کند — انتظارِ تست را عوض
+نکنید، کد را.
+
+منطقش در `lib/observability/redact.ts` است. اگر کلید تازه‌ای اضافه کردید که
+راز است، مطمئن شوید نامش با یکی از الگوهای همان فایل می‌خواند.
+
+### تنظیمات
+
+همه در `.env` و همه اختیاری: `LOG_LEVEL`، `LOG_FORMAT`، `APP_RELEASE`،
+`DB_SLOW_QUERY_MS`، `HTTP_LOG_SAMPLE`، `HTTP_SLOW_REQUEST_MS`. توضیح هرکدام
+در `.env.example` است.
+
+`APP_RELEASE` را حتماً پر کنید — بدون آن، بعد از هر انتشار معلوم نیست خطایی
+که می‌بینید تازه است یا از قبل بوده:
+
+```bash
+echo "APP_RELEASE=$(git rev-parse --short HEAD)" >> .env
+```
+
+### نگهداشت
+
+- **لاگ کانتینر** خودش می‌چرخد: `docker-compose.yml` برای هر سرویس سقفِ
+  ۱۰ مگابایت × ۵ فایل گذاشته. بدون آن، لاگ تا پر شدنِ دیسک بزرگ می‌شود —
+  و آن‌وقت پستگرس هم جایی برای نوشتن ندارد.
+
+- **لاگ ممیزی مدیران** هرگز پاک نمی‌شود. نه خودکار، نه از پنل.
+
+- **لاگ خطا** خودکار پاک نمی‌شود، چون داده‌ای که خودش می‌رود همیشه دقیقاً
+  وقتی رفته که لازمش دارید. اگر روزی جدول بزرگ شد، خطاهای *رسیدگی‌شده* و
+  قدیمی را دستی پاک کنید — **اول بشمارید**:
+
+  ```bash
+  # چند ردیف حذف خواهد شد؟ (فقط می‌شمارد، چیزی پاک نمی‌کند)
+  docker compose exec db psql -U sarva -d sarva -c \
+    "select count(*) from app_error_log
+      where resolved_at is not null and last_seen_at < now() - interval '90 days';"
+
+  # اگر عدد منطقی بود، حذف:
+  docker compose exec db psql -U sarva -d sarva -c \
+    "delete from app_error_log
+      where resolved_at is not null and last_seen_at < now() - interval '90 days';"
+  ```
+
+  خطای رسیدگی‌نشده هرگز پاک نمی‌شود — همان چیزی است که هنوز کسی ندیده.
+
+### وصل کردن به ابزارهای بیرونی (برای بعد)
+
+لاگر عمداً بدون وابستگی نوشته شده (توضیح کاملش بالای `lib/observability/logger.ts`
+است: `pino-pretty` از راه worker thread می‌آید و build standalone را شکننده
+می‌کند). ولی نقطهٔ اتصالش آماده است:
+
+```ts
+import { addSink } from "@/lib/observability";
+
+// در instrumentation.node.ts:
+addSink((record) => {
+  // record از قبل پاک‌سازی شده — هر مقصدی می‌تواند مستقیم مصرفش کند.
+  // اینجا جای Loki، OpenTelemetry یا Sentry است.
+});
+```
+
+یعنی افزودن یک مقصد تازه هیچ تغییری در کدِ فراخوان‌ها لازم ندارد.
+
+
+---
+
 ## توسعهٔ محلی
 
 ```bash
@@ -202,6 +341,7 @@ npm run dev
 | `npm run dev` | سرور توسعه |
 | `npm run build` | build تولیدی |
 | `npm run lint` | ESLint |
+| `npm test` | تست‌های واحد (`node --test`) |
 | `npm run db:migrate` | اجرای migration های اعمال‌نشده |
 | `npm run db:check` | بررسی سلامت اتصال و اسکیما |
 | `npm run db:seed-admin` | ساخت/ارتقای حساب مدیر |

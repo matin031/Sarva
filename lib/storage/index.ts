@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, unlink } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
+import { logger } from "@/lib/observability";
 
 /**
  * ذخیره‌سازی فایل، پشت یک واسط.
@@ -220,7 +221,10 @@ export function storageAdapter(): StorageAdapter {
 
   const driver = (process.env.STORAGE_DRIVER ?? "local").toLowerCase();
   if (driver !== "local") {
-    console.warn(`[storage] STORAGE_DRIVER «${driver}» پیاده‌سازی نشده — از local استفاده شد.`);
+    logger.warn("STORAGE_DRIVER پیاده‌سازی نشده — از local استفاده شد", {
+      event: "storage.driver.unknown",
+      storage_driver: driver,
+    });
   }
 
   cached = new LocalDiskAdapter();

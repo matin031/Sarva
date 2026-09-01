@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { findUserById } from "@/lib/auth/session";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 // همان قوانینی که AccountSettings.tsx امروز اعمال می‌کند — حداکثر ۱۲ نویسه،
 // که سخت‌گیرانه‌تر از nameField در schemas.ts است (آنجا ۶۰ برای ثبت‌نام).
@@ -30,7 +31,7 @@ const schema = z.object({
  * در لحظهٔ ارسال عکس‌برداری می‌کنند — عمدی، تا تغییر نام، اثرِ قدیمی را به کس
  * دیگری نسبت ندهد.
  */
-export async function PATCH(request: Request) {
+export const PATCH = withRoute("/api/v1/auth/profile", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -52,4 +53,4 @@ export async function PATCH(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

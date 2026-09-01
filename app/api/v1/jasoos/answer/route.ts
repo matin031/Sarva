@@ -3,6 +3,7 @@ import { execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   levelId: z.number().int().min(0),
@@ -21,7 +22,7 @@ const schema = z.object({
  * lib/jasoos-data.ts هستند و کلاینت آن‌ها را می‌بیند)، پس این چک ارزش امنیتی
  * چندانی ندارد — ولی دست‌کم ردیفی که با خودش ناسازگار باشد ثبت نمی‌شود.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/jasoos/answer", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -59,4 +60,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

@@ -373,7 +373,6 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
     if (isUniqueViolation(err)) {
       return { ok: false, error: "شناسهٔ محتوایی تکراری است؛ دوباره تلاش کنید." };
     }
-    console.error("[grammar-circuit] ذخیرهٔ پرسش ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "gcAdminSave");
     return { ok: false, error: "ذخیرهٔ پرسش ناموفق بود." };

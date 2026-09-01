@@ -1,4 +1,5 @@
 import { handleError, ok } from "@/lib/api/http";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * GET /api/v1/config — تنظیماتِ عمومیِ کلاینت، خوانده‌شده در زمان اجرا.
@@ -23,7 +24,7 @@ import { handleError, ok } from "@/lib/api/http";
  * فقط مقادیر عمومی برمی‌گردند. کلید مخفی (TURNSTILE_SECRET_KEY) هرگز اینجا
  * نمی‌آید و فقط lib/auth/turnstile.ts آن را می‌بیند.
  */
-export async function GET() {
+export const GET = withRoute("/api/v1/config", async () => {
   try {
     return ok({
       // site key عمومی است — در HTML هر سایتی که Turnstile دارد دیده می‌شود.
@@ -33,6 +34,6 @@ export async function GET() {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 export const dynamic = "force-dynamic";

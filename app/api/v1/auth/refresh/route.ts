@@ -5,6 +5,7 @@ import { hashRefreshToken } from "@/lib/auth/tokens";
 import { REFRESH_COOKIE, accessCookie, clearedCookies } from "@/lib/auth/cookies";
 import { fail, handleError, ok, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * POST /api/v1/auth/refresh — توکن دسترسیِ تازه.
@@ -13,7 +14,7 @@ import { rateLimit } from "@/lib/api/rate-limit";
  * باشد خودش این کار را در مسیر همان درخواست انجام می‌دهد. این endpoint برای
  * کدِ سمت مرورگر است که بعد از یک پاسخ ۴۰۱ می‌خواهد یک بار تلاش دوباره کند.
  */
-export async function POST() {
+export const POST = withRoute("/api/v1/auth/refresh", async () => {
   try {
     const token = (await cookies()).get(REFRESH_COOKIE)?.value;
     if (!token) return fail("سشنی وجود ندارد.", 401);
@@ -41,4 +42,4 @@ export async function POST() {
   } catch (err) {
     return handleError(err);
   }
-}
+});

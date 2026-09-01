@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { handleError, ok } from "@/lib/api/http";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * GET /api/v1/quiz/answered — کدام سؤال‌ها را کاربر قبلاً جواب داده.
@@ -11,7 +12,7 @@ import { handleError, ok } from "@/lib/api/http";
  * برای مهمان، فهرست خالی برمی‌گردد و نه ۴۰۱: مهمان می‌تواند بازی کند و فقط
  * تاریخچه‌اش ذخیره نمی‌شود.
  */
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/quiz/answered", async (request: NextRequest) => {
   try {
     const user = await getCurrentUser();
     if (!user) return ok({ questionIds: [] as string[] });
@@ -28,6 +29,6 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});
 
 export const dynamic = "force-dynamic";

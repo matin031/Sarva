@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { watermarkImage } from "@/lib/vocab-watermark";
 import { requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { logger, sanitizeUrl } from "@/lib/observability";
 
 // sharp needs the Node.js runtime (not edge)
 export const runtime = "nodejs";
@@ -115,9 +116,16 @@ export async function GET(req: NextRequest) {
     try {
       const out = await watermarkImage(raw);
       return new Response(new Uint8Array(out), { headers: IMAGE_HEADERS });
-    } catch {
+    } catch (err) {
       // Watermarking failed on a file we own — serve it unmarked rather than
-      // showing the student a broken image.
+      // showing the student a broken image. It is still worth a log line:
+      // silently un-watermarked pictures are exactly the kind of failure that
+      // goes unnoticed for months.
+      logger.warn("واترمارک زدن روی فایل محلی شکست خورد", {
+        event: "image.watermark.failed",
+        err,
+        image_origin: "local",
+      });
       return new Response(new Uint8Array(raw), {
         headers: { "Cache-Control": IMAGE_HEADERS["Cache-Control"], "X-Content-Type-Options": "nosniff" },
       });
@@ -156,7 +164,14 @@ export async function GET(req: NextRequest) {
 
     const out = await watermarkImage(raw);
     return new Response(new Uint8Array(out), { headers: IMAGE_HEADERS });
-  } catch {
+  } catch (err) {
+    logger.warn("واکشی یا واترمارک تصویر بیرونی شکست خورد", {
+      event: "image.watermark.failed",
+      err,
+      image_origin: "remote",
+      image_host: u.hostname,
+      image_url: sanitizeUrl(target),
+    });
     // Graceful fallback: if watermarking fails, still show the original image.
     // Safe to redirect to — `target` was checked against ALLOWED_HOSTS above,
     // so this can never become an open redirect.

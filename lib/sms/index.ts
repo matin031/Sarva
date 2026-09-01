@@ -1,6 +1,7 @@
 import "server-only";
 import { execute } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
+import { logger } from "@/lib/observability";
 
 /**
  * ارسال پیامک، پشت یک واسط.
@@ -40,8 +41,11 @@ class MockSmsAdapter implements SmsAdapter {
     // — ولی اولین مصرف‌کنندهٔ واقعیِ این واسط «ورود با کد پیامکی» است، و آن
     // یعنی کدهای یک‌بارمصرف در `docker compose logs` می‌نشستند. شمارهٔ گیرنده
     // هم بریده می‌شود.
-    const masked = message.to.replace(/\d(?=\d{4})/g, "*");
-    console.log(`[sms:mock] → ${masked} (${message.body.length} نویسه)`);
+    logger.debug("پیامک آزمایشی (ارسال واقعی انجام نشد)", {
+      event: "sms.send.mocked",
+      sms_driver: this.name,
+      body_length: message.body.length,
+    });
     return { providerMessageId: null };
   }
 }
@@ -70,7 +74,10 @@ export async function smsAdapter(): Promise<SmsAdapter> {
   if (!IMPLEMENTED_DRIVERS.has(driver)) {
     // عمداً throw نمی‌کند: اگر کسی سرویسی را انتخاب کند که هنوز پیاده‌سازی
     // نشده، سایت نباید از کار بیفتد. پیامک نرفتن بهتر از سایت بالا نیامدن است.
-    console.warn(`[sms] سرویس «${driver}» هنوز پیاده‌سازی نشده — از حالت غیرفعال استفاده شد.`);
+    logger.warn("سرویس پیامک هنوز پیاده‌سازی نشده؛ از حالت غیرفعال استفاده شد", {
+      event: "sms.driver.unimplemented",
+      sms_driver: driver,
+    });
   }
 
   return new MockSmsAdapter();
@@ -100,15 +107,28 @@ export async function smsStatus(): Promise<{
  */
 export async function sendSms(message: SmsMessage): Promise<void> {
   const adapter = await smsAdapter();
+  const startedAt = performance.now();
 
   try {
     const result = await adapter.send(message);
+    logger.info("پیامک ارسال شد", {
+      event: "sms.send.succeeded",
+      sms_driver: adapter.name,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
     await execute(
       `insert into sms_log (to_number, body, provider, status, provider_message_id)
        values ($1, $2, $3, 'sent', $4)`,
       [message.to, message.body, adapter.name, result.providerMessageId],
     );
   } catch (err) {
+    logger.error("ارسال پیامک ناموفق بود", {
+      event: "sms.send.failed",
+      err,
+      sms_driver: adapter.name,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+
     await execute(
       `insert into sms_log (to_number, body, provider, status, error)
        values ($1, $2, $3, 'failed', $4)`,

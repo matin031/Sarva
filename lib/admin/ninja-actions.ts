@@ -135,7 +135,6 @@ export async function ninjaCategorySave(
     if (isUniqueViolation(err)) {
       return { ok: false, error: `نقشی به نام «${label}» از قبل هست.` };
     }
-    console.error("[ninja] ذخیرهٔ نقش ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "ninjaCategorySave");
     return { ok: false, error: "ذخیرهٔ نقش ناموفق بود." };
@@ -241,7 +240,6 @@ export async function ninjaWordsAdd(input: {
 
     return { ok: true, added, duplicates: words.length - added };
   } catch (err) {
-    console.error("[ninja] افزودن کلمه ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "ninjaWordsAdd");
     return { ok: false, error: "افزودن کلمه ناموفق بود." };
@@ -279,7 +277,6 @@ export async function ninjaWordRename(
     if (isUniqueViolation(err)) {
       return { ok: false, error: `«${trimmed}» از قبل در همین نقش هست.` };
     }
-    console.error("[ninja] ویرایش کلمه ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "ninjaWordRename");
     return { ok: false, error: "ویرایش کلمه ناموفق بود." };
@@ -335,7 +332,6 @@ export async function ninjaWordMove(
     if (isUniqueViolation(err)) {
       return { ok: false, error: `این کلمه از قبل در «${target.label}» هست.` };
     }
-    console.error("[ninja] جابه‌جایی کلمه ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "ninjaWordMove");
     return { ok: false, error: "جابه‌جایی کلمه ناموفق بود." };

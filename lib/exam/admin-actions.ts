@@ -12,6 +12,7 @@ import {
   type QuestionPartType,
 } from "@/lib/exam/content-schemas";
 import type { SeedOption } from "./seed-data/seed-types";
+import { logger } from "@/lib/observability";
 
 // ---------------------------------------------------------------------------
 // Input/detail shapes
@@ -303,7 +304,7 @@ export async function adminCreateExam(input: {
     if ((err as { code?: string }).code === "23505") {
       return { ok: false, errors: ["آزمونی با این شناسه از قبل وجود دارد."] };
     }
-    console.error("[exam] ساخت آزمون ناموفق بود:", err);
+    logger.error("ساخت آزمون ناموفق بود", { event: "exam.create_failed", err });
     return { ok: false, errors: ["ساخت آزمون ناموفق بود."] };
   }
 }
@@ -335,7 +336,7 @@ export async function adminCreateSection(
     if ((err as { code?: string }).code === "23505") {
       return { ok: false, errors: ["بخشی با این ترتیب از قبل در این آزمون هست."] };
     }
-    console.error("[exam] ساخت بخش ناموفق بود:", err);
+    logger.error("ساخت بخش آزمون ناموفق بود", { event: "exam.section_create_failed", err });
     return { ok: false, errors: ["ساخت بخش ناموفق بود."] };
   }
 }
@@ -436,7 +437,7 @@ export async function adminUpsertQuestion(
     if ((err as { code?: string }).code === "23505") {
       return { ok: false, errors: ["سؤالی با این شماره در این بخش از قبل هست."] };
     }
-    console.error("[exam] ذخیرهٔ سؤال ناموفق بود:", err);
+    logger.error("ذخیرهٔ سؤال آزمون ناموفق بود", { event: "exam.question_save_failed", err });
     return { ok: false, errors: ["ذخیرهٔ سؤال ناموفق بود. هیچ تغییری اعمال نشد."] };
   }
 }

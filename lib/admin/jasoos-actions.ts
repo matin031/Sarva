@@ -278,7 +278,6 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
     return { ok: true, id: levelId };
   } catch (err) {
     if (err instanceof InvalidInputError) return { ok: false, error: err.message };
-    console.error("[jasoos] ذخیرهٔ پرونده ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "jasoosAdminSave");
     return { ok: false, error: "ذخیرهٔ پرونده ناموفق بود." };

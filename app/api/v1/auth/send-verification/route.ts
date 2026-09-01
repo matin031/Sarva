@@ -3,6 +3,7 @@ import { issueOtp } from "@/lib/auth/otp";
 import { sendMail } from "@/lib/mail";
 import { verificationCodeEmail } from "@/lib/mail/templates";
 import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
+import { withRoute } from "@/lib/api/route";
 
 /**
  * POST /api/v1/auth/send-verification — ارسال کد تأیید ایمیل.
@@ -12,7 +13,7 @@ import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
  * قبول می‌کرد، یعنی هرکسی می‌توانست با آن به هر آدرسی در دنیا ایمیل بفرستد و
  * دامنهٔ سایت را به لیست سیاه اسپم برساند.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/auth/send-verification", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -34,4 +35,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

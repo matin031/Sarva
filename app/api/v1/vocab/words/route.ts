@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
 import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 const GRADES = new Set(["dahom", "yazdahom", "davazdahom"]);
 
@@ -15,7 +16,7 @@ const GRADES = new Set(["dahom", "yazdahom", "davazdahom"]);
  * بدون lesson، همهٔ واژه‌های آن پایه برمی‌گردند (بازی برای شمارش درس‌ها و
  * ساختن مخزن مشترکِ گزینه‌های نادرست به آن نیاز دارد).
  */
-export async function GET(request: NextRequest) {
+export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest) => {
   try {
     // تنها endpoint این فاز که احراز هویت نمی‌خواهد — و بدون lesson، کلِ
     // واژه‌های یک پایه را برمی‌گرداند. یعنی گران‌ترین کوئریِ عمومیِ سایت است و
@@ -67,4 +68,4 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

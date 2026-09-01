@@ -1,8 +1,18 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { execute, queryOne } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth/types";
+import {
+  REQUEST_ID_HEADER,
+  currentRequestId,
+  logger,
+  markReported,
+  normalizeRequestId,
+  redactRecord,
+  serializeError,
+  wasReported,
+} from "@/lib/observability";
+import { buildErrorRecord, type ErrorSource } from "@/lib/observability/error-record";
 
 /**
  * ثبت کارهای مدیران و خطاهای سرور.
@@ -155,19 +165,23 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   "user.role_change",
 ]);
 
-/** کلیدهایی که مقدارشان هرگز نباید در لاگ بنشیند. */
-const SECRET_KEY_PATTERN = /(secret|password|token|api[_-]?key|pepper|credential)/i;
-
-function redactValue(key: string, value: unknown): unknown {
-  if (SECRET_KEY_PATTERN.test(key)) return "«پنهان»";
-  if (typeof value === "string" && value.length > 300) return `${value.slice(0, 300)}…`;
-  return value;
-}
-
+/**
+ * پاک‌سازی metadata، حالا بازگشتی.
+ *
+ * ⚠️ نسخهٔ قبلی فقط سطح اول شیء را نگاه می‌کرد. یعنی این ردیف بی‌هیچ هشداری
+ * وارد جدول می‌شد:
+ *
+ *     { changes: { smtp: { password: "..." } } }
+ *
+ * حالا کل درخت از فیلتر رد می‌شود — آرایه‌ها هم — و منطقش در
+ * lib/observability/redact.ts است که تست دارد.
+ *
+ * نمایهٔ "audit" و نه "operational": در این جدول ایمیل مدیر و IP عمداً
+ * می‌مانند، چون دقیقاً همان چیزی‌اند که این لاگ برای ثبتشان ساخته شده. آنچه
+ * حذف می‌شود فقط رازهاست.
+ */
 function redactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(metadata)) out[k] = redactValue(k, v);
-  return out;
+  return redactRecord(metadata, { profile: "audit" });
 }
 
 /**
@@ -199,6 +213,32 @@ async function requestIp(): Promise<string | null> {
   }
 }
 
+/**
+ * شناسهٔ درخواست جاری.
+ *
+ * دو منبع، به همین ترتیب:
+ *
+ *   ۱) زمینهٔ AsyncLocalStorage — وقتی withRoute آن را باز کرده باشد. سریع و
+ *      بدون I/O.
+ *
+ *   ۲) هدر `x-request-id` که proxy.ts نوشته — راهی که Server Action ها از آن
+ *      استفاده می‌کنند، چون آن‌ها از withRoute رد نمی‌شوند و Next هیچ API
+ *      رسمیِ دیگری برای رساندن زمینه به آن‌ها ندارد.
+ *
+ * اگر هیچ‌کدام نبود (اسکریپت، seed، تست) null برمی‌گردد و همه‌چیز باید بدون
+ * شناسه هم کار کند.
+ */
+async function resolveRequestId(explicit?: string | null): Promise<string | null> {
+  const fromContext = explicit ?? currentRequestId();
+  if (fromContext) return fromContext;
+
+  try {
+    return normalizeRequestId((await headers()).get(REQUEST_ID_HEADER));
+  } catch {
+    return null;
+  }
+}
+
 export type AuditEntry = {
   actor: AuthUser;
   action: AuditAction;
@@ -217,11 +257,25 @@ export type AuditEntry = {
  * می‌کنند — یعنی در عمل صفر.
  */
 export async function recordAudit(entry: AuditEntry): Promise<void> {
+  // ⚠️ ترتیب عمدی است: **اول** insert، بعد لاگ عملیاتی.
+  //
+  // ممیزی مدیران یک سابقهٔ کسب‌وکاری است و باید مستقل از هر چیز دیگری تلاش
+  // خودش را بکند. اگر لاگر اول می‌آمد و به هر دلیلی throw می‌کرد (که نباید،
+  // ولی «نباید» تضمین نیست)، ردیف ممیزی اصلاً نوشته نمی‌شد.
+  let recorded = false;
+  let requestId: string | null = null;
+
+  try {
+    requestId = await resolveRequestId();
+  } catch {
+    /* بی‌شناسه هم باید ثبت شود */
+  }
+
   try {
     await execute(
       `insert into admin_audit_log
-         (actor_id, actor_email, action, target_type, target_id, summary, metadata, ip)
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::inet)`,
+         (actor_id, actor_email, action, target_type, target_id, summary, metadata, ip, request_id)
+       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::inet, $9)`,
       [
         entry.actor.id,
         entry.actor.email,
@@ -231,11 +285,41 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
         entry.summary,
         JSON.stringify(redactMetadata(entry.metadata ?? {})),
         await requestIp(),
+        requestId,
       ],
     );
+    recorded = true;
   } catch (err) {
     // قاعدهٔ ۱: شکستِ لاگ نباید کارِ اصلی را بشکند.
-    console.error("[audit] ثبت فعالیت ناموفق بود:", err);
+    try {
+      logger.error("ثبت فعالیت مدیر ناموفق بود", {
+        event: "admin.audit.failed",
+        err,
+        audit_action: entry.action,
+        target_type: entry.targetType,
+        request_id: requestId ?? undefined,
+      });
+    } catch {
+      console.error("[audit] ثبت فعالیت ناموفق بود:", err);
+    }
+  }
+
+  if (!recorded) return;
+
+  // ⚠️ summary عمداً لاگ نمی‌شود: جملهٔ فارسیِ آن اغلب نام کاربر یا عنوان
+  // سرودهٔ حذف‌شده را دارد. برای دنبال کردنِ یک عمل، همین چند فیلد کافی است و
+  // متنِ کامل سر جایش در جدول می‌ماند.
+  try {
+    logger.info("عمل مدیریتی ثبت شد", {
+      event: "admin.audit.recorded",
+      audit_action: entry.action,
+      target_type: entry.targetType,
+      target_id: entry.targetId ?? undefined,
+      actor_id: entry.actor.id,
+      request_id: requestId ?? undefined,
+    });
+  } catch {
+    /* لاگر هرگز نباید کار مدیر را بشکند */
   }
 }
 
@@ -243,29 +327,37 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
 // لاگ خطا
 // ---------------------------------------------------------------------------
 
-export type ErrorSource = "api" | "action" | "mail" | "sms" | "db" | "upload" | "other";
+export type { ErrorSource } from "@/lib/observability/error-record";
+
+/** اطلاعات اختیاریِ همراهِ یک خطا. */
+export type ErrorContext = {
+  /** اگر فراخوان خودش شناسه دارد؛ وگرنه از زمینه یا هدر خوانده می‌شود. */
+  requestId?: string | null;
+  /** زمینهٔ ساختاریافته: مسیر، متد، وضعیت، نوع route… . قبل از ذخیره پاک
+   *  می‌شود، ولی باز هم بدنهٔ درخواست یا کوکی به آن ندهید. */
+  metadata?: Record<string, unknown>;
+};
 
 /**
- * «همان خطا»؟
+ * قفلِ بازگشت.
  *
- * اعداد از پیام حذف می‌شوند تا «کاربر 42 پیدا نشد» و «کاربر 91 پیدا نشد» یک
- * ردیف باشند — وگرنه یک خطای تکرارشونده جدول را پر می‌کند و خودش تبدیل به
- * مشکل بعدی می‌شود. uuid ها هم به همین دلیل یکسان‌سازی می‌شوند.
+ * سناریوی خطرناک: دیتابیس قطع می‌شود → کوئری خطا می‌دهد → recordError صدا
+ * زده می‌شود → insert اش هم خطا می‌دهد → اگر آن خطا دوباره ثبت می‌شد، حلقهٔ
+ * بی‌پایان.
+ *
+ * دو چیز جلویش را می‌گیرد: (۱) لایهٔ دیتابیس هرگز خودش recordError صدا
+ * نمی‌زند و فقط به stdout می‌نویسد، (۲) همین پرچم، که ورودِ تودرتو را رد
+ * می‌کند حتی اگر روزی کسی قاعدهٔ اول را بشکند.
  */
-function fingerprint(source: string, message: string, context: string | null): string {
-  const normalized = message
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "«شناسه»")
-    .replace(/\d+/g, "«عدد»")
-    .slice(0, 500);
-
-  return createHash("sha256").update(`${source}|${context ?? ""}|${normalized}`).digest("hex").slice(0, 32);
-}
+let recording = false;
 
 /**
  * ثبت یک خطای سرور تا در پنل دیده شود.
  *
- * ⚠️ این جایگزین console.error نیست، مکملش است: console برای کسی که به سرور
- * دسترسی دارد، و این جدول برای کسی که ندارد.
+ * ⚠️ این جایگزین لاگ عملیاتی نیست، مکملش است: لاگ برای کسی که به سرور دسترسی
+ * دارد، و این جدول برای کسی که ندارد. هر فراخوان هم یک خط JSON در stdout
+ * می‌گذارد و هم یک ردیف در جدول — با یک `request_id` مشترک، پس از هر کدام
+ * می‌شود به دیگری رسید.
  *
  * هرگز throw نمی‌کند — از جمله وقتی خودِ دیتابیس مشکل دارد، که دقیقاً همان
  * حالتی است که این تابع در آن صدا زده می‌شود.
@@ -274,28 +366,90 @@ export async function recordError(
   source: ErrorSource,
   error: unknown,
   context?: string | null,
+  extra?: ErrorContext,
 ): Promise<void> {
+  const ctx = context?.slice(0, 300) ?? null;
+
+  // خطایی که قبلاً ثبت شده دوباره ثبت نمی‌شود. wrapper، handleError و
+  // onRequestError ممکن است هر سه همین شیء را ببینند.
+  if (wasReported(error)) return;
+  markReported(error);
+
+  const serialized = serializeError(error);
+  const requestId = await resolveRequestId(extra?.requestId).catch(() => null);
+
+  // خط لاگ همیشه نوشته می‌شود، حتی اگر دیتابیس در دسترس نباشد — که دقیقاً
+  // همان لحظه‌ای است که بیشترین ارزش را دارد.
   try {
-    const err = error instanceof Error ? error : new Error(String(error));
-    const message = (err.message || "خطای بدون پیام").slice(0, 1000);
-    const detail = (err.stack ?? "").slice(0, 4000) || null;
-    const ctx = context?.slice(0, 300) ?? null;
-    const fp = fingerprint(source, message, ctx);
+    logger.error(serialized.message, {
+      // زمینهٔ فراخوان اول می‌آید تا نتواند فیلدهای ثابتِ پایین را بازنویسی کند.
+      ...(extra?.metadata ?? {}),
+      event: "app.error.recorded",
+      err: error,
+      error_source: source,
+      error_context: ctx ?? undefined,
+      request_id: requestId ?? undefined,
+    });
+  } catch {
+    /* لاگر خراب بود؛ ثبت در جدول همچنان باید انجام شود */
+  }
+
+  if (recording) return;
+  recording = true;
+
+  try {
+    const row = buildErrorRecord(source, error, ctx, { requestId, metadata: extra?.metadata });
 
     // on conflict روی ایندکس جزئیِ «باز»: خطای تکراری شمارنده‌اش بالا می‌رود و
     // ردیف تازه نمی‌سازد. اگر خطایی قبلاً «رسیدگی‌شده» علامت خورده باشد، از
     // شمول آن ایندکس بیرون است و این insert ردیف تازه‌ای می‌سازد — که درست
     // است: خطایی که برگشته، خبر تازه‌ای است.
+    //
+    // در به‌روزرسانی، اطلاعاتِ *آخرین* رخداد جایگزین می‌شود ولی stack اولی
+    // می‌ماند: اولین بار همان جایی است که علت را می‌گوید.
     await execute(
-      `insert into app_error_log (source, message, context, detail, fingerprint)
-       values ($1, $2, $3, $4, $5)
+      `insert into app_error_log
+         (source, message, context, detail, fingerprint,
+          error_name, error_code, digest, environment, release,
+          first_request_id, last_request_id, metadata)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, $12::jsonb)
        on conflict (fingerprint) where resolved_at is null
-       do update set occurrences  = app_error_log.occurrences + 1,
-                     last_seen_at = now()`,
-      [source, message, ctx, detail, fp],
+       do update set occurrences      = app_error_log.occurrences + 1,
+                     last_seen_at     = now(),
+                     last_request_id  = excluded.last_request_id,
+                     metadata         = excluded.metadata,
+                     error_code       = coalesce(excluded.error_code, app_error_log.error_code),
+                     digest           = coalesce(excluded.digest, app_error_log.digest),
+                     release          = excluded.release,
+                     detail           = coalesce(app_error_log.detail, excluded.detail)`,
+      [
+        row.source,
+        row.message,
+        row.context,
+        row.detail,
+        row.fingerprint,
+        row.errorName,
+        row.errorCode,
+        row.digest,
+        row.environment,
+        row.release,
+        row.requestId,
+        JSON.stringify(row.metadata),
+      ],
     );
   } catch (err) {
-    console.error("[error-log] ثبت خطا ناموفق بود:", err);
+    // اینجا انتهای خط است: نه throw، نه تلاش دوباره برای نوشتن در دیتابیس.
+    try {
+      logger.error("ثبت خطا در جدول ناموفق بود", {
+        event: "app.error.record_failed",
+        err,
+        error_source: source,
+      });
+    } catch {
+      console.error("[error-log] ثبت خطا ناموفق بود:", err);
+    }
+  } finally {
+    recording = false;
   }
 }
 

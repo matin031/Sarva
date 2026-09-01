@@ -1,5 +1,7 @@
 import "server-only";
-import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
+import { createHash } from "node:crypto";
+import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { logger } from "@/lib/observability";
 
 /**
  * اتصال به PostgreSQL — جایگزین سه کلاینت Supabase.
@@ -134,7 +136,7 @@ function createPool(): Pool {
   // روی خودِ Pool رویداد error می‌دهد. بدون این شنونده، Node آن را
   // unhandled می‌بیند و کل فرایند را می‌کشد.
   pool.on("error", (err) => {
-    console.error("[db] خطای اتصالِ بی‌کار:", err.message);
+    logger.error("خطای اتصالِ بی‌کارِ دیتابیس", { event: "db.pool.error", err });
   });
 
   return pool;
@@ -174,12 +176,67 @@ export function getPool(): Pool {
 /** هر چیزی که می‌شود به کوئری داد: pool یا کلاینتِ داخل تراکنش. */
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
-const SLOW_QUERY_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
+/** آستانهٔ «این کوئری کند بود». در زمان اجرا خوانده می‌شود و نه در زمان import،
+ *  چون مرحلهٔ build داکر هیچ .env ای ندارد و مقدارِ آنجا روی سرور بی‌معناست. */
+function slowQueryMs(): number {
+  const raw = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
+  return Number.isFinite(raw) && raw > 0 ? raw : 500;
+}
+
+const isProduction = () => process.env.NODE_ENV === "production";
+
+// ---------------------------------------------------------------------------
+// شناسایی کوئری در لاگ، بدون لو دادن خودِ کوئری
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ متنِ کامل SQL در لاگ نمی‌نشیند.
+ *
+ * چرا، وقتی SQL ما ثابت است و راز نیست؟ چون «ثابت» یک فرض است نه تضمین: کافی
+ * است یک روز کسی مقداری را داخل رشته درج کند (`where email = '${email}'`) تا
+ * همان لحظه هر خطای آن کوئری، ایمیل کاربر را در لاگ بگذارد — بی‌آنکه کسی
+ * متوجه شود.
+ *
+ * پس دو چیز لاگ می‌شود که برای پیدا کردن کوئری کافی‌اند و هیچ داده‌ای ندارند:
+ *
+ *   • **operation** — `SELECT` / `INSERT` / … . برای فهمیدنِ «چه نوع کاری کند
+ *     است» کافی است.
+ *   • **fingerprint** — هشِ کوتاهِ متنِ نرمال‌شده. دو خطِ لاگ با اثرانگشت
+ *     یکسان قطعاً یک کوئری‌اند، و با `rg` در کد پیدا می‌شود.
+ *
+ * در حالت توسعه (و فقط آنجا) متنِ کوتاه‌شدهٔ کوئری هم می‌آید، چون آنجا خودِ
+ * توسعه‌دهنده تنها خوانندهٔ لاگ است.
+ */
+const fingerprintCache = new Map<string, { op: string; fp: string }>();
+
+function describe(text: string): { op: string; fp: string } {
+  const cached = fingerprintCache.get(text);
+  if (cached) return cached;
+
+  const normalized = text
+    .replace(/--[^\n]*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  const op = (/^[a-z]+/.exec(normalized)?.[0] ?? "other").toUpperCase();
+  const fp = createHash("sha256").update(normalized).digest("hex").slice(0, 12);
+
+  const value = { op, fp };
+  // نقشه بی‌کران نمی‌شود: تعداد کوئری‌های ثابتِ یک اپ محدود است، ولی اگر روزی
+  // کوئری‌ای پویا ساخته شد، این سقف جلوی نشتِ حافظه را می‌گیرد.
+  if (fingerprintCache.size > 500) fingerprintCache.clear();
+  fingerprintCache.set(text, value);
+  return value;
+}
 
 /**
  * پارامترهای کوئری، آمادهٔ لاگ شدن.
  *
- * ⚠️ قبلاً لاگِ خطای کوئری مستقیماً `JSON.stringify(params)` را می‌نوشت. برای
+ * ⚠️ در production **اصلاً** لاگ نمی‌شوند. این تابع فقط در حالت توسعه صدا
+ * زده می‌شود.
+ *
+ * قبلاً لاگِ خطای کوئری مستقیماً `JSON.stringify(params)` را می‌نوشت. برای
  * دیباگ عالی بود و از نظر امنیتی گران: هر خطای کوئری این‌ها را در
  * `docker compose logs` می‌گذاشت —
  *
@@ -216,32 +273,93 @@ function redactParams(params: unknown[]): string {
   return JSON.stringify(safe).slice(0, 300);
 }
 
+/** فیلدهای مشترکِ هر خطِ لاگِ دیتابیس. در production فقط همین‌ها. */
+function baseFields(text: string, durationMs: number, inTransaction: boolean) {
+  const { op, fp } = describe(text);
+  return {
+    db_operation: op,
+    db_statement_fingerprint: fp,
+    duration_ms: Math.round(durationMs),
+    db_in_transaction: inTransaction,
+  };
+}
+
+/** آنچه فقط در حالت توسعه اضافه می‌شود. */
+function devFields(text: string, params?: unknown[]) {
+  if (isProduction()) return {};
+  return {
+    db_statement: text.replace(/\s+/g, " ").slice(0, 200),
+    // نام عمدی: «شکلِ» پارامترها، نه خودشان. redactDeep در لاگر هر کلیدی را
+    // که به `params` ختم شود کامل پنهان می‌کند، و این فیلد باید در حالت
+    // توسعه دیده شود — چیزی که داخلش است هم از قبل بی‌خطر شده.
+    ...(params?.length ? { db_param_shapes: redactParams(params) } : {}),
+  };
+}
+
+/**
+ * تنها نقطه‌ای که یک کوئری واقعاً اجرا می‌شود.
+ *
+ * ⚠️ قبلاً `execute` و `tx.execute` مستقیم `pool.query` را صدا می‌زدند و از
+ * این مسیر رد نمی‌شدند — یعنی یک insert کند یا یک delete شکست‌خورده هیچ ردی
+ * در لاگ نمی‌گذاشت. حالا هر چهار تابع (query، queryOne، execute و همتاهای
+ * داخل تراکنش) از همین‌جا می‌گذرند.
+ *
+ * ⚠️ اینجا هرگز `recordError` صدا زده نمی‌شود.
+ *
+ * دلیلش یک حلقهٔ کشنده است: دیتابیس قطع می‌شود → کوئری خطا می‌دهد → اگر
+ * می‌خواستیم خطا را در دیتابیس ثبت کنیم، آن insert هم خطا می‌داد → و آن خطا
+ * دوباره… . خطای دیتابیس فقط به stdout می‌رود؛ ثبتِ ماندگارش کارِ لایهٔ
+ * بالاتر است (handleError یا onRequestError) که یک بار انجامش می‌دهد.
+ */
+async function runQuery<T extends QueryResultRow>(
+  on: Queryable,
+  text: string,
+  params: unknown[] | undefined,
+  inTransaction: boolean,
+): Promise<QueryResult<T>> {
+  const startedAt = performance.now();
+  try {
+    const result = (await on.query<T>(text, params as never)) as QueryResult<T>;
+    const ms = performance.now() - startedAt;
+
+    if (ms > slowQueryMs()) {
+      // کوئری کند در لاگ می‌آید ولی جلویش گرفته نمی‌شود — هشدار است نه خطا.
+      logger.warn("کوئری کند", {
+        event: "db.query.slow",
+        ...baseFields(text, ms, inTransaction),
+        row_count: result.rowCount ?? result.rows?.length ?? 0,
+        ...devFields(text),
+      });
+    }
+
+    return result;
+  } catch (err) {
+    const ms = performance.now() - startedAt;
+
+    // پیام خام پستگرس معمولاً می‌گوید چه شد ولی نمی‌گوید کجا. اثرانگشت و
+    // operation این را جبران می‌کنند — بدون اینکه متن کوئری یا مقادیر به لاگ
+    // برسند. (به خطای بالادست هم چیزی اضافه نمی‌شود، چون آن پیام ممکن است به
+    // کاربر نشان داده شود و ساختار دیتابیس چیزی نیست که کاربر باید ببیند.)
+    logger.error("کوئری دیتابیس شکست خورد", {
+      event: "db.query.failed",
+      err,
+      ...baseFields(text, ms, inTransaction),
+      ...devFields(text, params),
+    });
+
+    throw err;
+  }
+}
+
+/** همان runQuery، ولی فقط ردیف‌ها. */
 async function run<T extends QueryResultRow>(
   on: Queryable,
   text: string,
   params?: unknown[],
+  inTransaction = false,
 ): Promise<T[]> {
-  const startedAt = performance.now();
-  try {
-    const result = await on.query<T>(text, params as never);
-    const ms = performance.now() - startedAt;
-    if (ms > SLOW_QUERY_MS) {
-      // کوئری کند در لاگ می‌آید ولی جلویش گرفته نمی‌شود — هشدار است نه خطا.
-      // متن کوتاه می‌شود تا لاگ با کوئری‌های چندصدخطی پر نشود.
-      console.warn(`[db] کوئری کند (${ms.toFixed(0)}ms): ${text.replace(/\s+/g, " ").slice(0, 120)}`);
-    }
-    return result.rows;
-  } catch (err) {
-    // پیام خام پستگرس معمولاً می‌گوید چه شد ولی نمی‌گوید کجا. متن کوئری را
-    // به لاگ اضافه می‌کنیم — ولی به خطای بالادست نه، چون آن پیام ممکن است به
-    // کاربر نشان داده شود و ساختار دیتابیس چیزی نیست که کاربر باید ببیند.
-    console.error(
-      `[db] کوئری شکست خورد: ${text.replace(/\s+/g, " ").slice(0, 200)}`,
-      params?.length ? `\n     پارامترها: ${redactParams(params)}` : "",
-      `\n     ${(err as Error).message}`,
-    );
-    throw err;
-  }
+  const result = await runQuery<T>(on, text, params, inTransaction);
+  return result.rows;
 }
 
 /** همهٔ ردیف‌ها. */
@@ -260,7 +378,7 @@ export async function queryOne<T extends QueryResultRow>(
 
 /** تعداد ردیف‌های تحت‌تأثیر — برای insert/update/delete که خروجی نمی‌خواهند. */
 export async function execute(text: string, params?: unknown[]): Promise<number> {
-  const result = await getPool().query(text, params as never);
+  const result = await runQuery(getPool(), text, params, false);
   return result.rowCount ?? 0;
 }
 
@@ -294,27 +412,30 @@ export async function transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   // متد را از امضای Tx برنمی‌دارد و T را به QueryResultRow فرو می‌کاهد.
   const tx: Tx = {
     query<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T[]> {
-      return run<T>(client, text, params);
+      return run<T>(client, text, params, true);
     },
     async queryOne<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T | null> {
-      const rows = await run<T>(client, text, params);
+      const rows = await run<T>(client, text, params, true);
       return rows[0] ?? null;
     },
     async execute(text: string, params?: unknown[]): Promise<number> {
-      const result = await client.query(text, params as never);
+      // ⚠️ قبلاً این یکی مستقیم client.query را صدا می‌زد و از instrumentation
+      // بیرون بود — یعنی یک update کندِ داخل تراکنش نامرئی می‌ماند.
+      const result = await runQuery(client, text, params, true);
       return result.rowCount ?? 0;
     },
   };
 
   try {
-    await client.query("begin");
+    await runQuery(client, "begin", undefined, true);
     const out = await fn(tx);
-    await client.query("commit");
+    await runQuery(client, "commit", undefined, true);
     return out;
   } catch (err) {
     // اگر خودِ rollback هم شکست بخورد (اتصال مرده)، خطای اصلی مهم‌تر است و
-    // نباید با خطای rollback جایگزین شود.
-    await client.query("rollback").catch(() => {});
+    // نباید با خطای rollback جایگزین شود. (semantics دست‌نخورده است؛ فقط
+    // شکستِ rollback حالا در لاگ دیده می‌شود.)
+    await runQuery(client, "rollback", undefined, true).catch(() => {});
     throw err;
   } finally {
     // بدون این، اتصال هرگز به pool برنمی‌گردد و بعد از چند خطا pool خالی

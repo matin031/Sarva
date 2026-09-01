@@ -5,6 +5,8 @@ import { listDevices } from "@/lib/auth/devices";
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { fail, handleError, ok, requestMeta, withCookies } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
+import { attachUserId, logger } from "@/lib/observability";
 
 /**
  * دستگاه‌های واردشده با این حساب.
@@ -17,14 +19,14 @@ import { rateLimit } from "@/lib/api/rate-limit";
  * صفحهٔ تنظیمات فهرست اول را خودش سمت سرور می‌گیرد. این endpoint برای بعد از
  * «خروج از همه» است که کلاینت باید فهرست تازه را بخواند.
  */
-export async function GET() {
+export const GET = withRoute("/api/v1/auth/sessions", async () => {
   try {
     const user = await requireUser();
     return ok({ sessions: await listDevices(user.id) });
   } catch (err) {
     return handleError(err, "GET /api/v1/auth/sessions");
   }
-}
+});
 
 /**
  * خروج از همهٔ دستگاه‌ها.
@@ -33,7 +35,7 @@ export async function GET() {
  * دقیقاً همان کاری که change-password می‌کند. بدون آن، کاربری که روی دکمه
  * می‌زند خودش هم بیرون می‌افتد، که از دید او شبیه خطاست نه شبیه موفقیت.
  */
-export async function DELETE(request: Request) {
+export const DELETE = withRoute("/api/v1/auth/sessions", async (request: Request) => {
   try {
     const user = await requireUser();
     const meta = requestMeta(request);
@@ -44,6 +46,14 @@ export async function DELETE(request: Request) {
     }
 
     const revoked = await revokeAllSessions(user.id);
+
+    attachUserId(user.id);
+    logger.info("خروج از همهٔ دستگاه‌ها", {
+      event: "auth.sessions.revoked",
+      user_id: user.id,
+      revoked_sessions: revoked,
+    });
+
     const tokens = await createSession(user, meta);
 
     // کوکی‌های تازه روی همین پاسخ می‌نشینند، پس فهرستِ بعدی این مرورگر را
@@ -55,6 +65,6 @@ export async function DELETE(request: Request) {
   } catch (err) {
     return handleError(err, "DELETE /api/v1/auth/sessions");
   }
-}
+});
 
 export const dynamic = "force-dynamic";

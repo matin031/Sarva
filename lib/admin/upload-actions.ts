@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { MAX_UPLOAD_BYTES, detectAudioFile, storageAdapter } from "@/lib/storage";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { recordAudit, recordError } from "@/lib/admin/audit";
+import { logger } from "@/lib/observability";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
 
@@ -25,6 +26,11 @@ export async function adminUploadQuizAudio(formData: FormData): Promise<ActionRe
   // ساعت — سخاوتمندانه برای کار واقعی، بی‌فایده برای پر کردن دیسک.
   const limit = rateLimit(`upload:${admin.id}`, 30, 60 * 60);
   if (!limit.allowed) {
+    logger.warn("آپلود به‌خاطر سقف نرخ رد شد", {
+      event: "upload.rate_limited",
+      user_id: admin.id,
+      retry_after_seconds: limit.retryAfterSeconds,
+    });
     return {
       ok: false,
       errors: [`آپلودهای زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`],
@@ -48,15 +54,35 @@ export async function adminUploadQuizAudio(formData: FormData): Promise<ActionRe
   // lib/storage/index.ts کنار detectAudioFile.
   const detected = await detectAudioFile(file);
   if (!detected.ok) {
+    // ⚠️ نام فایلِ کاربر لاگ نمی‌شود — می‌تواند هر چیزی باشد، از داده‌های
+    // شخصی تا رشته‌ای که خطِ لاگ را گمراه کند. آنچه واقعاً به کار می‌آید
+    // حجم و نوعِ *اعلام‌شده* است.
+    logger.info("آپلود رد شد: محتوای فایل صوتی معتبر نبود", {
+      event: "upload.rejected",
+      user_id: admin.id,
+      size_bytes: file.size,
+      declared_mime: (file.type || "").slice(0, 60) || null,
+    });
     return { ok: false, errors: [detected.error] };
   }
 
   try {
     // prefix باعث می‌شود پوشهٔ uploads با انواع فایل قاطی نشود؛ وقتی روزی
     // تصویر واژگان هم آپلودی شد، هرکدام جای خودش را دارد.
-    const stored = await storageAdapter().put(file, {
+    const adapter = storageAdapter();
+    const startedAt = performance.now();
+    const stored = await adapter.put(file, {
       prefix: "quiz-audio",
       extension: detected.extension,
+    });
+
+    logger.info("فایل صوتی آپلود شد", {
+      event: "upload.succeeded",
+      user_id: admin.id,
+      storage_driver: adapter.name,
+      size_bytes: file.size,
+      detected_format: detected.extension,
+      duration_ms: Math.round(performance.now() - startedAt),
     });
     await recordAudit({
       actor: admin,
@@ -69,9 +95,15 @@ export async function adminUploadQuizAudio(formData: FormData): Promise<ActionRe
 
     return { ok: true, data: { url: stored.url } };
   } catch (err) {
-    // پیام خام سیستم‌فایل مسیر سرور را لو می‌دهد؛ فقط به لاگ می‌رود.
-    console.error("[upload] آپلود فایل صوتی ناموفق بود:", err);
-    await recordError("upload", err, "adminUploadQuizAudio");
+    // پیام خام سیستم‌فایل مسیر سرور را لو می‌دهد؛ فقط به لاگ و جدول خطا
+    // می‌رود، نه به کاربر. recordError خودش خط JSON را هم می‌نویسد.
+    await recordError("upload", err, "adminUploadQuizAudio", {
+      metadata: {
+        storage_driver: storageAdapter().name,
+        size_bytes: file.size,
+        detected_format: detected.extension,
+      },
+    });
     return { ok: false, errors: ["ذخیرهٔ فایل ناموفق بود. دوباره تلاش کنید."] };
   }
 }

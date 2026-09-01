@@ -116,7 +116,6 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
 
     return { ok: true };
   } catch (err) {
-    console.error("[vocab] ذخیرهٔ واژه ناموفق بود:", err);
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("action", err, "vocabAdminUpsert");
     return { ok: false, error: "ذخیرهٔ واژه ناموفق بود." };

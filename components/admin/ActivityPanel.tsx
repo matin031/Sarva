@@ -41,6 +41,52 @@ function fullTime(iso: string): string {
   });
 }
 
+/**
+ * شناسهٔ درخواست، با دکمهٔ کپی.
+ *
+ * چرا این‌قدر برجسته: همین یک رشته تنها چیزی است که سه لاگِ جدا را به هم وصل
+ * می‌کند. با کپی کردنش و زدنِ
+ *
+ *     docker compose logs app | grep <شناسه>
+ *
+ * تمام خطوطِ همان درخواست — از ورودِ درخواست تا کوئری دیتابیس و ارسال ایمیل —
+ * پشت سر هم می‌آیند. بدون دکمهٔ کپی، کسی یک uuid سی‌وشش‌نویسه‌ای را دستی
+ * تایپ نمی‌کند.
+ */
+function CopyableId({ id, label }: { id: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      // clipboard API فقط روی مبدأ امن (https یا localhost) کار می‌کند. اگر
+      // نبود، انتخابِ دستی همچنان ممکن است — پس فقط بی‌صدا رد می‌شویم.
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* مبدأ ناامن یا اجازهٔ رد شده */
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <dt className="text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0">
+        <button
+          type="button"
+          onClick={copy}
+          dir="ltr"
+          title="برای کپی کلیک کنید"
+          className="max-w-full truncate rounded-lg bg-background px-2 py-0.5 font-mono text-[11px] hover:bg-muted"
+        >
+          {id}
+        </button>
+        {copied && <span className="mr-2 text-[11px] text-primary">کپی شد</span>}
+      </dd>
+    </div>
+  );
+}
+
 type Props = {
   initialAudit: { rows: AuditRow[]; total: number };
   initialErrors: { rows: ErrorRow[]; total: number; openCount: number };
@@ -240,7 +286,7 @@ function AuditTab({
                 </time>
               </div>
 
-              {(Object.keys(row.metadata).length > 0 || row.ip) && (
+              {(Object.keys(row.metadata).length > 0 || row.ip || row.requestId) && (
                 <>
                   <button
                     type="button"
@@ -258,6 +304,9 @@ function AuditTab({
                             {row.ip}
                           </dd>
                         </div>
+                      )}
+                      {row.requestId && (
+                        <CopyableId id={row.requestId} label="شناسهٔ درخواست" />
                       )}
                       {Object.entries(row.metadata).map(([k, v]) => (
                         <div key={k} className="flex gap-2">
@@ -429,6 +478,15 @@ function ErrorsTab({
                         رسیدگی‌شده
                       </span>
                     )}
+                    {row.release && (
+                      <span
+                        dir="ltr"
+                        className="rounded-lg bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+                        title="نسخه‌ای که این خطا در آن رخ داد"
+                      >
+                        {row.release}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 break-words text-sm">{row.message}</p>
                   {row.context && (
@@ -441,15 +499,13 @@ function ErrorsTab({
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                {row.detail && (
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {expanded === row.id ? "بستن جزئیات فنی" : "جزئیات فنی"}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setExpanded(expanded === row.id ? null : row.id)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {expanded === row.id ? "بستن جزئیات فنی" : "جزئیات فنی"}
+                </button>
                 {!row.resolvedAt && (
                   <button
                     type="button"
@@ -467,13 +523,48 @@ function ErrorsTab({
                 )}
               </div>
 
-              {expanded === row.id && row.detail && (
-                <pre
-                  dir="ltr"
-                  className="mt-2 max-h-64 overflow-auto rounded-xl bg-muted/60 p-3 text-left font-mono text-[11px] leading-relaxed"
-                >
-                  {row.detail}
-                </pre>
+              {expanded === row.id && (
+                <>
+                  <dl className="mt-2 flex flex-col gap-1 rounded-xl bg-muted/40 p-3 text-xs">
+                    {/* شناسهٔ آخرین رخداد اول می‌آید: همان چیزی است که برای
+                        گشتن در لاگ لازم دارید. */}
+                    {row.lastRequestId && (
+                      <CopyableId id={row.lastRequestId} label="شناسهٔ آخرین درخواست" />
+                    )}
+                    {row.firstRequestId && row.firstRequestId !== row.lastRequestId && (
+                      <CopyableId id={row.firstRequestId} label="شناسهٔ اولین درخواست" />
+                    )}
+                    {row.errorName && (
+                      <Detail label="نوع خطا" value={row.errorName} mono />
+                    )}
+                    {row.errorCode && (
+                      <Detail label="کد خطا" value={row.errorCode} mono />
+                    )}
+                    {row.digest && <Detail label="digest" value={row.digest} mono />}
+                    <Detail label="منبع" value={ERROR_SOURCE_LABELS[row.source] ?? row.source} />
+                    {row.environment && <Detail label="محیط" value={row.environment} />}
+                    {row.release && <Detail label="نسخه" value={row.release} mono />}
+                    <Detail label="تعداد تکرار" value={row.occurrences.toLocaleString("fa-IR")} />
+                    <Detail label="اولین بار" value={fullTime(row.firstSeenAt)} />
+                    <Detail label="آخرین بار" value={fullTime(row.lastSeenAt)} />
+                    {Object.entries(row.metadata).map(([k, v]) =>
+                      v === null || v === undefined ? null : (
+                        <Detail key={k} label={k} value={String(v)} mono />
+                      ),
+                    )}
+                  </dl>
+
+                  {/* stack trace فقط اینجا و فقط برای مدیر. lib/observability
+                      قبل از ذخیره ایمیل و توکن را از متنش پاک کرده است. */}
+                  {row.detail && (
+                    <pre
+                      dir="ltr"
+                      className="mt-2 max-h-64 overflow-auto rounded-xl bg-muted/60 p-3 text-left font-mono text-[11px] leading-relaxed"
+                    >
+                      {row.detail}
+                    </pre>
+                  )}
+                </>
               )}
             </li>
           ))}
@@ -501,6 +592,18 @@ function ErrorsTab({
         onConfirm={resolveAll}
         onCancel={() => setConfirmResolveAll(false)}
       />
+    </div>
+  );
+}
+
+/** یک ردیف «برچسب: مقدار» در جعبهٔ جزئیات. */
+function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className={`min-w-0 break-all ${mono ? "font-mono" : ""}`} dir={mono ? "ltr" : undefined}>
+        {value}
+      </dd>
     </div>
   );
 }

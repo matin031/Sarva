@@ -3,6 +3,7 @@ import { queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { withRoute } from "@/lib/api/route";
 
 const schema = z.object({
   questionId: z.uuid("شناسهٔ سؤال معتبر نیست"),
@@ -21,7 +22,7 @@ const schema = z.object({
  * حالا سرور خودش از روی question_options.is_correct حساب می‌کند و مقدارِ
  * ارسالیِ کلاینت اصلاً خوانده نمی‌شود.
  */
-export async function POST(request: Request) {
+export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) => {
   try {
     const user = await requireUser();
 
@@ -67,4 +68,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return handleError(err);
   }
-}
+});

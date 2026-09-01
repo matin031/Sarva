@@ -25,14 +25,23 @@ const EXPECTED_TABLES = [
   "vocab_words", "vocab_answers",
   // جاسوس
   "jasoos_answers", "jasoos_levels", "jasoos_suspects",
-  // پلِ وزن
-  "aruz_bridge_questions",
+  // پلِ وزن و مدار دستور
+  "aruz_bridge_questions", "grammar_circuit_questions",
   // محتوای بازی‌ها
   "memory_pairs", "ninja_categories", "ninja_words",
   // نشان‌شده‌ها
   "user_bookmarks",
   // کلاب
   "club_posts", "club_comments", "club_likes", "club_reports",
+  // لاگ مدیران و خطاها (۰۰۲)
+  "admin_audit_log", "app_error_log",
+];
+
+const EXPECTED_TRIGGERS = [
+  // ۰۰۱
+  "users_touch", "club_posts_touch", "club_likes_count", "club_comments_count",
+  // ۰۰۴ / ۰۰۵
+  "aruz_bridge_questions_touch", "grammar_circuit_questions_touch",
 ];
 
 let failures = 0;
@@ -140,8 +149,20 @@ async function main() {
     const { rows: trigs } = await client.query(
       `select tgname from pg_trigger where not tgisinternal`,
     );
-    // ۴ تریگرِ ۰۰۱ + تریگرِ touchـِ پرسش‌های پلِ وزن (۰۰۴)
-    check("تریگرها", trigs.length === 5, trigs.map((t) => t.tgname).join(", "));
+    // با نام بررسی می‌شود و نه با شمارش.
+    //
+    // قبلاً `trigs.length === 5` بود، با یک توضیح که می‌گفت این عدد از کجا
+    // آمده. مشکلش این است که هر migration تازه‌ای که تریگر بیاورد، این بررسی
+    // را می‌شکند بی‌آنکه چیزی *خراب* باشد — و پیامش هم نمی‌گوید کدام تریگر
+    // اضافه یا کم است. دقیقاً همین اتفاق با ۰۰۵ افتاد.
+    const missingTrigs = EXPECTED_TRIGGERS.filter(
+      (name) => !trigs.some((t) => t.tgname === name),
+    );
+    check(
+      "تریگرها",
+      missingTrigs.length === 0,
+      missingTrigs.length ? `کم است: ${missingTrigs.join(", ")}` : trigs.map((t) => t.tgname).join(", "),
+    );
 
     // --- مبدل‌های نوع، روی داده‌ای که واقعاً از سیم می‌آید --------------------
     console.log("\n  مبدل‌های نوع:");

@@ -4,6 +4,7 @@ import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 import { pairsAdminCounts } from "@/lib/admin/pairs-actions";
 import { ninjaAdminOverview } from "@/lib/admin/ninja-actions";
 import { jasoosAdminList } from "@/lib/admin/jasoos-actions";
+import { gcAdminTotals } from "@/lib/admin/grammar-circuit-actions";
 import { JASOOS_SUSPECT_COUNT } from "@/lib/jasoos-data";
 
 export const metadata: Metadata = {
@@ -17,10 +18,11 @@ export const dynamic = "force-dynamic";
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
 async function loadOverview() {
-  const [pairCounts, ninja, jasoos] = await Promise.all([
+  const [pairCounts, ninja, jasoos, circuit] = await Promise.all([
     pairsAdminCounts(),
     ninjaAdminOverview(),
     jasoosAdminList(),
+    gcAdminTotals(),
   ]);
 
   const pairTotal = Object.values(pairCounts).reduce((a, b) => a + b, 0);
@@ -41,13 +43,14 @@ async function loadOverview() {
       published: jasoos.filter((l) => l.isPublished).length,
       broken: brokenLevels,
     },
+    circuit,
   };
 }
 
 export default async function Page() {
   const result = await loadAdminData(loadOverview);
   if (!result.ok) return <AdminAccessDenied message={result.message} />;
-  const { pairs, ninja, jasoos } = result.data;
+  const { pairs, ninja, jasoos, circuit } = result.data;
 
   const cards = [
     {
@@ -77,6 +80,16 @@ export default async function Page() {
       stat: `${fa(jasoos.published)} از ${fa(jasoos.total)} پرونده منتشر شده`,
       warn:
         jasoos.broken > 0 ? `${fa(jasoos.broken)} پروندهٔ ناقص` : null,
+    },
+    {
+      href: "/admin/games/grammar-circuit",
+      title: "مدار دستور",
+      desc: "پرسش‌ها به تفکیک پایه و درس. جمله را می‌نویسی و نقشِ هر واژه را با یک کلیک می‌دهی.",
+      stat: `${fa(circuit.published)} از ${fa(circuit.total)} پرسش منتشر شده`,
+      warn:
+        circuit.total - circuit.published > 0
+          ? `${fa(circuit.total - circuit.published)} پرسشِ منتشرنشده`
+          : null,
     },
     {
       href: "/admin/vocab",

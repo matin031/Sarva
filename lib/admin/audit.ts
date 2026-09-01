@@ -57,6 +57,10 @@ export type AuditAction =
   | "ninja.word_save"
   | "ninja.word_move"
   | "ninja.word_delete"
+  // مدار دستور
+  | "grammar_circuit.question_save"
+  | "grammar_circuit.question_publish"
+  | "grammar_circuit.question_delete"
   // جاسوسِ نقش‌ها
   | "jasoos.level_save"
   | "jasoos.level_publish"
@@ -82,6 +86,7 @@ export type AuditTargetType =
   | "memory_pair"
   | "ninja_category"
   | "ninja_word"
+  | "grammar_circuit_question"
   | "jasoos_level"
   | "club_post"
   | "club_comment"
@@ -116,6 +121,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "ninja.word_save": "افزودن کلمه به نقش",
   "ninja.word_move": "جابه‌جایی کلمه بین نقش‌ها",
   "ninja.word_delete": "حذف کلمه از نقش",
+  "grammar_circuit.question_save": "ذخیرهٔ پرسش مدار دستور",
+  "grammar_circuit.question_publish": "تغییر انتشار پرسش مدار دستور",
+  "grammar_circuit.question_delete": "حذف پرسش مدار دستور",
   "jasoos.level_save": "ذخیرهٔ پروندهٔ جاسوس",
   "jasoos.level_publish": "تغییر انتشار پروندهٔ جاسوس",
   "jasoos.level_delete": "حذف پروندهٔ جاسوس",
@@ -140,6 +148,7 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   "pairs.pair_delete",
   "ninja.category_delete",
   "ninja.word_delete",
+  "grammar_circuit.question_delete",
   "jasoos.level_delete",
   "club.post_delete",
   "club.comment_delete",

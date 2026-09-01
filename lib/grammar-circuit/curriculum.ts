@@ -73,6 +73,15 @@ export function formatLessonList(lessons: readonly number[]): string {
   return `${fa.slice(0, -1).join("، ")} و ${fa[fa.length - 1]}`;
 }
 
+/** عنوانِ درس، از همان رجیستریِ درسنامه. برای درسی که عنوانش را نداریم
+ *  «درس ۷» برمی‌گردد و نه یک نامِ ساختگی — همان قاعدهٔ lib/doroos. */
+export function lessonTitle(grade: GradeKey, lesson: number): string {
+  const title = GRADES.find((g) => g.key === grade)?.lessons.find(
+    (l) => l.number === lesson,
+  )?.title;
+  return title || `درس ${lesson.toLocaleString("fa-IR")}`;
+}
+
 export function gradeLabel(grade: GradeKey): string {
   return GRAMMAR_CIRCUIT_GRADES.find((g) => g.key === grade)?.label ?? grade;
 }

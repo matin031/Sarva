@@ -51,6 +51,18 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/games",
+    label: "بازی‌ها",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <rect x="2.5" y="7" width="19" height="10" rx="4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 10.5v3M5.5 12h3" />
+        <circle cx="16" cy="11" r="1" />
+        <circle cx="18" cy="13.5" r="1" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/club",
     label: "سروا کلاب",
     icon: (

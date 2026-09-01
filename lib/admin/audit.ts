@@ -48,6 +48,19 @@ export type AuditAction =
   // واژه‌یاب
   | "vocab.word_save"
   | "vocab.word_delete"
+  // جفت‌های ادبی
+  | "pairs.pair_save"
+  | "pairs.pair_delete"
+  // نینجای دستور زبان
+  | "ninja.category_save"
+  | "ninja.category_delete"
+  | "ninja.word_save"
+  | "ninja.word_move"
+  | "ninja.word_delete"
+  // جاسوسِ نقش‌ها
+  | "jasoos.level_save"
+  | "jasoos.level_publish"
+  | "jasoos.level_delete"
   // کلاب
   | "club.post_status"
   | "club.post_feature"
@@ -66,6 +79,10 @@ export type AuditTargetType =
   | "exam_question"
   | "quiz_question"
   | "vocab_word"
+  | "memory_pair"
+  | "ninja_category"
+  | "ninja_word"
+  | "jasoos_level"
   | "club_post"
   | "club_comment"
   | "club_report"
@@ -92,6 +109,16 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "quiz.question_delete": "حذف سؤال عروض سماعی",
   "vocab.word_save": "ذخیرهٔ واژه",
   "vocab.word_delete": "حذف واژه",
+  "pairs.pair_save": "ذخیرهٔ جفت ادبی",
+  "pairs.pair_delete": "حذف جفت ادبی",
+  "ninja.category_save": "ذخیرهٔ نقش نینجا",
+  "ninja.category_delete": "حذف نقش نینجا",
+  "ninja.word_save": "افزودن کلمه به نقش",
+  "ninja.word_move": "جابه‌جایی کلمه بین نقش‌ها",
+  "ninja.word_delete": "حذف کلمه از نقش",
+  "jasoos.level_save": "ذخیرهٔ پروندهٔ جاسوس",
+  "jasoos.level_publish": "تغییر انتشار پروندهٔ جاسوس",
+  "jasoos.level_delete": "حذف پروندهٔ جاسوس",
   "club.post_status": "تعیین وضعیت سروده",
   "club.post_feature": "برگزیده کردن سروده",
   "club.post_delete": "حذف سروده",
@@ -110,6 +137,10 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   "exam.question_delete",
   "quiz.question_delete",
   "vocab.word_delete",
+  "pairs.pair_delete",
+  "ninja.category_delete",
+  "ninja.word_delete",
+  "jasoos.level_delete",
   "club.post_delete",
   "club.comment_delete",
   "user.role_change",

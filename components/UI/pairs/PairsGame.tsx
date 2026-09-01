@@ -1,11 +1,22 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
-import { buildMemoryDeck, type MemoryCard } from "@/lib/literary-pairs";
+import {
+  MEMORY_GRADES,
+  MEMORY_MAX_PAIRS,
+  MEMORY_TERMS,
+  buildMemoryDeck,
+  memoryGridColumns,
+  type MemoryCard,
+  type MemoryDecks,
+  type MemoryGrade,
+  type MemoryTerm,
+} from "@/lib/literary-pairs";
 
-const PAIR_COUNT = 6; // 12 cards → tidy 3×4 / 4×3 grid on any screen
-
-type Phase = "study" | "playing";
+// اول پایه، بعد نوبت، بعد مرورِ آثار، بعد خودِ بازی. دو صفحهٔ اول همان چیزی
+// است که آزمون‌های واقعی دارند: دانش‌آموزِ دهم قرار نیست کتاب دوازدهم را
+// جفت کند.
+type Phase = "grade" | "term" | "study" | "playing";
 
 function StarIcon({ className }: { className?: string }) {
   return (
@@ -19,28 +30,38 @@ function StarIcon({ className }: { className?: string }) {
   );
 }
 
-function PairsGame() {
+function PairsGame({ decks }: { decks: MemoryDecks }) {
+  const [phase, setPhase] = useState<Phase>("grade");
+  const [grade, setGrade] = useState<MemoryGrade | null>(null);
+  const [term, setTerm] = useState<MemoryTerm | null>(null);
   const [deck, setDeck] = useState<MemoryCard[]>([]);
-  const [phase, setPhase] = useState<Phase>("study");
   const [flipped, setFlipped] = useState<number[]>([]); // indices face-up, unmatched
   const [matched, setMatched] = useState<Set<number>>(new Set()); // matched pairIds
   const [moves, setMoves] = useState(0);
   const [locked, setLocked] = useState(false);
 
-  const newGame = () => {
-    setDeck(buildMemoryDeck(PAIR_COUNT));
-    setPhase("study");
+  const pairs = grade && term ? decks[grade][term] : [];
+
+  const deal = () => {
+    setDeck(buildMemoryDeck(pairs));
     setFlipped([]);
     setMatched(new Set());
     setMoves(0);
     setLocked(false);
   };
 
-  // deal the first game on mount (client-only: buildMemoryDeck is random)
+  // a fresh deal whenever the chosen deck changes (buildMemoryDeck is random,
+  // so it has to happen on the client, after mount)
   useEffect(() => {
+    if (!grade || !term) return;
+    const chosen = decks[grade][term];
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    newGame();
-  }, []);
+    setDeck(buildMemoryDeck(chosen));
+    setFlipped([]);
+    setMatched(new Set());
+    setMoves(0);
+    setLocked(false);
+  }, [decks, grade, term]);
 
   // reconstruct the {work, author} pairs from the dealt deck for the study
   // screen (so the player learns them before the memory round)
@@ -54,7 +75,8 @@ function PairsGame() {
     return [...map.values()];
   }, [deck]);
 
-  const won = deck.length > 0 && matched.size === PAIR_COUNT;
+  const pairCount = deck.length / 2;
+  const won = deck.length > 0 && matched.size === pairCount;
 
   const handleFlip = (index: number) => {
     if (locked) return;
@@ -80,10 +102,68 @@ function PairsGame() {
     }
   };
 
-  const cols = useMemo(
-    () => (deck.length <= 12 ? "grid-cols-3 xs:grid-cols-4" : "grid-cols-4"),
-    [deck.length],
-  );
+  /** چند ستون، و آیا کارت‌ها آن‌قدر ریز شده‌اند که متنشان باید کوچک‌تر شود.
+   *  تعداد کارت‌ها دیگر ثابت نیست — هر آزمون هرچقدر جفت داشته باشد چیده
+   *  می‌شود — پس شبکه باید خودش را با آن جور کند، نه برعکس. */
+  const columns = useMemo(() => memoryGridColumns(deck.length), [deck.length]);
+  const dense = columns.wide >= 5;
+
+  const gridStyle = {
+    "--cols-base": columns.base,
+    "--cols-wide": columns.wide,
+  } as CSSProperties;
+
+  // ---- pick a grade ----
+  if (phase === "grade") {
+    return (
+      <Chooser
+        title="جفت‌های ادبی"
+        subtitle="اول پایه‌ات را انتخاب کن."
+        options={MEMORY_GRADES.map((g) => ({
+          key: g.id,
+          title: `فارسی ${g.title}`,
+          hint: "",
+          onClick: () => {
+            setGrade(g.id);
+            setPhase("term");
+          },
+        }))}
+      />
+    );
+  }
+
+  // ---- pick a term ----
+  if (phase === "term" && grade) {
+    return (
+      <Chooser
+        title={`فارسی ${MEMORY_GRADES.find((g) => g.id === grade)?.title}`}
+        subtitle="کدام آزمون؟"
+        onBack={() => {
+          setGrade(null);
+          setTerm(null);
+          setPhase("grade");
+        }}
+        options={MEMORY_TERMS.map((t) => {
+          const n = decks[grade][t.id].length;
+          return {
+            key: t.id,
+            title: t.title,
+            hint: n === 0 ? "هنوز آماده نیست" : `${t.hint} · ${n.toLocaleString("fa-IR")} جفت`,
+            disabled: n === 0,
+            onClick: () => {
+              setTerm(t.id);
+              setPhase("study");
+            },
+          };
+        })}
+      />
+    );
+  }
+
+  const backToTerms = () => {
+    setTerm(null);
+    setPhase("term");
+  };
 
   // ---- study screen: learn the works and their authors first ----
   if (phase === "study") {
@@ -137,9 +217,23 @@ function PairsGame() {
           ))}
         </motion.div>
 
-        <div className="mt-6 flex items-center justify-center gap-3">
+        {pairs.length > MEMORY_MAX_PAIRS && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            این آزمون {pairs.length.toLocaleString("fa-IR")} جفت دارد؛ هر دور
+            {" "}
+            {MEMORY_MAX_PAIRS.toLocaleString("fa-IR")} تای آن‌ها چیده می‌شود.
+          </p>
+        )}
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
-            onClick={() => setDeck(buildMemoryDeck(PAIR_COUNT))}
+            onClick={backToTerms}
+            className="min-h-11 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
+          >
+            تغییر آزمون
+          </button>
+          <button
+            onClick={deal}
             className="min-h-11 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
           >
             آثار دیگر
@@ -174,12 +268,23 @@ function PairsGame() {
             با {moves.toLocaleString("fa-IR")} حرکت همهٔ آثار را به
             پدیدآورنده‌شان رساندی.
           </p>
-          <button
-            onClick={newGame}
-            className="mt-6 min-h-11 rounded-xl bg-primary px-8 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
-          >
-            یک دور دیگر
-          </button>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <button
+              onClick={() => {
+                deal();
+                setPhase("study");
+              }}
+              className="min-h-11 rounded-xl bg-primary px-8 font-bold text-primary-foreground transition-all hover:brightness-90 active:scale-95"
+            >
+              یک دور دیگر
+            </button>
+            <button
+              onClick={backToTerms}
+              className="min-h-11 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
+            >
+              تغییر آزمون
+            </button>
+          </div>
         </motion.div>
       </div>
     );
@@ -200,7 +305,7 @@ function PairsGame() {
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
             {matched.size.toLocaleString("fa-IR")} /{" "}
-            {PAIR_COUNT.toLocaleString("fa-IR")}
+            {pairCount.toLocaleString("fa-IR")}
           </span>
           <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
             {moves.toLocaleString("fa-IR")} حرکت
@@ -208,7 +313,10 @@ function PairsGame() {
         </div>
       </div>
 
-      <div className={`grid ${cols} gap-2.5 sm:gap-3.5`}>
+      <div
+        style={gridStyle}
+        className="grid grid-cols-[repeat(var(--cols-base),minmax(0,1fr))] gap-2 sm:grid-cols-[repeat(var(--cols-wide),minmax(0,1fr))] sm:gap-3.5"
+      >
         {deck.map((card, index) => {
           const isMatched = matched.has(card.pairId);
           const isUp = isMatched || flipped.includes(index);
@@ -232,13 +340,15 @@ function PairsGame() {
                     aria-hidden
                     className="pointer-events-none absolute -inset-6 opacity-[0.05] [background-image:radial-gradient(white_0.5px,transparent_1px)] [background-size:13px_13px]"
                   />
-                  <StarIcon className="size-6 text-white/25 transition-colors duration-300 group-enabled:group-hover:text-gold/70" />
-                  <span className="text-[10px] font-bold tracking-[0.35em] text-white/20">سَروا</span>
+                  <StarIcon className={dense ? "size-4 text-white/25" : "size-6 text-white/25 transition-colors duration-300 group-enabled:group-hover:text-gold/70"} />
+                  {!dense && (
+                    <span className="text-[10px] font-bold tracking-[0.35em] text-white/20">سَروا</span>
+                  )}
                 </span>
 
                 {/* front — neon glow by category, small label + name */}
                 <span
-                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2130] to-[#0b0f18] p-2 text-center ring-1 [transform:rotateY(180deg)] [backface-visibility:hidden] ${
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2130] to-[#0b0f18] p-1.5 text-center ring-1 [transform:rotateY(180deg)] [backface-visibility:hidden] ${
                     isWork
                       ? "ring-gold/70 shadow-[0_0_28px_-8px_var(--color-gold)]"
                       : "ring-primary/70 shadow-[0_0_28px_-8px_var(--color-primary)]"
@@ -249,7 +359,11 @@ function PairsGame() {
                   >
                     {isWork ? "اثر" : "پدیدآورنده"}
                   </span>
-                  <span className="text-balance px-0.5 text-xs font-black leading-tight text-white sm:text-sm">
+                  <span
+                    className={`text-balance px-0.5 font-black leading-tight text-white ${
+                      dense ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"
+                    }`}
+                  >
                     {card.text}
                   </span>
                   {isMatched && (
@@ -264,7 +378,7 @@ function PairsGame() {
         })}
       </div>
 
-      <div className="mt-6 flex justify-center gap-3">
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
         <button
           onClick={() => setPhase("study")}
           className="min-h-10 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
@@ -272,12 +386,79 @@ function PairsGame() {
           مرور آثار
         </button>
         <button
-          onClick={newGame}
+          onClick={deal}
           className="min-h-10 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
         >
           چیدن دوباره
         </button>
+        <button
+          onClick={backToTerms}
+          className="min-h-10 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
+        >
+          تغییر آزمون
+        </button>
       </div>
+    </div>
+  );
+}
+
+type ChooserOption = {
+  key: string;
+  title: string;
+  hint: string;
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+/** صفحهٔ انتخاب — یک بار برای پایه و یک بار برای نوبت. */
+function Chooser({
+  title,
+  subtitle,
+  options,
+  onBack,
+}: {
+  title: string;
+  subtitle: string;
+  options: ChooserOption[];
+  onBack?: () => void;
+}) {
+  return (
+    <div dir="rtl" className="container mx-auto my-10 max-w-xl sm:my-16">
+      <div className="mb-6 text-center">
+        <h1 className="text-xl font-bold text-primary sm:text-2xl">{title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            onClick={o.onClick}
+            disabled={o.disabled}
+            className={`glass relative z-20 flex min-h-14 items-center justify-between gap-3 rounded-2xl px-5 text-right transition-all ${
+              o.disabled
+                ? "cursor-not-allowed opacity-50"
+                : "hover:brightness-110 active:scale-[0.99]"
+            }`}
+          >
+            <span className="font-bold">{o.title}</span>
+            {o.hint && (
+              <span className="text-xs text-muted-foreground">{o.hint}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {onBack && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={onBack}
+            className="min-h-10 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
+          >
+            بازگشت
+          </button>
+        </div>
+      )}
     </div>
   );
 }

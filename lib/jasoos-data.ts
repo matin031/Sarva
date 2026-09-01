@@ -1,19 +1,32 @@
-export type SuspectRole =
-  | "نهاد"
-  | "متمم"
-  | "مسند"
-  | "مفعول"
-  | "صفت"
-  | "قید"
-  | "تشبیه"
-  | "استعاره"
-  | "کنایه"
-  | "تشخیص"
-  | "مجاز"
-  | "واو عطف"
-  | "مضاف‌الیه"
-  | "معطوف"
-  | "منادا";
+// The roles a suspect can claim. An array rather than a bare union type
+// because the admin panel has to *render* the list — a TypeScript union is
+// erased at build time and cannot be iterated over.
+export const JASOOS_ROLES = [
+  "نهاد",
+  "متمم",
+  "مسند",
+  "مفعول",
+  "صفت",
+  "قید",
+  "تشبیه",
+  "استعاره",
+  "کنایه",
+  "تشخیص",
+  "مجاز",
+  "واو عطف",
+  "مضاف‌الیه",
+  "معطوف",
+  "منادا",
+] as const;
+
+export type SuspectRole = (typeof JASOOS_ROLES)[number];
+
+export function isSuspectRole(value: string): value is SuspectRole {
+  return (JASOOS_ROLES as readonly string[]).includes(value);
+}
+
+/** هر پرونده دقیقاً چهار مظنون دارد — چهار در، چهار ادعا، یک جاسوس. */
+export const JASOOS_SUSPECT_COUNT = 4;
 
 export type JasoosCategory = "دستوری" | "آرایه";
 export type JasoosContentType = "poem" | "prose";
@@ -334,21 +347,43 @@ const rawLevels: JasoosLevel[] = [
   },
 ];
 
+/** The levels that ship in the box — the fallback used until an admin
+ *  creates the first level in the panel (table `jasoos_levels`). */
 export const JASOOS_LEVELS: JasoosLevel[] = rawLevels.map((level) => ({
   ...level,
-  suspects: seededShuffle(level.suspects, level.id * 7919) as [
-    Suspect,
-    Suspect,
-    Suspect,
-    Suspect,
-  ],
+  suspects: shuffleSuspects(level.suspects, level.id),
 }));
+
+/** Shuffles a level's four suspects into a stable display order.
+ *
+ *  Deterministic on purpose: the same level must lay out identically on the
+ *  server and on the client, or hydration mismatches. Levels coming from the
+ *  database go through this too (lib/jasoos-content.ts) — otherwise the spy
+ *  would always sit wherever the admin happened to type them. */
+export function shuffleSuspects(
+  suspects: [Suspect, Suspect, Suspect, Suspect],
+  levelId: number,
+): [Suspect, Suspect, Suspect, Suspect] {
+  return seededShuffle(suspects, levelId * 7919) as [
+    Suspect,
+    Suspect,
+    Suspect,
+    Suspect,
+  ];
+}
 
 // picks `count` levels at random for a run; called client-side after the
 // player chooses a question count, so real randomness (not the deterministic
 // seed above) is fine here — no SSR/hydration mismatch risk.
-export function pickJasoosLevels(count: number): JasoosLevel[] {
-  const shuffled = [...JASOOS_LEVELS];
+//
+// `levels` is passed in rather than read from JASOOS_LEVELS: which levels a
+// run draws from is now a server decision (the database, falling back to
+// JASOOS_LEVELS when it holds nothing).
+export function pickJasoosLevels(
+  levels: JasoosLevel[],
+  count: number,
+): JasoosLevel[] {
+  const shuffled = [...levels];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];

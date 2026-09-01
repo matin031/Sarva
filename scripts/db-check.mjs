@@ -24,9 +24,11 @@ const EXPECTED_TABLES = [
   // واژه‌یاب
   "vocab_words", "vocab_answers",
   // جاسوس
-  "jasoos_answers",
+  "jasoos_answers", "jasoos_levels", "jasoos_suspects",
   // پلِ وزن
   "aruz_bridge_questions",
+  // محتوای بازی‌ها
+  "memory_pairs", "ninja_categories", "ninja_words",
   // نشان‌شده‌ها
   "user_bookmarks",
   // کلاب

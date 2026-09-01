@@ -150,14 +150,32 @@ const FILLER = [
   "دوچرخه",
 ];
 
-function makeDecoys(...exclude: string[][]) {
-  const excluded = new Set(exclude.flat());
-  const others = [QEID, SEFAT, HARF_RABT, ZAMIR]
-    .flat()
-    .filter((w) => !excluded.has(w));
+/** Everything a player could be shown that is *not* one of `targetWords`:
+ *  every other category's words, plus FILLER above as a neutral pool so a
+ *  round stays busy even when only one category exists.
+ *
+ *  Exported because the database-backed rounds (lib/ninja-content.ts) must
+ *  build their decoys exactly the same way — including from the same filler.
+ *
+ *  `allCategoryWords` is every category's word list, the target's included;
+ *  filtering happens here rather than at the call site, so a word an admin put
+ *  in two categories can never show up as its own decoy. */
+export function buildNinjaDecoys(
+  allCategoryWords: string[][],
+  targetWords: string[],
+): string[] {
+  const excluded = new Set(targetWords);
+  const others = allCategoryWords.flat().filter((w) => !excluded.has(w));
   return [...new Set([...others, ...FILLER])];
 }
 
+function makeDecoys(...exclude: string[][]) {
+  return buildNinjaDecoys([QEID, SEFAT, HARF_RABT, ZAMIR], exclude.flat());
+}
+
+// The rounds that ship in the box. They are the fallback: as soon as an admin
+// creates a single category in the panel (table `ninja_categories`), the game
+// is dealt from the database instead — see lib/ninja-content.ts.
 export const NINJA_ROUNDS: NinjaRound[] = [
   {
     id: 1,
@@ -189,16 +207,6 @@ export const NINJA_ROUNDS: NinjaRound[] = [
   },
 ];
 
-// only قید is selectable in the settings screen for now — the rest of
-// NINJA_ROUNDS stays defined for when more categories are wired up.
-export const SELECTABLE_NINJA_CATEGORIES = [
-  { label: "قید", enabled: true },
-  { label: "صفت", enabled: false },
-  { label: "حروف اضافه", enabled: false },
-  { label: "فعل", enabled: false },
-  { label: "کلماتِ استعاره‌پذیر", enabled: false },
-] as const;
-
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -208,13 +216,17 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-// builds the (currently only قید) round with a random subset of `count`
-// target words, used once the player picks a word count in settings.
-export function buildNinjaRound(count: number): NinjaRound {
-  const base = NINJA_ROUNDS[0];
-  const targetWords = shuffle(base.targetWords).slice(
+/** Deals one playable round: the chosen category with a random subset of
+ *  `count` of its target words.
+ *
+ *  Used to hard-code NINJA_ROUNDS[0] (قید) because that was the only category
+ *  the settings screen offered. Now the player picks a category — and which
+ *  categories exist is an admin decision, not a code one — so the round to
+ *  deal is an argument. */
+export function buildNinjaRound(round: NinjaRound, count: number): NinjaRound {
+  const targetWords = shuffle(round.targetWords).slice(
     0,
-    Math.min(count, base.targetWords.length),
+    Math.min(count, round.targetWords.length),
   );
-  return { ...base, targetWords };
+  return { ...round, targetWords };
 }

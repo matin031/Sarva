@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { JASOOS_LEVELS, pickJasoosLevels } from "@/lib/jasoos-data";
+import { pickJasoosLevels } from "@/lib/jasoos-data";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { apiPost } from "@/lib/api/client";
@@ -38,7 +38,9 @@ type StoredState = {
   timerEndsAt: number | null;
 };
 
-function JasoosGame() {
+/** levels از سرور می‌آید: پرونده‌های منتشرشدهٔ پنل مدیریت، و اگر هنوز
+ *  پرونده‌ای ساخته نشده باشد، هشت پروندهٔ پیش‌فرضِ lib/jasoos-data.ts. */
+function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   const [screen, setScreen] = useState<Screen>("intro");
   const [settings, setSettings] = useState<JasoosSettings | null>(null);
   const [runLevels, setRunLevels] = useState<JasoosLevel[]>([]);
@@ -64,6 +66,10 @@ function JasoosGame() {
 
   // try to resume a saved session first, before we even know the user
   useEffect(() => {
+    // یک بار و فقط یک بار. allLevels در وابستگی‌ها هست چون داخل استفاده
+    // می‌شود، و همین گارد جلوی اجرای دوباره را می‌گیرد.
+    if (restoredFromStorage) return;
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -73,8 +79,10 @@ function JasoosGame() {
           parsed.screen !== "intro" &&
           typeof parsed.ownerId === "string"
         ) {
+          // پرونده‌ای که مدیر بین دو نشست حذف یا پنهانش کرده، دیگر در
+          // allLevels نیست و از بازیِ بازیابی‌شده هم می‌افتد.
           const levels = parsed.runLevelIds
-            .map((id) => JASOOS_LEVELS.find((l) => l.id === id))
+            .map((id) => allLevels.find((l) => l.id === id))
             .filter((l): l is JasoosLevel => !!l);
           if (levels.length) {
             restoredOwnerRef.current = parsed.ownerId;
@@ -100,7 +108,7 @@ function JasoosGame() {
       }
     }
     setRestoredFromStorage(true);
-  }, []);
+  }, [allLevels, restoredFromStorage]);
 
 
   // if the restored session belongs to a different user than the one now
@@ -203,7 +211,7 @@ function JasoosGame() {
   const beginRun = (chosen: JasoosSettings) => {
     restoredOwnerRef.current = user ? user.id : "guest";
     setSettings(chosen);
-    setRunLevels(pickJasoosLevels(chosen.questionCount));
+    setRunLevels(pickJasoosLevels(allLevels, chosen.questionCount));
     setLevelIndex(0);
     setClearedCount(0);
     setLives(START_LIVES);
@@ -323,7 +331,7 @@ function JasoosGame() {
         )}
 
         {screen === "settings" && (
-          <JasoosSettingsModal maxQuestions={JASOOS_LEVELS.length} onStart={beginRun} />
+          <JasoosSettingsModal maxQuestions={allLevels.length} onStart={beginRun} />
         )}
 
         {screen === "map" && (

@@ -26,21 +26,32 @@ export interface SceneTheme {
   energy: string;
   lamp: string;
   ambient: string;
+  /** بدنه و غلافِ سلولِ باتری. */
+  cell: string;
+  cellBand: string;
+  /** کفِ گودِ سوکت. در تمِ روشن نباید سیاه باشد. */
+  wellFloor: string;
 }
 
+/* تمِ روشن قبلاً همه‌چیزش کم‌رنگ بود و قطعه‌ها در پس‌زمینه گم می‌شدند.
+   حالا اجزاء *تیره* روی سطحِ روشن می‌نشینند — همان کاری که یک بردِ واقعی
+   روی میزِ سفید می‌کند — و کنتراست از خودِ اجسام می‌آید نه از رنگِ زمینه. */
 const LIGHT: SceneTheme = {
   dark: false,
-  slab: "#eef4f3",
-  slabEdge: "#d3e0dd",
-  trace: "#9fb8b4",
-  open: "#c3d3d0",
-  seated: "#7fa6a0",
-  ok: "#2f9e79",
-  bad: "#d4674f",
-  scan: "#e0a33f",
-  energy: "#1f9d8f",
-  lamp: "#f2c14e",
+  slab: "#dfe7e6",
+  slabEdge: "#5d6b70",
+  trace: "#5c7a78",
+  open: "#94a8a6",
+  seated: "#2f6f68",
+  ok: "#0f8f68",
+  bad: "#c9503a",
+  scan: "#cf8f24",
+  energy: "#0e9384",
+  lamp: "#ffb52e",
   ambient: "#ffffff",
+  cell: "#7d878c",
+  cellBand: "#123a3f",
+  wellFloor: "#b7c5c4",
 };
 
 const DARK: SceneTheme = {
@@ -54,8 +65,11 @@ const DARK: SceneTheme = {
   bad: "#e2745c",
   scan: "#e8b055",
   energy: "#4fd6c4",
-  lamp: "#ffd479",
+  lamp: "#ffc857",
   ambient: "#9fd4ff",
+  cell: "#8d979c",
+  cellBand: "#0f3b44",
+  wellFloor: "#05090c",
 };
 
 /** با `useSyncExternalStore` خوانده می‌شود، نه با state در افکت: تم یک

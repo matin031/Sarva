@@ -13,7 +13,6 @@ type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
 const START_LIVES = 3;
 const ROUND_DURATION_MS = 46000;
-const MAX_WORDS = 15;
 const STORAGE_KEY = "ninja-progress";
 
 type StoredState = {
@@ -23,15 +22,21 @@ type StoredState = {
   totalScore: number;
   lastMistake: string | null;
   difficulty?: NinjaDifficulty;
+  /** نقشی که این دور از آن چیده شده — برای «شروع دوباره» با کلماتِ تازه.
+   *  اختیاری است چون بازیِ ذخیره‌شدهٔ قبل از این تغییر آن را ندارد. */
+  baseRoundId?: number;
 };
 
-function NinjaGame() {
+/** rounds از سرور می‌آید: نقش‌هایی که مدیر ساخته، و اگر هنوز نساخته باشد
+ *  نقش‌های پیش‌فرضِ lib/ninja-data.ts. */
+function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
   const [screen, setScreen] = useState<Screen>("intro");
   const [round, setRound] = useState<NinjaRound | null>(null);
   const [lives, setLives] = useState(START_LIVES);
   const [totalScore, setTotalScore] = useState(0);
   const [lastMistake, setLastMistake] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<NinjaDifficulty>("easy");
+  const [baseRoundId, setBaseRoundId] = useState<number | null>(null);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
   // resume a saved run so a mid-game refresh doesn't lose progress
@@ -53,6 +58,7 @@ function NinjaGame() {
           setTotalScore(parsed.totalScore ?? 0);
           setLastMistake(parsed.lastMistake ?? null);
           setDifficulty(parsed.difficulty ?? "easy");
+          setBaseRoundId(parsed.baseRoundId ?? null);
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -69,12 +75,32 @@ function NinjaGame() {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
-    const data: StoredState = { screen, round, lives, totalScore, lastMistake, difficulty };
+    const data: StoredState = {
+      screen,
+      round,
+      lives,
+      totalScore,
+      lastMistake,
+      difficulty,
+      baseRoundId: baseRoundId ?? undefined,
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [restoredFromStorage, screen, round, lives, totalScore, lastMistake, difficulty]);
+  }, [
+    restoredFromStorage,
+    screen,
+    round,
+    lives,
+    totalScore,
+    lastMistake,
+    difficulty,
+    baseRoundId,
+  ]);
 
   const beginRound = (settings: NinjaSettings) => {
-    setRound(buildNinjaRound(settings.wordCount));
+    const base = rounds.find((r) => r.id === settings.roundId);
+    if (!base) return;
+    setRound(buildNinjaRound(base, settings.wordCount));
+    setBaseRoundId(base.id);
     setDifficulty(settings.difficulty);
     setLives(START_LIVES);
     setTotalScore(0);
@@ -84,7 +110,10 @@ function NinjaGame() {
 
   const restart = () => {
     if (round) {
-      setRound(buildNinjaRound(round.targetWords.length));
+      // کلماتِ تازه از همان نقش. اگر آن نقش دیگر وجود ندارد (مدیر حذفش کرده
+      // و بازیِ ذخیره‌شده مانده)، همان راندِ در دست دوباره چیده می‌شود.
+      const base = rounds.find((r) => r.id === baseRoundId) ?? round;
+      setRound(buildNinjaRound(base, round.targetWords.length));
     }
     setLives(START_LIVES);
     setTotalScore(0);
@@ -167,7 +196,14 @@ function NinjaGame() {
             title="نینجای دستور زبان"
             tagline="فقط کلمه‌های درست را برش بزن."
             steps={[
-              "اول کلماتِ یک دستهٔ دستوری (قید، صفت، حرف ربط یا ضمیر) را حفظ می‌کنی.",
+              // دسته‌ها از پنل می‌آیند، پس شمردنشان اینجا در کد یعنی متنی که
+              // با اولین نقشِ تازه دروغ می‌شود.
+              rounds.length > 0
+                ? `اول کلماتِ یک دستهٔ دستوری (${rounds
+                    .slice(0, 4)
+                    .map((r) => r.category)
+                    .join("، ")}${rounds.length > 4 ? " و…" : ""}) را حفظ می‌کنی.`
+                : "اول کلماتِ یک دستهٔ دستوری را حفظ می‌کنی.",
               "بعد ده‌ها کلمه توی هوا پرت می‌شوند و با کشیدن انگشت یا موس برش می‌زنی.",
               "فقط کلماتِ هدف را ببُر؛ برشِ اشتباه یا از دست‌دادنِ کلمهٔ هدف یک جان می‌گیرد.",
             ]}
@@ -180,7 +216,7 @@ function NinjaGame() {
         )}
 
         {screen === "settings" && (
-          <NinjaSettingsModal maxWords={MAX_WORDS} onStart={beginRound} />
+          <NinjaSettingsModal rounds={rounds} onStart={beginRound} />
         )}
 
         {screen === "study" && round && (

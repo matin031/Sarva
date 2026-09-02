@@ -11,7 +11,8 @@
     "db:check": "node scripts/db-check.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "db:seed-exams": "tsx scripts/seed-exams.ts",
-    "db:seed-aruz": "tsx scripts/seed-aruz.ts"
+    "db:seed-aruz": "tsx scripts/seed-aruz.ts",
+    "db:unseed-aruz": "tsx scripts/unseed-aruz.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

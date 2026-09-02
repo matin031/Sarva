@@ -25,6 +25,7 @@ import {
 import { useAruzBridgeGame } from "./useAruzBridgeGame";
 import { useGameControls } from "./useGameControls";
 import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
+import { useSetReportTarget } from "@/lib/reports/target";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -77,6 +78,17 @@ export default function AruzBridgeGame() {
 
   const { state, machine } = game;
   const step = currentStep(machine);
+
+  useSetReportTarget(
+    step
+      ? {
+          area: "aruz_bridge",
+          targetId: step.question.id,
+          snapshot: `${step.question.promptText}\nوزنِ درست: ${step.question.correctPattern}`,
+          targetRef: { correct_side: step.correctSide },
+        }
+      : null,
+  );
 
   const shellRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);

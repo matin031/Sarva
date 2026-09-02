@@ -27,6 +27,7 @@ import {
   resetFailure,
 } from "@/lib/vocab-preload";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { useSetReportTarget } from "@/lib/reports/target";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
 import BookmarkButton from "@/components/UI/BookmarkButton";
@@ -239,6 +240,20 @@ export default function VocabGame() {
   };
 
   const q = questions[qi];
+
+  /* پوستهٔ بازی دکمهٔ گزارش را می‌سازد؛ اینجا فقط می‌گوییم الان چه چیزی روی
+     صفحه است. وقتی پرسشی در کار نیست (صفحهٔ انتخاب یا نتیجه) `null` می‌رود
+     و دکمه اصلاً دیده نمی‌شود. */
+  useSetReportTarget(
+    q
+      ? {
+          area: "vocab",
+          targetId: q.answer.id,
+          snapshot: `${q.answer.word} — ${q.answer.meaning}`,
+          targetRef: { grade: grade?.id ?? null, lessons: selected },
+        }
+      : null,
+  );
   const picked = picks[qi] ?? null;
   const answered = picked !== null;
   const isCorrect = answered && picked === q?.answer.id;

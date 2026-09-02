@@ -8,6 +8,7 @@ import SliceField from "./SliceField";
 import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./NinjaSettingsModal";
 import GameIntro from "@/components/UI/games/GameIntro";
 import { NinjaPreview } from "@/components/UI/games/GamePreviews";
+import { useSetReportTarget } from "@/lib/reports/target";
 
 type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
@@ -38,6 +39,19 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
   const [difficulty, setDifficulty] = useState<NinjaDifficulty>("easy");
   const [baseRoundId, setBaseRoundId] = useState<number | null>(null);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+
+  /* گزارش روی *نقش* است نه روی یک واژه: اگر واژه‌ای در دستهٔ اشتباه نشسته
+     باشد، مدیر باید همان نقش را باز کند. خودِ واژه در یادداشتِ کاربر می‌آید. */
+  useSetReportTarget(
+    (screen === "study" || screen === "slicing") && round
+      ? {
+          area: "ninja",
+          targetId: String(round.id),
+          snapshot: `${round.category} — ${round.hint}`,
+          targetRef: { round_id: round.id, category: round.category, difficulty },
+        }
+      : null,
+  );
 
   // resume a saved run so a mid-game refresh doesn't lose progress
   useEffect(() => {

@@ -1,5 +1,7 @@
 "use client";
 
+import GameReportButton from "@/components/UI/games/GameReportButton";
+
 /** نوارِ بالای بازی در حالتِ تمام‌صفحه.
  *
  *  فقط سه چیزِ ضروری: خروج، هویتِ سروا، صدا. سه‌ستونیِ 1fr auto 1fr است تا
@@ -34,6 +36,13 @@ export default function CompactGameTopBar({
       <div className="aruzr-topbar-center">{children}</div>
 
       <div className="aruzr-topbar-side aruzr-topbar-side-end">
+        {/* در حالِ بازی، نوارِ بالای پوستهٔ سایت رندر نمی‌شود؛ راهِ گزارش
+            همین‌جاست. */}
+        <GameReportButton
+          compact
+          variant="bare"
+          className="aruzr-icon-btn inline-flex items-center justify-center [&>svg]:size-5"
+        />
         <button
           type="button"
           onClick={onToggleSound}

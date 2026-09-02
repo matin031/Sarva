@@ -93,7 +93,11 @@ export type AuditAction =
   | "supporter.update"
   | "supporter.delete"
   // کنسول SQL
-  | "sql.execute";
+  | "sql.execute"
+  // گزارش محتوا
+  | "report.status"
+  | "report.note"
+  | "report.delete";
 
 export type AuditTargetType =
   | "user"
@@ -114,7 +118,8 @@ export type AuditTargetType =
   | "file"
   | "announcement"
   | "supporter"
-  | "database";
+  | "database"
+  | "report";
 
 /** متن فارسیِ نمایشیِ هر عمل. اینجا و نه در دیتابیس، تا عوض کردن عبارت به
  *  migration نیاز نداشته باشد. */
@@ -164,6 +169,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "supporter.update": "ویرایش حامی",
   "supporter.delete": "حذف حامی",
   "sql.execute": "اجرای SQL از پنل",
+  "report.status": "تغییر وضعیت گزارش",
+  "report.note": "یادداشت روی گزارش",
+  "report.delete": "حذف گزارش",
 };
 
 /** عمل‌هایی که برگشت‌ناپذیرند — در پنل با رنگ متفاوت دیده می‌شوند. */
@@ -189,6 +197,7 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   // بوده. دلیلش این است که از بیرون نمی‌شود فهمید کدام اجرا بی‌خطر بوده، و
   // فیلترِ «فقط کارهای برگشت‌ناپذیر» در پنل باید *همهٔ* آن‌ها را نشان بدهد.
   "sql.execute",
+  "report.delete",
 ]);
 
 /**

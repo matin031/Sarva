@@ -4,6 +4,8 @@ import type { ClientQuestion } from "@/lib/exam/client-exam";
 import type { PartResult } from "@/app/exam/[examKey]/actions";
 import QuestionPartRenderer from "@/components/exam/QuestionPartRenderer";
 import MarkedText from "@/components/exam/MarkedText";
+import ReportButton from "@/components/UI/ReportButton";
+import { extractReadableText } from "@/lib/reports/snapshot";
 
 type Props = {
   question: ClientQuestion;
@@ -15,6 +17,9 @@ type Props = {
   partResults?: PartResult[];
   /** Called when the student self-scores an open-ended part (selfGrade). */
   onSelfGrade?: (partIndex: number, score: number) => void;
+  /** کلیدِ آزمون — فقط برای گزارشِ ایراد. بدونِ آن دکمهٔ گزارش نمی‌آید،
+   *  چون گزارشی که نگوید کدام آزمون بود قابلِ پیگیری نیست. */
+  examKey?: string;
 };
 
 const faNum = (n: number) => n.toLocaleString("fa-IR", { maximumFractionDigits: 2 });
@@ -60,6 +65,7 @@ export default function ExamQuestionCard({
   disabled,
   partResults,
   onSelfGrade,
+  examKey,
 }: Props) {
   const totalScore = question.parts.reduce((sum, p) => sum + p.score, 0);
 
@@ -79,9 +85,29 @@ export default function ExamQuestionCard({
             </span>
           )}
         </div>
-        <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
-          {totalScore} نمره
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+            {totalScore} نمره
+          </span>
+          {examKey && (
+            <ReportButton
+              target={{
+                area: "exam",
+                targetId: `${examKey}#${question.number}`,
+                /* صورتِ سؤال، نه پاسخِ دانش‌آموز. `content` یک شیءِ
+                   ساختاریافته است، پس متنش باید بیرون کشیده شود وگرنه
+                   snapshot می‌شود «[object Object]» و دیگر با جست‌وجوی یک
+                   مصراع پیدا نمی‌شود. */
+                snapshot: extractReadableText([
+                  question.instruction,
+                  ...question.parts.map((p) => p.content),
+                ]),
+                targetRef: { exam_key: examKey, question_number: question.number },
+              }}
+              compact
+            />
+          )}
+        </div>
       </div>
 
       {question.instruction && (

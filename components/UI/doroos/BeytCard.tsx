@@ -8,6 +8,7 @@ import type { WordRole } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
 import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
+import ReportButton from "@/components/UI/ReportButton";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -15,7 +16,14 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  three قلمروs side by side, then whatever extras the بیت carries. The exam
  *  question keeps its answer hidden until the reader asks — otherwise the eye
  *  reads the answer before the question. */
-export default function BeytCard({ beyt }: { beyt: Beyt }) {
+export default function BeytCard({
+  beyt,
+  lessonRef,
+}: {
+  beyt: Beyt;
+  /** شناسهٔ درس — تا گزارشِ «این معنی درست نیست» بگوید کدام بیتِ کدام درس. */
+  lessonRef?: { grade: string; number: number; title: string };
+}) {
   const [showAnswer, setShowAnswer] = useState(false);
   /** which diagram is drawn over the بیت — grammar, figures of speech, or the
    *  plain couplet. Only one at a time: both at once is unreadable. */
@@ -61,6 +69,23 @@ export default function BeytCard({ beyt }: { beyt: Beyt }) {
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
               بیت {faNum(beyt.n)}
+              {lessonRef && (
+                <ReportButton
+                  target={{
+                    area: "doroos",
+                    targetId: `${lessonRef.grade}/${lessonRef.number}#${beyt.n}`,
+                    snapshot: beyt.hemistichs.join(" / "),
+                    targetRef: {
+                      grade: lessonRef.grade,
+                      lesson: lessonRef.number,
+                      beyt: beyt.n,
+                    },
+                  }}
+                  compact
+                  variant="bare"
+                  className="-mr-1 inline-flex items-center text-primary/70 transition-colors hover:text-destructive"
+                />
+              )}
             </span>
 
             {/* a diagram is on by default — the point is to see the analysis

@@ -430,6 +430,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
         disabled={isRevealed || isPending}
         partResults={questionResults[question.number]?.parts}
         onSelfGrade={handleSelfGrade}
+        examKey={examKey}
       />
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md xs:px-5">

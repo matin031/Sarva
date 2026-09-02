@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import MainLogo from "@/components/svgs/mainLogo";
+import GameReportButton from "@/components/UI/games/GameReportButton";
 
 /* نوارِ بالای بازی روی موبایل — جایگزینِ سربرگِ کاملِ سایت در حینِ بازی.
  *
@@ -34,6 +35,8 @@ export function GameTopBar({
       </Link>
 
       <div className="flex items-center gap-1.5">
+        {/* در حالتِ تمام‌صفحهٔ موبایل، نوارِ بالای پوسته وجود ندارد. */}
+        <GameReportButton compact variant="bare" className={`${button} inline-flex items-center [&>svg]:size-4`} />
         <button
           type="button"
           onClick={onToggleMute}

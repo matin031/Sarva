@@ -7,6 +7,7 @@ import { REALMS } from "@/lib/doroos/types";
 import { faNum } from "@/lib/doroos";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
 import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
+import ReportButton from "@/components/UI/ReportButton";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -21,7 +22,14 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  *  paragraphs of it; arrows from thirty words up to thirty labels would be
  *  unreadable, and the reader asked for them not to be drawn there. The verse
  *  بندs keep them, since those are بیت like any other. */
-export default function PassageCard({ passage }: { passage: Passage }) {
+export default function PassageCard({
+  passage,
+  lessonRef,
+}: {
+  passage: Passage;
+  /** شناسهٔ درس — تا گزارش بگوید کدام بندِ کدام درس. */
+  lessonRef?: { grade: string; number: number; title: string };
+}) {
   const [showAnswer, setShowAnswer] = useState(false);
   const [view, setView] = useState<"syntax" | "devices" | "plain">("syntax");
 
@@ -60,6 +68,23 @@ export default function PassageCard({ passage }: { passage: Passage }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
               {isVerse ? "بیت" : isQuote ? "آیه / حدیث" : "بند"} {faNum(passage.n)}
+              {lessonRef && (
+                <ReportButton
+                  target={{
+                    area: "doroos",
+                    targetId: `${lessonRef.grade}/${lessonRef.number}#${passage.n}`,
+                    snapshot: passage.lines.join(" / "),
+                    targetRef: {
+                      grade: lessonRef.grade,
+                      lesson: lessonRef.number,
+                      passage: passage.n,
+                    },
+                  }}
+                  compact
+                  variant="bare"
+                  className="-mr-1 inline-flex items-center text-primary/70 transition-colors hover:text-destructive"
+                />
+              )}
             </span>
 
             {available.length ? (

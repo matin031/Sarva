@@ -37,6 +37,14 @@ export default function LessonView({
   const units =
     lesson.kind === "poem" ? lesson.beyts.length : lesson.passages.length;
 
+  /* هر بیت و بند دکمهٔ گزارش دارد؛ این همان چیزی است که به گزارش می‌گوید
+     کدام درس بوده. `title` فقط برای خواناییِ گزارش در پنل است. */
+  const lessonRef = {
+    grade: lesson.grade,
+    number: lesson.number,
+    title: lesson.title,
+  };
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="relative z-20 overflow-hidden">
@@ -128,9 +136,11 @@ export default function LessonView({
         {/* ---------- the analysis ---------- */}
         <section dir="rtl" className="relative z-20 container space-y-14 pb-20">
           {lesson.kind === "poem"
-            ? lesson.beyts.map((b) => <BeytCard key={b.n} beyt={b} />)
+            ? lesson.beyts.map((b) => (
+                <BeytCard key={b.n} beyt={b} lessonRef={lessonRef} />
+              ))
             : lesson.passages.map((p) => (
-                <PassageCard key={p.n} passage={p} />
+                <PassageCard key={p.n} passage={p} lessonRef={lessonRef} />
               ))}
         </section>
 

@@ -3,6 +3,7 @@ import { Question } from "@/app/quiz/page";
 import QuizHeader from "@/components/UI/QuizHeader";
 import { useEffect, useState, useRef, useMemo } from "react";
 import QuestionCard from "./QuestionCard";
+import ReportButton from "@/components/UI/ReportButton";
 import QuestionOption from "@/components/UI/QuestionOption";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
@@ -385,7 +386,29 @@ function Quiz({ data }: { data: Question[] }) {
         {/* flag this question for later — it shows up in پنل ← عروض ← نشان‌شده‌ها.
             The payload carries the whole question so the panel can replay it
             even if the question bank changes afterwards. */}
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          {/* گزارش، کنارِ نشان‌کردن. برخلاف آن یکی، برای مهمان هم دیده
+              می‌شود — گزارش را سرور نگه می‌دارد و بیشترِ کسانی که به سؤالِ
+              غلط برمی‌خورند اصلاً وارد نشده‌اند. */}
+          <ReportButton
+            target={{
+              area: "quiz",
+              targetId: questions[currentIndex].id,
+              // متنِ همان لحظه: بیتِ صورتِ سؤال اگر باشد، وگرنه برچسبِ
+              // گزینه‌ها. همین است که بعداً مدیر با جست‌وجوی یک مصراع پیدایش
+              // می‌کند، حتی اگر سؤال ویرایش شده باشد.
+              snapshot:
+                questions[currentIndex].poem?.join("\n") ||
+                questions[currentIndex].options
+                  .map((o) => o.label ?? o.poem?.join(" / ") ?? "")
+                  .filter(Boolean)
+                  .join("\n"),
+              targetRef: {
+                type: questions[currentIndex].type,
+                question_number: currentIndex + 1,
+              },
+            }}
+          />
           <BookmarkButton
             area="aruz"
             refId={questions[currentIndex].id}

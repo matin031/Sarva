@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import type { GameState } from "@/lib/aruz-bridge/types";
+import GameReportButton from "@/components/UI/games/GameReportButton";
 
 /* HUDـِ فشرده — بخشِ بالاییِ *همان* پوستهٔ بازی، نه کارتی جدا.
  *
@@ -57,6 +58,10 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** همان ظاهرِ `IconButton`، ولی دکمهٔ گزارش خودش دکمه‌اش را می‌سازد. */
+const ICON_BTN_CLS =
+  "rounded-lg border border-border bg-background/70 p-1.5 text-muted-foreground transition-all hover:text-foreground hover:border-primary/50 active:scale-95";
+
 function IconButton({
   onClick,
   href,
@@ -68,8 +73,7 @@ function IconButton({
   label: string;
   children: React.ReactNode;
 }) {
-  const cls =
-    "rounded-lg border border-border bg-background/70 p-1.5 text-muted-foreground transition-all hover:text-foreground hover:border-primary/50 active:scale-95";
+  const cls = ICON_BTN_CLS;
   return href ? (
     <Link href={href} aria-label={label} className={cls}>
       {children}
@@ -209,6 +213,13 @@ export function GameHeader({
               </svg>
             )}
           </IconButton>
+          {/* در حالتِ جمع‌شده نوارِ بالای پوسته رندر نمی‌شود؛ راهِ گزارش
+              همین‌جاست. */}
+          <GameReportButton
+            compact
+            variant="bare"
+            className={`${ICON_BTN_CLS} inline-flex items-center [&>svg]:size-4`}
+          />
         </div>
 
         {/* وسط: واژهٔ پرسش.

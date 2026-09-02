@@ -12,6 +12,7 @@ import {
   type MemoryGrade,
   type MemoryTerm,
 } from "@/lib/literary-pairs";
+import { useSetReportTarget } from "@/lib/reports/target";
 
 // اول پایه، بعد نوبت، بعد مرورِ آثار، بعد خودِ بازی. دو صفحهٔ اول همان چیزی
 // است که آزمون‌های واقعی دارند: دانش‌آموزِ دهم قرار نیست کتاب دوازدهم را
@@ -77,6 +78,23 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
 
   const pairCount = deck.length / 2;
   const won = deck.length > 0 && matched.size === pairCount;
+
+  /* گزارش روی *دستهٔ* اثر–پدیدآور است: یک جفتِ غلط با همان پایه و نوبت پیدا
+     می‌شود، و چند جفتِ اولِ دور در snapshot می‌ماند تا حتی بعدِ ویرایش هم
+     بشود موردش را با جست‌وجوی متن یافت. */
+  useSetReportTarget(
+    (phase === "study" || phase === "playing") && grade && term
+      ? {
+          area: "pairs",
+          targetId: `${grade}:${term}`,
+          snapshot: studyPairs
+            .slice(0, 4)
+            .map((p) => `${p.work} — ${p.author}`)
+            .join(" / "),
+          targetRef: { grade, term },
+        }
+      : null,
+  );
 
   const handleFlip = (index: number) => {
     if (locked) return;

@@ -7,6 +7,7 @@ import { adminQuizStatsOverview } from "@/lib/admin/quiz-stats-actions";
 import { adminExamStatsOverview } from "@/lib/admin/exam-stats-actions";
 import { clubAdminStats } from "@/lib/club/admin-actions";
 import { adminRecentActivity } from "@/lib/admin/log-actions";
+import { openReportCount } from "@/lib/admin/report-actions";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 
 export const metadata: Metadata = {
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 async function loadStats() {
-  const [exams, quizList, users, quizActivity, examActivity, club, recent] = await Promise.all([
+  const [exams, quizList, users, quizActivity, examActivity, club, recent, contentReports] =
+    await Promise.all([
     adminListExams(),
     quizAdminList({ limit: 1 }),
     adminUserCounts(),
@@ -26,6 +28,7 @@ async function loadStats() {
     adminExamStatsOverview(),
     clubAdminStats(),
     adminRecentActivity(),
+    openReportCount(),
   ]);
   return {
     examCount: exams.length,
@@ -35,6 +38,7 @@ async function loadStats() {
     examActivity,
     club,
     recent,
+    contentReports,
   };
 }
 
@@ -71,7 +75,7 @@ export default async function Page() {
   const result = await loadAdminData(loadStats);
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
   const stats = result.data;
-  const { recent } = stats;
+  const { recent, contentReports } = stats;
 
   const statCards = [
     { kind: "exam" as const, value: stats.examCount, label: "آزمون" },
@@ -112,8 +116,20 @@ export default async function Page() {
 
       {/* کارهایی که منتظر شما هستند، بالای هر عددی. یک صف که کسی نگاهش نکند،
           تنها راهی است که این بخش‌ها شکست می‌خورند. */}
-      {(recent.openErrors > 0 || clubQueue > 0 || stats.club.openReports > 0) && (
+      {(recent.openErrors > 0 || contentReports > 0 || clubQueue > 0 || stats.club.openReports > 0) && (
         <div className="flex flex-col gap-2">
+          {/* گزارشِ کاربران بالاتر از خطای سرور می‌نشیند: خطای سرور را لاگ هم
+              می‌گیرد، ولی «این سؤال غلط است» را فقط همین یک نفر گفته و اگر
+              دیده نشود، همان سؤالِ غلط سرِ جایش می‌ماند. */}
+          {contentReports > 0 && (
+            <AttentionCard
+              href="/admin/reports"
+              tone="destructive"
+              title="گزارشِ رسیدگی‌نشده از کاربران"
+              body="کاربری گفته سؤال یا محتوایی ایراد دارد. تا بررسی نشود، همان محتوا به بقیه هم نشان داده می‌شود."
+              count={contentReports}
+            />
+          )}
           {recent.openErrors > 0 && (
             <AttentionCard
               href="/admin/activity"

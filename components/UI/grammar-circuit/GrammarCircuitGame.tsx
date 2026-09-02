@@ -39,6 +39,8 @@ import { useCircuitDnD } from "./hooks/useCircuitDnD";
 import { useCircuitLayout } from "./hooks/useCircuitLayout";
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion";
 import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
+import { useSetReportTarget } from "@/lib/reports/target";
+import { immersiveMode } from "@/lib/immersive-mode";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
  *
@@ -82,6 +84,27 @@ export default function GrammarCircuitGame() {
   const reducedMotion = usePrefersReducedMotion();
 
   const prepared = state.questions[state.questionIndex] ?? null;
+
+  /* متنِ جمله از توکن‌ها بازسازی می‌شود — همان‌طور که خودِ بازی نشانش
+     می‌دهد، با جداکنندهٔ دقیقِ هر توکن. `join(" ")` اینجا غلط بود: نیم‌فاصله
+     و نشانه‌گذاری در داده صریح‌اند. */
+  useSetReportTarget(
+    prepared
+      ? {
+          area: "grammar_circuit",
+          targetId: prepared.question.sourceId ?? prepared.question.id,
+          snapshot: prepared.question.tokens
+            .map((t) => t.text + t.separatorAfter)
+            .join("")
+            .trim(),
+          targetRef: {
+            grade: prepared.question.grade ?? null,
+            lesson: prepared.question.lesson ?? null,
+            question_number: state.questionIndex + 1,
+          },
+        }
+      : null,
+  );
   const arrangeable = state.screen === "playing" && isArrangeable(state.phase);
 
   const epochRef = useRef(state.epoch);
@@ -460,6 +483,19 @@ export default function GrammarCircuitGame() {
     state.phase,
     state.validationRunId,
   ]);
+
+  /* ── پوستهٔ سایت در حالِ بازی ────────────────────────────────────────────
+     `ActiveShell` یک لایهٔ `fixed` روی کلِ صفحه است، پس نوارِ بالای
+     `GameShell` زیرش گیر می‌افتد: دیده می‌شود ولی کلیک به آن نمی‌رسد. این
+     دقیقاً همان چیزی بود که دکمهٔ گزارش را در این بازی از کار انداخته بود.
+     با اعلامِ حالتِ غرق‌شده — همان سازوکارِ «پلِ وزن» و «کوتاه یا بلند» —
+     آن نوار اصلاً رندر نمی‌شود و راهِ خروج و گزارش فقط در نوارِ خودِ بازی
+     می‌ماند. */
+  useEffect(() => {
+    if (state.screen !== "playing") return;
+    immersiveMode.set("fullscreen");
+    return () => immersiveMode.set("off");
+  }, [state.screen]);
 
   /* ── قفلِ اسکرولِ صفحه در حالِ بازی ─────────────────────────────────────── */
   useEffect(() => {

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import OverlayPortal from "@/components/UI/OverlayPortal";
+import GameReportButton from "@/components/UI/games/GameReportButton";
+import { ReportTargetProvider } from "@/lib/reports/target";
 import { useChromeMode } from "@/lib/immersive-mode";
 
 /** Wraps a single game page.
@@ -68,10 +70,11 @@ export default function GameShell({
   };
 
   return (
+    <ReportTargetProvider>
     <div dir="rtl" className="relative z-20">
       {!immersive && (
       <div
-        className={`container mx-auto max-w-4xl pt-6 ${
+        className={`container mx-auto flex max-w-4xl items-center justify-between gap-3 pt-6 ${
           dense ? "[@media(max-height:560px)]:pt-2" : ""
         }`}
       >
@@ -97,6 +100,17 @@ export default function GameShell({
             بازگشت به کهکشانِ بازی‌ها
           </span>
         </button>
+
+        {/* دکمهٔ گزارش. فقط وقتی ظاهر می‌شود که بازی گفته باشد الان چه چیزی
+            روی صفحه است — پس در صفحهٔ انتخابِ درس یا نتیجه دیده نمی‌شود،
+            جایی که چیزی برای گزارش کردن نیست.
+
+            بازی‌هایی که این نوار را می‌پوشانند یا غرق‌شده می‌شوند، همین
+            دکمه را داخلِ نوارِ خودشان دارند. */}
+        <GameReportButton
+          compact={dense}
+          className={dense ? "[@media(max-height:560px)]:hidden" : ""}
+        />
       </div>
       )}
 
@@ -147,5 +161,6 @@ export default function GameShell({
         )}
       </AnimatePresence>
     </div>
+    </ReportTargetProvider>
   );
 }

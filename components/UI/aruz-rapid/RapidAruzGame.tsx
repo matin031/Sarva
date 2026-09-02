@@ -21,17 +21,31 @@ import { AnswerControls, CurrentUnit, Progress, StepTimer, UnitDots } from "./Ga
 import CompactGameTopBar from "./CompactGameTopBar";
 import IntroScreen from "./IntroScreen";
 import ResultsScreen from "./ResultsScreen";
+import { ReportTargetProvider, useSetReportTarget } from "@/lib/reports/target";
 
 /** کلاسِ سراسری‌ای که فقط اسکرولِ صفحه را در بازیِ تمام‌صفحه قفل می‌کند. */
 const IMMERSIVE_CLASS = "aruzr-immersive";
 
-export default function RapidAruzGame({
-  config = DEFAULT_RAPID_ARUZ_CONFIG,
-  source = defaultRapidAruzSource,
-}: {
+type RapidAruzGameProps = {
   config?: RapidAruzConfig;
   source?: RapidAruzQuestionSource;
-}) {
+};
+
+/** این بازی عمداً داخلِ `GameShell` نیست (توضیحش در `app/game/aruz-rapid`)،
+ *  پس provider‌ِ گزارش را خودش می‌آورد — وگرنه `useSetReportTarget` بی‌صدا
+ *  کاری نمی‌کند و دکمهٔ گزارش هرگز ظاهر نمی‌شود. */
+export default function RapidAruzGame(props: RapidAruzGameProps) {
+  return (
+    <ReportTargetProvider>
+      <RapidAruzGameInner {...props} />
+    </ReportTargetProvider>
+  );
+}
+
+function RapidAruzGameInner({
+  config = DEFAULT_RAPID_ARUZ_CONFIG,
+  source = defaultRapidAruzSource,
+}: RapidAruzGameProps) {
   const game = useRapidAruzGame({ config, source });
   const { state, paused, acceptsInput } = game;
   const layout = useRapidAruzLayout();
@@ -48,6 +62,20 @@ export default function RapidAruzGame({
 
   const question = currentQuestion(state);
   const unit = currentUnit(state);
+
+  useSetReportTarget(
+    question
+      ? {
+          area: "aruz_rapid",
+          targetId: question.id,
+          snapshot: question.previewText,
+          targetRef: {
+            meter: question.meter ?? null,
+            attribution: question.attribution ?? null,
+          },
+        }
+      : null,
+  );
   const phase = state.phase;
 
   const gameplay = isActiveGameplay(phase) || phase === "waitingForFont";

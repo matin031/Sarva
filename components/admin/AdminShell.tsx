@@ -94,6 +94,15 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/reports",
+    label: "گزارش‌های محتوا",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V4.5m0 0c3.5-1.8 6.5 1.8 10 0v9c-3.5 1.8-6.5-1.8-10 0" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/announcements",
     label: "اعلان سایت",
     icon: (

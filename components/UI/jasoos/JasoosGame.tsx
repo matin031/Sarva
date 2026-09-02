@@ -10,6 +10,7 @@ import ShootingScene from "./ShootingScene";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
 import GameIntro from "@/components/UI/games/GameIntro";
 import { JasoosPreview } from "@/components/UI/games/GamePreviews";
+import { useSetReportTarget } from "@/lib/reports/target";
 
 type Screen = "intro" | "settings" | "map" | "scene" | "gameover" | "win";
 type GameOverReason = "lives" | "time";
@@ -63,6 +64,19 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   const restoredOwnerRef = useRef<string | null>(null);
 
   const level = runLevels[levelIndex];
+
+  useSetReportTarget(
+    level
+      ? {
+          area: "jasoos",
+          targetId: String(level.id),
+          snapshot: [level.title, ...(level.verseLines ?? [])]
+            .filter(Boolean)
+            .join("\n"),
+          targetRef: { category: level.category ?? null },
+        }
+      : null,
+  );
 
   // try to resume a saved session first, before we even know the user
   useEffect(() => {

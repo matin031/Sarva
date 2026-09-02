@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import GameReportButton from "@/components/UI/games/GameReportButton";
 import CircuitPersianBackground from "./CircuitPersianBackground";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
@@ -108,7 +109,14 @@ export default function ActiveShell({
           </span>
         </div>
 
-        <div className="flex justify-start">
+        <div className="flex items-center justify-start gap-1">
+          {/* نوارِ بالای پوستهٔ بازی زیرِ این پوستهٔ `fixed` می‌ماند، پس دکمهٔ
+              گزارش همین‌جا کنارِ صدا می‌نشیند. */}
+          <GameReportButton
+            compact
+            variant="bare"
+            className="gc-topbar-btn gc-topbar-icon inline-flex items-center [&>svg]:size-5"
+          />
           <button
             type="button"
             onClick={onToggleSound}

@@ -209,8 +209,21 @@ export default function GuideView() {
                 را ببرد و یک خطِ افقیِ تیز زیر هدر بیندازد. با `top-0` برش
                 دقیقاً بر مماسِ دایره می‌افتد، جایی که رنگ عملاً صفر است. در
                 محورِ افقی برش روی لبهٔ خودِ پنجره می‌نشیند و دیده نمی‌شود. */}
-            <div className="absolute -right-32 top-0 size-[380px] rounded-full bg-primary/20 blur-[80px]" />
-            <div className="absolute -left-24 top-1/4 size-[340px] rounded-full bg-gold/15 blur-[80px]" />
+{/* ⚠️ گرادیانِ شعاعی و نه یک div با `blur()`.
+              یک `blur(80px)` روی دایره‌ای که لبه‌اش به مرزِ یک جدِ
+              `overflow-hidden` چسبیده، همان‌جا *بریده* می‌شود: به‌جای محو
+              شدنِ نرم، یک لبهٔ صاف و یک لکهٔ مستطیلیِ مات می‌ماند — همان
+              چیزی که در /guide دیده می‌شد. گرادیان خودش تا لبهٔ جعبه‌اش به
+              شفافیتِ کامل می‌رسد، پس بریده شدن هیچ اثری ندارد. ارزان‌تر هم
+              هست: فیلتر یک سطحِ جدا برای رستر لازم دارد. */}
+            <div
+              className="glow-soft absolute -right-32 top-0 size-[380px] rounded-full"
+              style={{ "--glow": "color-mix(in oklch, var(--color-primary) 30%, transparent)" } as React.CSSProperties}
+            />
+            <div
+              className="glow-soft absolute -left-24 top-1/4 size-[340px] rounded-full"
+              style={{ "--glow": "color-mix(in oklch, var(--color-gold) 24%, transparent)" } as React.CSSProperties}
+            />
           </div>
 
           <RevealGroup stagger={0.12} className="container text-center">
@@ -271,11 +284,13 @@ export default function GuideView() {
           >
             <div
               aria-hidden
-              className="absolute -right-24 -top-24 size-72 rounded-full bg-primary/20 blur-3xl"
+              className="glow-soft absolute -right-24 -top-24 size-72 rounded-full"
+              style={{ "--glow": "color-mix(in oklch, var(--color-primary) 30%, transparent)" } as React.CSSProperties}
             />
             <div
               aria-hidden
-              className="absolute -bottom-24 -left-24 size-72 rounded-full bg-gold/15 blur-3xl"
+              className="glow-soft absolute -bottom-24 -left-24 size-72 rounded-full"
+              style={{ "--glow": "color-mix(in oklch, var(--color-gold) 24%, transparent)" } as React.CSSProperties}
             />
             <h2 className="relative text-3xl font-black text-foreground sm:text-4xl">
               <RevealWords text="آماده‌ای شروع کنی؟" />

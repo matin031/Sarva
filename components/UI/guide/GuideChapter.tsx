@@ -149,10 +149,13 @@ export default function GuideChapter({
             className="glass relative z-20 overflow-hidden rounded-4xl border border-border p-8 shadow-2xl"
           >
             {/* accent glow */}
+            {/* ⚠️ `--glow` و نه `background`: کوتاه‌نویسِ `background` خودِ
+                `background-image` را هم صفر می‌کند، یعنی گرادیانِ `.glow-soft`
+                پاک می‌شد و یک دایرهٔ تخت و توپُر می‌ماند. */}
             <div
               aria-hidden
-              className="absolute -right-16 -top-16 size-52 rounded-full opacity-50 blur-3xl"
-              style={{ background: accent }}
+              className="glow-soft absolute -right-16 -top-16 size-52 rounded-full opacity-50"
+              style={{ "--glow": accent } as React.CSSProperties}
             />
             <div className="relative flex min-h-56 flex-col items-center justify-center gap-5">
               <div

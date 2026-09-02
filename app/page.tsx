@@ -18,7 +18,11 @@ export default function Home() {
           className="container text-center flex items-center justify-center flex-col px-6  
         md:px-12 lg:px-20 py-14 relative"
         >
-          <div className="hidden dark:block  bg-primary/8 blur-3xl size-100 rounded-full right-20 bottom-0 absolute"></div>
+          <div
+            aria-hidden
+            className="glow-soft absolute bottom-0 right-20 hidden size-100 rounded-full dark:block"
+            style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+          />
           <HeroSection />
         </section>
         <section className="container pb-24">

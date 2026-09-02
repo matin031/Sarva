@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import OverlayPortal from "@/components/UI/OverlayPortal";
 import { useChromeMode } from "@/lib/immersive-mode";
 
 /** Wraps a single game page.
@@ -103,13 +104,14 @@ export default function GameShell({
 
       <AnimatePresence>
         {confirmExit && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setConfirmExit(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          >
+          <OverlayPortal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmExit(false)}
+              className="flex size-full items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -138,9 +140,10 @@ export default function GameShell({
                 >
                   بله، خارج شو
                 </Link>
-              </div>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </OverlayPortal>
         )}
       </AnimatePresence>
     </div>

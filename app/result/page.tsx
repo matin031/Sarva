@@ -20,10 +20,11 @@ async function page({
 
   return (
     <div className=" mb-20  flex max-w-2xl mx-auto container items-center justify-center flex-col mt-10 relative">
-      <div
-        className="hidden dark:block bg-primary/8 blur-3xl size-100 rounded-full
-       right-20 top-0 absolute"
-      ></div>
+<div
+        aria-hidden
+        className="glow-soft absolute right-20 top-0 hidden size-100 rounded-full dark:block"
+        style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+      />
 
       {/* stars */}
       <StarsIcon />

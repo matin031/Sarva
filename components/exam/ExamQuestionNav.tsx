@@ -2,6 +2,7 @@
 
 import type { ClientQuestion } from "@/lib/exam/client-exam";
 import type { QuestionResult } from "@/app/exam/[examKey]/actions";
+import OverlayPortal from "@/components/UI/OverlayPortal";
 
 type FlatQuestion = { sectionTitle: string; question: ClientQuestion };
 
@@ -46,7 +47,8 @@ const legend: { status: NavStatus; label: string }[] = [
  *  navigation — tap any number to jump straight there. */
 export default function ExamQuestionNav({ flatQuestions, currentIndex, questionResults, onJump, onClose }: Props) {
   return (
-    <div dir="rtl" className="fixed inset-0 z-40 flex flex-col justify-end bg-black/40" onClick={onClose}>
+    <OverlayPortal>
+      <div dir="rtl" className="flex size-full flex-col justify-end bg-black/40" onClick={onClose}>
       <div
         className="glass max-h-[75vh] w-full overflow-y-auto rounded-t-3xl p-4 xs:p-5"
         onClick={(e) => e.stopPropagation()}
@@ -93,8 +95,9 @@ export default function ExamQuestionNav({ flatQuestions, currentIndex, questionR
               </button>
             );
           })}
+          </div>
         </div>
       </div>
-    </div>
+    </OverlayPortal>
   );
 }

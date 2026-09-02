@@ -99,9 +99,10 @@ function Page() {
             </motion.p>
           </motion.div>
           <div
-            className="hidden dark:block  bg-primary/8 blur-3xl size-100 
-        rounded-full right-20 top-0 z-100 absolute"
-          ></div>
+            aria-hidden
+            className="glow-soft absolute right-20 top-0 z-100 hidden size-100 rounded-full dark:block"
+            style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+          />
         </div>
 
         <motion.div
@@ -379,9 +380,10 @@ function Page() {
 
         <div className=" relative">
           <div
-            className="hidden dark:block  bg-primary/8 blur-3xl size-100 
-        rounded-full right-20 top-0 z-100 absolute"
-          ></div>
+            aria-hidden
+            className="glow-soft absolute right-20 top-0 z-100 hidden size-100 rounded-full dark:block"
+            style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+          />
           <motion.div
             dir="rtl"
             variants={containerVariants}

@@ -8,6 +8,7 @@ import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { useRouter } from "next/navigation";
 import { loginSchema } from "@/lib/auth/schemas";
 import TurnstileWidget from "@/components/UI/TurnstileWidget";
+import OverlayPortal from "@/components/UI/OverlayPortal";
 
 const mobileSchema = z.object({
   mobile: z
@@ -360,9 +361,10 @@ export default function LoginForm({
     </form>
 
     {forgotOpen && (
+      <OverlayPortal>
       <div
         dir="rtl"
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+        className="flex size-full items-center justify-center overflow-y-auto bg-black/40 px-4 backdrop-blur-sm"
         onClick={() => setForgotOpen(false)}
       >
         <div
@@ -427,6 +429,7 @@ export default function LoginForm({
           )}
         </div>
       </div>
+      </OverlayPortal>
     )}
     </>
   );

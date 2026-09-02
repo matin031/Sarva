@@ -1076,17 +1076,49 @@ body.gc-locked {
   position: relative;
   min-height: 100%;
   padding: clamp(1rem, 4vh, 2.5rem) 1rem clamp(2rem, 6vh, 3.5rem);
+}
+
+/* ⚠️ هالهٔ تزئینیِ صفحهٔ انتخاب، روی یک لایهٔ جدا و با لبه‌های محوشونده.
+   قبلاً همین دو گرادیان مستقیم روی `background`ِ خودِ عنصر بودند و مرکزشان
+   روی `2%` و `98%` — یعنی دقیقاً چسبیده به لبهٔ بالا و پایینِ جعبه. نتیجه یک
+   خطِ افقیِ کاملاً صاف بود آنجا که این صفحه از پس‌زمینهٔ سایت شروع می‌شود:
+   رنگ یک‌باره می‌شکست.
+
+   حالا هاله روی یک لایهٔ `::before` است که خودش با یک ماسک از بالا و پایین
+   محو می‌شود، پس هرجا این صفحه شروع و تمام شود، بی‌درز به پس‌زمینهٔ سایت
+   وصل می‌شود. مرکزها هم به داخل آورده شده‌اند تا افتِ گرادیان کاملاً درونِ
+   جعبه تمام شود. */
+.gc-setup-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background:
     radial-gradient(
-      68% 52% at 86% 2%,
+      68% 52% at 86% 18%,
       color-mix(in oklab, var(--gc-accent) 12%, transparent),
       transparent 66%
     ),
     radial-gradient(
-      58% 46% at 10% 98%,
+      58% 46% at 10% 84%,
       color-mix(in oklab, var(--gc-gold) 10%, transparent),
       transparent 68%
     );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 clamp(80px, 14vh, 190px),
+    #000 calc(100% - clamp(80px, 14vh, 190px)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 clamp(80px, 14vh, 190px),
+    #000 calc(100% - clamp(80px, 14vh, 190px)),
+    transparent 100%
+  );
 }
 
 .gc-setup {

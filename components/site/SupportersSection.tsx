@@ -89,8 +89,14 @@ export default function SupportersSection() {
     >
       {/* هالهٔ پس‌زمینه. عمداً pointer-events-none تا جلوی هیچ کلیکی را نگیرد. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 size-[34rem] -translate-x-1/2 rounded-full bg-gold/10 blur-3xl dark:bg-gold/8" />
-        <div className="absolute bottom-0 right-1/4 size-72 rounded-full bg-primary/8 blur-3xl" />
+        <div
+          className="glow-soft absolute left-1/2 top-0 size-[34rem] -translate-x-1/2 rounded-full"
+          style={{ "--glow": "color-mix(in oklch, var(--color-gold) 16%, transparent)" } as React.CSSProperties}
+        />
+        <div
+          className="glow-soft absolute bottom-0 right-1/4 size-72 rounded-full"
+          style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+        />
       </div>
 
       <div className="relative">

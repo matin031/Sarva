@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import OverlayPortal from "@/components/UI/OverlayPortal";
 import { motion, AnimatePresence } from "motion/react";
 import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
 import ExamQuestionCard from "@/components/exam/ExamQuestionCard";
@@ -493,13 +494,14 @@ function ConfirmDialog({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center"
-          onClick={onCancel}
-        >
+        <OverlayPortal>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex size-full items-end justify-center overflow-y-auto bg-black/50 p-3 backdrop-blur-sm sm:items-center"
+            onClick={onCancel}
+          >
           <motion.div
             dir="rtl"
             initial={{ opacity: 0, y: 40, scale: 0.96 }}
@@ -549,8 +551,9 @@ function ConfirmDialog({
                 {isReset ? "پاک کن و از اول" : "بله، تمام کن"}
               </button>
             </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </OverlayPortal>
       )}
     </AnimatePresence>
   );

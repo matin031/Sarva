@@ -12,10 +12,12 @@ import {
   RevealLine,
   RevealWords,
 } from "@/components/UI/aruz/reveal";
+import { detectQuality, type QualityProfile } from "@/components/UI/galaxy/quality";
+import { galaxyClock } from "@/components/UI/galaxy/scheduler";
 
-const Starfield = dynamic(() => import("@/components/UI/galaxy/Starfield"), {
-  ssr: false,
-});
+// ⚠️ ستاره‌ها دیگر canvas دوم ندارند: به‌عنوان `THREE.Points` داخلِ همین
+// صحنه رفتند. دلیلش در GalaxyScene نوشته شده — دو canvas تمام‌صفحه با دو
+// حلقهٔ مستقل، هزینهٔ ثابتِ هر فریمِ اسکرول بودند.
 // one shared WebGL context — and one scene — for every planet on the page
 const GalaxyScene = dynamic(
   () => import("@/components/UI/galaxy/runtime").then((m) => m.GalaxyScene),
@@ -134,14 +136,46 @@ const STOPS: Stop[] = [
 
 export default function GamesGalaxy() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [reduced, setReduced] = useState(false);
+
+  /** سطحِ کیفیت یک بار — بعد از mount، چون به `matchMedia` و
+   *  `navigator.hardwareConcurrency` نیاز دارد و هیچ‌کدام روی سرور نیستند.
+   *  مقدارِ اولیه عمداً `null` است تا رندرِ سرور و اولین رندرِ مرورگر یکی
+   *  بمانند. */
+  const [quality, setQuality] = useState<QualityProfile | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    const apply = () => setQuality(detectQuality());
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
+
+  /**
+   * وقتی ناحیهٔ کهکشان از دیدرس بیرون می‌رود، هیچ فریمی لازم نیست.
+   *
+   * روی خودِ ریشه است و نه روی کابل یا canvas: هر دوی آن‌ها ممکن است به
+   * دلایلِ دیگری مخفی شوند و آن‌وقت خاموش شدنِ صحنه یک اثرِ جانبیِ پنهان
+   * می‌شود. ریشه تنها چیزی است که «صفحه دیده می‌شود یا نه» را واقعاً
+   * نمایندگی می‌کند.
+   *
+   * برگرداندنِ `setActive(true)` در پاکسازی الزامی است: بدونش، ناوبری به یک
+   * بازی و برگشت، حلقه را برای همیشه خاموش رها می‌کرد.
+   */
+  useEffect(() => {
+    const host = rootRef.current;
+    if (!host) return;
+    const io = new IntersectionObserver(
+      ([entry]) => galaxyClock.setActive(entry?.isIntersecting ?? true),
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+    return () => {
+      io.disconnect();
+      galaxyClock.setActive(true);
+    };
+  }, []);
+
+  const reduced = quality?.tier === "low";
 
   /** three.js already lives in its own async chunk, so it is not part of this
    *  route's first load. But `next/dynamic` starts fetching that chunk the
@@ -185,15 +219,12 @@ export default function GamesGalaxy() {
           aria-hidden
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
         />
-        {sceneReady && (
-          <>
-            <Starfield reduced={reduced} />
-            <GalaxyScene eventSource={rootRef} reduced={reduced} />
-          </>
+        {sceneReady && quality && (
+          <GalaxyScene eventSource={rootRef} quality={quality} />
         )}
 
         <div className="relative">
-          <SpaceCable planets={STOPS.length} reduced={reduced} />
+          {quality && <SpaceCable planets={STOPS.length} quality={quality} />}
 
           {/* ---------- launch pad ---------- */}
           <section

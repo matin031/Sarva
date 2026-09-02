@@ -684,34 +684,18 @@ button {
   }
 }
 
-/* The cable draws itself as the page scrolls.
-   Where the browser supports scroll-driven animations this runs entirely off
-   the main thread: no scroll listener, no JS per frame, and — crucially — no
-   style writes from JS that would force the next layout read to reflow.
-   The dash length itself is measured once in JS and written inline, because
-   the wire uses non-scaling-stroke and so must be dashed in screen pixels. */
-@keyframes cableDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
+/* ⚠️ انیمیشنِ اسکرولیِ کابل (`.cable-draw` و `@keyframes cableDraw`) برداشته
+   شد.
 
-@supports (animation-timeline: scroll()) {
-  .cable-draw {
-    animation: cableDraw linear both;
-    animation-timeline: scroll(root block);
-    /* finish a little before the very bottom so the wire is fully drawn by the
-       time the closing section is in view */
-    animation-range: 0% 85%;
-  }
-}
+   ایده‌اش درست بود — یک انیمیشن روی scroll timeline که ظاهراً بدونِ
+   جاوااسکریپت اجرا می‌شود — ولی یک فرضِ غلط داشت: «scroll-driven یعنی
+   compositor-only». `stroke-dashoffset` یک ویژگیِ paint-bound است. روی یک
+   SVG به ارتفاعِ کلِ سند (روی موبایل حدود ۸۰۰۰ پیکسل) هر تغییرش یعنی
+   رنگ‌آمیزیِ دوبارهٔ یک لایهٔ صفحه‌اندازه، در هر فریمِ اسکرول.
 
-@media (prefers-reduced-motion: reduce) {
-  .cable-draw {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
-}
+   جایگزینش در components/UI/galaxy/SpaceCable.tsx است: مسیر به چند SVGِ
+   نواری شکسته شده و هر نوار یک بار — با IntersectionObserver و Web Animations
+   API — کشیده می‌شود. */
 
 /* ---------------------------------------------------------------- سروا mark */
 
@@ -2525,4 +2509,21 @@ html.aruzr-immersive body {
 @media (prefers-reduced-motion: reduce) {
   .sarva-marquee { overflow-x: auto; }
   .sarva-marquee-track { animation: none; }
+}
+
+/* ---------------------------------------------------- درخششِ نوارِ اعلان */
+/* یک بازتابِ آرام که از عرضِ نوار رد می‌شود. فقط `transform` انیمیت می‌شود،
+   پس روی رشتهٔ compositor اجرا می‌شود و نوار را در هیچ فریمی دوباره
+   رنگ‌آمیزی نمی‌کند — چیزی که برای عنصری که بالای *همهٔ* صفحه‌ها می‌نشیند
+   اهمیت دارد. */
+@keyframes annSheen {
+  from { transform: translateX(-140%); }
+  to   { transform: translateX(420%); }
+}
+.ann-sheen {
+  animation: annSheen 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ann-sheen { animation: none; opacity: 0.5; transform: none; }
 }

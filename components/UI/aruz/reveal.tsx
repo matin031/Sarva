@@ -68,20 +68,32 @@ export function RevealWords({
   className,
   stagger = 0.07,
   delay = 0,
+  inherit = false,
 }: {
   text: string;
   className?: string;
   stagger?: number;
   delay?: number;
+  /**
+   * داخلِ یک `RevealGroup` هستی؟ آن‌وقت ناظرِ خودت را نساز.
+   *
+   * ⚠️ چرا مهم است: هر `whileInView` یک IntersectionObserver مستقل است. در
+   * صفحهٔ کهکشان هر ایستگاه یک گروه داشت به‌علاوهٔ یک عنوانِ واژه‌به‌واژه —
+   * یعنی دو ناظرِ تودرتو که دقیقاً هم‌زمان و برای یک چیز شلیک می‌کردند.
+   * با `inherit`، همان حالتِ گروهِ والد از راهِ variants پایین می‌آید و
+   * ناظرِ دوم حذف می‌شود.
+   */
+  inherit?: boolean;
 }) {
   const words = text.split(" ");
+  const gate = inherit
+    ? {}
+    : ({ initial: "hidden", whileInView: "visible", viewport: VIEW } as const);
   return (
     <motion.span
       className={className}
       style={{ display: "inline-block" }}
-      initial="hidden"
-      whileInView="visible"
-      viewport={VIEW}
+      {...gate}
       aria-label={text}
       variants={{
         hidden: {},

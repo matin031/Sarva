@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   useSyncExternalStore,
   type RefObject,
 } from "react";
@@ -15,13 +14,17 @@ import {
   useThree,
   type RootState,
 } from "@react-three/fiber";
-// AdaptiveDpr is deliberately not used: it drives the same dpr knob as the
-// PerformanceMonitor ladder below, and two controllers fighting over one
-// setting produced a stream of GPU buffer reallocations.
-import { MeshDistortMaterial, PerformanceMonitor } from "@react-three/drei";
+// AdaptiveDpr و PerformanceMonitor هر دو عمداً حذف شده‌اند: هر دو همان یک
+// دستگیرهٔ dpr را می‌چرخانند و هر چرخش یعنی three.js بافرِ ترسیمِ GPU را
+// دوباره تخصیص می‌دهد. پروفایلِ واقعی نشان داد این وسطِ اسکرولِ موبایل اتفاق
+// می‌افتد — دقیقاً بدترین لحظه. جایشان را ./quality گرفته که یک بار تصمیم
+// می‌گیرد و بعد قفل می‌شود.
+import { MeshDistortMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { planetSlots, type Slot } from "./planetSlots";
 import type { PlanetKind } from "./planetKind";
+import { galaxyClock } from "./scheduler";
+import type { QualityProfile } from "./quality";
 
 /** ONE canvas, ONE scene, ZERO DOM reads per frame.
  *
@@ -39,10 +42,25 @@ import type { PlanetKind } from "./planetKind";
  *  arithmetic. */
 
 // ---- geometry shared by every planet: uploaded to the GPU exactly once ----
-const SPHERE_GEO = new THREE.SphereGeometry(1, 32, 32);
-const ATMOSPHERE_GEO = new THREE.SphereGeometry(1, 16, 16);
-const RING_GEO = new THREE.TorusGeometry(1.75, 0.045, 8, 64);
-const MOON_GEO = new THREE.SphereGeometry(0.17, 12, 12);
+//
+// دو مجموعه، نه هفت‌تا در هفت‌تا: هندسه بینِ همهٔ سیاره‌ها مشترک است و فقط
+// سطحِ کیفیت تعیین می‌کند کدام مجموعه استفاده شود. روی GPU ضعیف، کرهٔ ۳۲×۳۲
+// و حلقهٔ ۶۴ ضلعی هزینهٔ رأسیِ بی‌دلیل‌اند برای چیزی که قطرش روی صفحه ۳۰۰
+// پیکسل است.
+const GEO = {
+  high: {
+    sphere: new THREE.SphereGeometry(1, 32, 32),
+    atmosphere: new THREE.SphereGeometry(1, 16, 16),
+    ring: new THREE.TorusGeometry(1.75, 0.045, 8, 64),
+    moon: new THREE.SphereGeometry(0.17, 12, 12),
+  },
+  low: {
+    sphere: new THREE.SphereGeometry(1, 20, 16),
+    atmosphere: new THREE.SphereGeometry(1, 12, 10),
+    ring: new THREE.TorusGeometry(1.75, 0.045, 6, 36),
+    moon: new THREE.SphereGeometry(0.17, 8, 8),
+  },
+} as const;
 
 /** The old perspective camera (fov 45 at z 4.6) showed 3.81 world units across
  *  the slot, so this is how many pixels one unit is worth. Keeping the number
@@ -53,13 +71,18 @@ type Measured = { cx: number; cyDoc: number; size: number };
 
 function Planet({
   kind,
-  reduced,
+  quality,
   seed,
 }: {
   kind: PlanetKind;
-  reduced: boolean;
+  quality: QualityProfile;
   seed: number;
 }) {
+  /** پایین‌ترین سطح یعنی «هیچ حرکتِ تزئینی». همان پرچمی که قبلاً
+   *  `prefers-reduced-motion` بود، حالا از سطحِ کیفیت می‌آید و
+   *  reduced-motion هم مستقیماً به همان سطح نگاشت می‌شود. */
+  const reduced = quality.tier === "low";
+  const geo = quality.tier === "high" ? GEO.high : GEO.low;
   const spin = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const moonOrbit = useRef<THREE.Group>(null);
@@ -149,8 +172,12 @@ function Planet({
 
   return (
     <group ref={lean}>
-      <mesh ref={spin} geometry={SPHERE_GEO} dispose={null}>
-        {reduced ? (
+      <mesh ref={spin} geometry={geo.sphere} dispose={null}>
+        {/* ⚠️ MeshDistortMaterial یک شیدرِ رأسی با نویزِ سه‌بعدی است و روی
+            GPU ضعیف گران‌ترین چیزِ صحنه. فقط در بالاترین سطح می‌ماند؛
+            پایین‌تر همان کره با متریالِ استاندارد کشیده می‌شود و تفاوت در
+            حرکتِ آرامِ سطح است، نه در شکل یا رنگ. */}
+        {!quality.distort ? (
           <meshStandardMaterial
             color={kind.color}
             roughness={0.55}
@@ -171,19 +198,24 @@ function Planet({
         )}
       </mesh>
 
-      <mesh
-        ref={atmo}
-        scale={1.14}
-        geometry={ATMOSPHERE_GEO}
-        material={atmosphereMat}
-        dispose={null}
-      />
+      {/* پوستهٔ جوّ با ترکیبِ افزایشی روی خودِ کره کشیده می‌شود، یعنی همان
+          پیکسل‌ها دو بار رنگ می‌شوند. روی پایین‌ترین سطح — که اصلاً تپشی هم
+          ندارد — این overdraw هیچ چیزی اضافه نمی‌کند و برداشته می‌شود. */}
+      {!reduced && (
+        <mesh
+          ref={atmo}
+          scale={1.14}
+          geometry={geo.atmosphere}
+          material={atmosphereMat}
+          dispose={null}
+        />
+      )}
 
       {kind.ring && (
         <mesh
           ref={ringRef}
           rotation={[Math.PI / 2.6, 0, 0.35]}
-          geometry={RING_GEO}
+          geometry={geo.ring}
           material={ringMat}
           dispose={null}
         />
@@ -193,7 +225,7 @@ function Planet({
         <group ref={moonOrbit} rotation={[0.4, 0, 0.2]}>
           <mesh
             position={[1.95, 0, 0]}
-            geometry={MOON_GEO}
+            geometry={geo.moon}
             material={moonMat}
             dispose={null}
           />
@@ -203,18 +235,137 @@ function Planet({
   );
 }
 
+/**
+ * ستاره‌ها — حالا داخلِ همین صحنه، نه یک canvas دوم.
+ *
+ * ⚠️ چرا جابه‌جا شد: صفحه دو canvas تمام‌صفحه داشت که هرکدام حلقهٔ خودش را
+ * داشت و مستقلاً repaint می‌شد. حتی وقتی هزینهٔ خودِ ستاره‌ها کم بود، دو
+ * لایهٔ ترکیبِ هم‌اندازهٔ viewport روی هم هزینهٔ ثابتِ هر فریمِ اسکرول بودند.
+ *
+ * اینجا یک `THREE.Points` است با هندسه‌ای که *یک بار* ساخته می‌شود. حرکت،
+ * نوشتنِ مستقیم روی همان بافر است — بدونِ ساختِ آرایه یا شیء در حلقه.
+ */
+/**
+ * مولدِ عددِ شبه‌تصادفیِ قطعی (mulberry32).
+ *
+ * ⚠️ چرا `Math.random()` نه: چیدنِ ستاره‌ها داخلِ `useMemo` انجام می‌شود،
+ * یعنی حینِ رندر. `Math.random()` یک تابعِ ناخالص است و کامپایلرِ ری‌اکت
+ * درست به همین دلیل به آن ایراد می‌گیرد — رندر باید برای ورودیِ یکسان
+ * خروجیِ یکسان بدهد، وگرنه یک رندرِ دوباره (که ری‌اکت هر وقت بخواهد انجام
+ * می‌دهد) کلِ آسمان را جابه‌جا می‌کند.
+ *
+ * با یک دانهٔ ثابت، آسمان هر بار دقیقاً همان است.
+ */
+function makeRandom(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function Stars({ quality }: { quality: QualityProfile }) {
+  const { size } = useThree();
+  const pointsRef = useRef<THREE.Points>(null);
+
+  // چگالی با مساحت بالا می‌رود ولی سقف دارد، تا گوشی ارزان نشود.
+  const count = useMemo(() => {
+    const target = Math.round((size.width * size.height) / 14000);
+    return Math.max(40, Math.min(quality.tier === "low" ? 70 : 150, target));
+  }, [size.width, size.height, quality.tier]);
+
+  const { geometry, material, speeds } = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const spd = new Float32Array(count);
+    const rnd = makeRandom(0x5a2fa1);
+
+    for (let i = 0; i < count; i++) {
+      const depth = 0.3 + rnd() * 0.7;
+      positions[i * 3] = (rnd() - 0.5) * size.width;
+      positions[i * 3 + 1] = (rnd() - 0.5) * size.height;
+      positions[i * 3 + 2] = -400;
+      // رنگ به‌جای شفافیت: PointsMaterial شفافیتِ هر رأس را ندارد، ولی با
+      // ترکیبِ افزایشی، رنگِ تیره‌تر دقیقاً یعنی ستارهٔ کم‌نورتر.
+      const b = 0.25 + depth * 0.6;
+      colors[i * 3] = b * 0.78;
+      colors[i * 3 + 1] = b;
+      colors[i * 3 + 2] = b * 0.96;
+      spd[i] = depth;
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    const mat = new THREE.PointsMaterial({
+      size: 2.1,
+      sizeAttenuation: false,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    return { geometry: geo, material: mat, speeds: spd };
+  }, [count, size.width, size.height]);
+
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      material.dispose();
+    },
+    [geometry, material],
+  );
+
+  const halfH = size.height / 2;
+
+  useFrame(() => {
+    // در پایین‌ترین سطح ستاره‌ها ثابت‌اند: یک بار کشیده می‌شوند و تمام.
+    if (quality.starFps <= 0) return;
+    const points = pointsRef.current;
+    if (!points) return;
+    const attr = points.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    for (let i = 0; i < speeds.length; i++) {
+      const y = arr[i * 3 + 1] - speeds[i] * 0.28;
+      arr[i * 3 + 1] = y < -halfH ? halfH : y;
+    }
+    attr.needsUpdate = true;
+  });
+
+  return (
+    <points
+      ref={pointsRef}
+      geometry={geometry}
+      material={material}
+      frustumCulled={false}
+      renderOrder={-1}
+    />
+  );
+}
+
 /** Places every planet each frame from cached numbers only. */
-function Planets({ slots, reduced }: { slots: Slot[]; reduced: boolean }) {
+function Planets({
+  slots,
+  quality,
+}: {
+  slots: Slot[];
+  quality: QualityProfile;
+}) {
   const { size } = useThree();
   const groups = useRef<(THREE.Group | null)[]>([]);
   const measured = useRef<Measured[]>([]);
-  const scrollY = useRef(0);
+  /** پیشرفتِ ظاهر شدنِ هر سیاره، ۰ تا ۱. */
+  const reveal = useRef<number[]>([]);
+  const reduced = quality.tier === "low";
 
   // ---- the ONLY DOM reads: a single batch, on mount / layout change ----
   useEffect(() => {
     const measure = () => {
       const sy = window.scrollY;
-      scrollY.current = sy;
       measured.current = slots.map(({ el }) => {
         const r = el.getBoundingClientRect();
         return {
@@ -223,8 +374,15 @@ function Planets({ slots, reduced }: { slots: Slot[]; reduced: boolean }) {
           size: Math.min(r.width, r.height) || 1,
         };
       });
+      reveal.current = slots.map((_, i) => reveal.current[i] ?? 0);
+      galaxyClock.requestFrame();
     };
-    // wait a frame so reveal animations have settled into their final layout
+    // ⚠️ دیگر لازم نیست منتظرِ «نشستنِ انیمیشنِ ظاهر شدن» بمانیم و آن انتظار
+    // اصلاً درست هم نبود: جعبهٔ اسلات داخلِ یک `transform: scale(0.7)` بود و
+    // سیاره‌های پایینِ صفحه — که هنوز به دیدرس نرسیده بودند — با اندازهٔ ۷۰٪
+    // اندازه‌گیری می‌شدند و برای همیشه کوچک می‌ماندند. حالا اسلات هیچ
+    // transform ای ندارد (PlanetStop) و ظاهر شدن داخلِ خودِ صحنه انجام
+    // می‌شود، پس اندازه از لحظهٔ اول درست است.
     let id = requestAnimationFrame(measure);
 
     // Re-measure only when the layout could actually have moved the slots, i.e.
@@ -247,31 +405,33 @@ function Planets({ slots, reduced }: { slots: Slot[]; reduced: boolean }) {
     };
   }, [slots]);
 
-  // scroll position is captured once per scroll event, never inside the loop
-  useEffect(() => {
-    const onScroll = () => {
-      scrollY.current = window.scrollY;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useFrame(() => {
-    const sy = scrollY.current;
+  useFrame((_, delta) => {
+    const sy = galaxyClock.scrollY;
     const halfW = size.width / 2;
     const halfH = size.height / 2;
+    const d = Math.min(delta, 0.05);
+
     for (let i = 0; i < groups.current.length; i++) {
       const g = groups.current[i];
       const m = measured.current[i];
       if (!g || !m) continue;
+
       const viewportY = m.cyDoc - sy;
-      const scale = m.size / UNITS_ACROSS_SLOT;
       // cheap cull: skip planets the reader cannot see
       const visible = viewportY > -m.size && viewportY < size.height + m.size;
       g.visible = visible;
       if (!visible) continue;
+
+      // ظاهر شدن، داخلِ صحنه: از ۷۰٪ به ۱۰۰٪، یک بار، وقتی سیاره واقعاً
+      // دیده می‌شود. همان جلوهٔ قبلی، بدونِ دست زدن به جعبه‌ای که
+      // اندازه‌گیری می‌شود.
+      const r = reveal.current[i] ?? 0;
+      const next = reduced ? 1 : Math.min(1, r + d * 2.4);
+      reveal.current[i] = next;
+      const eased = 1 - Math.pow(1 - next, 3);
+
       g.position.set(m.cx - halfW, halfH - viewportY, 0);
-      g.scale.setScalar(scale);
+      g.scale.setScalar((m.size / UNITS_ACROSS_SLOT) * (0.7 + eased * 0.3));
     }
   });
 
@@ -285,40 +445,43 @@ function Planets({ slots, reduced }: { slots: Slot[]; reduced: boolean }) {
           }}
           visible={false}
         >
-          <Planet kind={s.kind} reduced={reduced} seed={i * 1.73} />
+          <Planet kind={s.kind} quality={quality} seed={i * 1.73} />
         </group>
       ))}
     </>
   );
 }
 
+/**
+ * پلِ میانِ زمان‌بندِ مرکزی و R3F.
+ *
+ * Canvas روی `frameloop="demand"` است، یعنی خودش هیچ فریمی نمی‌کشد. هر فریم
+ * از اینجا و فقط با یک `invalidate()` درخواست می‌شود. نتیجه: وقتی کاربر
+ * متنی را می‌خواند و اسکرول نمی‌کند، WebGL به‌جای ۶۰ بار در ثانیه، در
+ * بالاترین سطح ۳۰ بار و در پایین‌ترین سطح *اصلاً* رندر نمی‌شود.
+ */
+function FrameDriver({ quality }: { quality: QualityProfile }) {
+  const invalidate = useThree((s) => s.invalidate);
+
+  useEffect(() => {
+    galaxyClock.setIdleFps(quality.idleFps);
+    const unsubscribe = galaxyClock.subscribe(() => invalidate());
+    return () => {
+      unsubscribe();
+    };
+  }, [invalidate, quality.idleFps]);
+
+  return null;
+}
+
 export default function GalaxyScene({
   eventSource,
-  reduced = false,
+  quality,
 }: {
   eventSource: RefObject<HTMLElement | null>;
-  reduced?: boolean;
+  quality: QualityProfile;
 }) {
-  const coarse =
-    typeof window !== "undefined" &&
-    window.matchMedia("(pointer: coarse)").matches;
-
-  /** Every dpr change makes three.js reallocate the GPU drawing buffer. The
-   *  previous code nudged dpr by 0.15/0.25 on each PerformanceMonitor signal,
-   *  which meant a steady stream of reallocations on exactly the weak GPUs the
-   *  monitor is meant to protect. Snapping to a short ladder means at most a
-   *  handful of distinct buffer sizes, and repeated signals in the same
-   *  direction become no-ops once an end of the ladder is reached. */
-  const LADDER = coarse ? [0.6, 0.75, 0.9, 1] : [0.75, 1, 1.25, 1.5];
-  const [dprStep, setDprStep] = useState(coarse ? 1 : 1);
-  const dpr = LADDER[dprStep];
-  const stepDown = () => setDprStep((s) => Math.max(0, s - 1));
-  const stepUp = () => setDprStep((s) => Math.min(LADDER.length - 1, s + 1));
-
-  // Re-read the registry only when a planet actually mounts or unmounts. The
-  // list must be memoised on the version: PerformanceMonitor changes dpr, which
-  // re-renders this component, and a fresh array identity would otherwise
-  // re-trigger the measuring effect and read the DOM again for nothing.
+  // Re-read the registry only when a planet actually mounts or unmounts.
   const version = useSyncExternalStore(
     planetSlots.subscribe,
     planetSlots.getVersion,
@@ -346,6 +509,7 @@ export default function GalaxyScene({
       console.info("[galaxy] WebGL context restored.");
       gl.resetState();
       invalidate();
+      galaxyClock.requestFrame();
     };
     canvas.addEventListener("webglcontextlost", onLost, false);
     canvas.addEventListener("webglcontextrestored", onRestored, false);
@@ -364,7 +528,9 @@ export default function GalaxyScene({
       camera={{ position: [0, 0, 500], zoom: 1, near: 1, far: 2000 }}
       eventSource={eventSource as RefObject<HTMLElement>}
       eventPrefix="client"
-      dpr={dpr}
+      // ⚠️ یک عددِ ثابت، نه یک بازه. دادنِ `[min, max]` به R3F اجازه می‌دهد
+      // در زمانِ اجرا جابه‌جا شود، و هر جابه‌جایی یک reallocation است.
+      dpr={quality.dpr}
       gl={{
         antialias: false,
         alpha: true,
@@ -375,18 +541,19 @@ export default function GalaxyScene({
         // right one to ask for, and it keeps us off a contended GPU.
         powerPreference: "default",
         stencil: false,
+        depth: true,
         // a lost context is recoverable, but only if we never assumed otherwise
         preserveDrawingBuffer: false,
       }}
       onCreated={onCreated}
-      performance={{ min: 0.5 }}
       // R3F tracks its container with react-use-measure, which by default
       // re-reads getBoundingClientRect on every scroll (debounced). This canvas
       // is position:fixed and fills the viewport, so its box cannot change when
       // the page scrolls — turning scroll tracking off removes the last
       // layout read that happened while scrolling.
       resize={{ scroll: false, debounce: { scroll: 0, resize: 50 } }}
-      frameloop={reduced ? "demand" : "always"}
+      /** هیچ فریمی خودبه‌خود کشیده نمی‌شود؛ همه از FrameDriver می‌آیند. */
+      frameloop="demand"
       style={{
         position: "fixed",
         inset: 0,
@@ -398,18 +565,11 @@ export default function GalaxyScene({
       // popping in.
       className="z-10 scene-fade-in"
     >
-      <PerformanceMonitor
-        // a longer sampling window than the default settles instead of
-        // oscillating, which matters now that each change costs a reallocation
-        ms={400}
-        iterations={7}
-        onDecline={stepDown}
-        onIncline={stepUp}
-        onFallback={() => setDprStep(0)}
-      />
+      <FrameDriver quality={quality} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[-300, 300, 500]} intensity={2.8} />
-      <Planets slots={slots} reduced={reduced} />
+      <Stars quality={quality} />
+      <Planets slots={slots} quality={quality} />
     </Canvas>
   );
 }

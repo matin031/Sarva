@@ -14,6 +14,10 @@ import AnnouncementBar from "@/components/site/AnnouncementBar";
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
+  /** صفحهٔ کهکشانِ بازی‌ها پس‌زمینهٔ خودش را دارد — ستاره‌ها، هالهٔ کهکشانی و
+   *  کابل. نقشِ هندسیِ ثابتِ سایت آنجا یک لایهٔ ترکیبِ تمام‌صفحهٔ *چهارم* روی
+   *  همان‌ها می‌گذاشت، بی‌آنکه دیده شود. فقط در همین یک مسیر کنار می‌رود. */
+  const isGalaxy = pathname === "/game";
   /* صفحه‌ای که بازیِ فعال را نشان می‌دهد می‌تواند پوسته را جمع کند یا کاملاً
      بردارد. هیچ صفحهٔ دیگری تحتِ تأثیر نیست: تا وقتی کسی صریحاً چیزی جز
      `off` نگذارد، همه‌چیز عادی است. */
@@ -42,7 +46,7 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
       <main className="flex-1">{children}</main>
       {/* پاورقیِ بزرگ نباید با بازیِ در جریان رقابت کند. */}
       {chrome === "off" && <Footer />}
-      {chrome !== "fullscreen" && (
+      {chrome !== "fullscreen" && !isGalaxy && (
         <GeometricPattern className="z-10 fixed text-gold h-screen" opacity={0.06} />
       )}
     </SiteContentProvider>

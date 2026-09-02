@@ -6,6 +6,7 @@ import { motion, MotionConfig } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
+import AruzGamesSection from "@/components/UI/aruz/AruzGamesSection";
 import dynamic from "next/dynamic";
 
 /** The demo runs its own canvas + rAF loop and sits well below the fold, so it
@@ -38,6 +39,9 @@ export default function AruzPage() {
         <AruzHero reduced={reduced} />
 
         <AruzFeatures reduced={reduced} />
+
+        {/* ---------- the two aruz games ---------- */}
+        <AruzGamesSection reduced={reduced} />
 
         {/* ---------- interactive demo, framed like a device ---------- */}
         <section dir="rtl" className="container relative py-20 cursor-default">

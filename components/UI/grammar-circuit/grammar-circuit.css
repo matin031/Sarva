@@ -1623,29 +1623,55 @@ body.gc-locked {
    هالهٔ داخلِ SVG در قابِ ۷۲×۹۰ خودش زندانی است و نمی‌تواند روی تخته پخش
    شود؛ در نسخهٔ سه‌بعدی همین سرریز بود که خوب دیده می‌شد.
 
-   با `drop-shadow` انجام می‌شود نه با یک عنصرِ اضافه: فیلتر روی *چیدمان*
-   اثری ندارد، پس عرضِ ناحیهٔ اسکرول را زیاد نمی‌کند و نمی‌تواند اسکرولِ
-   افقیِ ناخواسته بسازد — چیزی که یک شبه‌عنصرِ بزرگ حتماً می‌ساخت.
+   ⚠️ این کار قبلاً با `drop-shadow` روی خودِ `<svg>` انجام می‌شد و غلط بود:
+   `drop-shadow` سایه را از روی *کلِ* آلفای عنصر می‌سازد، و داخلِ این SVG
+   فقط حباب نیست — پایهٔ پیچی و نوارهای فلزیِ مستطیلی هم هستند. نتیجه یک
+   درخششِ چهارگوش بود که از پایینِ لامپ بیرون می‌زد و کشیده به نظر می‌رسید.
 
-   دو سایه روی هم: یکی جمع و پررنگ برای مغزِ نور، یکی پهن و کم‌رنگ برای
-   پخشِ نرم. */
+   حالا یک دایرهٔ گرادیانیِ جدا، دقیقاً روی مرکزِ حباب. سه سود:
+     • شکلش واقعاً هاله است، نه ردِ سیلوئتِ لامپ.
+     • ارزان‌تر: گرادیان در همان پاسِ رنگ‌آمیزی کشیده می‌شود، ولی فیلتر یک
+       سطحِ جدا برای رستر کردن لازم دارد.
+     • روی چیدمان اثری ندارد (`position: absolute` با والدِ نسبی)، پس عرضِ
+       ناحیهٔ اسکرول را زیاد نمی‌کند. */
+.gc-lamp-bloom {
+  position: absolute;
+  /* مرکزِ حباب در viewBox روی (۳۶، ۳۴) از ۷۲×۹۰ است → ۵۰٪ و ۳۸٪. */
+  left: 50%;
+  top: 38%;
+  /* اندازه عمداً محدود است: نور باید روی تخته سرریز کند، ولی نه آن‌قدر که
+     واژه‌های کنارِ لامپ را بشوید و خواندنشان را سخت کند. */
+  width: 150px;
+  height: 150px;
+  margin-inline-start: -75px;
+  margin-block-start: -75px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in oklab, var(--gc-lamp-on) 46%, transparent) 0%,
+    color-mix(in oklab, var(--gc-lamp-on) 20%, transparent) 34%,
+    color-mix(in oklab, var(--gc-lamp-on) 7%, transparent) 60%,
+    transparent 80%
+  );
+  transition: opacity var(--gc-lamp-on-ms, 320ms) ease;
+}
+/* خودِ SVG باید *روی* هاله بماند. */
 .gc-lamp svg {
-  transition: filter var(--gc-lamp-on-ms, 320ms) ease;
+  position: relative;
+  z-index: 1;
 }
-.gc-lamp[data-state="turningOn"] svg {
-  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--gc-lamp-on) 55%, transparent))
-    drop-shadow(0 0 26px color-mix(in oklab, var(--gc-lamp-on) 26%, transparent));
+
+.gc-lamp[data-state="turningOn"] .gc-lamp-bloom {
+  opacity: 0.7;
 }
-.gc-lamp[data-state="on"] svg {
-  filter: drop-shadow(0 0 12px color-mix(in oklab, var(--gc-lamp-on) 72%, transparent))
-    drop-shadow(0 0 38px color-mix(in oklab, var(--gc-lamp-on) 38%, transparent));
+.gc-lamp[data-state="on"] .gc-lamp-bloom {
+  opacity: 1;
 }
-/* یک «نفسِ» آرام روی همین فیلتر امتحان شد و برداشته شد: انیمیت‌کردنِ
-   `drop-shadow` یعنی رنگ‌آمیزیِ دوبارهٔ فیلتر در هر فریم روی سطحی بزرگ، و
-   نرخِ فریمِ دسکتاپ را از ۶۰ به ۳۱ آورد. درخششِ ثابت یک‌بار کشیده می‌شود و
-   عملاً رایگان است. */
-.gc-lamp[data-state="flicker"] svg {
-  filter: drop-shadow(0 0 9px color-mix(in oklab, var(--gc-lamp-on) 45%, transparent));
+.gc-lamp[data-state="flicker"] .gc-lamp-bloom {
+  opacity: 0.45;
 }
 
 /* هالهٔ داخلی هم کمی پهن‌تر، تا با سرریز یکی به نظر برسند. */
@@ -1653,3 +1679,12 @@ body.gc-locked {
   opacity: 1;
 }
 
+/* یک «نفسِ» آرام روی درخشش امتحان شد و برداشته شد: انیمیت‌کردنِ یک سطحِ
+   بزرگ در هر فریم، نرخِ فریمِ دسکتاپ را از ۶۰ به ۳۱ آورد. درخششِ ثابت یک‌بار
+   کشیده می‌شود و عملاً رایگان است. */
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-lamp-bloom {
+    transition-duration: 0.01ms !important;
+  }
+}

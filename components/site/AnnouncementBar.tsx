@@ -93,41 +93,83 @@ function useDismissed(storageKey: string): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => true);
 }
 
-/** پالت هر لحن. رنگ‌ها از توکن‌های خودِ سایت می‌آیند تا در تم روشن و تیره
- *  هر دو درست بنشینند. */
+/**
+ * پالتِ هر لحن.
+ *
+ * ⚠️ نسخهٔ اول یک نوارِ تخت با یک تهِ‌رنگ بود و «به‌سختی دیده می‌شد» — چیزی
+ * که نه خبر می‌رساند و نه زیباست. این نسخه سه لایه دارد و هر سه ارزان‌اند:
+ *
+ *   ۱) یک نوارِ گرادیانیِ نازک در بالا، که لحن را در یک نگاه می‌گوید.
+ *   ۲) شیشهٔ نیمه‌شفاف با `backdrop-blur` روی یک گرادیانِ افقیِ ملایم.
+ *   ۳) یک درخششِ آرامِ متحرک که فقط `transform` را عوض می‌کند — پس روی
+ *      رشتهٔ compositor اجرا می‌شود و رنگ‌آمیزیِ دوباره لازم ندارد. با
+ *      `prefers-reduced-motion` کاملاً می‌ایستد.
+ *
+ * هیچ‌کدام از این‌ها `filter` یا `box-shadow` متحرک نیستند؛ نوارِ بالای همهٔ
+ * صفحه‌ها جای گران‌ترین جلوه‌ها نیست.
+ */
 const TONE: Record<
   AnnouncementTone,
-  { wrap: string; rail: string; chip: string; icon: React.ReactNode; label: string }
+  {
+    /** گرادیانِ زمینه — دو ایستگاه، بسیار ملایم. */
+    surface: string;
+    /** نوارِ رنگیِ بالا. */
+    rail: string;
+    /** حلقه و رنگِ آیکون. */
+    chip: string;
+    ring: string;
+    /** رنگِ دکمهٔ لینک. */
+    action: string;
+    glow: string;
+    icon: React.ReactNode;
+    label: string;
+  }
 > = {
   info: {
-    wrap: "bg-primary/12 text-foreground",
-    rail: "from-primary/70 via-primary to-primary/40",
-    chip: "bg-primary/15 text-primary",
+    surface:
+      "linear-gradient(90deg, color-mix(in oklab, var(--color-primary) 16%, transparent), color-mix(in oklab, var(--color-primary) 6%, transparent) 55%, transparent)",
+    rail: "linear-gradient(90deg, transparent, var(--color-primary), color-mix(in oklab, var(--color-primary) 40%, transparent), transparent)",
+    chip: "text-primary",
+    ring: "color-mix(in oklab, var(--color-primary) 38%, transparent)",
+    action: "var(--color-primary)",
+    glow: "color-mix(in oklab, var(--color-primary) 30%, transparent)",
     label: "اطلاع‌رسانی",
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-5m0-3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     ),
   },
   success: {
-    wrap: "bg-emerald-500/12 text-foreground",
-    rail: "from-emerald-500/70 via-emerald-500 to-emerald-500/40",
-    chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    surface:
+      "linear-gradient(90deg, color-mix(in oklab, #10b981 18%, transparent), color-mix(in oklab, #10b981 6%, transparent) 55%, transparent)",
+    rail: "linear-gradient(90deg, transparent, #10b981, color-mix(in oklab, #10b981 40%, transparent), transparent)",
+    chip: "text-emerald-600 dark:text-emerald-300",
+    ring: "color-mix(in oklab, #10b981 40%, transparent)",
+    action: "#0f9b73",
+    glow: "color-mix(in oklab, #10b981 30%, transparent)",
     label: "خبر خوب",
     icon: <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4.5 4.5L19 7" />,
   },
   warning: {
-    wrap: "bg-gold/15 text-foreground",
-    rail: "from-gold/70 via-gold to-gold/40",
-    chip: "bg-gold/20 text-gold-ink dark:text-gold",
+    surface:
+      "linear-gradient(90deg, color-mix(in oklab, var(--color-gold) 24%, transparent), color-mix(in oklab, var(--color-gold) 8%, transparent) 55%, transparent)",
+    rail: "linear-gradient(90deg, transparent, var(--color-gold), color-mix(in oklab, var(--color-gold) 45%, transparent), transparent)",
+    chip: "text-gold-ink dark:text-gold",
+    ring: "color-mix(in oklab, var(--color-gold) 45%, transparent)",
+    action: "var(--color-gold-ink)",
+    glow: "color-mix(in oklab, var(--color-gold) 34%, transparent)",
     label: "توجه",
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
     ),
   },
   critical: {
-    wrap: "bg-destructive/14 text-foreground",
-    rail: "from-destructive/70 via-destructive to-destructive/40",
-    chip: "bg-destructive/15 text-destructive",
+    surface:
+      "linear-gradient(90deg, color-mix(in oklab, var(--color-destructive) 22%, transparent), color-mix(in oklab, var(--color-destructive) 8%, transparent) 55%, transparent)",
+    rail: "linear-gradient(90deg, transparent, var(--color-destructive), color-mix(in oklab, var(--color-destructive) 45%, transparent), transparent)",
+    chip: "text-destructive",
+    ring: "color-mix(in oklab, var(--color-destructive) 42%, transparent)",
+    action: "var(--color-destructive)",
+    glow: "color-mix(in oklab, var(--color-destructive) 32%, transparent)",
     label: "فوری",
     icon: (
       <>
@@ -180,15 +222,29 @@ export default function AnnouncementBar() {
       }`}
     >
       <div className="overflow-hidden">
-        <div className={`relative border-b border-border/60 backdrop-blur-sm ${tone.wrap}`}>
-          {/* خطِ باریکِ رنگی بالای نوار — همان چیزی که لحن را در یک نگاه
-              می‌گوید، بدون اینکه کلِ نوار پررنگ و آزاردهنده شود. */}
-          <div className={`h-[3px] w-full bg-gradient-to-l ${tone.rail}`} />
+        <div
+          className="relative isolate overflow-hidden border-b border-border/50 bg-card/70 backdrop-blur-xl"
+          style={{ backgroundImage: tone.surface }}
+        >
+          {/* ۱) نوارِ رنگیِ بالا */}
+          <div aria-hidden className="h-[2px] w-full" style={{ backgroundImage: tone.rail }} />
 
-          <div className="container mx-auto flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 md:px-6">
+          {/* ۲) درخششِ آرام. فقط transform انیمیت می‌شود، پس compositor
+                خودش انجامش می‌دهد و هیچ رنگ‌آمیزیِ دوباره‌ای لازم نیست. */}
+          <div
+            aria-hidden
+            className="ann-sheen pointer-events-none absolute inset-y-0 -z-10 w-1/3"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${tone.glow}, transparent)`,
+            }}
+          />
+
+          <div className="container mx-auto flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
+            {/* آیکون در یک کپسولِ حلقه‌دار */}
             <span
               aria-hidden
-              className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${tone.chip}`}
+              className={`flex size-8 shrink-0 items-center justify-center rounded-xl bg-background/60 ring-1 ${tone.chip}`}
+              style={{ boxShadow: `inset 0 0 0 1px ${tone.ring}` }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="size-4">
                 {tone.icon}
@@ -200,13 +256,17 @@ export default function AnnouncementBar() {
                   تنها حاملِ معنا نیست. */}
               <span className="sr-only">{tone.label}: </span>
               {announcement.title && (
-                <strong className="font-bold">{announcement.title}</strong>
+                <strong className="font-bold tracking-tight">{announcement.title}</strong>
               )}
-              <span className="text-foreground/85">{announcement.body}</span>
+              <span className="text-foreground/80">{announcement.body}</span>
             </p>
 
             {announcement.linkUrl && announcement.linkLabel && (
-              <LinkButton url={announcement.linkUrl} label={announcement.linkLabel} />
+              <LinkButton
+                url={announcement.linkUrl}
+                label={announcement.linkLabel}
+                accent={tone.action}
+              />
             )}
 
             {announcement.dismissible && (
@@ -214,9 +274,9 @@ export default function AnnouncementBar() {
                 type="button"
                 onClick={close}
                 aria-label="بستن اعلان"
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="size-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4">
                   <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" />
                 </svg>
               </button>
@@ -228,24 +288,47 @@ export default function AnnouncementBar() {
   );
 }
 
-/** لینکِ داخلی با <Link> می‌رود تا ناوبری کلاینتی بماند؛ بیرونی با <a> و
- *  rel امن. */
-function LinkButton({ url, label }: { url: string; label: string }) {
+function LinkButton({
+  url,
+  label,
+  accent,
+}: {
+  url: string;
+  label: string;
+  accent: string;
+}) {
   const internal = url.startsWith("/");
   const className =
-    "shrink-0 rounded-lg border border-current/25 px-3 py-1 text-[12px] font-semibold transition-colors hover:bg-foreground/5";
+    "group inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-white shadow-sm transition-transform active:scale-95";
+  const style = { background: accent } as const;
+
+  const inner = (
+    <>
+      {label}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.4}
+        className="size-3.5 transition-transform group-hover:-translate-x-0.5"
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
+      </svg>
+    </>
+  );
 
   if (internal) {
     return (
-      <Link href={url} className={className}>
-        {label}
+      <Link href={url} className={className} style={style}>
+        {inner}
       </Link>
     );
   }
 
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
-      {label}
+    <a href={url} target="_blank" rel="noopener noreferrer" className={className} style={style}>
+      {inner}
       <span className="sr-only"> (در پنجرهٔ تازه)</span>
     </a>
   );

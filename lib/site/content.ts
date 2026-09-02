@@ -112,7 +112,16 @@ export async function activeAnnouncement(): Promise<PublicAnnouncement | null> {
 
 /** بخش حامیان صفحهٔ اصلی — با تنظیماتش. */
 export async function supportersSection(): Promise<PublicSupportersSection> {
-  const enabled = (await getSetting("home.supporters_enabled")) === "on";
+  /** ⚠️ پیش‌فرض «روشن» است و نه «خاموش».
+   *
+   *  دلیلش این است که خاموشیِ پیش‌فرض یک تلهٔ خاموش می‌ساخت: مدیر چند حامی
+   *  در پنل ثبت می‌کرد، به صفحهٔ اصلی می‌رفت و هیچ‌چیز نمی‌دید، بی‌آنکه
+   *  چیزی بگوید کجا را باید روشن کند.
+   *
+   *  خطری هم ندارد: اگر هیچ حامیِ قابلِ نمایشی نباشد، `items` خالی برمی‌گردد
+   *  و خودِ کامپوننت چیزی رندر نمی‌کند. یعنی «روشن» هرگز یک بخشِ خالی
+   *  نمی‌سازد. خاموش کردنِ صریح از پنل همچنان کار می‌کند. */
+  const enabled = (await getSetting("home.supporters_enabled")) !== "off";
 
   const title = (await getSetting("home.supporters_title")) || "با سپاس از حامیان سروا";
   const subtitle = (await getSetting("home.supporters_subtitle")) || null;

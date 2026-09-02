@@ -37,27 +37,38 @@ export default function PlanetStop({
       className="relative z-20 container flex min-h-[86vh] items-center py-16"
     >
       <div className="grid w-full items-center gap-8 lg:grid-cols-2 lg:gap-14">
-        {/* the planet */}
-        <motion.div
-          initial={reduced ? false : { opacity: 0, scale: 0.7 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ type: "spring", stiffness: 70, damping: 16 }}
+        {/* the planet
+            ⚠️ این wrapper عمداً هیچ transform ای ندارد.
+
+            قبلاً همین جعبه یک `motion.div` با `initial={{ scale: 0.7 }}` بود
+            و `PlanetSlot` داخلش. صحنه اسلات را یک بار با
+            `getBoundingClientRect()` اندازه می‌گیرد — و برای سیاره‌هایی که
+            هنوز به دیدرس نرسیده بودند، آن اندازه‌گیری روی حالتِ ۷۰٪ می‌افتاد.
+            نتیجه: سیاره‌های پایینِ صفحه برای همیشه کوچک می‌ماندند.
+
+            حالا اسلات در یک جعبهٔ ثابت است و «ظاهر شدن» داخلِ خودِ صحنهٔ
+            سه‌بعدی انجام می‌شود (GalaxyScene → Planets). هالهٔ تزئینی هنوز
+            انیمیشن دارد، چون اندازه‌گیری‌ای رویش انجام نمی‌شود. */}
+        <div
           className={`relative z-10 flex justify-center ${flip ? "lg:order-2" : ""}`}
         >
           {/* planet halo — a radial gradient, NOT a blurred div. A 70px blur on
               a 288px box forces the compositor to allocate and filter a texture
               for every planet; a gradient paints in one pass and looks the
               same. */}
-          <div
+          <motion.div
             aria-hidden
+            initial={reduced ? false : { opacity: 0, scale: 0.7 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ type: "spring", stiffness: 70, damping: 16 }}
             className="pointer-events-none absolute left-1/2 top-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               background: `radial-gradient(closest-side, ${accent}55, ${accent}22 45%, transparent 72%)`,
             }}
           />
           <PlanetSlot kind={planet} />
-        </motion.div>
+        </div>
 
         {/* briefing panel — opaque so the starfield never washes out the text */}
         <RevealGroup
@@ -87,7 +98,7 @@ export default function PlanetStop({
             </RevealItem>
 
             <h2 className="text-2xl font-black text-foreground sm:text-3xl">
-              <RevealWords text={title} />
+              <RevealWords text={title} inherit />
             </h2>
 
             <RevealItem>

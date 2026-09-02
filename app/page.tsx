@@ -8,6 +8,7 @@ import LearningProcessSection from "@/components/UI/LearningProcessSection";
 import SiteHighlightsSection from "@/components/UI/SiteHighlightsSection";
 import StartLearningSection from "@/components/UI/StartLearningSection";
 import VerseCard from "@/components/UI/WaveDivider";
+import SupportersSection from "@/components/site/SupportersSection";
 
 export default function Home() {
   return (
@@ -38,6 +39,10 @@ export default function Home() {
         <section className=" container relative pb-22">
           <OrouzHomeSection />
         </section>
+        {/* تمام‌عرض و بیرون از container: هالهٔ پس‌زمینه و نوارِ حامیان باید
+            تا لبهٔ صفحه بروند. اگر هیچ حامیِ قابلِ نمایشی نباشد — یا بخش از
+            پنل خاموش باشد — خودِ کامپوننت هیچ چیزی رندر نمی‌کند. */}
+        <SupportersSection />
       </main>
     </div>
   );

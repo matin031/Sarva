@@ -11,10 +11,20 @@ function read(name: string): string {
 }
 
 describe("migration رصدپذیری", () => {
-  test("شمارهٔ بعدی است و فایل منتشرشده‌ای را جایگزین نکرده", () => {
+  test("شماره‌گذاری پیوسته است و فایل منتشرشده‌ای را جایگزین نکرده", () => {
     const files = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort();
     assert.ok(files.includes(NEW_MIGRATION), "فایل migration پیدا نشد");
-    assert.equal(files[files.length - 1], NEW_MIGRATION, "باید آخرین فایل باشد");
+
+    // ⚠️ عمداً «آخرین فایل» بررسی نمی‌شود: هر migration بعدی این تست را
+    // می‌شکست بی‌آنکه چیزی خراب شده باشد. آنچه واقعاً اهمیت دارد این است که
+    // شماره‌ها پیوسته و بدون تکرار باشند — اجراکننده به ترتیبِ نام اجرا
+    // می‌کند و یک شمارهٔ تکراری یعنی ترتیبِ نامعلوم.
+    const numbers = files.map((f) => Number(f.slice(0, 3)));
+    assert.deepEqual(
+      numbers,
+      numbers.map((_, i) => i + 1),
+      `شماره‌گذاری migration ها پیوسته نیست: ${files.join(", ")}`,
+    );
 
     // ⚠️ migration منتشرشده هرگز ویرایش نمی‌شود؛ اجراکننده فایل‌های اعمال‌شده
     // را دوباره اجرا نمی‌کند، پس ویرایششان روی سرورهای موجود بی‌اثر است و

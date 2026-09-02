@@ -94,6 +94,36 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/announcements",
+    label: "اعلان سایت",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/supporters",
+    label: "حامیان",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.6-7 9-7 9Z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/sql",
+    label: "کنسول SQL",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <ellipse cx="12" cy="6" rx="7.5" ry="3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "تنظیمات",
     icon: (

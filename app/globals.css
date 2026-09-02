@@ -2483,3 +2483,46 @@ html.aruzr-immersive body {
     animation-duration: 2s;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   نوار بی‌پایانِ حامیان
+   ---------------------------------------------------------------------------
+   با CSS خالص و نه با جاوااسکریپت: یک انیمیشنِ transform روی لایهٔ ترکیب
+   مرورگر اجرا می‌شود و هیچ کاری به رشتهٔ اصلی نمی‌دهد — یعنی حتی روی گوشیِ
+   ضعیف هم نرم می‌ماند. نسخهٔ جاوااسکریپتی‌اش با هر رندرِ React تِته‌پِته
+   می‌کرد.
+
+   محتوا در کامپوننت دو بار پشت سر هم رندر می‌شود و این انیمیشن دقیقاً نصفِ
+   عرض را جابه‌جا می‌کند؛ لحظهٔ برگشت به صفر با شروع، مو نمی‌زند. */
+@keyframes sarva-marquee-rtl {
+  from { transform: translateX(0); }
+  to   { transform: translateX(50%); }
+}
+@keyframes sarva-marquee-ltr {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.sarva-marquee-track {
+  display: flex;
+  width: max-content;
+  animation-duration: var(--sarva-marquee-duration, 60s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.sarva-marquee-track[data-direction="rtl"] { animation-name: sarva-marquee-rtl; }
+.sarva-marquee-track[data-direction="ltr"] { animation-name: sarva-marquee-ltr; }
+
+/* ایستادن روی نگه‌داشتنِ اشاره‌گر و روی فوکوسِ صفحه‌کلید — بدون دومی، کسی که
+   با Tab میان کارت‌ها می‌رود نمی‌تواند بخواندشان. */
+.sarva-marquee:hover .sarva-marquee-track,
+.sarva-marquee:focus-within .sarva-marquee-track {
+  animation-play-state: paused;
+}
+
+/* کسی که حرکت را نمی‌خواهد، به‌جای نوارِ متحرک یک ردیفِ قابلِ اسکرول می‌بیند.
+   انیمیشن فقط «کند» نمی‌شود؛ کاملاً برداشته می‌شود. */
+@media (prefers-reduced-motion: reduce) {
+  .sarva-marquee { overflow-x: auto; }
+  .sarva-marquee-track { animation: none; }
+}

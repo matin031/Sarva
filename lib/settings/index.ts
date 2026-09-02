@@ -20,7 +20,12 @@ export type SettingKey =
   | "sms.driver"
   | "sms.api_key"
   | "sms.sender"
-  | "sms.base_url";
+  | "sms.base_url"
+  | "home.supporters_enabled"
+  | "home.supporters_title"
+  | "home.supporters_subtitle"
+  | "home.supporters_cta_url"
+  | "home.supporters_cta_label";
 
 type SettingSpec = {
   /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
@@ -29,7 +34,7 @@ type SettingSpec = {
   label: string;
   description: string;
   /** گروه‌بندی در صفحهٔ تنظیمات */
-  group: "mail" | "sms";
+  group: "mail" | "sms" | "home";
   /**
    * راز است؟
    *
@@ -95,6 +100,50 @@ export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
       "فقط وقتی لازم است که سرویس «دیگر» را انتخاب کرده باشید. برای سرویس‌های شناخته‌شده خالی بگذارید.",
     placeholder: "https://api.example.com/send",
   },
+
+  // ── صفحهٔ اصلی ───────────────────────────────────────────────────────────
+  // بخش حامیان از همین‌جا روشن و خاموش می‌شود و نه با تغییر کد. تا وقتی
+  // خاموش است، هیچ کوئری‌ای هم برای خواندن حامیان زده نمی‌شود.
+  "home.supporters_enabled": {
+    envVar: "HOME_SUPPORTERS_ENABLED",
+    group: "home",
+    label: "نمایش بخش حامیان",
+    description:
+      "وقتی روشن باشد، بخش «حامیان» در صفحهٔ اصلی دیده می‌شود. اگر هنوز حامی‌ای ثبت نکرده‌اید، خاموش بگذارید — یک بخش خالی بدتر از نبودنش است.",
+    options: [
+      { value: "off", label: "خاموش (نمایش داده نمی‌شود)" },
+      { value: "on", label: "روشن" },
+    ],
+  },
+  "home.supporters_title": {
+    envVar: "HOME_SUPPORTERS_TITLE",
+    group: "home",
+    label: "عنوان بخش حامیان",
+    description: "تیتری که بالای فهرست حامیان می‌نشیند.",
+    placeholder: "با سپاس از حامیان سروا",
+  },
+  "home.supporters_subtitle": {
+    envVar: "HOME_SUPPORTERS_SUBTITLE",
+    group: "home",
+    label: "زیرعنوان بخش حامیان",
+    description: "یک جملهٔ کوتاه زیر تیتر. خالی بگذارید تا نمایش داده نشود.",
+    placeholder: "سروا رایگان است و با حمایت شما رایگان می‌ماند.",
+  },
+  "home.supporters_cta_url": {
+    envVar: "HOME_SUPPORTERS_CTA_URL",
+    group: "home",
+    label: "آدرس دکمهٔ حمایت",
+    description:
+      "لینکی که دکمهٔ «حمایت می‌کنم» به آن می‌رود — درگاه پرداخت، صفحهٔ توضیح، هرچه. خالی بگذارید تا دکمه‌ای نباشد.",
+    placeholder: "https://…",
+  },
+  "home.supporters_cta_label": {
+    envVar: "HOME_SUPPORTERS_CTA_LABEL",
+    group: "home",
+    label: "متن دکمهٔ حمایت",
+    description: "فقط وقتی آدرس بالا پر باشد معنی دارد.",
+    placeholder: "حمایت می‌کنم",
+  },
 };
 
 /** برچسب فارسی هر گروه، برای عنوان بخش‌ها در صفحهٔ تنظیمات. */
@@ -107,6 +156,11 @@ export const SETTING_GROUPS: Record<SettingSpec["group"], { title: string; descr
     title: "پیامک",
     description:
       "هنوز هیچ بخشی از سایت پیامک نمی‌فرستد. این تنظیمات برای وقتی است که پنل پیامک بخرید — با پر کردن آن‌ها، ورود با موبایل بدون هیچ تغییری در کد فعال می‌شود.",
+  },
+  home: {
+    title: "صفحهٔ اصلی",
+    description:
+      "بخش حامیان. خودِ فهرست حامیان در صفحهٔ «حامیان» اداره می‌شود؛ این‌جا فقط تعیین می‌کنید دیده بشود یا نه و با چه عنوانی.",
   },
 };
 

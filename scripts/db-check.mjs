@@ -35,6 +35,8 @@ const EXPECTED_TABLES = [
   "club_posts", "club_comments", "club_likes", "club_reports",
   // لاگ مدیران و خطاها (۰۰۲)
   "admin_audit_log", "app_error_log",
+  // اعلان سایت و حامیان (۰۰۸)
+  "site_announcements", "site_supporters",
 ];
 
 const EXPECTED_TRIGGERS = [
@@ -42,6 +44,8 @@ const EXPECTED_TRIGGERS = [
   "users_touch", "club_posts_touch", "club_likes_count", "club_comments_count",
   // ۰۰۴ / ۰۰۵
   "aruz_bridge_questions_touch", "grammar_circuit_questions_touch",
+  // ۰۰۸
+  "site_announcements_touch", "site_supporters_touch",
 ];
 
 let failures = 0;

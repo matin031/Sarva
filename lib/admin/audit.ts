@@ -83,7 +83,17 @@ export type AuditAction =
   | "club.comment_delete"
   | "club.report_resolve"
   // فایل
-  | "upload.audio";
+  | "upload.audio"
+  // اعلان سایت
+  | "announcement.create"
+  | "announcement.update"
+  | "announcement.delete"
+  // حامیان
+  | "supporter.create"
+  | "supporter.update"
+  | "supporter.delete"
+  // کنسول SQL
+  | "sql.execute";
 
 export type AuditTargetType =
   | "user"
@@ -101,7 +111,10 @@ export type AuditTargetType =
   | "club_post"
   | "club_comment"
   | "club_report"
-  | "file";
+  | "file"
+  | "announcement"
+  | "supporter"
+  | "database";
 
 /** متن فارسیِ نمایشیِ هر عمل. اینجا و نه در دیتابیس، تا عوض کردن عبارت به
  *  migration نیاز نداشته باشد. */
@@ -144,6 +157,13 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "club.comment_delete": "حذف دیدگاه",
   "club.report_resolve": "رسیدگی به گزارش",
   "upload.audio": "آپلود فایل صوتی",
+  "announcement.create": "ساخت اعلان سایت",
+  "announcement.update": "ویرایش اعلان سایت",
+  "announcement.delete": "حذف اعلان سایت",
+  "supporter.create": "افزودن حامی",
+  "supporter.update": "ویرایش حامی",
+  "supporter.delete": "حذف حامی",
+  "sql.execute": "اجرای SQL از پنل",
 };
 
 /** عمل‌هایی که برگشت‌ناپذیرند — در پنل با رنگ متفاوت دیده می‌شوند. */
@@ -163,6 +183,12 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   "club.post_delete",
   "club.comment_delete",
   "user.role_change",
+  "announcement.delete",
+  "supporter.delete",
+  // ⚠️ اجرای SQL همیشه «برگشت‌ناپذیر» علامت می‌خورد، حتی وقتی فقط یک select
+  // بوده. دلیلش این است که از بیرون نمی‌شود فهمید کدام اجرا بی‌خطر بوده، و
+  // فیلترِ «فقط کارهای برگشت‌ناپذیر» در پنل باید *همهٔ* آن‌ها را نشان بدهد.
+  "sql.execute",
 ]);
 
 /**

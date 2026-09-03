@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  useReducedMotion,
+  useDocumentVisible,
+  useScrolling,
+} from "@/lib/perf/use-perf";
 import { motion, AnimatePresence } from "motion/react";
 
 /** Self-playing preview of the عروض سماعی quiz for the homepage. It reuses the
@@ -59,18 +64,18 @@ type Phase = "idle" | "picked" | "graded";
 export default function OrouzDemo() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(false);
-  const [reduced, setReduced] = useState(false);
+  const reduced = useReducedMotion();
+  const docVisible = useDocumentVisible();
+  const scrolling = useScrolling();
   const [qi, setQi] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReduced(mq.matches);
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  // ⚠️ این همان چیزی است که جا افتاده بود: `active` تنها به چرخهٔ setTimeout
+  // می‌رسید و به بومِ DemoBlob نه. اندازه‌گیری نشان داد بومِ دمو در بالای
+  // صفحه — سه هزار پیکسل پایین‌تر و کاملاً خارج از دید — بین ۱۰۷ تا ۱۹۸ بار
+  // در سه ثانیه رسم می‌شد، یعنی بیشتر از خودِ کره. در تبِ پنهان هم ادامه
+  // داشت. حالا هر سه دلیلِ توقف به بوم هم می‌رسند.
+  const blobRunning = active && docVisible && !scrolling && !reduced;
 
   useEffect(() => {
     const el = rootRef.current;
@@ -83,13 +88,9 @@ export default function OrouzDemo() {
   }, []);
 
   useEffect(() => {
-    if (reduced) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setQi(0);
-      setPhase("graded");
-      return;
-    }
-    if (!active) return;
+    // چرخه هم مثل بوم به دیده‌شدنِ سند نیاز دارد: تبِ پنهان یعنی هیچ‌کس
+    // نگاه نمی‌کند، پس تایمر هم بی‌مصرف است.
+    if (!active || !docVisible) return;
     let cancelled = false;
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
     (async () => {
@@ -111,9 +112,14 @@ export default function OrouzDemo() {
     return () => {
       cancelled = true;
     };
-  }, [active, reduced]);
+  }, [active, docVisible, reduced]);
 
-  const q = QUESTIONS[qi];
+  // ⚠️ در حالتِ حرکتِ کم، حالت را *مشتق* می‌کنیم نه اینکه در effect بنویسیم:
+  // نتیجه از همان رندرِ اول درست است و رندرِ آبشاری هم نمی‌سازد.
+  const shownQi = reduced ? 0 : qi;
+  const shownPhase: Phase = reduced ? "graded" : phase;
+
+  const q = QUESTIONS[shownQi];
   const cells = q.kind === "poem-audio" ? [0, 1, 2, 3] : q.options;
 
   return (
@@ -155,7 +161,7 @@ export default function OrouzDemo() {
                 <p>{q.bayt[1]}</p>
               </div>
             ) : (
-              <DemoBlob reduced={reduced} />
+              <DemoBlob running={blobRunning} />
             )}
           </motion.div>
         </AnimatePresence>
@@ -167,8 +173,8 @@ export default function OrouzDemo() {
       <div className="grid grid-cols-1 gap-4 *:h-20 sm:grid-cols-2 md:*:min-h-30">
         {cells.map((opt, i) => {
           const isCorrect = i === q.correct;
-          const picked = phase !== "idle" && isCorrect;
-          const graded = phase === "graded" && isCorrect;
+          const picked = shownPhase !== "idle" && isCorrect;
+          const graded = shownPhase === "graded" && isCorrect;
           const audioOption = q.kind === "poem-audio";
           const state = graded
             ? "border-green-500 bg-green-500/10"
@@ -227,10 +233,12 @@ export default function OrouzDemo() {
 }
 
 /** The quiz's organic audio blob, drawn in its calm idle state (no audio). */
-function DemoBlob({ reduced }: { reduced: boolean }) {
+function DemoBlob({ running }: { running: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const phaseRef = useRef(0);
+  /** یک بار ساخته می‌شود و در هر فریم دوباره پر می‌شود — نه از نو ساخته. */
+  const ptsRef = useRef<Float32Array | null>(null);
 
   useEffect(() => {
     const SIZE = 260;
@@ -243,66 +251,91 @@ function DemoBlob({ reduced }: { reduced: boolean }) {
     const ctx = cv.getContext("2d");
     if (!ctx) return;
 
+    if (!ptsRef.current) ptsRef.current = new Float32Array(POINTS * 2);
+    const pts = ptsRef.current;
+
+    // ⚠️ گرادیان و سایه از حلقه بیرون آمدند. createRadialGradient در هر فریم
+    // یک شیء تازه می‌ساخت، و shadowBlur=16 روی یک stroke یعنی مرورگر در هر
+    // فریم کلِ مسیر را تار می‌کند — گران‌ترین کارِ این بوم. هالهٔ ثابت حالا
+    // یک بار روی یک بومِ جدا رسم می‌شود و بعد فقط کپی می‌شود.
+    const rg = ctx.createRadialGradient(cx, cy, INNER_R * 0.4, cx, cy, INNER_R + 55);
+    rg.addColorStop(0, "rgba(31,209,164,0.05)");
+    rg.addColorStop(0.7, "rgba(31,209,164,0.25)");
+    rg.addColorStop(1, "rgba(20,150,120,0.45)");
+
+    const glow = document.createElement("canvas");
+    glow.width = SIZE;
+    glow.height = SIZE;
+    const gctx = glow.getContext("2d");
+    if (gctx) {
+      const halo = gctx.createRadialGradient(cx, cy, INNER_R * 0.6, cx, cy, INNER_R + 34);
+      halo.addColorStop(0, "rgba(31,209,164,0)");
+      halo.addColorStop(0.62, "rgba(31,209,164,0.20)");
+      halo.addColorStop(1, "rgba(31,209,164,0)");
+      gctx.fillStyle = halo;
+      gctx.fillRect(0, 0, SIZE, SIZE);
+    }
+
     const draw = (phase: number) => {
       ctx.clearRect(0, 0, SIZE, SIZE);
-      const base = INNER_R;
-      const pts: [number, number][] = [];
+      ctx.drawImage(glow, 0, 0);
+
       for (let i = 0; i < POINTS; i++) {
         const angle = (i / POINTS) * Math.PI * 2 - Math.PI / 2;
         const wave =
-          Math.sin(i * 0.6 + phase) * 0.5 +
-          Math.sin(i * 0.23 - phase * 0.7) * 0.5;
-        const wobble = 0.18 * wave;
-        const h = base + wobble * 48;
-        pts.push([cx + Math.cos(angle) * h, cy + Math.sin(angle) * h]);
+          Math.sin(i * 0.6 + phase) * 0.5 + Math.sin(i * 0.23 - phase * 0.7) * 0.5;
+        const h = INNER_R + 0.18 * wave * 48;
+        pts[i * 2] = cx + Math.cos(angle) * h;
+        pts[i * 2 + 1] = cy + Math.sin(angle) * h;
       }
+
       ctx.beginPath();
-      ctx.moveTo(
-        (pts[POINTS - 1][0] + pts[0][0]) / 2,
-        (pts[POINTS - 1][1] + pts[0][1]) / 2,
-      );
+      ctx.moveTo((pts[(POINTS - 1) * 2] + pts[0]) / 2, (pts[(POINTS - 1) * 2 + 1] + pts[1]) / 2);
       for (let i = 0; i < POINTS; i++) {
-        const p = pts[i];
-        const n = pts[(i + 1) % POINTS];
-        ctx.quadraticCurveTo(p[0], p[1], (p[0] + n[0]) / 2, (p[1] + n[1]) / 2);
+        const j = ((i + 1) % POINTS) * 2;
+        ctx.quadraticCurveTo(
+          pts[i * 2],
+          pts[i * 2 + 1],
+          (pts[i * 2] + pts[j]) / 2,
+          (pts[i * 2 + 1] + pts[j + 1]) / 2,
+        );
       }
       ctx.closePath();
-      const rg = ctx.createRadialGradient(
-        cx,
-        cy,
-        base * 0.4,
-        cx,
-        cy,
-        base + 55,
-      );
-      rg.addColorStop(0, "rgba(31,209,164,0.05)");
-      rg.addColorStop(0.7, "rgba(31,209,164,0.25)");
-      rg.addColorStop(1, "rgba(20,150,120,0.45)");
       ctx.fillStyle = rg;
       ctx.fill();
-      ctx.shadowColor = "rgba(31,209,164,0.6)";
-      ctx.shadowBlur = 16;
       ctx.strokeStyle = "rgba(31,209,164,0.9)";
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
       ctx.stroke();
-      ctx.shadowBlur = 0;
     };
 
-    if (reduced) {
-      draw(0);
+    if (!running) {
+      // یک فریمِ ثابت، بعد سکوتِ کامل. هیچ rAF ای باقی نمی‌ماند.
+      draw(phaseRef.current);
       return;
     }
-    const loop = () => {
-      phaseRef.current += 0.015;
-      draw(phaseRef.current);
+
+    // ۳۰fps کافی است؛ این تپشِ آرام به نرخِ نمایشگر نیازی ندارد.
+    const FRAME = 1000 / 30;
+    let last = 0;
+    const loop = (now: number) => {
       rafRef.current = requestAnimationFrame(loop);
+      if (now - last < FRAME) return;
+      last = now;
+      phaseRef.current += 0.03;
+      draw(phaseRef.current);
     };
-    loop();
+    // ⚠️ در Strict Mode این effect دوبار اجرا می‌شود. بدون این نگهبان دو
+    // حلقهٔ موازی ساخته می‌شد و فقط یکی لغو می‌شد.
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(loop);
+
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [reduced]);
+  }, [running]);
 
   return (
     <div className="relative size-32">

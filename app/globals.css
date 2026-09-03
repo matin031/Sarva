@@ -2565,3 +2565,76 @@ html.aruzr-immersive body {
 @media (prefers-reduced-motion: reduce) {
   .ann-sheen { animation: none; opacity: 0.5; transform: none; }
 }
+
+/* ============================================================
+   کارایی: خواباندنِ کارِ تزئینی وقتی کسی نگاهش نمی‌کند
+   ============================================================
+
+   دو کلید اینجا هست که جاوااسکریپت روی <html> می‌نویسد:
+
+     data-scrolling   حین اسکرول (lib/perf/use-perf.ts)
+     data-quality     سطحِ کیفیتِ تشخیص‌داده‌شده
+
+   چرا CSS و نه props: این انیمیشن‌ها در استایل‌شیت‌اند. وصل کردنشان به
+   stateِ ری‌اکت یعنی رندرِ دوباره برای کاری که خودِ مرورگر بلد است. */
+
+/* ---- حین اسکرول: هر انیمیشنِ دائمیِ تزئینی می‌ایستد ----
+
+   `paused` و نه `none`: انیمیشن سرِ جایش می‌ماند و با پایانِ اسکرول از
+   همان‌جا ادامه می‌دهد. با `none` همه‌چیز به فریمِ صفر می‌پرید و خودِ آن
+   پرش دیده می‌شد. */
+html[data-scrolling] .aruz-aurora,
+html[data-scrolling] .aruz-grid-floor::before,
+html[data-scrolling] .aruz-gradient-text,
+html[data-scrolling] .arkan-orbit,
+html[data-scrolling] .ninja-aurora,
+html[data-scrolling] .animate-ping {
+  animation-play-state: paused;
+}
+
+/* ---- درخششِ متنِ گرادیانی: فقط در بالاترین کیفیت ----
+
+   background-position قابلِ ترکیب در compositor نیست، پس این درخشش در هر
+   فریمی که اجرا شود متن را دوباره رنگ می‌کند — و چون infinite است، تا ابد.
+   ارتقای لایه دامنه‌اش را به عرضِ کلمات محدود می‌کند ولی خودِ رنگ‌آمیزی سرِ
+   جایش می‌ماند. روی دستگاهِ متوسط و ضعیف ارزشش را ندارد. */
+html[data-quality="balanced"] .aruz-gradient-text,
+html[data-quality="low"] .aruz-gradient-text {
+  animation: none;
+  /* بدونِ انیمیشن، لایهٔ اختصاصی هم لازم نیست. will-changeِ دائمی روی
+     GPUِ کم‌حافظه یعنی حافظهٔ بی‌مصرف و در بدترین حالت بیرون‌راندنِ لایه‌های
+     دیگر. رنگ‌ها و ظاهر دست‌نخورده می‌مانند — فقط ثابت‌اند. */
+  will-change: auto;
+  background-position: 30% 50%;
+}
+
+/* ---- کیفیتِ پایین: پس‌زمینه‌های متحرک کنار می‌روند ---- */
+html[data-quality="low"] .aruz-aurora,
+html[data-quality="low"] .aruz-grid-floor::before,
+html[data-quality="low"] .arkan-orbit {
+  animation: none;
+}
+
+/* ---- backdrop-filter: گران‌ترین چیزِ این صفحه روی سافاری و موبایلِ ضعیف ----
+
+   شیشه با یک پس‌زمینهٔ نیمه‌شفافِ تیره جایگزین می‌شود. حسِ لایه‌لایه بودن
+   می‌ماند، ولی مرورگر دیگر مجبور نیست پشتِ هر کارت را تار کند. */
+html[data-quality="balanced"] .glass,
+html[data-quality="low"] .glass,
+html[data-quality="balanced"] [class*="backdrop-blur"],
+html[data-quality="low"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: color-mix(in oklch, var(--color-card) 88%, transparent);
+}
+
+/* ---- حرکتِ کم: هیچ انیمیشنِ دائمی‌ای باقی نمی‌ماند ---- */
+@media (prefers-reduced-motion: reduce) {
+  .aruz-aurora,
+  .aruz-grid-floor::before,
+  .aruz-gradient-text,
+  .arkan-orbit {
+    animation: none;
+    will-change: auto;
+  }
+}

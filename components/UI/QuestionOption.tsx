@@ -44,9 +44,13 @@ export default function QuestionOption({
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  // فایل صوتی بارگذاری نشد — گزینه می‌ماند، ولی به‌جای کرش می‌گوید چه شده.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    setFailed(false);
 
     wavesurferRef.current = WaveSurfer.create({
       container: containerRef.current,
@@ -72,17 +76,30 @@ export default function QuestionOption({
       setIsPlaying(false);
     });
 
+    // ⚠️ اگر فایل صوتی روی سرور نباشد، مرورگر برای url یک صفحهٔ ۴۰۴ (HTML)
+    // می‌گیرد و رمزگشایی شکست می‌خورد. بدون این، خطا بی‌صاحب می‌ماند و
+    // به کرشِ کلِ صفحه تبدیل می‌شود — یک ردیفِ خرابِ دیتابیس تمام آزمون را
+    // می‌خواباند.
+    //
+    // برای پیدا کردنِ ردیفِ مقصر: npm run db:check-audio
+    wavesurferRef.current.on("error", () => {
+      setFailed(true);
+      setIsPlaying(false);
+    });
+
     return () => {
       wavesurferRef.current?.destroy();
     };
   }, [audioUrl, title]);
 
   const handlePlay = () => {
+    if (failed) return; // چیزی برای پخش نیست
     if (isPlaying) {
       wavesurferRef.current?.pause();
       setPlayingId(null);
     } else {
-      wavesurferRef.current?.play();
+      // play() یک promise برمی‌گرداند؛ رد شدنش باید همین‌جا بماند.
+      void wavesurferRef.current?.play()?.catch(() => setFailed(true));
       setPlayingId(id);
     }
   };
@@ -166,7 +183,12 @@ export default function QuestionOption({
           quizType === "pattern-to-audio" ||
           quizType === "weight-to-audio") && (
           <>
-            <div className="  w-full" ref={containerRef}></div>
+            <div className="w-full" ref={containerRef} hidden={failed}></div>
+            {failed && (
+              <p className="w-full text-center text-xs text-rose-400">
+                فایل صوتی این گزینه در دسترس نیست.
+              </p>
+            )}
             <div
               onClick={(event) => {
                 handlePlay();

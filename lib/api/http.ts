@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { ZodType } from "zod";
 import { AuthError } from "@/lib/auth/types";
 import type { CookieSpec } from "@/lib/auth/cookies";
+import { DEFAULT_MAX_JSON_BYTES, readCappedText } from "@/lib/api/read-capped";
 import {
   REQUEST_ID_HEADER,
   currentRequestContext,
@@ -55,14 +56,37 @@ export function withCookies<T>(response: NextResponse<T>, cookies: CookieSpec[])
  *
  * خروجی یک اتحادِ تفکیک‌شده است و نه throw، چون هر فراخوان می‌خواهد خطای
  * اعتبارسنجی را به شکل خودش برگرداند.
+ *
+ * `maxBytes` را فقط جایی بدهید که بدنهٔ واقعی بزرگ‌تر از پیش‌فرض است.
  */
+export { DEFAULT_MAX_JSON_BYTES };
+
 export async function readJson<T>(
   request: Request,
   schema: ZodType<T>,
+  maxBytes: number = DEFAULT_MAX_JSON_BYTES,
 ): Promise<{ ok: true; data: T } | { ok: false; response: NextResponse<ApiResult<never>> }> {
+  let text: string | null;
+  try {
+    text = await readCappedText(request, maxBytes);
+  } catch {
+    return { ok: false, response: fail("بدنهٔ درخواست خوانده نشد.", 400) };
+  }
+
+  if (text === null) {
+    // ۴۱۳ و نه ۴۰۰: کلاینت باید بفهمد مشکل *اندازه* است، نه شکلِ داده.
+    return {
+      ok: false,
+      response: fail(
+        `بدنهٔ درخواست از ${Math.floor(maxBytes / 1024).toLocaleString("fa-IR")} کیلوبایت بیشتر است.`,
+        413,
+      ),
+    };
+  }
+
   let raw: unknown;
   try {
-    raw = await request.json();
+    raw = JSON.parse(text);
   } catch {
     return { ok: false, response: fail("بدنهٔ درخواست JSON معتبر نیست.", 400) };
   }

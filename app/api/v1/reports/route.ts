@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { boundedRecord } from "@/lib/api/bounded-record";
 import { queryOne } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
@@ -30,7 +31,7 @@ const schema = z.object({
   reason: z.enum(REPORT_REASONS),
   targetId: z.string().trim().max(200).nullish(),
   /** مکان‌یابِ ساختاریافته — پایه، درس، شمارهٔ پرسش… */
-  targetRef: z.record(z.string(), z.unknown()).nullish(),
+  targetRef: boundedRecord().nullish(),
   snapshot: z.string().trim().max(REPORT_SNAPSHOT_MAX).nullish(),
   note: z
     .string()

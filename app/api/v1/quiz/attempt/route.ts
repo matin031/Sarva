@@ -60,7 +60,9 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
       return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }
 
-    const body = await readJson(request, schema);
+    // یک دورِ ۲۰۰ پاسخی حدود ۲۰ کیلوبایت است، پس سقفِ پیش‌فرضِ ۱۶ کیلوبایت
+    // برای همین یک endpoint کم است.
+    const body = await readJson(request, schema, 64 * 1024);
     if (!body.ok) return body.response;
 
     const { answers } = body.data;

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { boundedRecord } from "@/lib/api/bounded-record";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
@@ -21,7 +22,7 @@ const upsertSchema = z.object({
   refId: z.string().trim().min(1).max(200),
   title: z.string().trim().min(1).max(300),
   subtitle: z.string().trim().max(300).optional(),
-  payload: z.record(z.string(), z.unknown()).optional(),
+  payload: boundedRecord().optional(),
 });
 
 const deleteSchema = z.union([

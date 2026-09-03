@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ClientExam } from "@/lib/exam/client-exam";
-import type { PartResult, QuestionResult } from "@/app/exam/[examKey]/actions";
+import type { PartResult, QuestionResult } from "@/lib/exam/result-types";
 
 type Props = {
   exam: ClientExam;

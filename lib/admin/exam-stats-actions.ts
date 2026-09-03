@@ -2,7 +2,7 @@
 
 import { query, queryOne } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
-import type { QuestionResult } from "@/app/exam/[examKey]/actions";
+import type { QuestionResult } from "@/lib/exam/result-types";
 
 export type ExamAttemptRow = {
   id: string;

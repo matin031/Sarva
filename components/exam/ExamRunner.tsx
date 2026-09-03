@@ -9,11 +9,8 @@ import ExamQuestionNav from "@/components/exam/ExamQuestionNav";
 import ExamResults from "@/components/exam/ExamResults";
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import {
-  submitExamAttempt,
-  submitQuestion,
-  type QuestionResult,
-} from "@/app/exam/[examKey]/actions";
+import { submitExamAttempt, submitQuestion } from "@/app/exam/[examKey]/actions";
+import type { QuestionResult } from "@/lib/exam/result-types";
 
 type Props = {
   examKey: string;

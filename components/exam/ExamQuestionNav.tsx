@@ -1,7 +1,7 @@
 "use client";
 
 import type { ClientQuestion } from "@/lib/exam/client-exam";
-import type { QuestionResult } from "@/app/exam/[examKey]/actions";
+import type { QuestionResult } from "@/lib/exam/result-types";
 import OverlayPortal from "@/components/UI/OverlayPortal";
 
 type FlatQuestion = { sectionTitle: string; question: ClientQuestion };

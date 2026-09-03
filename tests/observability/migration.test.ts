@@ -92,7 +92,14 @@ describe("migration رصدپذیری", () => {
   test("نحو SQL با تجزیه‌گر واقعی پستگرس درست است", async (t) => {
     let pg: { loadModule: () => Promise<unknown>; parseSync: (sql: string) => unknown };
     try {
-      pg = (await import("libpg-query")) as never;
+      // ⚠️ شناسه در یک متغیر است، نه رشتهٔ لفظی.
+      //    با رشتهٔ لفظی، `tsc` می‌کوشد ماژول را resolve کند و چون عمداً
+      //    وابستگیِ پروژه نیست، typecheck با TS2307 می‌شکند — یعنی یک تستِ
+      //    اختیاری، گیتِ اجباریِ پروژه را می‌خواباند. با متغیر، TypeScript
+      //    نوعش را `any` می‌گیرد و کاری به resolve ندارد؛ رفتارِ زمانِ اجرا
+      //    (نصب باشد یا نباشد) دقیقاً همان است که بود.
+      const specifier = "libpg-query";
+      pg = (await import(specifier)) as never;
     } catch {
       t.skip("libpg-query نصب نیست — «npm i --no-save libpg-query» و دوباره اجرا کنید");
       return;

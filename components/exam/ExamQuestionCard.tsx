@@ -1,7 +1,7 @@
 "use client";
 
 import type { ClientQuestion } from "@/lib/exam/client-exam";
-import type { PartResult } from "@/app/exam/[examKey]/actions";
+import type { PartResult } from "@/lib/exam/result-types";
 import QuestionPartRenderer from "@/components/exam/QuestionPartRenderer";
 import MarkedText from "@/components/exam/MarkedText";
 import ReportButton from "@/components/UI/ReportButton";

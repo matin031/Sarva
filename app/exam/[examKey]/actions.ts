@@ -1,6 +1,7 @@
 "use server";
 
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
+import { MAX_ANSWER_KEYS, MAX_ANSWER_TEXT, regradeAttempt } from "@/lib/exam/regrade";
 import { gradePart } from "@/lib/exam/grading";
 import { getExamByKey } from "@/lib/exam/db-exam";
 import { queryOne, execute } from "@/lib/db";
@@ -11,23 +12,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 // component fetches its own copy separately and sanitizes it via
 // toClientExam before it reaches the browser.
 
-export type PartResult = {
-  label?: string;
-  score: number;
-  maxScore: number;
-  status: "correct" | "incorrect" | "partial" | "needs_review";
-  correctAnswerText: string;
-  /** Short feedback shown to the student. Reserved for future manual review. */
-  feedback?: string;
-  /** True for open-ended (conceptual) parts that the student scores
-   *  themselves against the revealed answer — no auto grading. */
-  selfGrade?: boolean;
-};
-
-export type QuestionResult = {
-  number: number;
-  parts: PartResult[];
-};
+import type { PartResult, QuestionResult } from "@/lib/exam/result-types";
 
 /** Grades one question and reveals its answer key — called right after
  *  the student submits that single question, so feedback is immediate
@@ -98,25 +83,36 @@ export async function submitExamAttempt(
   ]);
   if (!exam) return { saved: false, reason: "unknown_exam" };
 
+  const paper = await getExamByKey(examKey);
+  if (!paper) return { saved: false, reason: "unknown_exam" };
+
+  // شکلِ ورودی، پیش از هر کاری. یک بدنهٔ غول‌پیکر نباید تا محاسبه پیش برود.
+  const safeAnswers: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(answers ?? {})) {
+    if (Object.keys(safeAnswers).length >= MAX_ANSWER_KEYS) break;
+    // فقط کلیدهای «شمارهٔ سؤال:اندیس بخش»
+    if (!/^\d{1,4}:\d{1,3}$/.test(key)) continue;
+    safeAnswers[key] =
+      typeof value === "string" ? value.slice(0, MAX_ANSWER_TEXT) : value;
+  }
+
   /* A کارنامه should describe a paper the student actually sat. Answering three
      questions and leaving would otherwise land in the panel next to a full
      attempt and drag the average down for no reason — so the threshold is
      checked here, on the server, where the real question count lives, rather
      than trusting whatever the client chose to send. */
-  const paper = await getExamByKey(examKey);
-  const totalQuestions = paper?.sections.reduce((n, s) => n + s.questions.length, 0) ?? 0;
-  const answeredQuestions = Object.keys(questionResults).length;
+  const totalQuestions = paper.sections.reduce((n, s) => n + s.questions.length, 0);
+
+  // ⚠️ نمره روی سرور و از روی برگهٔ واقعی حساب می‌شود، نه از روی چیزی که
+  //    کلاینت فرستاده. توضیح کامل بالای regradeAttempt.
+  const { totalScore, maxScore, answeredQuestions, results } = regradeAttempt(
+    paper,
+    questionResults ?? {},
+    safeAnswers,
+  );
+
   if (totalQuestions > 0 && answeredQuestions < Math.ceil(totalQuestions * MIN_ANSWERED_RATIO)) {
     return { saved: false, reason: "too_few" };
-  }
-
-  let totalScore = 0;
-  let maxScore = 0;
-  for (const result of Object.values(questionResults)) {
-    for (const part of result.parts) {
-      totalScore += part.score;
-      maxScore += part.maxScore;
-    }
   }
   if (maxScore === 0) return { saved: false, reason: "too_few" };
 
@@ -129,8 +125,9 @@ export async function submitExamAttempt(
         exam.id,
         totalScore,
         maxScore,
-        JSON.stringify(questionResults),
-        JSON.stringify(answers ?? {}),
+        // نسخهٔ سرور، نه آنچه کلاینت فرستاده
+        JSON.stringify(results),
+        JSON.stringify(safeAnswers),
       ],
     );
   } catch (err) {

@@ -69,11 +69,19 @@ export default function QuestionOption({
   }, []);
 
   // فقط یک گزینه در هر لحظه: هرکس playingId نیست، ساکت می‌شود.
+  //
+  // ⚠️ isPlaying عمداً در وابستگی‌ها نیست. وقتی بود، این توالی پیش می‌آمد:
+  // رویداد play زودتر از setPlayingId(id) می‌رسید، پس افکت لحظه‌ای
+  // playingId=null و isPlaying=true می‌دید و همان پخشی را که تازه شروع شده
+  // بود pause می‌کرد — و pause وسطِ play یعنی رد شدنِ آن promise با
+  // AbortError. یعنی کد پخشِ خودش را قطع می‌کرد.
+  //
+  // pause روی چیزی که پخش نیست بی‌اثر است، پس شرطِ isPlaying لازم نبود.
   useEffect(() => {
-    if (playingId !== id && isPlaying) {
+    if (playingId !== id) {
       audioRef.current?.pause();
     }
-  }, [playingId, id, isPlaying]);
+  }, [playingId, id]);
 
   const handlePlay = async () => {
     const el = audioRef.current;
@@ -85,10 +93,19 @@ export default function QuestionOption({
       return;
     }
 
+    // نوبت را *پیش از* await می‌گیریم. اگر بعد از آن باشد، افکتِ بالا
+    // در فاصلهٔ بین شروعِ پخش و رسیدنِ setPlayingId، این گزینه را بیگانه
+    // می‌بیند و ساکتش می‌کند.
+    setPlayingId(id);
+
     try {
       await el.play();
-      setPlayingId(id);
     } catch (err) {
+      // AbortError یعنی خودمان وسطِ کار pause کردیم — مثلاً کاربر سریع روی
+      // گزینهٔ دیگری زد. این خرابی نیست و نه باید گزارش شود نه فایل را
+      // معیوب علامت بزند.
+      if (err instanceof DOMException && err.name === "AbortError") return;
+
       // چرا اینجا و نه فقط onError: پخش می‌تواند به دلایلی جز خرابیِ فایل
       // هم رد شود (مثلاً سیاستِ autoplay)، و آن استثنا به onError نمی‌رسد.
       reportAudioProblem("play() رد شد", err);
@@ -105,7 +122,9 @@ export default function QuestionOption({
       currentSrc: el?.currentSrc,
       errorCode: el?.error?.code,
       errorMessage: el?.error?.message,
-      extra,
+      // ⚠️ DOMException خصوصیاتش enumerable نیست، پس مستقیم که چاپش کنی
+      // فقط {} می‌بینی. اسم و پیام را دستی بیرون می‌کشیم.
+      reason: extra instanceof Error ? `${extra.name}: ${extra.message}` : extra,
     });
   };
 

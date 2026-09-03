@@ -245,27 +245,25 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     beginRun(settings);
   };
 
-  /** درستی پاسخ عمداً پارامتر نیست: سرور خودش chosenRole را با correctRole
-   *  مقایسه می‌کند، پس فرستادنش از اینجا فقط یک مقدار بی‌اثر بود. */
-  const logAttempt = (lvl: JasoosLevel, chosenRole: string, correctRole: string) => {
+  /** فقط «کدام پرونده» و «چه کسی را زدی».
+   *
+   *  بیت، دسته و نقشِ درست عمداً فرستاده نمی‌شوند: سرور همه را از `levelId` و
+   *  از روی همان مرجعی که خودِ بازی از آن ساخته شده درمی‌آورد. تا دیروز
+   *  `correctRole` هم از اینجا می‌رفت، یعنی هر دو طرفِ مقایسه دستِ کلاینت
+   *  بود و «همیشه درست» یک درخواست فاصله داشت. */
+  const logAttempt = (lvl: JasoosLevel, chosenRole: string) => {
     if (!user) return;
 
-    // user_id فرستاده نمی‌شود؛ سرور آن را از کوکی سشن می‌گیرد. isCorrect هم
-    // فرستاده نمی‌شود — سرور خودش chosenRole را با correctRole مقایسه می‌کند.
     void apiPost("/api/v1/jasoos/answer", {
       levelId: lvl.id,
-      category: lvl.category,
-      verseLine1: lvl.verseLines[0],
-      verseLine2: lvl.verseLines[1],
       chosenRole,
-      correctRole,
     }).then((result) => {
       if (!result.ok) console.error("jasoos answer save failed:", result.errors.join(" "));
     });
   };
 
   const handleResult = (correct: boolean, spy: SuspectType, chosen: SuspectType) => {
-    logAttempt(level, chosen.role, spy.role);
+    logAttempt(level, chosen.role);
 
     if (correct) {
       const nextCleared = clearedCount + 1;

@@ -1,5 +1,4 @@
 "use client";
-import WaveSurfer from "wavesurfer.js";
 import { motion } from "motion/react";
 
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
@@ -39,12 +38,11 @@ export default function QuestionOption({
   playingId,
   setPlayingId,
 }: QuestionOptionType) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  // فایل صوتی بارگذاری نشد — گزینه می‌ماند، ولی به‌جای کرش می‌گوید چه شده.
+  const [progress, setProgress] = useState(0);
+  /** مسیر بود ولی بارگذاری/پخش شکست خورد — با «اصلاً مسیری نبود» یکی نیست. */
   const [failed, setFailed] = useState(false);
 
   // فقط در این سه نوع، *گزینه‌ها* صوت‌اند. در audio-to-poem و
@@ -55,74 +53,61 @@ export default function QuestionOption({
     quizType === "pattern-to-audio" ||
     quizType === "weight-to-audio";
 
-  const hasAudio = optionsAreAudio && !!audioUrl?.trim();
+  const src = audioUrl?.trim() ?? "";
+  /** نوعش صوتی است و مسیر هم دارد. */
+  const hasAudio = optionsAreAudio && src !== "";
+  /** نوعش صوتی است ولی اصلاً مسیری نیامده — خرابیِ داده، نه خرابیِ پخش. */
+  const missing = optionsAreAudio && src === "";
 
+  // ⚠️ سؤال که عوض می‌شود این کامپوننت unmount می‌شود؛ بدون این، صوتِ
+  // گزینهٔ سؤالِ قبلی همچنان پخش می‌ماند.
   useEffect(() => {
-    // ⚠️ بدون این شرط، برای گزینه‌ای که مسیر ندارد هم WaveSurfer با
-    // `url: ""` ساخته می‌شد. مسیر خالی به آدرسِ خودِ صفحه resolve می‌شود،
-    // پس مرورگر HTML می‌گرفت و NotSupportedError می‌داد. حالا اصلاً ساخته
-    // نمی‌شود.
-    if (!hasAudio) return;
-    if (!containerRef.current) return;
-
-    setFailed(false);
-
-    wavesurferRef.current = WaveSurfer.create({
-      container: containerRef.current,
-      url: audioUrl,
-      waveColor: "#64748b",
-      progressColor: "#14b8a6",
-      height: 80,
-      barWidth: 3,
-      barGap: 2,
-      barRadius: 999,
-      cursorWidth: 0,
-    });
-
-    wavesurferRef.current.on("play", () => {
-      setIsPlaying(true);
-    });
-
-    wavesurferRef.current.on("pause", () => {
-      setIsPlaying(false);
-    });
-
-    wavesurferRef.current.on("finish", () => {
-      setIsPlaying(false);
-    });
-
-    // ⚠️ اگر فایل صوتی روی سرور نباشد، مرورگر برای url یک صفحهٔ ۴۰۴ (HTML)
-    // می‌گیرد و رمزگشایی شکست می‌خورد. بدون این، خطا بی‌صاحب می‌ماند و
-    // به کرشِ کلِ صفحه تبدیل می‌شود — یک ردیفِ خرابِ دیتابیس تمام آزمون را
-    // می‌خواباند.
-    //
-    // برای پیدا کردنِ ردیفِ مقصر: npm run db:check-audio
-    wavesurferRef.current.on("error", () => {
-      setFailed(true);
-      setIsPlaying(false);
-    });
-
+    const el = audioRef.current;
     return () => {
-      wavesurferRef.current?.destroy();
+      el?.pause();
     };
-  }, [audioUrl, title, hasAudio]);
+  }, []);
 
-  const handlePlay = () => {
-    if (failed) return; // چیزی برای پخش نیست
-    if (isPlaying) {
-      wavesurferRef.current?.pause();
-      setPlayingId(null);
-    } else {
-      // play() یک promise برمی‌گرداند؛ رد شدنش باید همین‌جا بماند.
-      void wavesurferRef.current?.play()?.catch(() => setFailed(true));
-      setPlayingId(id);
-    }
-  };
+  // فقط یک گزینه در هر لحظه: هرکس playingId نیست، ساکت می‌شود.
   useEffect(() => {
     if (playingId !== id && isPlaying) {
-      wavesurferRef.current?.pause();
+      audioRef.current?.pause();
     }
-  }, [playingId]);
+  }, [playingId, id, isPlaying]);
+
+  const handlePlay = async () => {
+    const el = audioRef.current;
+    if (!el || !hasAudio || failed) return;
+
+    if (isPlaying) {
+      el.pause();
+      setPlayingId(null);
+      return;
+    }
+
+    try {
+      await el.play();
+      setPlayingId(id);
+    } catch (err) {
+      // چرا اینجا و نه فقط onError: پخش می‌تواند به دلایلی جز خرابیِ فایل
+      // هم رد شود (مثلاً سیاستِ autoplay)، و آن استثنا به onError نمی‌رسد.
+      reportAudioProblem("play() رد شد", err);
+      setFailed(true);
+    }
+  };
+
+  /** هرچه برای فهمیدنِ علت لازم است، یک‌جا. */
+  const reportAudioProblem = (what: string, extra?: unknown) => {
+    const el = audioRef.current;
+    console.error("[صوتِ گزینه] " + what, {
+      quizType,
+      audioUrl,
+      currentSrc: el?.currentSrc,
+      errorCode: el?.error?.code,
+      errorMessage: el?.error?.message,
+      extra,
+    });
+  };
 
   return (
     <motion.div
@@ -196,15 +181,54 @@ export default function QuestionOption({
 
         {optionsAreAudio && (
           <>
-            {/* دو حالتِ خرابی: مسیر از اول خالی بوده (hasAudio نادرست)، یا
-                مسیر بوده و بارگذاری شکست خورده (failed). هر دو یک پیام
-                می‌گیرند و دکمهٔ پخش را هم نشان نمی‌دهند، چون چیزی برای پخش
-                نیست. */}
-            <div className="w-full" ref={containerRef} hidden={!hasAudio || failed}></div>
-            {(!hasAudio || failed) && (
+            {/* دو حالتِ جدا، و عمداً جدا: missing یعنی اصلاً مسیری نیامده
+                (خرابیِ داده)، failed یعنی مسیر بود ولی پخش نشد (خرابیِ فایل
+                یا مرورگر). یکی‌کردنشان همان چیزی بود که تشخیص را کور می‌کرد. */}
+            {missing ? (
               <p className="w-full text-center text-xs text-rose-400">
                 فایل صوتی این گزینه در دسترس نیست.
               </p>
+            ) : failed ? (
+              <p className="w-full text-center text-xs text-amber-400">
+                پخش این فایل صوتی ممکن نشد.
+              </p>
+            ) : (
+              // جای موج: یک نوارِ سادهٔ پیشرفت، با همان ارتفاعِ قبلی.
+              <div className="w-full h-20 flex items-center px-1">
+                <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-150"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {hasAudio && (
+              <audio
+                ref={audioRef}
+                src={src}
+                preload="metadata"
+                // مسیرِ تازه یعنی شانسِ تازه: خطای قبلی نباید بماند.
+                onLoadStart={() => {
+                  setFailed(false);
+                  setProgress(0);
+                }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => {
+                  setIsPlaying(false);
+                  setProgress(0);
+                  setPlayingId(null);
+                }}
+                onTimeUpdate={(e) => {
+                  const el = e.currentTarget;
+                  if (el.duration > 0) setProgress((el.currentTime / el.duration) * 100);
+                }}
+                onError={() => {
+                  reportAudioProblem("بارگذاری فایل شکست خورد");
+                  setFailed(true);
+                }}
+              />
             )}
             <div
               hidden={!hasAudio || failed}

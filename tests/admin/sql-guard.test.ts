@@ -146,3 +146,95 @@ describe("هشدارها", () => {
     assert.deepEqual(inspectSql("select 1").warnings, []);
   });
 });
+
+/**
+ * ⚠️ دو راهِ فرار از سیاستِ خودِ همین محافظ، که هر دو روی دیتابیس محلی
+ * آزموده و بسته شدند:
+ *
+ * ۱) بلوکِ DO. این محافظ متن را می‌خواند؛ DO دستورِ واقعی را داخل یک رشته
+ *    می‌گذارد و `stripLiterals` — که وظیفه‌اش حذف رشته‌هاست تا کلمهٔ «drop»
+ *    داخل یک متن کوئریِ بی‌گناه را مسدود نکند — دقیقاً همان رشته را
+ *    برمی‌دارد. یعنی
+ *    `do $$ begin execute 'delete from admin_audit_log'; end $$`
+ *    نه اخطار می‌گرفت نه به سدِ جدولِ محافظت‌شده می‌خورد: گارد هیچ دستوری
+ *    نمی‌دید. روی دیتابیس محلی اجرا شد و ردیف‌ها پاک شدند.
+ *
+ * ۲) `lo_import`. `pg_read_file` مسدود بود ولی این نبود، با همان توانایی.
+ *    روی دیتابیس محلی `/etc/hostname` خوانده شد.
+ */
+describe("راه‌های فرار از خودِ محافظ", () => {
+  const blocked = (sql: string) => inspectSql(sql).blocked !== null;
+
+  test("بلوک DO مسدود می‌شود", () => {
+    assert.ok(blocked("do $$ begin execute 'delete from admin_audit_log'; end $$"));
+  });
+
+  test("بلوک DO با تگِ نام‌دار هم مسدود می‌شود", () => {
+    assert.ok(blocked("do $body$ begin execute 'drop table users'; end $body$"));
+  });
+
+  test("بلوک DO بعد از یک دستورِ بی‌گناه هم مسدود می‌شود", () => {
+    assert.ok(blocked("select 1; do $$ begin execute 'delete from users'; end $$"));
+  });
+
+  test("CALL مسدود می‌شود — یک procedure می‌تواند خودش commit کند", () => {
+    // اگر procedure داخل خودش commit کند، از rollbackِ حالت پیش‌نمایش
+    // بیرون می‌زند؛ یعنی «پیش‌نمایش امن است» دیگر راست نیست.
+    assert.ok(blocked("call some_proc()"));
+  });
+
+  test("lo_import مسدود می‌شود", () => {
+    assert.ok(blocked("select lo_import('/etc/passwd')"));
+  });
+
+  test("lo_export هم مسدود می‌شود — قرینه‌اش، نوشتن روی سرور", () => {
+    assert.ok(blocked("select lo_export(1234, '/tmp/x')"));
+  });
+
+  test("pg_stat_file هم مسدود می‌شود", () => {
+    assert.ok(blocked("select pg_stat_file('/etc/passwd')"));
+  });
+
+  test("set session authorization مسدود می‌شود", () => {
+    assert.ok(blocked("set session authorization postgres"));
+  });
+
+  test("set role مسدود می‌شود", () => {
+    assert.ok(blocked("set role postgres"));
+  });
+});
+
+/**
+ * نیمهٔ دومِ کار: الگوهای تازه نباید کوئریِ سالم را بگیرند. این کنسول ابزارِ
+ * کارِ روزمره است و یک مسدودسازیِ بی‌جا آن را بی‌مصرف می‌کند.
+ */
+describe("کوئری‌های سالم که نباید قربانیِ الگوهای تازه شوند", () => {
+  test("update ... set role = ... مسدود نمی‌شود", () => {
+    // ⚠️ مهم‌ترین تستِ اینجا. الگوی `set role` اگر به ابتدای دستور مقید
+    // نباشد این را می‌گیرد — و خودِ محافظ در متنِ اخطارهایش این را کارِ
+    // مجاز و متعارف می‌داند.
+    assert.equal(inspectSql("update users set role = 'admin' where id = 1").blocked, null);
+  });
+
+  test("ستونی به نامِ do یا call مسدود نمی‌شود", () => {
+    assert.equal(inspectSql("select do_not_touch, call_count from stats").blocked, null);
+  });
+
+  test("متنی که کلمهٔ do داخلش است مسدود نمی‌شود", () => {
+    assert.equal(inspectSql("select * from notes where body = 'do this later'").blocked, null);
+  });
+
+  test("insert معمولی مسدود نمی‌شود — کارِ اصلیِ این کنسول", () => {
+    assert.equal(
+      inspectSql("insert into questions (title) values ('وزن این بیت چیست؟')").blocked,
+      null,
+    );
+  });
+
+  test("drop table همچنان مجاز است و فقط اخطار می‌گیرد", () => {
+    // یادآوری اینکه این کنسول ابزارِ DBA است، نه فرمی فقط‌خواندنی.
+    const r = inspectSql("drop table scratch_table");
+    assert.equal(r.blocked, null);
+    assert.ok(r.warnings.some((w) => w.includes("drop table")));
+  });
+});

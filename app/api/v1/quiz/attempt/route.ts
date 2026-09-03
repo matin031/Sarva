@@ -15,7 +15,26 @@ const schema = z.object({
       }),
     )
     .min(1, "حداقل یک پاسخ لازم است")
-    .max(200, "تعداد پاسخ‌ها بیش از حد است"),
+    .max(200, "تعداد پاسخ‌ها بیش از حد است")
+    // ⚠️ یک دور بازی یعنی هر سؤال حداکثر یک بار.
+    //
+    //    بدون این شرط، فرستادن *یک* سؤالِ درست به‌صورت ۲۰۰ ردیفِ تکراری یک
+    //    دورِ «۲۰۰ از ۲۰۰» می‌ساخت — آزموده شد و دقیقاً همین را برمی‌گرداند.
+    //    آمار پنل از همین ردیف‌ها ساخته می‌شود، پس تکرار یعنی کارنامهٔ باد‌شده.
+    //
+    //    رد کردن، و نه حذفِ بی‌صدای تکراری‌ها: کلاینتِ سالم هرگز سؤال تکراری
+    //    نمی‌فرستد، پس تکرار یعنی یا باگ است یا دستکاری — و هر دو باید دیده
+    //    شوند نه اینکه بی‌صدا اصلاح شوند.
+    .superRefine((answers, ctx) => {
+      const seen = new Set<string>();
+      for (const a of answers) {
+        if (seen.has(a.questionId)) {
+          ctx.addIssue({ code: "custom", message: "هر سؤال فقط یک بار می‌تواند در یک دور بیاید." });
+          return;
+        }
+        seen.add(a.questionId);
+      }
+    }),
 });
 
 /**
@@ -62,6 +81,20 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
 
       const optionById = new Map(rows.map((r) => [r.id, r]));
 
+      // سؤال‌ها باید واقعاً وجود داشته باشند. بدون این چک، شناسهٔ ساختگی به
+      // کلید خارجیِ quiz_attempt_answers می‌خورد و کلِ تراکنش با یک ۵۰۰ برمی‌گشت
+      // — خطای درست، ولی از جنسِ «سرور خراب شد» به‌جای «ورودی‌ات غلط بود».
+      const known = new Set(
+        (
+          await tx.query<{ id: string }>(
+            `select id from questions where id = any($1::uuid[])`,
+            [answers.map((a) => a.questionId)],
+          )
+        ).map((r) => r.id),
+      );
+      const unknown = answers.filter((a) => !known.has(a.questionId));
+      if (unknown.length) return { badRequest: true as const };
+
       const graded = answers.map((a) => {
         const option = a.selectedOptionId ? optionById.get(a.selectedOptionId) : undefined;
         // گزینه‌ای که به این سؤال تعلق ندارد، مثل بی‌پاسخ حساب می‌شود
@@ -80,17 +113,23 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
         [user.id, graded.length, correct],
       );
 
-      for (const g of graded) {
-        await tx.execute(
-          `insert into quiz_attempt_answers (attempt_id, question_id, selected_option_id, is_correct)
-           values ($1, $2, $3, $4)`,
-          [attempt!.id, g.questionId, g.selectedOptionId, g.isCorrect],
-        );
-      }
+      // یک درجِ دسته‌ای به‌جای N رفت‌وبرگشت. با ۲۰۰ پاسخ، این ۲۰۰ کوئری بود.
+      await tx.execute(
+        `insert into quiz_attempt_answers (attempt_id, question_id, selected_option_id, is_correct)
+         select $1, qid, oid, flag
+           from unnest($2::uuid[], $3::uuid[], $4::boolean[]) as t(qid, oid, flag)`,
+        [
+          attempt!.id,
+          graded.map((g) => g.questionId),
+          graded.map((g) => g.selectedOptionId),
+          graded.map((g) => g.isCorrect),
+        ],
+      );
 
       return { attemptId: attempt!.id, total: graded.length, correct };
     });
 
+    if ("badRequest" in result) return fail("یکی از سؤال‌ها وجود ندارد.", 400);
     return ok(result, 201);
   } catch (err) {
     return handleError(err);

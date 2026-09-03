@@ -11,6 +11,7 @@ import {
   type AdminJasoosSummary,
 } from "@/lib/admin/jasoos-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type SuspectDraft = {
   role: string;
@@ -64,8 +65,11 @@ function verseWords(line1: string, line2: string): string[] {
 
 export default function JasoosAdminPanel({
   initialLevels,
+  focusId = null,
 }: {
   initialLevels: AdminJasoosSummary[];
+  /** پرونده‌ای که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusId?: string | null;
 }) {
   const toast = useAdminToast();
   const [levels, setLevels] = useState(initialLevels);
@@ -73,6 +77,7 @@ export default function JasoosAdminPanel({
   const [focused, setFocused] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+  const focus = useFocusedRow(focusId);
 
   const words = useMemo(
     () => (draft ? verseWords(draft.line1, draft.line2) : []),
@@ -436,7 +441,10 @@ export default function JasoosAdminPanel({
           return (
             <div
               key={l.id}
-              className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4"
+              ref={focus.isFocused(l.id) ? focus.ref : undefined}
+              className={`flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 ${
+                focus.isFocused(l.id) ? focus.litClass : ""
+              }`}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

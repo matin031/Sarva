@@ -37,7 +37,14 @@ const schema = z.object({
     .trim()
     .max(REPORT_NOTE_MAX, `توضیح نباید بیشتر از ${REPORT_NOTE_MAX} نویسه باشد.`)
     .nullish(),
-});
+})
+  /* «چیز دیگری» یعنی هیچ‌کدام از دلیل‌های آماده — پس بدونِ توضیح، گزارش هیچ
+     چیزی نمی‌گوید و هیچ‌کس نمی‌تواند رویش کاری کند. پنجره هم دکمه را قفل
+     می‌کند، ولی قانون اینجاست: کلاینت را می‌شود دور زد. */
+  .refine((v) => v.reason !== "other" || (v.note?.trim().length ?? 0) > 0, {
+    path: ["note"],
+    message: "برای «چیز دیگری» باید توضیح بنویسی.",
+  });
 
 export const POST = withRoute("/api/v1/reports", async (request: Request) => {
   try {

@@ -773,6 +773,44 @@ button {
   }
 }
 
+/* The row an admin landed on from a content report. It has to be findable in
+   a long list at a glance, and then get out of the way — a permanent ring
+   around one row reads as a bug the next time the page is opened. */
+.admin-focus-ring {
+  animation: admin-focus-pulse 4s ease-out forwards;
+}
+
+@keyframes admin-focus-pulse {
+  0%,
+  70% {
+    box-shadow: 0 0 0 2px var(--color-primary);
+    background-color: color-mix(in oklch, var(--color-primary) 10%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-focus-ring {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+}
+
+/* The page keeps its scrollbar gutter even when something locks scrolling.
+
+   Every modal sets `body { overflow: hidden }` while it is open. Without a
+   reserved gutter the page scrollbar vanishes at that moment, the layout
+   widens by its width, and the whole site jumps sideways behind the dialog —
+   then jumps back on close. Reserving the space always costs a few pixels and
+   removes the jump everywhere at once, including the games' full-screen
+   shells. Browsers without support behave exactly as before. */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Scroll areas inside the site's own panels and modals. The platform scrollbar
    is a grey slab that reads as a browser part rather than a part of the page,
    so the ones we own get the site's border/primary colours and a slimmer

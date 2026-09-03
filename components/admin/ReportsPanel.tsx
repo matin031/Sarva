@@ -12,7 +12,6 @@ import {
 } from "@/lib/admin/report-actions";
 import {
   REPORT_AREAS,
-  REPORT_AREA_ADMIN_PATH,
   REPORT_AREA_LABELS,
   REPORT_PAGE_SIZE,
   REPORT_REASON_LABELS,
@@ -142,7 +141,7 @@ export default function ReportsPanel({ initial, counts }: Props) {
         </div>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
           هرجای سایت که کاربر دکمهٔ «گزارش مشکل» را بزند، ردیفش اینجا می‌آید. برای اصلاحِ خودِ
-          محتوا از دکمهٔ «رفتن به بخش» یا از «یافتنِ محتوا» پایین استفاده کنید.
+          محتوا از دکمهٔ «رفتن به همین مورد» یا از «یافتنِ محتوا» پایین استفاده کنید.
         </p>
       </header>
 
@@ -265,7 +264,9 @@ function ReportCard({
   onDelete: (r: AdminReport) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const adminPath = REPORT_AREA_ADMIN_PATH[report.area];
+  /* `href` را سرور می‌سازد، چون نشانیِ دقیقِ یک محتوا به ستون‌هایی بستگی دارد
+     که فقط آنجا هستند (پایه، درس، نوبت، نقش). اینجا فقط دنبالش می‌رویم. */
+  const adminPath = report.href;
 
   return (
     <li
@@ -358,7 +359,7 @@ function ReportCard({
             href={adminPath}
             className="min-h-9 rounded-lg border border-border px-3 text-xs leading-9 text-primary hover:underline"
           >
-            رفتن به بخش ←
+            رفتن به همین مورد ←
           </a>
         )}
         <button
@@ -467,7 +468,7 @@ function ContentFinder() {
         ) : (
           <ul className="flex max-h-96 flex-col gap-1.5 overflow-y-auto">
             {hits.map((h, i) => {
-              const path = REPORT_AREA_ADMIN_PATH[h.area];
+              const path = h.href;
               return (
                 <li
                   key={`${h.area}-${h.id}-${i}`}
@@ -497,7 +498,7 @@ function ContentFinder() {
                       href={path}
                       className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-primary hover:underline"
                     >
-                      رفتن به بخش ←
+                      رفتن به همین مورد ←
                     </a>
                   )}
                 </li>

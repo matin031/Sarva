@@ -10,8 +10,13 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string }>;
+}) {
+  const { focus } = await searchParams;
   const result = await loadAdminData(jasoosAdminList);
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  return <JasoosAdminPanel initialLevels={result.data} />;
+  return <JasoosAdminPanel initialLevels={result.data} focusId={focus ?? null} />;
 }

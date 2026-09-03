@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   quizAdminDeleteQuestion,
   quizAdminGet,
@@ -29,9 +29,11 @@ const DIFFICULTY_LABELS: Record<"easy" | "medium" | "hard", string> = {
 type Props = {
   initialItems: QuizListItem[];
   initialTotal: number;
+  /** شناسهٔ سؤالی که مدیر از یک گزارش به آن لینک شده — مستقیم باز می‌شود. */
+  focusId?: string | null;
 };
 
-export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
+export default function QuizAdminPanel({ initialItems, initialTotal, focusId }: Props) {
   const toast = useAdminToast();
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
@@ -105,6 +107,30 @@ export default function QuizAdminPanel({ initialItems, initialTotal }: Props) {
   async function refresh() {
     await applyFilters(type, difficulty);
   }
+
+  /* آمدن از «رفتن به همین مورد»: همان سؤال باز می‌شود، نه فهرست.
+
+     ⚠️ سؤالِ گزارش‌شده ممکن است اصلاً در صفحهٔ اول فهرست نباشد، پس دنبالش در
+     `items` نمی‌گردیم — مستقیم از سرور می‌خوانیمش. `openedRef` نگه می‌دارد
+     که این فقط یک بار اتفاق بیفتد، وگرنه بستنِ فرم بلافاصله دوباره بازش
+     می‌کند. */
+  const openedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusId || openedRef.current === focusId) return;
+    openedRef.current = focusId;
+    let alive = true;
+    setLoadingId(focusId);
+    quizAdminGet(focusId)
+      .then((detail) => {
+        if (!alive) return;
+        if (detail) setEditing(detail);
+        else toast("این سؤال دیگر در بانک نیست — شاید حذف شده باشد.");
+      })
+      .finally(() => alive && setLoadingId(null));
+    return () => {
+      alive = false;
+    };
+  }, [focusId, toast]);
 
   async function handleEdit(id: string) {
     setLoadingId(id);

@@ -40,20 +40,6 @@ export const REPORT_AREA_LABELS: Record<ReportArea, string> = {
   other: "سایر",
 };
 
-/** کجای پنل باید برای اصلاحِ این بخش رفت. */
-export const REPORT_AREA_ADMIN_PATH: Record<ReportArea, string | null> = {
-  quiz: "/admin/quiz",
-  exam: "/admin/exams",
-  vocab: "/admin/vocab",
-  grammar_circuit: "/admin/games/grammar-circuit",
-  aruz_rapid: null, // محتوایش از بستهٔ داخلِ کد می‌آید، نه پنل
-  aruz_bridge: "/admin/games",
-  jasoos: "/admin/games/jasoos",
-  ninja: "/admin/games/ninja",
-  pairs: "/admin/games/pairs",
-  doroos: null,
-  other: null,
-};
 
 export const REPORT_REASONS = [
   "wrong_answer",

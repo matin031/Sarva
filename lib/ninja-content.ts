@@ -63,6 +63,7 @@ export async function loadNinjaRounds(): Promise<NinjaRoundData> {
       // NinjaRound.id عدد است و فقط برای key و بازیابیِ localStorage استفاده
       // می‌شود؛ ترتیبِ همین فهرست کافی است.
       id: index + 1,
+      categoryId: r.id,
       category: r.label,
       hint: r.hint,
       targetWords: r.words ?? [],

@@ -28,6 +28,7 @@ import {
   type AdminGcSummary,
 } from "@/lib/admin/grammar-circuit-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type LessonCounts = Record<number, { total: number; published: number }>;
 
@@ -69,11 +70,14 @@ export default function GrammarCircuitAdminPanel({
   initialLesson,
   initialQuestions,
   initialCounts,
+  focusId = null,
 }: {
   initialGrade: GradeKey;
   initialLesson: number;
   initialQuestions: AdminGcSummary[];
   initialCounts: LessonCounts;
+  /** پرسشی که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusId?: string | null;
 }) {
   const toast = useAdminToast();
   const [grade, setGrade] = useState<GradeKey>(initialGrade);
@@ -84,6 +88,9 @@ export default function GrammarCircuitAdminPanel({
   const [focused, setFocused] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /* گزارشِ این بازی `source_id` را نگه می‌دارد، نه شناسهٔ ردیف — پس برجستگی
+     هم روی همان می‌نشیند. */
+  const focus = useFocusedRow(focusId);
 
   const run = (fn: () => Promise<void>) =>
     startTransition(async () => {
@@ -664,7 +671,10 @@ export default function GrammarCircuitAdminPanel({
           {questions.map((q) => (
             <div
               key={q.id}
-              className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4"
+              ref={focus.isFocused(q.sourceId) ? focus.ref : undefined}
+              className={`flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 ${
+                focus.isFocused(q.sourceId) ? focus.litClass : ""
+              }`}
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm leading-7">{q.sentence}</p>

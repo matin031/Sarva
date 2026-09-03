@@ -18,6 +18,7 @@ import {
   type MemoryDeckCounts,
 } from "@/lib/admin/pairs-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type Draft = { id?: string; work: string; author: string };
 
@@ -28,11 +29,14 @@ export default function PairsAdminPanel({
   initialTerm,
   initialPairs,
   initialCounts,
+  focusId = null,
 }: {
   initialGrade: MemoryGrade;
   initialTerm: MemoryTerm;
   initialPairs: AdminMemoryPair[];
   initialCounts: MemoryDeckCounts;
+  /** جفتی که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusId?: string | null;
 }) {
   const toast = useAdminToast();
   const [grade, setGrade] = useState<MemoryGrade>(initialGrade);
@@ -43,6 +47,7 @@ export default function PairsAdminPanel({
   const [bulk, setBulk] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const focus = useFocusedRow(focusId);
 
   const deckKey = (g: string, t: string) => `${g}:${t}`;
 
@@ -317,7 +322,10 @@ export default function PairsAdminPanel({
           {pairs.map((p, i) => (
             <div
               key={p.id}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
+              ref={focus.isFocused(p.id) ? focus.ref : undefined}
+              className={`flex items-center gap-3 rounded-2xl border border-border bg-card p-3 ${
+                focus.isFocused(p.id) ? focus.litClass : ""
+              }`}
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
                 {fa(i + 1)}

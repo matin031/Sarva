@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import PairsAdminPanel from "@/components/admin/PairsAdminPanel";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 import { pairsAdminCounts, pairsAdminList } from "@/lib/admin/pairs-actions";
+import { isMemoryGrade, isMemoryTerm } from "@/lib/literary-pairs";
 
 export const metadata: Metadata = {
   title: "مدیریت جفت‌های ادبی",
@@ -10,10 +11,19 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ grade?: string; term?: string; focus?: string }>;
+}) {
+  const sp = await searchParams;
+  // نشانیِ آمده از گزارش، و اگر بی‌معنی بود همان دستهٔ پیش‌فرض.
+  const grade = sp.grade && isMemoryGrade(sp.grade) ? sp.grade : "dahom";
+  const term = sp.term && isMemoryTerm(sp.term) ? sp.term : "dey";
+
   const result = await loadAdminData(async () => {
     const [pairs, counts] = await Promise.all([
-      pairsAdminList("dahom", "dey"),
+      pairsAdminList(grade, term),
       pairsAdminCounts(),
     ]);
     return { pairs, counts };
@@ -22,10 +32,11 @@ export default async function Page() {
 
   return (
     <PairsAdminPanel
-      initialGrade="dahom"
-      initialTerm="dey"
+      initialGrade={grade}
+      initialTerm={term}
       initialPairs={result.data.pairs}
       initialCounts={result.data.counts}
+      focusId={sp.focus ?? null}
     />
   );
 }

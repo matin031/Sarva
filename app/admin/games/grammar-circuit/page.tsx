@@ -18,11 +18,27 @@ export const dynamic = "force-dynamic";
 const GRADE = "davazdahom";
 const LESSON = 1;
 
-export default async function Page() {
+const GRADES = ["dahom", "yazdahom", "davazdahom"] as const;
+type Grade = (typeof GRADES)[number];
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ grade?: string; lesson?: string; focus?: string }>;
+}) {
+  const sp = await searchParams;
+
+  /* آمدن از یک گزارش: پایه و درسِ همان پرسش در نشانی است. نشانیِ بی‌معنی
+     همان درسِ پیش‌فرض را باز می‌کند، نه صفحهٔ خطا. */
+  const grade: Grade = GRADES.includes(sp.grade as Grade) ? (sp.grade as Grade) : GRADE;
+  const parsed = Number(sp.lesson);
+  const lesson =
+    Number.isInteger(parsed) && parsed >= 1 && parsed <= 18 ? parsed : LESSON;
+
   const result = await loadAdminData(async () => {
     const [questions, counts] = await Promise.all([
-      gcAdminList({ grade: GRADE, lesson: LESSON }),
-      gcAdminLessonCounts(GRADE),
+      gcAdminList({ grade, lesson }),
+      gcAdminLessonCounts(grade),
     ]);
     return { questions, counts };
   });
@@ -30,10 +46,11 @@ export default async function Page() {
 
   return (
     <GrammarCircuitAdminPanel
-      initialGrade={GRADE}
-      initialLesson={LESSON}
+      initialGrade={grade}
+      initialLesson={lesson}
       initialQuestions={result.data.questions}
       initialCounts={result.data.counts}
+      focusId={sp.focus ?? null}
     />
   );
 }

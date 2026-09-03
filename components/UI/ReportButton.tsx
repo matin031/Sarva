@@ -127,8 +127,15 @@ function ReportDialog({
   const [phase, setPhase] = useState<Phase>("form");
   const [error, setError] = useState<string | null>(null);
 
+  /* «چیز دیگری» بدونِ توضیح یعنی گزارشی که هیچ‌کس نمی‌تواند رویش کاری کند:
+     نه می‌گوید چه ایرادی هست، نه کجا. پس همان‌جا اجباری می‌شود. بقیهٔ
+     دلیل‌ها خودشان معنی دارند و توضیح اختیاری می‌ماند. */
+  const noteRequired = reason === "other";
+  const noteMissing = noteRequired && note.trim().length === 0;
+  const canSend = !!reason && !noteMissing && phase !== "sending";
+
   const submit = async () => {
-    if (!reason) return;
+    if (!reason || noteMissing) return;
     setPhase("sending");
     setError(null);
     try {
@@ -192,8 +199,13 @@ function ReportDialog({
         ) : (
           <>
             <div className="flex flex-col gap-4 p-5">
-              {/* آنچه گزارش می‌شود */}
-              {target.snapshot && (
+              {/* آنچه گزارش می‌شود.
+
+                  در عروض سماعی نشان داده نمی‌شود: خودِ سؤال همان لحظه پشتِ
+                  پنجره روی صفحه است و تکرارِ گزینه‌ها فقط پنجره را بلند
+                  می‌کند. `snapshot` همچنان ذخیره می‌شود — این فقط نمایش را
+                  حذف می‌کند، نه داده را. */}
+              {target.snapshot && target.area !== "quiz" && (
                 <div className="rounded-xl border border-border bg-muted/40 p-3">
                   <p className="mb-1 text-[11px] font-semibold text-muted-foreground">
                     موردی که گزارش می‌کنی
@@ -235,7 +247,11 @@ function ReportDialog({
 
               <label className="flex flex-col gap-1.5">
                 <span className="flex items-center justify-between text-xs font-semibold">
-                  توضیح (اختیاری)
+                  {noteRequired ? (
+                    <span className="text-destructive">توضیح (لازم است)</span>
+                  ) : (
+                    "توضیح (اختیاری)"
+                  )}
                   <span className="font-normal text-muted-foreground">
                     {note.length.toLocaleString("fa-IR")}/
                     {REPORT_NOTE_MAX.toLocaleString("fa-IR")}
@@ -245,8 +261,16 @@ function ReportDialog({
                   value={note}
                   onChange={(e) => setNote(e.target.value.slice(0, REPORT_NOTE_MAX))}
                   rows={3}
-                  placeholder="اگر می‌دانی پاسخِ درست چیست یا کجای کار می‌لنگد، همین‌جا بنویس."
-                  className="w-full resize-y rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+                  required={noteRequired}
+                  aria-required={noteRequired}
+                  placeholder={
+                    noteRequired
+                      ? "بنویس دقیقاً چه ایرادی دارد — بدونِ آن، گزارش قابلِ پیگیری نیست."
+                      : "اگر می‌دانی پاسخِ درست چیست یا کجای کار می‌لنگد، همین‌جا بنویس."
+                  }
+                  className={`w-full resize-y rounded-xl border bg-background p-3 text-sm outline-none focus:border-primary ${
+                    noteMissing ? "border-destructive/60" : "border-border"
+                  }`}
                 />
               </label>
 
@@ -267,9 +291,10 @@ function ReportDialog({
               </button>
               <button
                 type="button"
-                disabled={!reason || phase === "sending"}
+                disabled={!canSend}
                 onClick={submit}
-                className="min-h-11 flex-[2] rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
+                title={noteMissing ? "برای «چیز دیگری» باید توضیح بنویسی." : undefined}
+                className="min-h-11 flex-[2] rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {phase === "sending" ? "در حال ارسال…" : "ارسال گزارش"}
               </button>

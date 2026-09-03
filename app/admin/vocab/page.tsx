@@ -8,9 +8,31 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function Page() {
-  // open on the seeded lesson (فارسی دهم — درس دوم) by default
-  const result = await loadAdminData(() => vocabAdminList("dahom", 2));
+const GRADES = ["dahom", "yazdahom", "davazdahom"] as const;
+type Grade = (typeof GRADES)[number];
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ grade?: string; lesson?: string; focus?: string }>;
+}) {
+  const sp = await searchParams;
+
+  /* آمدن از یک گزارش: پایه و درسِ همان واژه در نشانی است. اگر نبود یا
+     بی‌معنی بود، همان درسِ پیش‌فرض باز می‌شود — یک نشانیِ دست‌کاری‌شده نباید
+     صفحه را بشکند. */
+  const grade: Grade = GRADES.includes(sp.grade as Grade) ? (sp.grade as Grade) : "dahom";
+  const parsed = Number(sp.lesson);
+  const lesson = Number.isInteger(parsed) && parsed >= 1 && parsed <= 18 ? parsed : 2;
+
+  const result = await loadAdminData(() => vocabAdminList(grade, lesson));
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  return <VocabAdminPanel initialGrade="dahom" initialLesson={2} initialWords={result.data} />;
+  return (
+    <VocabAdminPanel
+      initialGrade={grade}
+      initialLesson={lesson}
+      initialWords={result.data}
+      focusId={sp.focus ?? null}
+    />
+  );
 }

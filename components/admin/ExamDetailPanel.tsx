@@ -17,9 +17,12 @@ import {
 import ExamQuestionForm from "./ExamQuestionForm";
 import ConfirmDialog from "./ConfirmDialog";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type Props = {
   exam: AdminExamDetail;
+  /** شمارهٔ سؤالی که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusNumber?: string | null;
 };
 
 function questionMatches(q: AdminQuestionDetail, query: string) {
@@ -40,10 +43,14 @@ type Pending =
   | { kind: "question"; id: string; number: number }
   | { kind: "exam"; attempts: number };
 
-export default function ExamDetailPanel({ exam: initialExam }: Props) {
+export default function ExamDetailPanel({
+  exam: initialExam,
+  focusNumber = null,
+}: Props) {
   const toast = useAdminToast();
   const router = useRouter();
   const [exam, setExam] = useState(initialExam);
+  const focus = useFocusedRow(focusNumber);
   const [query, setQuery] = useState("");
   const [addingSection, setAddingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState("");
@@ -321,7 +328,13 @@ export default function ExamDetailPanel({ exam: initialExam }: Props) {
 
             <div className="flex flex-col gap-2">
               {matchedQuestions.map((q) => (
-                <div key={q.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-2.5">
+                <div
+                  key={q.id}
+                  ref={focus.isFocused(q.number) ? focus.ref : undefined}
+                  className={`flex items-center justify-between gap-2 rounded-xl border border-border p-2.5 ${
+                    focus.isFocused(q.number) ? focus.litClass : ""
+                  }`}
+                >
                   <span className="text-sm">
                     سؤال {q.number} · {q.parts.length} بخش
                   </span>

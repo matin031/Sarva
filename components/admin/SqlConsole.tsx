@@ -34,13 +34,17 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
-type Props = { schema: SchemaTable[] };
+type Props = {
+  schema: SchemaTable[];
+  /** کوئریِ آماده در ویرایشگر — از `?q=` می‌آید و خودش اجرا نمی‌شود. */
+  initialSql?: string;
+};
 
-export default function SqlConsole({ schema }: Props) {
+export default function SqlConsole({ schema, initialSql = "" }: Props) {
   const toast = useAdminToast();
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  const [sql, setSql] = useState("");
+  const [sql, setSql] = useState(initialSql);
   const [result, setResult] = useState<SqlRunResult | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [confirmCommit, setConfirmCommit] = useState(false);

@@ -12,6 +12,7 @@ import {
   type AdminNinjaCategory,
 } from "@/lib/admin/ninja-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type CategoryDraft = { id?: string; label: string; hint: string; enabled: boolean };
 
@@ -19,13 +20,23 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
 
 export default function NinjaAdminPanel({
   initialCategories,
+  initialSelectedId = null,
+  focusId = null,
 }: {
   initialCategories: AdminNinjaCategory[];
+  /** نقشی که باید باز شود — از نشانیِ گزارش می‌آید. */
+  initialSelectedId?: string | null;
+  /** واژه‌ای که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusId?: string | null;
 }) {
   const toast = useAdminToast();
   const [categories, setCategories] = useState(initialCategories);
+  /* آمدن از یک گزارش: نقشِ همان واژه در نشانی است، وگرنه اولین نقش. یک
+     شناسهٔ ناشناخته به اولین نقش برمی‌گردد تا صفحه خالی باز نشود. */
   const [selectedId, setSelectedId] = useState<string | null>(
-    initialCategories[0]?.id ?? null,
+    (initialSelectedId && initialCategories.some((c) => c.id === initialSelectedId)
+      ? initialSelectedId
+      : initialCategories[0]?.id) ?? null,
   );
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft | null>(null);
   const [wordsText, setWordsText] = useState("");
@@ -33,6 +44,7 @@ export default function NinjaAdminPanel({
   const [editingWordText, setEditingWordText] = useState("");
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(false);
   const [pending, startTransition] = useTransition();
+  const focus = useFocusedRow(focusId);
 
   const selected = useMemo(
     () => categories.find((c) => c.id === selectedId) ?? null,
@@ -172,6 +184,10 @@ export default function NinjaAdminPanel({
         {categories.map((c) => (
           <button
             key={c.id}
+            /* گزارشِ نینجا روی *نقش* است نه روی یک واژه — کاربر می‌گوید
+               «واژه‌ای در این دسته سرِ جایش نیست» و خودِ واژه را در یادداشت
+               می‌نویسد. پس برجستگی هم روی همین دکمهٔ نقش می‌نشیند. */
+            ref={focus.isFocused(c.id) ? focus.ref : undefined}
             onClick={() => {
               setSelectedId(c.id);
               setCategoryDraft(null);
@@ -182,7 +198,7 @@ export default function NinjaAdminPanel({
               selectedId === c.id
                 ? "bg-primary text-primary-foreground"
                 : "border border-border bg-card text-muted-foreground hover:border-primary/50"
-            }`}
+            } ${focus.isFocused(c.id) ? focus.litClass : ""}`}
           >
             <span>{c.label}</span>
             <span

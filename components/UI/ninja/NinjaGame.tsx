@@ -46,9 +46,11 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
     (screen === "study" || screen === "slicing") && round
       ? {
           area: "ninja",
-          targetId: String(round.id),
+          // شناسهٔ نقش در پایگاه‌داده، نه جایش در فهرست — وگرنه لینکِ پنل
+          // دفعهٔ بعد به نقشِ دیگری می‌رسد.
+          targetId: round.categoryId ?? null,
           snapshot: `${round.category} — ${round.hint}`,
-          targetRef: { round_id: round.id, category: round.category, difficulty },
+          targetRef: { category: round.category, difficulty },
         }
       : null,
   );

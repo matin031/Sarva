@@ -10,8 +10,19 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; focus?: string }>;
+}) {
+  const sp = await searchParams;
   const result = await loadAdminData(ninjaAdminOverview);
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  return <NinjaAdminPanel initialCategories={result.data} />;
+  return (
+    <NinjaAdminPanel
+      initialCategories={result.data}
+      initialSelectedId={sp.category ?? null}
+      focusId={sp.focus ?? null}
+    />
+  );
 }

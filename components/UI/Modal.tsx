@@ -109,8 +109,16 @@ export default function Modal({
   if (typeof document === "undefined") return null;
 
   return createPortal(
+    /* ⚠️ `dir` روی *لایهٔ اسکرول‌شونده* عمداً `ltr` است، درست مثلِ `<html>`
+       سایت.
+
+       این لایه قبلاً `rtl` بود و نتیجه‌اش یک نوارِ اسکرول در سمتِ *چپ* بود،
+       در حالی که نوارِ خودِ سایت سمتِ راست است. باز شدنِ یک پنجره نباید نوارِ
+       اسکرول را به آن‌طرفِ صفحه بپراند — چشم دنبالش می‌گردد و ظاهرِ صفحه
+       می‌شکند. جهتِ متن روی خودِ پنل برمی‌گردد به `rtl`، پس چیدمانِ محتوا
+       دست‌نخورده می‌ماند. */
     <div
-      dir="rtl"
+      dir="ltr"
       className="fixed inset-0 z-[400] flex items-center justify-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         // MouseDown و نه Click: با click، کشیدنِ متن از داخل پنل به بیرون هم
@@ -125,6 +133,7 @@ export default function Modal({
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}
+        dir="rtl"
         className={`relative my-auto w-full rounded-2xl border border-border bg-card shadow-2xl outline-none ${className}`}
       >
         {children}

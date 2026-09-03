@@ -9,8 +9,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string }>;
+}) {
+  const { focus } = await searchParams;
   const result = await loadAdminData(() => quizAdminList({ limit: QUIZ_PAGE_SIZE }));
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  return <QuizAdminPanel initialItems={result.data.items} initialTotal={result.data.total} />;
+  return (
+    <QuizAdminPanel
+      initialItems={result.data.items}
+      initialTotal={result.data.total}
+      focusId={focus ?? null}
+    />
+  );
 }

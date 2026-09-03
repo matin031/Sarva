@@ -9,6 +9,7 @@ import {
   type AdminVocabWord,
 } from "@/lib/admin/vocab-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useFocusedRow } from "@/components/admin/useFocusedRow";
 
 type Draft = { id?: string; word: string; meaning: string; image: string };
 
@@ -16,10 +17,13 @@ export default function VocabAdminPanel({
   initialGrade,
   initialLesson,
   initialWords,
+  focusId = null,
 }: {
   initialGrade: string;
   initialLesson: number;
   initialWords: AdminVocabWord[];
+  /** واژه‌ای که مدیر از یک گزارش به آن لینک شده — برجسته می‌شود. */
+  focusId?: string | null;
 }) {
   const toast = useAdminToast();
   const [grade, setGrade] = useState(initialGrade);
@@ -28,6 +32,7 @@ export default function VocabAdminPanel({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const focus = useFocusedRow(focusId);
 
   const gradeObj = VOCAB_GRADES.find((g) => g.id === grade) ?? VOCAB_GRADES[0];
   const lessonObj = gradeObj.lessons.find((l) => l.number === lesson);
@@ -222,7 +227,10 @@ export default function VocabAdminPanel({
               {words.map((w) => (
                 <div
                   key={w.id}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
+                  ref={focus.isFocused(w.id) ? focus.ref : undefined}
+                  className={`flex items-center gap-3 rounded-2xl border border-border bg-card p-3 ${
+                    focus.isFocused(w.id) ? focus.litClass : ""
+                  }`}
                 >
                   <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
                     {w.image ? (

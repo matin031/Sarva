@@ -41,6 +41,49 @@ type RawSuspect = {
   word_in_verse: string;
 };
 
+/**
+ * فقط *یک* مرحله، با شناسه.
+ *
+ * ⚠️ چرا جدا از loadJasoosLevels: مسیرِ ثبتِ پاسخ برای هر پاسخ کلِ
+ * مرحله‌های منتشرشده را با همهٔ مظنون‌هایشان می‌خواند — یعنی کلِ محتوای
+ * بازی، به‌ازای هر کلیکِ کاربر. برای تصمیمی که فقط به یک مرحله نیاز دارد.
+ *
+ * تضمینِ امنیتی دست‌نخورده می‌ماند: مرجع همچنان دیتابیس است و کلاینت فقط
+ * شناسهٔ مرحله و نقشِ انتخابی را می‌فرستد. تفاوت فقط در این است که به‌جای
+ * صد ردیف، یک ردیف خوانده می‌شود.
+ */
+export async function loadJasoosLevel(levelId: number): Promise<JasoosLevel | null> {
+  let rows: LevelRow[];
+  try {
+    rows = await query<LevelRow>(
+      `select l.id, l.title, l.category, l.content_type,
+              l.verse_line_1, l.verse_line_2,
+              (select jsonb_agg(jsonb_build_object(
+                        'role', s.role,
+                        'is_spy', s.is_spy,
+                        'evidence', s.evidence,
+                        'word_in_verse', s.word_in_verse)
+                      order by s.sort_index, s.id)
+                 from jasoos_suspects s
+                where s.level_id = l.id) as suspects
+         from jasoos_levels l
+        where l.is_published and l.id = $1`,
+      [levelId],
+    );
+  } catch {
+    rows = [];
+  }
+
+  const fromDb = rows.length > 0 ? toLevel(rows[0]) : null;
+  if (fromDb) return fromDb;
+
+  // ⚠️ همان fallbackِ loadJasoosLevels، و بی‌آن یک رگرسیونِ واقعی بود: وقتی
+  // جدولِ مرحله‌ها نباشد یا خالی باشد، نسخهٔ همه‌خوان به محتوای داخلی
+  // برمی‌گردد و بازی کار می‌کند. اگر اینجا فقط null می‌دادیم، همان حالت به
+  // «این پرونده پیدا نشد» تبدیل می‌شد. روی دیتابیسِ محلی دقیقاً همین دیده شد.
+  return JASOOS_LEVELS.find((l) => l.id === levelId) ?? null;
+}
+
 export async function loadJasoosLevels(): Promise<JasoosLevelData> {
   let rows: LevelRow[];
   try {

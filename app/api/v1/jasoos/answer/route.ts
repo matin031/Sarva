@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
-import { loadJasoosLevels } from "@/lib/jasoos-content";
+import { loadJasoosLevel } from "@/lib/jasoos-content";
 import { resolveJasoosAnswer } from "@/lib/jasoos-answer";
 
 /**
@@ -43,9 +43,11 @@ export const POST = withRoute("/api/v1/jasoos/answer", async (request: Request) 
     if (!body.ok) return body.response;
     const { levelId, chosenRole } = body.data;
 
-    // مرجع: همان چیزی که خودِ بازی از آن ساخته می‌شود.
-    const { levels } = await loadJasoosLevels();
-    const resolved = resolveJasoosAnswer(levels, levelId, chosenRole);
+    // مرجع: همان چیزی که خودِ بازی از آن ساخته می‌شود — ولی فقط همان یک
+    // مرحله، نه کلِ محتوای بازی. تضمینِ امنیتی همان است: نقشِ درست و بیت از
+    // دیتابیس درمی‌آید، نه از کلاینت.
+    const level = await loadJasoosLevel(levelId);
+    const resolved = resolveJasoosAnswer(level ? [level] : [], levelId, chosenRole);
     if (!resolved.ok) {
       if (resolved.reason === "unknown_level") return fail("این پرونده پیدا نشد.", 404);
       if (resolved.reason === "broken_level") return fail("این پرونده ناقص است.", 409);

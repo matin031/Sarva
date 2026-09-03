@@ -47,7 +47,22 @@ export default function QuestionOption({
   // فایل صوتی بارگذاری نشد — گزینه می‌ماند، ولی به‌جای کرش می‌گوید چه شده.
   const [failed, setFailed] = useState(false);
 
+  // فقط در این سه نوع، *گزینه‌ها* صوت‌اند. در audio-to-poem و
+  // audio-to-weight صوت در صورتِ سؤال است و گزینه‌ها متن‌اند — آنجا
+  // audio_urlِ خالی طبیعی است، نه خرابی.
+  const optionsAreAudio =
+    quizType === "poem-to-audio" ||
+    quizType === "pattern-to-audio" ||
+    quizType === "weight-to-audio";
+
+  const hasAudio = optionsAreAudio && !!audioUrl?.trim();
+
   useEffect(() => {
+    // ⚠️ بدون این شرط، برای گزینه‌ای که مسیر ندارد هم WaveSurfer با
+    // `url: ""` ساخته می‌شد. مسیر خالی به آدرسِ خودِ صفحه resolve می‌شود،
+    // پس مرورگر HTML می‌گرفت و NotSupportedError می‌داد. حالا اصلاً ساخته
+    // نمی‌شود.
+    if (!hasAudio) return;
     if (!containerRef.current) return;
 
     setFailed(false);
@@ -90,7 +105,7 @@ export default function QuestionOption({
     return () => {
       wavesurferRef.current?.destroy();
     };
-  }, [audioUrl, title]);
+  }, [audioUrl, title, hasAudio]);
 
   const handlePlay = () => {
     if (failed) return; // چیزی برای پخش نیست
@@ -121,7 +136,7 @@ export default function QuestionOption({
         onClick={() => {
           !answered && setSelected(id);
         }}
-        className={`gap-x-3 h-full px-3 py-6 flex justify-center items-center ${(quizType === "poem-to-audio" || quizType === "pattern-to-audio" || quizType === "weight-to-audio") && "justify-start p-2 sm:p-4"} 
+        className={`gap-x-3 h-full px-3 py-6 flex justify-center items-center ${optionsAreAudio && "justify-start p-2 sm:p-4"} 
        rounded-xl bg-card border-2
   relative z-20 hover:scale-[1.02] transition-all duration-300 cursor-pointer w-full 
   ${
@@ -179,17 +194,20 @@ export default function QuestionOption({
           </div>
         )}
 
-        {(quizType === "poem-to-audio" ||
-          quizType === "pattern-to-audio" ||
-          quizType === "weight-to-audio") && (
+        {optionsAreAudio && (
           <>
-            <div className="w-full" ref={containerRef} hidden={failed}></div>
-            {failed && (
+            {/* دو حالتِ خرابی: مسیر از اول خالی بوده (hasAudio نادرست)، یا
+                مسیر بوده و بارگذاری شکست خورده (failed). هر دو یک پیام
+                می‌گیرند و دکمهٔ پخش را هم نشان نمی‌دهند، چون چیزی برای پخش
+                نیست. */}
+            <div className="w-full" ref={containerRef} hidden={!hasAudio || failed}></div>
+            {(!hasAudio || failed) && (
               <p className="w-full text-center text-xs text-rose-400">
                 فایل صوتی این گزینه در دسترس نیست.
               </p>
             )}
             <div
+              hidden={!hasAudio || failed}
               onClick={(event) => {
                 handlePlay();
                 event.stopPropagation();

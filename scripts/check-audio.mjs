@@ -13,6 +13,8 @@
  * پس یک وزنِ کپی‌شده از منبعی عربی مسیرِ درست‌به‌نظر ولی هرگز-پیدا-نشدنی
  * می‌سازد.
  *
+ * فقط گزارش می‌دهد. هیچ ردیفی را عوض یا حذف نمی‌کند.
+ *
  * اجرا:  npm run db:check-audio
  * خروجی: فهرست ردیف‌های خراب، و برای هرکدام نزدیک‌ترین فایلِ موجود.
  */
@@ -71,7 +73,21 @@ const { rows } = await client.query(`
 // `<audio src="">` به آدرسِ خودِ صفحه resolve می‌شود؛ مرورگر HTML می‌گیرد و
 // همان NotSupportedError را می‌دهد. در پنل ادمین دیده نمی‌شود، چون آنجا فقط
 // ردیف‌های پرشده پخش‌کننده دارند.
-const STEM_AUDIO = ["audio-to-poem", "audio-to-weight", "audio-to-pattern"];
+// ⚠️ NULL بودنِ audio_url به‌خودیِ‌خود خطا نیست — بستگی به نوعِ سؤال دارد:
+//
+//   audio-to-poem   صوت در صورتِ سؤال است، گزینه‌ها بیت‌اند
+//                   → questions.audio_url لازم، option.audio_url طبیعتاً خالی
+//   poem-to-audio   صورتِ سؤال بیت است، گزینه‌ها صوت‌اند
+//                   → questions.audio_url طبیعتاً خالی، option.audio_url لازم
+//
+// این دو فهرست از دو جای مستقل درآمده و با هم می‌خوانند: فرم ادمین
+// (needsStemAudio و optionsAreAudio در components/admin/QuizQuestionForm.tsx)
+// و آنچه واقعاً رندر می‌شود (CircularVisualizer در QuestionCard.tsx برای
+// صورتِ سؤال، و موجِ WaveSurfer در QuestionOption.tsx برای گزینه‌ها).
+//
+// audio-to-pattern عمداً در هیچ‌کدام نیست: نه پخش‌کننده‌ای برای صورتِ
+// سؤالش رندر می‌شود نه گزینه‌هایش صوت‌اند، پس هیچ صوتی لازم ندارد.
+const STEM_AUDIO = ["audio-to-poem", "audio-to-weight"];
 const OPTION_AUDIO = ["poem-to-audio", "pattern-to-audio", "weight-to-audio"];
 
 const missing = (

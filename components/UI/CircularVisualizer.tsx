@@ -16,6 +16,8 @@ export default function CircularVisualizer({
   const phaseRef = useRef(0);
   const levelRef = useRef(0);
   const [playing, setPlaying] = useState(false);
+  // فایل صوتی پیدا نشد — به‌جای کرش، همین گزینه را ساکت نشان می‌دهیم.
+  const [failed, setFailed] = useState(false);
 
   const SIZE = 260;
   const cx = SIZE / 2;
@@ -107,7 +109,19 @@ export default function CircularVisualizer({
       audioRef.current.pause();
       stopVisualizer();
     } else {
-      await audioRef.current.play();
+      // ⚠️ اگر فایل صوتی نباشد، مرورگر برای src یک صفحهٔ ۴۰۴ می‌گیرد و
+      // play() با NotSupportedError رد می‌شود. بدون این catch، آن rejection
+      // به کرشِ کلِ صفحه تبدیل می‌شد — یک ردیفِ خرابِ دیتابیس تمام آزمون را
+      // می‌خواباند. حالا فقط همان گزینه ساکت می‌ماند.
+      //
+      // برای پیدا کردنِ ردیفِ مقصر: npm run db:check-audio
+      try {
+        await audioRef.current.play();
+      } catch {
+        setFailed(true);
+        stopVisualizer();
+        return;
+      }
       setPlaying(true);
       const dataArray = new Uint8Array(analyserRef.current!.frequencyBinCount);
       const loop = () => {
@@ -194,7 +208,15 @@ export default function CircularVisualizer({
           </svg>
         )}
       </div>
-      <audio ref={audioRef} src={audioSrc} crossOrigin="anonymous" />
+      <audio
+        ref={audioRef}
+        src={audioSrc}
+        crossOrigin="anonymous"
+        onError={() => setFailed(true)}
+      />
+      {failed && (
+        <p className="mt-2 text-center text-xs text-rose-400">فایل صوتی این گزینه در دسترس نیست.</p>
+      )}
     </div>
   );
 }

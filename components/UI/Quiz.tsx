@@ -432,6 +432,23 @@ function Quiz({ data }: { data: Question[] }) {
         <QuestionCard questions={questions} currentIndex={currentIndex} />
 
         {/* QuestionOptions */}
+        {/* موقت — تشخیصِ مسیرهای صوتی. وقتی مشکل حل شد برداشته می‌شود. */}
+        {typeof window !== "undefined" &&
+          (() => {
+            const q = questions[currentIndex];
+            // JSON.stringify عمدی است: نوعِ دقیق و فاصله‌های اضافی را
+            // نشان می‌دهد. "poem-to-audio" با "poem-to-audio " یا
+            // "poem_to_audio" در کنسول یکسان به نظر می‌رسند مگر با گیومه.
+            console.log(
+              "[تشخیصِ گزینه‌ها] type=" +
+                JSON.stringify(q.type) +
+                " stem=" +
+                JSON.stringify(q.audioSrc ?? null) +
+                " options=" +
+                JSON.stringify(q.options.map((o) => o.audioSrc ?? null), null, 1),
+            );
+            return null;
+          })()}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 *:h-20 md:*:min-h-30 text-muted-foreground">
           {questions[currentIndex].options.map((o, index) => (
             <QuestionOption

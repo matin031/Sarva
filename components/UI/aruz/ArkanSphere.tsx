@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  useQuality,
+  useDocumentVisible,
+  useScrolling,
+} from "@/lib/perf/use-perf";
 
 /** An interactive 3D sphere of عروضی feet (ارکان).
  *
@@ -109,6 +114,16 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tagRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
+  // ⚠️ سطحِ کیفیت جای معیارِ قدیمی `(pointer: coarse)` را می‌گیرد. آن پرسش
+  // می‌گفت کاربر انگشت دارد یا موس — نه اینکه دستگاهش چقدر توان دارد.
+  const { settings } = useQuality();
+  const docVisible = useDocumentVisible();
+  const scrolling = useScrolling();
+  const { dust: DUST_N, dprCap, fps: TARGET_FPS } = settings;
+  // حین اسکرول و در تبِ پنهان رسم متوقف می‌شود؛ آخرین فریم سرِ جایش می‌ماند
+  // پس کره ناپدید نمی‌شود، فقط ثابت می‌ایستد.
+  const allowed = docVisible && !scrolling;
+
   useEffect(() => {
     const el = stageRef.current;
     const cv = canvasRef.current;
@@ -117,6 +132,11 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     if (!ctx) return;
 
     const N = ARKAN.length;
+
+    // بافرهایی که یک بار ساخته می‌شوند و در هر فریم دوباره پر — نه از نو
+    // ساخته. رشتهٔ خالی یعنی «هنوز چیزی ننوشته‌ایم».
+    const lastTransform: string[] = new Array(N).fill("");
+    const lastOpacity: string[] = new Array(N).fill("");
 
     const base = ARKAN.map((_, i) => {
       const phi = Math.acos(-1 + (2 * i + 1) / N);
@@ -128,7 +148,6 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       ] as [number, number, number];
     });
 
-    const DUST_N = window.matchMedia("(pointer: coarse)").matches ? 110 : 170;
     const dust = buildDust(DUST_N);
     const orbits = buildOrbits();
     const links = buildLinks(base);
@@ -145,7 +164,7 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
        hard edges to alias. At dpr 2 on a HiDPI screen the surface is 880x880 =
        774k pixels redrawn every frame — 1.78x the pixels of 1.5 — and that
        redraw is the page's steadiest per-frame cost. */
-    const dprCap = window.matchMedia("(pointer: coarse)").matches ? 1.25 : 1.5;
+    // سقفِ DPR از سطحِ کیفیت می‌آید، نه از نوعِ اشاره‌گر.
 
     // ---- theme colours, read only when they can actually have changed ----
     let colorPrimary = FALLBACK_PRIMARY;
@@ -258,8 +277,20 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
         }
         const tag = tagRefs.current[i];
         if (!tag) continue;
-        tag.style.transform = `translate(-50%,-50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) scale(${(0.58 + depth * 0.62).toFixed(3)})`;
-        tag.style.opacity = (0.3 + depth * 0.7).toFixed(3);
+        // ⚠️ نوشتنِ استایلِ یکسان هم کار دارد: مرورگر باید رشته را بخواند و
+        // با مقدارِ فعلی مقایسه کند. با ۱۲ برچسب × دو خصوصیت × هر فریم،
+        // این‌ها جمع می‌شوند. رشتهٔ آخر را نگه می‌داریم و فقط وقتی واقعاً
+        // عوض شده می‌نویسیم.
+        const t = `translate(-50%,-50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) scale(${(0.58 + depth * 0.62).toFixed(3)})`;
+        if (lastTransform[i] !== t) {
+          tag.style.transform = t;
+          lastTransform[i] = t;
+        }
+        const o = (0.3 + depth * 0.7).toFixed(3);
+        if (lastOpacity[i] !== o) {
+          tag.style.opacity = o;
+          lastOpacity[i] = o;
+        }
         depthOf[i] = z2;
       }
 
@@ -424,8 +455,8 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       };
     }
 
-    // ~30fps is plenty for a slow spin and halves the work on weak devices
-    const FRAME = 1000 / 30;
+    // نرخِ فریم از سطحِ کیفیت می‌آید: ۳۰ در high، ۲۲ در balanced، ۱۴ در low.
+    const FRAME = 1000 / TARGET_FPS;
     let raf = 0;
     let last = 0;
     const step = (now: number) => {
@@ -451,16 +482,25 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       }
     };
 
-    // pause the loop entirely while the sphere is scrolled off-screen
+    // خارج از دید، تبِ پنهان، یا حینِ اسکرول — هر سه یعنی توقفِ کامل.
+    //
+    // ⚠️ `allowed` در وابستگی‌های این effect است، پس با هر تغییرِ وضعیت
+    // effect دوباره اجرا و حلقه از نو ساخته می‌شود؛ `stop` در cleanup
+    // تضمین می‌کند هرگز دو حلقهٔ هم‌زمان نماند (از جمله در Strict Mode).
+    let onScreen = false;
+    const sync = () => {
+      if (onScreen && allowed) start();
+      else stop();
+    };
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) start();
-        else stop();
+        onScreen = entry.isIntersecting;
+        sync();
       },
-      { threshold: 0 },
+      // حاشیه یعنی کره کمی پیش از رسیدن آماده است، نه اینکه ناگهان بپرد.
+      { threshold: 0, rootMargin: "200px" },
     );
     io.observe(el);
-    start();
 
     const onEnter = () => cacheRect();
     const onMove = (e: PointerEvent) => {
@@ -523,7 +563,7 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [reduced]);
+  }, [reduced, allowed, DUST_N, dprCap, TARGET_FPS]);
 
   return (
     <div className="relative z-20 mx-auto flex aspect-square w-full max-w-[440px] items-center justify-center">

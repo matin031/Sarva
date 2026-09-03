@@ -1,21 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { motion, MotionConfig } from "motion/react";
 import { defaultViewport } from "@/lib/motion";
 import AruzHero from "@/components/UI/aruz/AruzHero";
 import AruzFeatures from "@/components/UI/aruz/AruzFeatures";
 import AruzGamesSection from "@/components/UI/aruz/AruzGamesSection";
 import dynamic from "next/dynamic";
+import {
+  useReducedMotion,
+  useInView,
+  useQuality,
+  useQualityAttribute,
+} from "@/lib/perf/use-perf";
 
 /** The demo runs its own canvas + rAF loop and sits well below the fold, so it
  *  has no business being parsed and mounted during the first paint. Loading it
- *  on demand takes its evaluation off the critical path. */
+ *  on demand takes its evaluation off the critical path.
+ *
+ *  ⚠️ ولی dynamic() به‌تنهایی «تنبل تا viewport» نیست: بلافاصله پس از
+ *  hydration دانلود و mount می‌شود. حصارِ زیر است که تا نزدیک شدنِ واقعی
+ *  کاربر جلویش را می‌گیرد. */
 const OrouzDemo = dynamic(() => import("@/components/UI/orouz-demo/OrouzDemo"), {
   ssr: false,
-  loading: () => <div className="h-[520px]" aria-hidden />,
+  loading: () => <DemoPlaceholder />,
 });
+
+/** ارتفاعِ ثابت، برابر با ارتفاعِ خودِ دمو — تا جابه‌جاییِ چیدمان نسازد. */
+function DemoPlaceholder() {
+  return <div className="h-[520px]" aria-hidden />;
+}
+
+/** دمو را تا ۴۰۰ پیکسلیِ viewport اصلاً نمی‌سازد. */
+function LazyDemo() {
+  // once=true: یک بار که ساخته شد نگهش می‌داریم. دور شدنِ کاربر حلقه‌ها را
+  // می‌خواباند (کارِ useScrolling/useDocumentVisible داخلِ خودِ دمو)، پس
+  // برچیدن و ساختنِ دوباره هزینه‌ای است بی‌دلیل.
+  const [ref, near] = useInView<HTMLDivElement>("400px", true);
+
+  return <div ref={ref}>{near ? <OrouzDemo /> : <DemoPlaceholder />}</div>;
+}
 import {
   RevealGroup,
   RevealItem,
@@ -23,15 +47,15 @@ import {
 } from "@/components/UI/aruz/reveal";
 
 export default function AruzPage() {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  // ⚠️ useSyncExternalStore و نه useState+useEffect: با الگوی قبلی اولین
+  // رندر همیشه «حرکت آزاد» بود و تازه در effect به «کم» می‌رسید، یعنی
+  // کاربرِ reduced-motion یک فریم انیمیشنِ کامل می‌دید. خطای
+  // set-state-in-effect هم از همان‌جا می‌آمد.
+  const reduced = useReducedMotion();
+  // سطحِ کیفیت را به CSS می‌رساند تا انیمیشن‌های تزئینی و backdrop-filter
+  // روی دستگاهِ ضعیف خودشان کنار بروند.
+  const { tier } = useQuality();
+  useQualityAttribute(tier);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -93,7 +117,7 @@ export default function AruzPage() {
                   عروض سماعی — نمونهٔ آزمون
                 </span>
               </div>
-              <OrouzDemo />
+              <LazyDemo />
             </div>
           </motion.div>
         </section>

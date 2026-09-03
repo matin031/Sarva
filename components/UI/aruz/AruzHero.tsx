@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { motion, useMotionTemplate, useMotionValue } from "motion/react";
+import { useEffect, useRef } from "react";
+import { useQuality, useScrolling, useFinePointer } from "@/lib/perf/use-perf";
+import { motion } from "motion/react";
 import ArkanSphere from "./ArkanSphere";
 import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
 
@@ -11,20 +12,24 @@ import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal
 export default function AruzHero({ reduced }: { reduced: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
   // raw pointer position within the section, for the cursor spotlight
-  const spx = useMotionValue(50);
-  const spy = useMotionValue(30);
-  const spotlight = useMotionTemplate`radial-gradient(600px circle at ${spx}% ${spy}%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 60%)`;
+  // ⚠️ پیش از این، نورافکن یک radial-gradient بود که *محلش* عوض می‌شد، روی
+  // یک سطحِ inset-0. تغییرِ محلِ گرادیان یعنی رنگ‌آمیزیِ دوبارهٔ همان سطحِ
+  // بزرگ در هر حرکتِ اشاره‌گر — روی ترک‌پد و هم‌زمان با اسکرول گران است.
+  //
+  // حالا یک دایرهٔ ثابت با گرادیانِ ثابت است که فقط translate3d می‌شود:
+  // هیچ رنگ‌آمیزیِ دوباره‌ای لازم نیست، فقط جابه‌جاییِ لایه در compositor.
+  const glowRef = useRef<HTMLDivElement>(null);
 
-  // the cursor spotlight is a mouse-only flourish; skip it entirely on touch
-  // devices (no hover, and the moving radial-gradient repaint is wasteful there)
-  const [fine, setFine] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFine(window.matchMedia("(pointer: fine)").matches);
-  }, []);
+  const { settings } = useQuality();
+  const scrolling = useScrolling();
+
+  // نورافکن فقط جایی که واقعاً معنا دارد: موس، کیفیتِ کافی، بدونِ اسکرول،
+  // و نه در حالتِ حرکتِ کم.
+  const fine = useFinePointer();
+  const spotlightOn = !reduced && fine && settings.spotlight && !scrolling;
 
   useEffect(() => {
-    if (reduced || !fine) return;
+    if (!spotlightOn) return;
     const el = sectionRef.current;
     if (!el) return;
 
@@ -73,22 +78,36 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
     });
     ro.observe(el);
 
-    // pure arithmetic: cached box + cached scroll offset, no layout touched
+    // ⚠️ فقط مختصات را نگه می‌داریم و نوشتن را به یک rAF واحد می‌سپاریم.
+    // pointermove روی ترک‌پد ده‌ها بار در ثانیه می‌آید؛ بدون این throttle
+    // هر کدام یک نوشتنِ استایل بود. هیچ خواندنی از DOM اینجا نیست — جعبه و
+    // آفستِ اسکرول از پیش کش شده‌اند.
+    let px = 0;
+    let py = 0;
+    let writeRaf = 0;
+    const write = () => {
+      writeRaf = 0;
+      const g = glowRef.current;
+      if (g) g.style.transform = `translate3d(${px}px, ${py}px, 0)`;
+    };
     const onMove = (e: PointerEvent) => {
-      spx.set(((e.clientX + scroll.x - geo.left) / geo.w) * 100);
-      spy.set(((e.clientY + scroll.y - geo.top) / geo.h) * 100);
+      px = e.clientX + scroll.x - geo.left;
+      py = e.clientY + scroll.y - geo.top;
+      if (!writeRaf) writeRaf = requestAnimationFrame(write);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("pointermove", onMove);
+    // شنونده روی خودِ hero است، نه window: بیرونِ این بخش اصلاً خبری نیست.
+    el.addEventListener("pointermove", onMove);
     return () => {
       cancelAnimationFrame(id);
       if (pending) cancelAnimationFrame(pending);
+      if (writeRaf) cancelAnimationFrame(writeRaf);
       ro.disconnect();
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointermove", onMove);
     };
-  }, [spx, spy, reduced, fine]);
+  }, [reduced, fine, spotlightOn]);
 
   return (
     <section
@@ -96,12 +115,18 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
       dir="rtl"
       className="relative flex min-h-[92vh] items-center overflow-hidden py-24"
     >
-      {/* cursor spotlight — mouse only */}
-      {!reduced && fine && (
-        <motion.div
+      {/* نورافکنِ اشاره‌گر — گرادیانِ ثابت، جابه‌جاییِ compositor-only */}
+      {spotlightOn && (
+        <div
+          ref={glowRef}
           aria-hidden
-          style={{ background: spotlight }}
-          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(circle closest-side, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent)",
+            // will-change فقط وقتی نورافکن واقعاً روشن است — نه دائمی.
+            willChange: "transform",
+          }}
+          className="pointer-events-none absolute -left-[600px] -top-[600px] size-[1200px] -z-10"
         />
       )}
       {/* fine grain texture */}

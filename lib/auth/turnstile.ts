@@ -1,5 +1,6 @@
 import "server-only";
 import { logger } from "@/lib/observability";
+import { missingKeyPolicy } from "@/lib/auth/turnstile-policy";
 
 /**
  * Cloudflare Turnstile — تأیید سمت سرور.
@@ -12,12 +13,25 @@ import { logger } from "@/lib/observability";
  *
  * به همین دلیل فراخوانیِ این تابع در خودِ route ها است، نه در کامپوننت فرم.
  *
- * ── خاموش بودن به‌صورت پیش‌فرض ─────────────────────────────────────────────
+ * ── نبودِ کلید: در توسعه باز، در production بسته ────────────────────────────
  *
- * تا وقتی TURNSTILE_SECRET_KEY در محیط نباشد، این ماژول همه چیز را می‌پذیرد و
- * فقط یک بار هشدار می‌دهد. عمدی است: سایت باید همین حالا و بدون حساب
- * Cloudflare کار کند، و روزی که کلیدها اضافه شدند کپچا با یک ری‌استارت فعال
- * شود — بدون تغییر کد و بدون deploy تازه.
+ * ⚠️ تا دیروز نبودِ TURNSTILE_SECRET_KEY یعنی «همه چیز را قبول کن» — در هر
+ * محیطی، از جمله production. یعنی یک متغیرِ محیطیِ جاافتاده (یا پاک‌شده در یک
+ * deploy) کپچا را بی‌صدا خاموش می‌کرد و هیچ‌کس نمی‌فهمید: نه خطایی، نه
+ * تفاوتی در رفتار. این بدترین شکلِ fail-open است، چون *غیبتِ* محافظ شبیه
+ * سلامت به نظر می‌رسد.
+ *
+ * حالا:
+ *
+ *   • خارج از production (توسعه و تست): بدون کلید، همه چیز پذیرفته می‌شود و
+ *     یک بار هشدار می‌آید. سایت باید بدون حساب Cloudflare قابل اجرا باشد.
+ *
+ *   • در production: نبودِ کلید یعنی درخواست **رد** می‌شود، نه پذیرفته.
+ *     اگر واقعاً می‌خواهید کپچا خاموش باشد، باید صریح بنویسید:
+ *
+ *         TURNSTILE_OPTIONAL=true
+ *
+ *     یعنی خاموشی یک تصمیمِ ثبت‌شده است، نه یک فراموشی.
  *
  * ── راه‌اندازی ─────────────────────────────────────────────────────────────
  *
@@ -33,6 +47,8 @@ const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const VERIFY_TIMEOUT_MS = 10_000;
 
 /** آیا کپچا در این نصب فعال است؟ */
+export { missingKeyPolicy };
+
 export function turnstileEnabled(): boolean {
   return Boolean(process.env.TURNSTILE_SECRET_KEY);
 }
@@ -45,6 +61,18 @@ function warnOnce() {
   logger.warn(
     "TURNSTILE_SECRET_KEY تنظیم نشده — کپچا غیرفعال است. برای فعال کردنش راهنمای بالای lib/auth/turnstile.ts را ببینید.",
     { event: "captcha.disabled" },
+  );
+}
+
+let deniedWarned = false;
+
+function warnDeniedOnce() {
+  if (deniedWarned) return;
+  deniedWarned = true;
+  logger.error(
+    "TURNSTILE_SECRET_KEY در production تنظیم نشده — درخواست‌های محافظت‌شده رد می‌شوند. " +
+      "کلید را بگذارید، یا اگر عمداً کپچا نمی‌خواهید TURNSTILE_OPTIONAL=true را صریح تنظیم کنید.",
+    { event: "captcha.misconfigured" },
   );
 }
 
@@ -73,6 +101,13 @@ export async function verifyTurnstile(
   const secret = process.env.TURNSTILE_SECRET_KEY;
 
   if (!secret) {
+    if (missingKeyPolicy() === "deny") {
+      // ⚠️ در production، نبودِ کلید یعنی محافظ غایب است — و غیبتِ محافظ
+      //    نباید شبیه سلامت به نظر برسد. رد کردن، تنها رفتاری است که این را
+      //    دیدنی می‌کند. راهِ خاموشیِ آگاهانه TURNSTILE_OPTIONAL=true است.
+      warnDeniedOnce();
+      return { ok: false, error: "تأیید امنیتی پیکربندی نشده است. با پشتیبانی تماس بگیرید." };
+    }
     warnOnce();
     return { ok: true };
   }

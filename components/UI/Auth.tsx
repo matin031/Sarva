@@ -23,7 +23,7 @@ const itemVariants: Variants = {
   },
 };
 
-function Auth() {
+function Auth({ googleEnabled }: { googleEnabled: boolean }) {
   const [isLogin, setIsLogin] = useState(true);
   const handleSuccess = (mobile: string) => {
     console.log("شماره موبایل تأیید شد:", mobile);
@@ -61,7 +61,11 @@ function Auth() {
             variants={itemVariants}
             className=" flex items-center justify-center w-full"
           >
-            <SignUp setIsLogin={setIsLogin} onSuccess={handleSuccess} />
+            <SignUp
+              setIsLogin={setIsLogin}
+              onSuccess={handleSuccess}
+              googleEnabled={googleEnabled}
+            />
           </motion.div>
         </motion.div>
       ) : (
@@ -94,7 +98,11 @@ function Auth() {
             variants={itemVariants}
             className=" flex items-center justify-center w-full"
           >
-            <LoginForm setIsLogin={setIsLogin} onSuccess={handleSuccess} />
+            <LoginForm
+              setIsLogin={setIsLogin}
+              onSuccess={handleSuccess}
+              googleEnabled={googleEnabled}
+            />
           </motion.div>
         </motion.div>
       )}

@@ -19,7 +19,7 @@ export type RequestMeta = {
 
 const USER_COLUMNS = `id, email, full_name, role, email_verified_at, is_banned, created_at`;
 
-type UserRow = {
+export type UserRow = {
   id: string;
   email: string;
   full_name: string | null;

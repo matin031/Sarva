@@ -1,4 +1,5 @@
 "use client";
+import GoogleSignInButton from "./GoogleSignInButton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,11 +30,14 @@ const emailSchema = loginSchema;
 type EmailFormData = z.infer<typeof emailSchema>;
 
 export default function LoginForm({
+  googleEnabled,
   onSuccess,
   setIsLogin,
 }: {
   onSuccess: (identifier: string) => void;
   setIsLogin: (value: boolean) => void;
+  /** فقط وقتی GOOGLE_CLIENT_ID تنظیم شده باشد — از سرور می‌آید. */
+  googleEnabled: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"email" | "mobile">("mobile");
@@ -349,6 +353,17 @@ export default function LoginForm({
       >
         {loading ? "...در حال ورود" : "ورود"}
       </button>
+      {googleEnabled && (
+        <>
+          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            یا
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <GoogleSignInButton label="ورود با حساب گوگل" />
+        </>
+      )}
+
       <p className=" text-center mt-8">
         حساب کاربری نداری؟
         <span

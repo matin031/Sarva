@@ -1,4 +1,7 @@
 "use client";
+import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
+import { freeVocabLessons } from "@/lib/guest/policy";
 import {
   useCallback,
   useEffect,
@@ -70,6 +73,20 @@ export default function VocabGame() {
   const [gradeLoading, setGradeLoading] = useState(false);
   const { user } = useCurrentUser();
   const userId = user?.id ?? null;
+
+  /* مهمان فقط درسِ اولِ هر پایه را دارد.
+     «اول» یعنی کمترین شمارهٔ درسِ همان پایه — نه عددِ ثابتِ ۱ — تا اگر
+     روزی درس‌های پایه‌ای از جای دیگری شروع شوند باز هم درست بماند. */
+  const [guestPrompt, setGuestPrompt] = useState(false);
+  const guestOpenLesson = useMemo(() => {
+    if (!grade) return null;
+    const free = freeVocabLessons(
+      grade.lessons.map((l) => ({ grade: grade.id, lesson: l.number })),
+    );
+    return free[0]?.lesson ?? null;
+  }, [grade]);
+  const lessonLockedForGuest = (n: number) =>
+    user === null && guestOpenLesson !== null && n !== guestOpenLesson;
 
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
   const [qi, setQi] = useState(0);
@@ -445,6 +462,10 @@ export default function VocabGame() {
           </div>
         )}
 
+        {guestPrompt && (
+          <GuestLimitModal section="vocab" onDismiss={() => setGuestPrompt(false)} />
+        )}
+
         <div className="grid grid-cols-1 gap-3 pb-28 sm:grid-cols-2">
           {grade.lessons.map((l) => {
             const count = gradeWords.filter((g) => g.lesson === l.number).length;
@@ -455,7 +476,13 @@ export default function VocabGame() {
               <button
                 key={l.id}
                 disabled={l.free || (!ready && !gradeLoading)}
-                onClick={() => toggleLesson(l)}
+                onClick={() => {
+                  if (lessonLockedForGuest(l.number)) {
+                    setGuestPrompt(true);
+                    return;
+                  }
+                  toggleLesson(l);
+                }}
                 aria-pressed={on}
                 className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-5 text-right transition-all ${
                   on
@@ -492,7 +519,14 @@ export default function VocabGame() {
                     )}
                   </span>
                   <div>
-                    <h3 className="font-bold">{l.title}</h3>
+                    <h3 className="font-bold">
+                      {l.title}
+                      {lessonLockedForGuest(l.number) && (
+                        <span className="ms-2 align-middle text-xs text-muted-foreground">
+                          🔒 نیازمند ورود
+                        </span>
+                      )}
+                    </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {l.free
                         ? "درسِ آزاد"

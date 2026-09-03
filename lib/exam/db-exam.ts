@@ -216,3 +216,23 @@ export async function listExams(): Promise<{ examKey: string; exam: SeedExam }[]
 
   return exams.filter((e): e is { examKey: string; exam: SeedExam } => e.exam !== null);
 }
+
+/**
+ * کلیدِ آزمونی که مهمان بدونِ ورود می‌تواند کامل بدهد.
+ *
+ * ⚠️ «آزمونِ اول» یعنی همان اولی که در فهرست دیده می‌شود — و فهرست با
+ * `created_at desc` مرتب است، پس تازه‌ترین آزمون. عمداً از همان کوئریِ
+ * فهرست خوانده می‌شود و نه یک کلیدِ هاردکد: با افزودنِ آزمونِ تازه،
+ * نمونهٔ رایگان هم خودبه‌خود همان تازه می‌شود و کسی مجبور نیست یادش بیاید
+ * جایی را دستی عوض کند.
+ */
+export async function freeExamKey(): Promise<string | null> {
+  const rows = await query<{ exam_session: string | null }>(
+    `select e.exam_session
+       from exams e
+      where e.exam_session is not null
+      order by e.created_at desc
+      limit 1`,
+  );
+  return rows[0]?.exam_session ?? null;
+}

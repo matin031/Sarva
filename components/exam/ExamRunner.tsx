@@ -15,14 +15,21 @@ import type { QuestionResult } from "@/lib/exam/result-types";
 type Props = {
   examKey: string;
   exam: ClientExam;
+  /** آیا مهمان می‌تواند این آزمون را کامل بدهد. از سرور می‌آید. */
+  guestAllowed: boolean;
 };
 
 type FlatQuestion = { sectionTitle: string; question: ClientQuestion };
 
-/** How far a guest may get before the paper asks them to sign in. Their answers
- *  are already in localStorage, so signing in and coming back resumes exactly
- *  where they stopped. */
-const GUEST_QUESTION_LIMIT = 3;
+/* ⚠️ سیاستِ مهمان اینجا عوض شد و دلیلش مهم است.
+ *
+ * پیش از این هر آزمونی سه سؤالِ اول را به مهمان می‌داد — یعنی نمونه‌ای که
+ * هیچ‌وقت به نتیجه نمی‌رسید و کارنامه‌ای هم نداشت. حالا *یک* آزمون کامل باز
+ * است (اولی در فهرست) و بقیه از همان اول ورود می‌خواهند: نمونهٔ کامل بهتر
+ * نشان می‌دهد آزمون چیست تا سه سؤالِ بریده از چند آزمون.
+ *
+ * تصمیم روی سرور گرفته می‌شود (freeExamKey) و به‌صورت prop می‌آید، پس
+ * کلاینت نمی‌تواند خودش را «مجاز» اعلام کند. */
 
 type SaveOutcome =
   | { saved: true }
@@ -57,7 +64,7 @@ function storageKey(examKey: string) {
  *  so a refresh or accidental tab close mid-exam doesn't throw away
  *  everything the student already answered — same idea as the poetry
  *  quiz's own "quiz-progress" pattern, restored once on mount. */
-export default function ExamRunner({ examKey, exam }: Props) {
+export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
   const flatQuestions = useMemo<FlatQuestion[]>(
     () =>
       exam.sections.flatMap((section) =>
@@ -272,7 +279,7 @@ export default function ExamRunner({ examKey, exam }: Props) {
   /* A guest may sit the first few questions, then has to sign in. The gate is
      shown instead of the question, never over the results, and their answers
      are already saved locally so coming back finishes the sentence. */
-  if (!showResults && userId === null && answeredCount >= GUEST_QUESTION_LIMIT) {
+  if (!showResults && userId === null && !guestAllowed) {
     return (
       <div dir="rtl" className=" container mx-auto my-16 max-w-xl">
         <div className=" glass rounded-3xl p-6 text-center sm:p-10">
@@ -283,10 +290,10 @@ export default function ExamRunner({ examKey, exam }: Props) {
             برای ادامهٔ آزمون وارد شو
           </h2>
           <p className=" mx-auto mt-3 max-w-md leading-relaxed text-muted-foreground">
-            {answeredCount.toLocaleString("fa-IR")} سؤال را جواب دادی. برای ادامه و برای
+            آزمونِ اولِ فهرست بدون ورود کامل باز است؛ برای بقیهٔ آزمون‌ها و برای
             اینکه کارنامه‌ات در پنل بماند، باید وارد حساب شوی.
             <br />
-            پاسخ‌هایت ذخیره شده‌اند — بعد از ورود از همین سؤال ادامه می‌دهی.
+            هرچه تا اینجا زده‌ای ذخیره شده — بعد از ورود از همین‌جا ادامه می‌دهی.
           </p>
           <div className=" mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link

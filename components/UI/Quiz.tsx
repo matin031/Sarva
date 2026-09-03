@@ -10,11 +10,13 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { apiGet, apiPost } from "@/lib/api/client";
 import QuizSettingsModal from "./QuizSettingsModal";
 import GuestLimitModal from "./GuestLimitModal";
+import { guestLimit } from "@/lib/guest/policy";
 import SarvaLoader from "@/components/UI/SarvaLoader";
 import BookmarkButton from "@/components/UI/BookmarkButton";
 import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
 
-const GUEST_QUESTION_LIMIT = 3;
+// سقف از سیاستِ مرکزی می‌آید، نه از ثابتِ محلی — تا عوض کردنش یک‌جا باشد.
+const GUEST_QUESTION_LIMIT = guestLimit("quiz") ?? 5;
 
 /** A one-line name for a bookmarked question: whatever the student actually
  *  reads on the card, falling back to the right answer when the prompt is a
@@ -348,10 +350,7 @@ function Quiz({ data }: { data: Question[] }) {
 
     if (user === null) {
       return (
-        <GuestLimitModal
-          questionLimit={GUEST_QUESTION_LIMIT}
-          onContinue={startGuestSession}
-        />
+        <GuestLimitModal section="quiz" onContinue={startGuestSession} />
       );
     }
 

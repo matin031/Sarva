@@ -1,4 +1,6 @@
 "use client";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import {
@@ -32,6 +34,12 @@ function StarIcon({ className }: { className?: string }) {
 }
 
 function PairsGame({ decks }: { decks: MemoryDecks }) {
+  /* «نیمهٔ اولِ کتاب» در این بازی از قبل یک مفهومِ صریح است: آزمونِ دی.
+     پس قفلِ مهمان دقیقاً روی همان می‌نشیند و لازم نیست نیمه را حساب کنیم. */
+  const { user } = useCurrentUser();
+  const [guestPrompt, setGuestPrompt] = useState(false);
+  const termLockedForGuest = (id: MemoryTerm) => user === null && id !== "dey";
+
   const [phase, setPhase] = useState<Phase>("grade");
   const [grade, setGrade] = useState<MemoryGrade | null>(null);
   const [term, setTerm] = useState<MemoryTerm | null>(null);
@@ -153,6 +161,10 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
   // ---- pick a term ----
   if (phase === "term" && grade) {
     return (
+      <>
+      {guestPrompt && (
+        <GuestLimitModal section="pairs" onDismiss={() => setGuestPrompt(false)} />
+      )}
       <Chooser
         title={`فارسی ${MEMORY_GRADES.find((g) => g.id === grade)?.title}`}
         subtitle="کدام آزمون؟"
@@ -166,15 +178,25 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
           return {
             key: t.id,
             title: t.title,
-            hint: n === 0 ? "هنوز آماده نیست" : `${t.hint} · ${n.toLocaleString("fa-IR")} جفت`,
             disabled: n === 0,
+            hint:
+              n === 0
+                ? "هنوز آماده نیست"
+                : termLockedForGuest(t.id)
+                  ? `${t.hint} · 🔒 نیازمند ورود`
+                  : `${t.hint} · ${n.toLocaleString("fa-IR")} جفت`,
             onClick: () => {
+              if (termLockedForGuest(t.id)) {
+                setGuestPrompt(true);
+                return;
+              }
               setTerm(t.id);
               setPhase("study");
             },
           };
         })}
       />
+      </>
     );
   }
 

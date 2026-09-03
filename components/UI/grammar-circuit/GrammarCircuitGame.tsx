@@ -1,4 +1,6 @@
 "use client";
+import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 // شیوه‌نامهٔ همین بازی، کنارِ خودش. توضیحِ دلیلش بالای همان فایل است.
 import "./grammar-circuit.css";
@@ -129,6 +131,10 @@ export default function GrammarCircuitGame() {
   }>({ nonce: 0, status: "loading", data: null, error: null });
 
   const availability = availabilityState.data;
+  // مهمان یک دور بازی می‌کند؛ دورِ دوم مدالِ ورود.
+  const guest = useGuestRounds("grammar-circuit");
+  const [guestPrompt, setGuestPrompt] = useState(false);
+
   const availabilityLoading = availabilityState.status === "loading";
   const availabilityError =
     availabilityState.status === "error" ? availabilityState.error : null;
@@ -590,6 +596,21 @@ export default function GrammarCircuitGame() {
     dispatch({ type: "NEXT_QUESTION", activeTimeMs: readTime() });
   }, [readTime]);
 
+  /* ثبتِ دورِ مهمان وقتی به نتیجه می‌رسد — نه هنگامِ شروع، تا دورِ رهاشده
+     سهمیه نسوزاند. */
+  const atResults = state.screen === "results";
+  const doneRef = useRef(false);
+  useEffect(() => {
+    if (atResults) {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        guest.recordRound();
+      }
+    } else {
+      doneRef.current = false;
+    }
+  }, [atResults, guest]);
+
   /* ── رندر ─────────────────────────────────────────────────────────────── */
   if (state.screen === "results") {
     return (
@@ -607,15 +628,26 @@ export default function GrammarCircuitGame() {
 
   if (state.screen !== "playing" || !prepared) {
     return (
+      <>
+      {guestPrompt && (
+        <GuestLimitModal section="grammar-circuit" onDismiss={() => setGuestPrompt(false)} />
+      )}
       <SetupScreen
         availability={availability}
         loading={availabilityLoading}
         error={availabilityError}
         onRetry={reloadAvailability}
-        onStart={(grade, lessons, length) => void startSession(grade, lessons, length)}
+        onStart={(grade, lessons, length) => {
+          if (guest.blocked) {
+            setGuestPrompt(true);
+            return;
+          }
+          void startSession(grade, lessons, length);
+        }}
         starting={starting}
         startError={startError}
       />
+      </>
     );
   }
 

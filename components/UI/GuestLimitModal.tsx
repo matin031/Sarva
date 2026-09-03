@@ -1,18 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { toFa } from "@/components/UI/CircularProgress";
+import {
+  guestContinueLabel,
+  guestLimitMessage,
+  type GuestSection,
+} from "@/lib/guest/policy";
 
+/**
+ * «برای ادامه وارد شوید».
+ *
+ * ⚠️ این مدال قبلاً فقط یک عدد می‌گرفت و همیشه دربارهٔ «سؤال» حرف می‌زد.
+ * وقتی همان مدال بالای بازی جاسوس یا پلِ وزن می‌آمد، جملهٔ «۵ سؤال برای شما
+ * قابل دسترسی است» بی‌معنی بود. حالا بخش را می‌گیرد و متن را از سیاستِ
+ * مرکزی (lib/guest/policy.ts) می‌خواند، پس هر بخش جملهٔ درستِ خودش را دارد
+ * و عوض کردنِ سیاست هم یک‌جا انجام می‌شود.
+ *
+ * `onContinue` اختیاری است: بخش‌هایی مثل واژه‌یاب که محتوای قفل‌شده را
+ * انتخاب کرده‌اند جایی برای «ادامه» ندارند و فقط باید برگردند.
+ */
 interface GuestLimitModalProps {
-  questionLimit: number;
-  onContinue: () => void;
+  section: GuestSection;
+  /** اگر داده شود، دکمهٔ «فعلاً ادامه بده» نمایش داده می‌شود. */
+  onContinue?: () => void;
+  /** متنِ جایگزین برای دکمهٔ دوم، وقتی ادامه معنا ندارد. */
+  onDismiss?: () => void;
 }
 
-function GuestLimitModal({ questionLimit, onContinue }: GuestLimitModalProps) {
+function GuestLimitModal({ section, onContinue, onDismiss }: GuestLimitModalProps) {
   return (
     <div
       dir="rtl"
-      className=" fixed h-screen  w-screen inset-0 
+      role="dialog"
+      aria-modal="true"
+      className=" fixed h-screen  w-screen inset-0
       backdrop-blur-sm z-30 flex items-center justify-center"
     >
       <div
@@ -20,7 +41,7 @@ function GuestLimitModal({ questionLimit, onContinue }: GuestLimitModalProps) {
        flex flex-col items-center p-4 sm:p-6 text-center w-[90%]"
       >
         <div
-          className=" size-12 rounded-full bg-primary/20 text-primary 
+          className=" size-12 rounded-full bg-primary/20 text-primary
         flex items-center justify-center"
         >
           <svg
@@ -42,25 +63,35 @@ function GuestLimitModal({ questionLimit, onContinue }: GuestLimitModalProps) {
         <h3 className=" text-lg font-bold">وارد حساب کاربری خود نشده‌اید</h3>
 
         <p className=" text-muted-foreground text-sm sm:text-base">
-          در حالت مهمان فقط {questionLimit} سوال برای شما قابل دسترسی است. برای
-          دسترسی به همه‌ی سوالات و ذخیرۀ پیشرفتتان وارد حساب کاربری خود شوید.
+          {guestLimitMessage(section)}
         </p>
 
         <div className=" w-full flex flex-col sm:flex-row items-center gap-3 mt-2">
           <Link
             href="/auth"
-            className=" w-full font-bold bg-primary py-2 text-center rounded-xl 
+            className=" w-full font-bold bg-primary py-2 text-center rounded-xl
             brightness-90 hover:brightness-100 transition-all text-white"
           >
             ورود / ثبت‌نام
           </Link>
-          <button
-            onClick={onContinue}
-            className=" w-full font-medium bg-muted py-2 text-center rounded-xl 
-            brightness-90 hover:brightness-100 active:scale-95 transition-all"
-          >
-            ادامه با {toFa(questionLimit)} سوال
-          </button>
+          {onContinue && (
+            <button
+              onClick={onContinue}
+              className=" w-full font-medium bg-muted py-2 text-center rounded-xl
+              brightness-90 hover:brightness-100 active:scale-95 transition-all"
+            >
+              {guestContinueLabel(section)}
+            </button>
+          )}
+          {!onContinue && onDismiss && (
+            <button
+              onClick={onDismiss}
+              className=" w-full font-medium bg-muted py-2 text-center rounded-xl
+              brightness-90 hover:brightness-100 active:scale-95 transition-all"
+            >
+              بازگشت
+            </button>
+          )}
         </div>
       </div>
     </div>

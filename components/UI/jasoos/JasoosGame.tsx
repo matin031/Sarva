@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { pickJasoosLevels } from "@/lib/jasoos-data";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { apiPost } from "@/lib/api/client";
 import SchoolMap from "./SchoolMap";
 import ShootingScene from "./ShootingScene";
@@ -57,6 +59,9 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   // undefined یعنی «هنوز نمی‌دانیم» و پایین‌تر از null (مهمان) تفکیک می‌شود —
   // بازیِ ذخیره‌شده تا وقتی معلوم نشده صاحبش کیست بازیابی نمی‌شود.
   const { user: currentUser, loading: userLoading } = useCurrentUser();
+  // مهمان یک دور بازی می‌کند؛ دورِ دوم مدالِ ورود می‌آید.
+  const guest = useGuestRounds("jasoos");
+  const [guestPrompt, setGuestPrompt] = useState(false);
   const user = userLoading ? undefined : currentUser;
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
@@ -190,6 +195,9 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     setGameOverReason(reason);
     setMissedSpy(spy);
     setTimerEndsAt(null);
+    // باخت هم یک دورِ کامل است؛ وگرنه مهمان با باختنِ عمدی بی‌نهایت بازی
+    // می‌کرد و سیاست بی‌اثر می‌شد.
+    guest.recordRound();
     setScreen("gameover");
   };
 
@@ -223,6 +231,12 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   }, [screen, timerEndsAt]);
 
   const beginRun = (chosen: JasoosSettings) => {
+    // همهٔ مسیرهای شروع از اینجا رد می‌شوند — دکمهٔ intro، صفحهٔ تنظیمات، و
+    // restart. گذاشتنِ دروازه فقط روی restart یک راهِ باز جا می‌گذاشت.
+    if (guest.blocked) {
+      setGuestPrompt(true);
+      return;
+    }
     restoredOwnerRef.current = user ? user.id : "guest";
     setSettings(chosen);
     setRunLevels(pickJasoosLevels(allLevels, chosen.questionCount));
@@ -238,6 +252,10 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   };
 
   const restart = () => {
+    if (guest.blocked) {
+      setGuestPrompt(true);
+      return;
+    }
     if (!settings) {
       setScreen("settings");
       return;
@@ -270,6 +288,7 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
       setClearedCount(nextCleared);
       if (nextCleared >= runLevels.length) {
         setTimerEndsAt(null);
+        guest.recordRound();
         setScreen("win");
       } else {
         setScreen("map");
@@ -297,6 +316,9 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
 
   return (
     <div className="container max-w-4xl mx-auto my-10 sm:my-16">
+      {guestPrompt && (
+        <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
+      )}
       {(screen === "map" || screen === "scene") && (
         <div className="flex items-center justify-between mb-4 px-1 flex-wrap gap-y-2">
           <div className="flex items-center gap-x-1.5">
@@ -338,7 +360,15 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
             accent="text-lapis"
             chipBg="bg-lapis-light/15 text-foreground"
             Preview={JasoosPreview}
-            onStart={() => setScreen("settings")}
+            onStart={() => {
+              // زودتر از صفحهٔ تنظیمات: مهمانی که سهمیه‌اش تمام شده نباید
+              // اول تنظیمات را پر کند و بعد رد شود.
+              if (guest.blocked) {
+                setGuestPrompt(true);
+                return;
+              }
+              setScreen("settings");
+            }}
           />
         )}
 

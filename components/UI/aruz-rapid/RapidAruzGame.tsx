@@ -1,4 +1,6 @@
 "use client";
+import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -82,6 +84,24 @@ function RapidAruzGameInner({
   const immersive = layout.compact && gameplay;
   const boardVisible = gameplay;
   const resultsVisible = phase === "questionResults" || phase === "sessionResults";
+  // مهمان سه بیت تقطیع می‌کند، بعد مدالِ ورود.
+  const guest = useGuestRounds("aruz-rapid");
+  const [guestPrompt, setGuestPrompt] = useState(false);
+
+  /* هر بیتِ تمام‌شده یک واحد از سهمیه است. ثبت در لحظهٔ رسیدن به completed
+     انجام می‌شود، نه هنگامِ شروع: بیتی که نیمه‌کاره رها شود نباید بسوزد. */
+  const doneRef = useRef(false);
+  useEffect(() => {
+    if (phase === "completed") {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        guest.recordRound();
+      }
+    } else {
+      doneRef.current = false;
+    }
+  }, [phase, guest]);
+
   const previewUncovered = phase === "waitingForFont" || phase === "preview" || phase === "completed";
   const spoilered = !previewUncovered || paused || state.resuming;
 
@@ -245,13 +265,23 @@ function RapidAruzGameInner({
         ) : null}
       </div>
 
+      {guestPrompt && (
+        <GuestLimitModal section="aruz-rapid" onDismiss={() => setGuestPrompt(false)} />
+      )}
+
       {/* ── جای ثابتِ صحنه ── */}
       <div className="aruzr-stage">
         {phase === "intro" ? (
           <IntroScreen
             shortSymbol={config.shortSymbol}
             longSymbol={config.longSymbol}
-            onStart={startSession}
+            onStart={() => {
+              if (guest.blocked) {
+                setGuestPrompt(true);
+                return;
+              }
+              startSession();
+            }}
             loading={false}
           />
         ) : null}

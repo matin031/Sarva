@@ -1,7 +1,9 @@
 "use client";
+import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
+import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   detectQualityTier,
   isWebGLAvailable,
@@ -94,10 +96,29 @@ export default function AruzBridgeGame() {
   const hudRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
 
+  // مهمان یک دست بازی می‌کند؛ دستِ دوم مدالِ ورود می‌آید.
+  const guest = useGuestRounds("aruz-bridge");
+  const [guestPrompt, setGuestPrompt] = useState(false);
+
   const inSetup = state === "intro";
   const isOver = state === "gameOver";
   const isFinished = state === "finished";
   const showBridge = !inSetup && !isOver && !isFinished;
+
+  /* پایانِ دست یک «دور» است — چه باخت چه تمام کردن. ثبت در همان لحظه‌ای که
+     صفحهٔ پایان می‌آید، نه هنگامِ شروع: مهمانی که وسطِ دست صفحه را ببندد
+     نباید سهمیه‌اش سوخته باشد. */
+  const endedRef = useRef(false);
+  useEffect(() => {
+    if (isOver || isFinished) {
+      if (!endedRef.current) {
+        endedRef.current = true;
+        guest.recordRound();
+      }
+    } else {
+      endedRef.current = false;
+    }
+  }, [isOver, isFinished, guest]);
 
   /* یک مالکِ واحد برای «چه‌جور صفحه‌ای». چیدمان از همین یک مقدار شاخه
      می‌گیرد، نه از چند پرسمانِ CSS که با هم رقابت کنند. */
@@ -199,11 +220,21 @@ export default function AruzBridgeGame() {
       dir="rtl"
       className="container mx-auto max-w-6xl px-3 pb-3 pt-2 sm:px-4"
     >
+      {guestPrompt && (
+        <GuestLimitModal section="aruz-bridge" onDismiss={() => setGuestPrompt(false)} />
+      )}
+
       {inSetup && (
         <SessionSetup
           session={game.session}
           onChange={game.setSession}
-          onStart={() => void game.startRun()}
+          onStart={() => {
+            if (guest.blocked) {
+              setGuestPrompt(true);
+              return;
+            }
+            void game.startRun();
+          }}
           loading={game.loading}
           error={game.loadError}
           availableUnique={availableUnique}

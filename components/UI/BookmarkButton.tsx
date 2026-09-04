@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion } from "motion/react";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { isBookmarked, setBookmark } from "@/lib/panel/bookmarks-client";
+import { setBookmark } from "@/lib/panel/bookmarks-client";
+import {
+  bookmarkState,
+  preloadBookmarks,
+  setBookmarkOptimistic,
+  settleBookmark,
+  subscribeBookmarks,
+} from "@/lib/panel/bookmark-store";
 import type { BookmarkArea } from "@/lib/panel/types";
 
 /** Flag a question for later, from anywhere in the site.
@@ -29,20 +36,23 @@ export default function BookmarkButton({
 }) {
   const { user } = useCurrentUser();
   const userId = user?.id ?? null;
-  const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    if (!userId || !refId) return;
-    let alive = true;
-    isBookmarked(userId, area, refId).then((v) => {
-      if (alive) setOn(v);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [userId, area, refId]);
+  /* ⚠️ وضعیت از حافظهٔ مشترک می‌آید، نه از fetchِ خودِ این دکمه.
+     پیش از این هر دکمه وضعیتِ خودش را جدا می‌پرسید — روی یک دورِ
+     هشت‌سؤالی اندازه گرفته شد و هشت درخواستِ جدا بود. حالا صفحه یک بار
+     کلِ دور را می‌گیرد (preloadBookmarks) و دکمه‌ها از همان می‌خوانند.
+
+     اگر کسی این دکمه را جایی بگذارد که preload نشده، همان‌جا برای همان
+     یک شناسه صدا زده می‌شود — پس دکمه هرجا کار می‌کند، فقط بهینه‌تر. */
+  const known = useSyncExternalStore(
+    subscribeBookmarks,
+    () => (userId && refId ? bookmarkState(userId, area, refId) : undefined),
+    () => undefined,
+  );
+  if (userId && refId && known === undefined) void preloadBookmarks(userId, area, [refId]);
+  const on = known ?? false;
 
   if (!userId) return null;
 
@@ -52,18 +62,21 @@ export default function BookmarkButton({
     setBusy(true);
     setFailed(false);
     // optimistic: the flag should feel instant even on a slow connection
-    setOn(next);
+    const seq = setBookmarkOptimistic(userId, area, refId, next);
     try {
       await setBookmark(
         userId,
         { area, refId, title, subtitle, payload },
         next,
       );
+      // ⚠️ seq را پس می‌دهیم تا اگر کاربر در این فاصله دوباره زده باشد،
+      // این پاسخِ کهنه وضعیتِ تازه را برنگرداند.
+      settleBookmark(userId, area, refId, seq, next);
     } catch (err) {
       // never fail quietly: a flag that flicks back with no explanation reads
       // as a bug in the page rather than as a write that did not land
       console.error("bookmark write failed:", err);
-      setOn(!next);
+      settleBookmark(userId, area, refId, seq, !next);
       setFailed(true);
     } finally {
       setBusy(false);

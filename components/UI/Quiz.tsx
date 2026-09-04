@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { apiGet, apiPost } from "@/lib/api/client";
 import QuizSettingsModal from "./QuizSettingsModal";
 import GuestLimitModal from "./GuestLimitModal";
+import { preloadBookmarks } from "@/lib/panel/bookmark-store";
 import { guestLimit } from "@/lib/guest/policy";
 import SarvaLoader from "@/components/UI/SarvaLoader";
 import BookmarkButton from "@/components/UI/BookmarkButton";
@@ -180,6 +181,16 @@ function Quiz({ data }: { data: Question[] }) {
     setAnswersLog(picked.map(() => ({ selected: null, answered: false })));
     setQuizStarted(true);
   };
+
+  /* ⚠️ وضعیتِ نشانِ کلِ دور، با *یک* درخواست.
+     پیش از این هر دکمهٔ نشان وضعیتِ خودش را جدا می‌پرسید — روی دورِ
+     هشت‌سؤالی اندازه گرفته شد و دقیقاً هشت درخواستِ جدا بود. حالا همان
+     هشت تا یکی می‌شود، و برگشت به همان دور هیچ درخواست تازه‌ای نمی‌سازد
+     چون آنچه می‌دانیم دوباره پرسیده نمی‌شود. */
+  useEffect(() => {
+    if (!user || questions.length === 0) return;
+    void preloadBookmarks(user.id, "aruz", questions.map((x) => x.id));
+  }, [user, questions]);
 
   const startGuestSession = () => {
     const picked = shuffle(allQuestions)

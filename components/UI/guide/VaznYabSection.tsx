@@ -4,27 +4,28 @@ import { hasAudioFor } from "@/lib/audioManifest";
 import { cardPop, fadeUp, staggerContainer } from "@/lib/motion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
-/**
- * موتورِ محلی — در *مرورگر*، و با import پویا.
- *
- * ★ پویا بودنش عمدی است: موتور و وزن‌هایش حدودِ ۹۵ کیلوبایتِ فشرده‌اند و نباید
- *   هنگامِ بارگذاریِ صفحه دانلود شوند. کسی که صفحه را باز می‌کند و وزن‌یابی
- *   نمی‌کند هیچ هزینه‌ای نمی‌دهد؛ فقط اولین جست‌وجو هزینه دارد و بعد در کشِ
- *   مرورگر می‌ماند. (روی build تولیدی سنجیده شد: بازکردنِ صفحه صفر بایت،
- *   اولین جست‌وجو ۹۵.۴ کیلوبایت در دقیقاً یک چانک.)
- *
- *   چرا در مرورگر و نه سرور: اندازه‌گیری شد که هر جست‌وجو ۵۳۹ میلی‌ثانیه CPU و
- *   ~۱۷۶ مگابایت حافظه می‌خواهد، یعنی هر هستهٔ سرور ~۲ درخواست در ثانیه.
- *   این‌جا سهمِ سرور صفر است و دقت تغییری نمی‌کند — همان کد، همان وزن‌ها.
- *
- *   دقت روی ۶۰۰۰ بیتِ کنارگذاشته: ۸۴.۵٪ برای رتبهٔ ۱، ۹۴.۲٪ برای سه نامزدِ اول.
- */
+import { coupletSchema } from "@/lib/aruz/input";
+import type { GanjoorMeter } from "@/lib/ganjoor/poem";
+/** The reference lookup runs on the server; local inference is loaded only when needed. */
 async function findMeterInBrowser(mesra1: string, mesra2?: string) {
   const { findMeterLocally } = await import("@/lib/aruz");
   return findMeterLocally(mesra1, mesra2)?.rhythm;
+}
+
+async function findReference(first: string, second: string): Promise<GanjoorMeter | null> {
+  try {
+    const response = await fetch("/api/vazn-yab", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ poem1: first, poem2: second }),
+      signal: AbortSignal.timeout(8000), cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body.ok && body.data?.source === "ganjoor" ? body.data : null;
+  } catch { return null; }
 }
 
 /** Resolve once the browser has actually put a frame on the screen.
@@ -62,6 +63,7 @@ function VaznYabSection() {
   const [aruzBahr, setAruzBahr] = useState("");
   /** the couplet the answer on screen belongs to */
   const [answeredFor, setAnsweredFor] = useState("");
+  const [reference, setReference] = useState<GanjoorMeter | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [loadingFetch, setLoadingFetch] = useState<boolean>(false);
@@ -74,6 +76,7 @@ function VaznYabSection() {
     couplet: { first: string; second: string };
     url: string;
     poemId: number;
+    meter?: GanjoorMeter;
   };
   const [beyt, setBeyt] = useState<RandomBeyt | null>(null);
   const [beytError, setBeytError] = useState<string | null>(null);
@@ -86,28 +89,7 @@ function VaznYabSection() {
   const [verdict, setVerdict] = useState<"right" | "close" | "wrong" | null>(
     null,
   );
-  const searchPoemSchema = z.object({
-    poem1: z
-      .string()
-      .transform((val) => val.trim())
-      .pipe(
-        z
-          .string()
-          .min(10, "مصراع را به‌طور کامل وارد نمایید")
-          .max(40, "تعداد حروف نمی‌تواند بیشتر از 40 باشد")
-          .regex(/^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/, "فقط حروف فارسی پذیرفته هستند"),
-      ),
-    poem2: z
-      .string()
-      .transform((val) => val.trim())
-      .pipe(
-        z
-          .string()
-          .min(10, "مصراع را به‌طور کامل وارد نمایید")
-          .max(40, "تعداد حروف نمی‌تواند بیشتر از 40 باشد")
-          .regex(/^[\u0600-\u06FF\u200C\u200E\u200F\s]+$/, "فقط حروف فارسی پذیرفته هستند"),
-      ),
-  });
+  const searchPoemSchema = coupletSchema;
 
   type SerachPoem = z.infer<typeof searchPoemSchema>;
 
@@ -119,6 +101,7 @@ function VaznYabSection() {
       poem2: "",
     },
   });
+  const [currentFirst, currentSecond] = useWatch({ control: searchPoemForm.control, name: ["poem1", "poem2"] });
   const onsubmit = async (data: SerachPoem) => {
     // in استادی mode the whole point is to commit to a guess first — grading a
     // blank one would quietly turn the challenge back into a plain lookup
@@ -128,31 +111,47 @@ function VaznYabSection() {
     }
     setGuessMissing(false);
     setLoadingFetch(true);
+    setReference(null);
+    setVerdict(null);
+    setShowModal(false);
 
     // let the loading state reach the screen before the engine blocks the thread
     await afterPaint();
-    const startedAt = performance.now();
+    const minimumLoading = sleep(MIN_LOADING_MS);
 
-    const result = await findMeterInBrowser(data.poem1, data.poem2);
-    const feet = getPureRhythm(result ?? "");
+    try {
+      const unchangedRandom = beyt && coupletKey(data.poem1, data.poem2) ===
+        coupletKey(beyt.couplet.first, beyt.couplet.second);
+      const verified = unchangedRandom && beyt.meter
+        ? beyt.meter : await findReference(data.poem1, data.poem2);
+      const result = verified?.rhythm ?? await findMeterInBrowser(data.poem1, data.poem2);
+      const feet = getPureRhythm(result ?? "");
 
-    // and keep it there long enough to be seen — on a fast machine the whole
-    // search can be over in under 100ms
-    await sleep(Math.max(0, MIN_LOADING_MS - (performance.now() - startedAt)));
+      // and keep it there long enough to be seen — on a fast machine the whole
+      // search can be over in under 100ms
+      await minimumLoading;
 
-    if (!result) setShowModal(true);
-    setAruzFeet(feet);
-    setAruzBahr(getRhythmDescription(result ?? ""));
-    setAnsweredFor(coupletKey(data.poem1, data.poem2));
+      if (!result) setShowModal(true);
+      setAruzFeet(feet);
+      setAruzBahr(getRhythmDescription(result ?? ""));
+      setAnsweredFor(coupletKey(data.poem1, data.poem2));
+      setReference(verified);
 
-    // in استادی mode the answer is also a verdict on what the reader guessed
-    if (masterMode && guess.trim() && feet) {
-      setVerdict(judgeGuess(guess, feet));
-    } else {
-      setVerdict(null);
+      // in استادی mode the answer is also a verdict on what the reader guessed
+      if (masterMode && guess.trim() && feet && verified) {
+        setVerdict(judgeGuess(guess, feet));
+      } else {
+        setVerdict(null);
+      }
+
+    } catch {
+      setAruzFeet("");
+      setAruzBahr("");
+      setAnsweredFor("");
+      setShowModal(true);
+    } finally {
+      setLoadingFetch(false);
     }
-
-    setLoadingFetch(false);
   };
 
   /** «دوباره» — clear the couplet and everything derived from it, so the next
@@ -167,6 +166,7 @@ function VaznYabSection() {
     setBeyt(null);
     setBeytError(null);
     setAnsweredFor("");
+    setReference(null);
     searchPoemForm.setFocus("poem1");
   };
 
@@ -178,7 +178,7 @@ function VaznYabSection() {
     Boolean(aruzFeet || aruzBahr) &&
     answeredFor !== "" &&
     answeredFor ===
-      coupletKey(searchPoemForm.watch("poem1"), searchPoemForm.watch("poem2"));
+      coupletKey(currentFirst, currentSecond);
 
   const fetchRandomBeyt = async () => {
     if (loadingBeyt) return;
@@ -200,6 +200,7 @@ function VaznYabSection() {
       setAruzFeet("");
       setAruzBahr("");
       setAnsweredFor("");
+      setReference(null);
       setGuess("");
       setGuessMissing(false);
     } catch (err) {
@@ -265,6 +266,7 @@ function VaznYabSection() {
             <button
               type="button"
               onClick={() => setMasterMode((v) => !v)}
+              disabled={loadingFetch || loadingBeyt}
               aria-pressed={masterMode}
               className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
                 masterMode
@@ -396,7 +398,7 @@ function VaznYabSection() {
                 خاموش کن.
               </p>
             )}
-            {verdict && (
+            {verdict && hasResult && (
               <p
                 className={`mt-3 text-sm font-bold ${
                   verdict === "right"
@@ -478,6 +480,20 @@ function VaznYabSection() {
           {loadingFetch ? "درحال جستجو" : hasResult ? "دوباره" : "پیدا کن"}
         </button>
       </motion.form>
+
+      {hasResult && !loadingFetch && (
+        <p role="status" className="mx-auto mb-5 max-w-4xl text-center text-sm text-muted-foreground">
+          {reference ? (
+            <a href={reference.url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">
+              وزن ثبت‌شده در گنجور — دیدنِ بیت و منبع
+            </a>
+          ) : masterMode ? (
+            "وزن مرجع تأیید نشد؛ نتیجهٔ زیر پیشنهاد موتور است و حدست با آن نمره‌گذاری نمی‌شود."
+          ) : (
+            "پیشنهاد موتور؛ این وزن با منبع تأیید نشده است."
+          )}
+        </p>
+      )}
 
       <motion.div
         variants={staggerContainer(0.12, 0.15)}

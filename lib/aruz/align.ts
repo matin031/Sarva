@@ -33,7 +33,8 @@ function alignSeq(seq: Tok[], pat: string): SylEntry[] | null {
 
   function go(i: number, j: number): SylEntry[] | null {
     while (i < n && seq[i][0] === "B") i += 1;
-    if (i === n) return j >= m - 1 ? [] : null;
+    // Final syllable length is flexible below; a whole unconsumed syllable is not.
+    if (i === n) return j === m ? [] : null;
     if (j >= m) return null;
     const key = i + "," + j;
     if (memo.has(key)) return memo.get(key)!;

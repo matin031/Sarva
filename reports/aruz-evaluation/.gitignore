@@ -1,0 +1,3 @@
+# Rebuild this disposable ablation copy with prepare-experiment.mjs.
+experimental-engine/
+*-output.txt

@@ -33,7 +33,7 @@ export const DEFAULT_MAX_JSON_BYTES = 16 * 1024;
  *
  * `null` یعنی «از سقف رد شد».
  */
-export async function readCappedText(request: Request, maxBytes: number): Promise<string | null> {
+export async function readCappedText(request: Pick<Request, "headers" | "body">, maxBytes: number): Promise<string | null> {
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) return null;
 

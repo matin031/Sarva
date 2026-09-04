@@ -4,21 +4,10 @@ import { requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { logger } from "@/lib/observability";
+import { hemistichSchema } from "@/lib/aruz/input";
+import { readGanjoorCouplets, type GanjoorMeter } from "@/lib/ganjoor/poem";
 
-/** A random بیت from گنجور, for the وزن‌یاب's "بیتِ تصادفی" button.
- *
- *  Ganjoor is called from the server, never from the browser: the URL is a
- *  constant (nothing a caller sends is interpolated into it), so this endpoint
- *  cannot be turned into a proxy for arbitrary hosts, and the browser never
- *  meets a cross-origin request.
- *
- *  Ganjoor's payload is not identical across poems — some carry `verses`, some
- *  nest them under a section, and hemistichs are sometimes marked by
- *  `versePosition` and sometimes only by their order. Rather than commit to one
- *  shape, `readVerses` probes for the array and `toCouplets` handles both the
- *  marked and the unmarked case. When nothing usable comes back the observed
- *  top-level keys are logged, which is the fastest way to learn about a shape
- *  this code has not met yet. */
+/** Random complete couplets with an unambiguous section metre, for reference-based practice. */
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +25,7 @@ type RandomBeyt = {
   couplet: Couplet;
   url: string;
   poemId: number;
+  meter: GanjoorMeter;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -66,82 +56,14 @@ function firstString(root: unknown, paths: string[]): string {
   return "";
 }
 
-type RawVerse = { text: string; position: number | null };
-
-/** Ganjoor has moved the verse array around between shapes; look where it has
- *  actually been seen rather than assuming one. */
-function readVerses(poem: unknown): RawVerse[] {
-  const candidates: unknown[] = [
-    at(poem, "verses"),
-    at(poem, "poem.verses"),
-    at(poem, "sections.0.verses"),
-  ];
-
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate) || candidate.length === 0) continue;
-    const verses = candidate
-      .map((v): RawVerse => {
-        const text = firstString(v, ["text", "verseText", "title"]);
-        const rawPos = isRecord(v) ? v.versePosition : undefined;
-        return {
-          text,
-          position: typeof rawPos === "number" ? rawPos : null,
-        };
-      })
-      .filter((v) => v.text.length > 0);
-    if (verses.length) return verses;
-  }
-  return [];
-}
-
-/** The وزن‌یاب form only accepts Persian letters and 10–40 characters per
- *  hemistich, so a couplet it would reject is no use to us. */
-const PERSIAN_ONLY = /^[؀-ۿ‌‎‏\s]+$/;
-
-function usableHemistich(line: string): boolean {
-  return line.length >= 10 && line.length <= 40 && PERSIAN_ONLY.test(line);
-}
-
-/** Pair hemistichs into couplets.
- *
- *  `versePosition` is Ganjoor's own marker — 0 opens a بیت and 1 closes it —
- *  and when it is present it is the truth, because a poem can carry headings
- *  and single lines that would break naive pairing. When it is absent the only
- *  thing left is consecutive order. */
-function toCouplets(verses: RawVerse[]): Couplet[] {
-  const marked = verses.some((v) => v.position !== null);
-  const couplets: Couplet[] = [];
-
-  if (marked) {
-    for (let i = 0; i < verses.length - 1; i++) {
-      if (verses[i].position === 0 && verses[i + 1].position === 1) {
-        couplets.push({ first: verses[i].text, second: verses[i + 1].text });
-      }
-    }
-  } else {
-    for (let i = 0; i + 1 < verses.length; i += 2) {
-      couplets.push({ first: verses[i].text, second: verses[i + 1].text });
-    }
-  }
-
-  return couplets.filter(
-    (c) => usableHemistich(c.first) && usableHemistich(c.second),
-  );
-}
-
-function buildUrl(poem: unknown): string {
-  const full = firstString(poem, ["fullUrl", "urlSlug"]);
-  if (!full) return "";
-  if (full.startsWith("http")) return full;
-  return `https://ganjoor.net${full.startsWith("/") ? "" : "/"}${full}`;
-}
-
 function toRandomBeyt(poem: unknown): RandomBeyt | null {
-  const couplets = toCouplets(readVerses(poem));
+  const couplets = readGanjoorCouplets(poem).filter(c =>
+    c.meter && hemistichSchema.safeParse(c.first).success && hemistichSchema.safeParse(c.second).success,
+  );
   if (!couplets.length) return null;
 
   const couplet = couplets[Math.floor(Math.random() * couplets.length)];
-  const idRaw = at(poem, "id") ?? at(poem, "poemId");
+  const meter = couplet.meter!;
 
   return {
     poet: firstString(poem, [
@@ -155,9 +77,10 @@ function toRandomBeyt(poem: unknown): RandomBeyt | null {
       "cat.title",
     ]),
     poem: firstString(poem, ["title", "fullTitle"]),
-    couplet,
-    url: buildUrl(poem),
-    poemId: typeof idRaw === "number" ? idRaw : 0,
+    couplet: { first: couplet.first, second: couplet.second },
+    url: meter.url,
+    poemId: meter.poemId,
+    meter,
   };
 }
 

@@ -72,7 +72,18 @@ export const GET = withRoute("/api/v1/grammar-circuit/availability", async (requ
       }));
     });
 
-    return ok({ grades });
+    const response = ok({ grades });
+
+    // ⚠️ هدرِ پیش‌فرضِ no-store عمداً کنار گذاشته می‌شود — همان کاری که
+    // /api/v1/site-content می‌کند و دلیلش آنجا نوشته شده.
+    //
+    // آن پیش‌فرض برای پاسخ‌هایی است که به کوکی سشن وابسته‌اند و کشِ اشتراکی
+    // می‌تواند پاسخِ کاربر الف را به کاربر ب بدهد. این مسیر هیچ کاربری را
+    // نمی‌خواند و هیچ چیزِ خصوصی‌ای برنمی‌گرداند: محتوای منتشرشده است و برای
+    // همه یکی است.
+    response.headers.set("cache-control", "public, max-age=60, stale-while-revalidate=300");
+    response.headers.delete("pragma");
+    return response;
   } catch (err) {
     return handleError(err);
   }

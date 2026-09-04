@@ -65,7 +65,7 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
       [grade, lesson, pictured],
     );
 
-    return ok({
+    const response = ok({
       words: rows.map((r) => ({
         id: r.id,
         word: r.word,
@@ -74,6 +74,17 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
         lesson: r.lesson,
       })),
     });
+
+    // ⚠️ هدرِ پیش‌فرضِ no-store عمداً کنار گذاشته می‌شود — همان کاری که
+    // /api/v1/site-content می‌کند و دلیلش آنجا نوشته شده.
+    //
+    // آن پیش‌فرض برای پاسخ‌هایی است که به کوکی سشن وابسته‌اند و کشِ اشتراکی
+    // می‌تواند پاسخِ کاربر الف را به کاربر ب بدهد. این مسیر هیچ کاربری را
+    // نمی‌خواند و هیچ چیزِ خصوصی‌ای برنمی‌گرداند: محتوای منتشرشده است و برای
+    // همه یکی است.
+    response.headers.set("cache-control", "public, max-age=300, stale-while-revalidate=3600");
+    response.headers.delete("pragma");
+    return response;
   } catch (err) {
     return handleError(err);
   }

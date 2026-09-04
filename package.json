@@ -18,6 +18,7 @@
     "db:seed-aruz": "tsx scripts/seed-aruz.ts",
     "db:check-audio": "node scripts/check-audio.mjs",
     "db:check-rotation": "tsx scripts/check-refresh-rotation.ts",
+    "db:check-otp": "tsx scripts/check-otp-attempts.ts",
     "db:unseed-aruz": "tsx scripts/unseed-aruz.ts"
   },
   "dependencies": {

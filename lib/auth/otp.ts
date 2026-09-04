@@ -137,10 +137,19 @@ export async function issueOtp(
     [email, purpose],
   );
 
+  // ⚠️ `secs` و نه `mins`: در make_interval فقط پارامترِ secs از نوع
+  // double precision است و بقیه integer اند، پس `mins => $4::double precision`
+  // با هیچ overload ای جور درنمی‌آمد و پستگرس خطای
+  // «function make_interval(mins => double precision) does not exist» می‌داد.
+  //
+  // یعنی این insert از زمان مهاجرت به پستگرس هرگز اجرا نشده و هر درخواستِ
+  // «ارسال کد تأیید» با ۵۰۰ برمی‌گشت. tsc چنین چیزی را نمی‌بیند چون SQL برای
+  // او فقط یک رشته است — همان دلیلی که AGENTS.md برایش libpg-query را
+  // پیشنهاد می‌کند.
   await execute(
     `insert into email_otps (email, code_hash, purpose, expires_at, requested_ip)
-     values ($1, $2, $3, now() + make_interval(mins => $4::double precision), $5::inet)`,
-    [email, hashCode(email, purpose, code), purpose, cfg.ttlMinutes, ip],
+     values ($1, $2, $3, now() + make_interval(secs => $4::double precision), $5::inet)`,
+    [email, hashCode(email, purpose, code), purpose, cfg.ttlMinutes * 60, ip],
   );
 
   return { ok: true, code, expiresInMinutes: cfg.ttlMinutes };
@@ -159,14 +168,34 @@ export async function checkOtp(
 ): Promise<OtpCheck> {
   const cfg = config();
 
+  // ⚠️ خواندن و شمردن در *یک* دستور.
+  //
+  // قبلاً اول یک select بود و بعد `set attempts = $1`. مقدارِ تازه در
+  // جاوااسکریپت حساب می‌شد، پس صد درخواستِ همزمان همگی `attempts = 0` را
+  // می‌خواندند و همگی `1` می‌نوشتند: سقفِ پنج‌تایی عملاً به «پنج *دستهٔ*
+  // همزمان» تبدیل می‌شد و مهاجم می‌توانست فضای یک‌میلیونیِ کد را با رگبارِ
+  // موازی بگردد.
+  //
+  // حالا `attempts + 1` را خودِ پستگرس زیر قفلِ ردیف حساب می‌کند، پس هر
+  // درخواست عددِ یکتای خودش را می‌گیرد. شرطِ دومِ `consumed_at is null` روی
+  // خودِ update عمدی است: پس از گرفتن قفل دوباره سنجیده می‌شود، پس کدی که
+  // درخواستِ دیگری همین لحظه سوزانده باشد صفر ردیف برمی‌گرداند.
+  //
+  // شمارش هنوز *قبل* از مقایسه است: اگر بعدش بود، کسی می‌توانست با قطع کردن
+  // اتصال بعد از ارسال، بی‌نهایت حدس بزند بدون اینکه شمارنده بالا برود.
   const row = await queryOne<{ id: string; code_hash: string; attempts: number }>(
-    `select id, code_hash, attempts
-       from email_otps
-      where email = $1 and purpose = $2
+    `update email_otps
+        set attempts = attempts + 1
+      where id = (
+              select id from email_otps
+               where email = $1 and purpose = $2
+                 and consumed_at is null
+                 and expires_at > now()
+               order by created_at desc
+               limit 1
+            )
         and consumed_at is null
-        and expires_at > now()
-      order by created_at desc
-      limit 1`,
+    returning id, code_hash, attempts`,
     [email, purpose],
   );
 
@@ -176,16 +205,13 @@ export async function checkOtp(
 
   if (!row) return invalid;
 
-  // شمارش قبل از مقایسه: اگر بعدش بود، کسی می‌توانست با قطع کردن اتصال بعد از
-  // ارسال، بی‌نهایت حدس بزند بدون اینکه شمارنده بالا برود.
-  const attempts = row.attempts + 1;
+  // attempts دیگر شمارهٔ همین تلاش است، نه شمارهٔ تلاشِ قبلی.
+  const attempts = row.attempts;
 
   if (attempts > cfg.maxAttempts) {
     await execute("update email_otps set consumed_at = now() where id = $1", [row.id]);
     return { ok: false, error: "تعداد تلاش‌ها زیاد بود. کد تازه‌ای درخواست کنید." };
   }
-
-  await execute("update email_otps set attempts = $1 where id = $2", [attempts, row.id]);
 
   if (!hashesMatch(row.code_hash, hashCode(email, purpose, code))) {
     // رسیدن به سقف با همین تلاش → کد همین‌جا می‌سوزد

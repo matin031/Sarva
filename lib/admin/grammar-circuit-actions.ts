@@ -1,6 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
+import { invalidateAvailability } from "@/lib/grammar-circuit/availability-cache";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
@@ -302,6 +303,10 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
   const attribution = input.attribution.trim() || null;
   const sentence = sentenceFromTokens(input.draft.tokens);
 
+  // ⚠️ ویرایش هم شمارش را عوض می‌کند: پرسشی که payloadش خراب شود دیگر
+  // معتبر شمرده نمی‌شود. پس مثل انتشار و حذف، کش را باطل می‌کند.
+  invalidateAvailability();
+
   try {
     if (input.id) {
       const id = uuidArg(input.id, "شناسهٔ پرسش نامعتبر است.");
@@ -412,6 +417,10 @@ export async function gcAdminSetPublished(
     questionId,
   ]);
 
+  // شمارشِ درس‌ها کش شده و این تغییر آن را کهنه می‌کند — بدونِ این، مدیر تا
+  // یک دقیقه اثرِ کارش را در صفحهٔ بازی نمی‌دید.
+  invalidateAvailability();
+
   await recordAudit({
     actor: admin,
     action: "grammar_circuit.question_publish",
@@ -434,6 +443,7 @@ export async function gcAdminDelete(id: string): Promise<ActionResult> {
     [questionId],
   );
 
+  invalidateAvailability();
   const deleted = await execute("delete from grammar_circuit_questions where id = $1", [
     questionId,
   ]);

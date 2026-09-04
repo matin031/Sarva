@@ -27,6 +27,8 @@ import { withRoute } from "@/lib/api/route";
  * درس‌های آزادِ هر پایه (۴ و ۱۵ / ۴ و ۱۳ / ۴ و ۱۵) اصلاً در پاسخ نمی‌آیند:
  * آن‌ها بخشی از انتخابِ این بازی نیستند.
  */
+import { cachedAvailability } from "@/lib/grammar-circuit/availability-cache";
+
 export const GET = withRoute("/api/v1/grammar-circuit/availability", async (request: NextRequest) => {
   try {
     const { ip } = requestMeta(request);
@@ -35,34 +37,42 @@ export const GET = withRoute("/api/v1/grammar-circuit/availability", async (requ
       return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }
 
-    const rows = await query<GrammarCircuitRow>(
-      `select id, source_id, grade, lesson, question_type, payload,
-              difficulty, explanation, attribution
-         from grammar_circuit_questions
-        where is_published
-        order by grade, lesson, sort_index, source_id`,
-    );
+    // ⚠️ محاسبه کش می‌شود، نه اعتبارسنجی حذف.
+    //
+    // خواندنِ همهٔ پرسش‌های منتشرشده با payload کاملشان لازم است چون پرسشِ
+    // خراب نباید شمرده شود، و تشخیصِ خرابی همان rowsToQuestions است. ولی
+    // نتیجه فقط سی عدد است و تا وقتی مدیر چیزی را عوض نکرده تغییر نمی‌کند.
+    // توضیحِ کامل در lib/grammar-circuit/availability-cache.ts.
+    const grades = await cachedAvailability(async () => {
+      const rows = await query<GrammarCircuitRow>(
+        `select id, source_id, grade, lesson, question_type, payload,
+                difficulty, explanation, attribution
+           from grammar_circuit_questions
+          where is_published
+          order by grade, lesson, sort_index, source_id`,
+      );
 
-    const { questions, rejected } = rowsToQuestions(rows);
-    logRejected("availability", rejected);
+      const { questions, rejected } = rowsToQuestions(rows);
+      logRejected("availability", rejected);
 
-    /* شمارشِ پرسش‌های سالم به تفکیکِ پایه/درس. */
-    const counts = new Map<string, number>();
-    for (const q of questions) {
-      if (!q.grade || q.lesson === undefined) continue;
-      const key = `${q.grade}:${q.lesson}`;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
+      /* شمارشِ پرسش‌های سالم به تفکیکِ پایه/درس. */
+      const counts = new Map<string, number>();
+      for (const q of questions) {
+        if (!q.grade || q.lesson === undefined) continue;
+        const key = `${q.grade}:${q.lesson}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
 
-    return ok({
-      grades: GRADE_KEYS.map((grade) => ({
+      return GRADE_KEYS.map((grade) => ({
         grade,
         lessons: selectableLessons(grade).map((lesson) => {
           const questionCount = counts.get(`${grade}:${lesson}`) ?? 0;
           return { lesson, available: questionCount > 0, questionCount };
         }),
-      })),
+      }));
     });
+
+    return ok({ grades });
   } catch (err) {
     return handleError(err);
   }

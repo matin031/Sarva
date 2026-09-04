@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join, normalize, sep } from "node:path";
 import type { NextRequest } from "next/server";
-import { watermarkImage } from "@/lib/vocab-watermark";
+// ⚠️ نسخهٔ کش‌دار، نه watermarkImage خام: ساختنِ هر تصویر میانهٔ ۷۵ms
+// CPU می‌گیرد و پیش از این در *هر* درخواست تکرار می‌شد. توضیحِ کامل در
+// lib/vocab-watermark-cache.ts.
+import { watermarkCached } from "@/lib/vocab-watermark-cache";
 import { requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { logger, sanitizeUrl } from "@/lib/observability";
@@ -114,7 +117,7 @@ export async function GET(req: NextRequest) {
     if (!raw) return new Response("not found", { status: 404 });
 
     try {
-      const out = await watermarkImage(raw);
+      const out = await watermarkCached(raw);
       return new Response(new Uint8Array(out), { headers: IMAGE_HEADERS });
     } catch (err) {
       // Watermarking failed on a file we own — serve it unmarked rather than
@@ -162,7 +165,7 @@ export async function GET(req: NextRequest) {
     const raw = await readCapped(res, MAX_IMAGE_BYTES);
     if (!raw) throw new Error("too large");
 
-    const out = await watermarkImage(raw);
+    const out = await watermarkCached(raw);
     return new Response(new Uint8Array(out), { headers: IMAGE_HEADERS });
   } catch (err) {
     logger.warn("واکشی یا واترمارک تصویر بیرونی شکست خورد", {

@@ -325,7 +325,74 @@ export async function getJasoosAnswers(userId: string): Promise<JasoosAnswer[]> 
  *  هیچ policy ای برای کاربر عادی نداشت و خواندنش با کلید anon
  *  «permission denied» می‌داد. حالا فقط یک کوئری معمولی است — آنچه دسترسی را
  *  محدود می‌کند شرط user_id است و اینکه فراخوان آن را از سشن گرفته. */
-export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
+/**
+ * فقط شمارنده‌های کارنامهٔ امتحان — بدونِ آوردنِ حتی یک ردیف.
+ *
+ * ⚠️ چرا: صفحهٔ اولِ پنل سه عدد می‌خواهد (تعداد، بهترین، میانگین) و برای
+ * همان `getExamAttempts` را صدا می‌زد، که *هر* کارنامه را با
+ * `question_results` و `answers` می‌آورد — یعنی جزئیاتِ تک‌تکِ سؤال‌ها.
+ * روی کاربری با ۶۰ کارنامهٔ چهل‌سؤالی، ۴۸ کیلوبایت jsonb خوانده می‌شد تا سه
+ * عدد ساخته شود. حالا هیچ ردیفی منتقل نمی‌شود.
+ */
+export async function getExamStats(
+  userId: string,
+): Promise<{ attempts: number; best: number; average: number }> {
+  const row = await queryOne<{ attempts: number; best: number | null; score: number; max: number }>(
+    `select count(*)::int                                    as attempts,
+            max(case when max_score > 0
+                     then round(total_score * 100 / max_score)
+                     else 0 end)                             as best,
+            coalesce(sum(total_score), 0)                    as score,
+            coalesce(sum(max_score), 0)                      as max
+       from exam_attempts
+      where user_id = $1`,
+    [userId],
+  );
+  const max = Number(row?.max ?? 0);
+  return {
+    attempts: row?.attempts ?? 0,
+    best: Number(row?.best ?? 0),
+    average: max ? Math.round((Number(row?.score ?? 0) * 100) / max) : 0,
+  };
+}
+
+/**
+ * جزئیاتِ یک کارنامه — فقط وقتی کاربر بازش می‌کند.
+ *
+ * ⚠️ شرطِ user_id اینجا امنیتی است، نه فیلترِ راحتی: بدونِ آن هر کسی با
+ * داشتنِ یک شناسه می‌توانست کارنامهٔ نفرِ دیگری را بخواند. RLS نداریم و
+ * تنها چیزی که جلویش را می‌گیرد همین شرط است.
+ */
+export async function getExamAttemptDetail(
+  userId: string,
+  attemptId: string,
+): Promise<{ questionResults: Record<string, unknown>; answers: Record<string, unknown> } | null> {
+  const row = await queryOne<{
+    question_results: Record<string, unknown> | null;
+    answers: Record<string, unknown> | null;
+  }>(
+    `select question_results, answers
+       from exam_attempts
+      where id = $1 and user_id = $2`,
+    [attemptId, userId],
+  );
+  if (!row) return null;
+  return { questionResults: row.question_results ?? {}, answers: row.answers ?? {} };
+}
+
+export async function getExamAttempts(
+  userId: string,
+  /** ⚠️ محافظ، نه صفحه‌بندی.
+   *
+   *  پیش از این هیچ limitی نبود و فهرست بی‌مرز رشد می‌کرد. ولی صفحهٔ
+   *  کارنامه‌ها دکمهٔ «بیشتر» ندارد، پس سقفِ کوچک یعنی پنهان شدنِ بی‌صدای
+   *  کارنامه‌های قدیمی — که خودش یک باگ است. عدد آن‌قدر بزرگ است که کاربر
+   *  واقعی به آن نخورد و فقط جلوی حالتِ فاجعه‌بار را بگیرد.
+   *
+   *  اگر روزی کسی واقعاً از این رد شد، راهِ درست صفحه‌بندیِ واقعی با UI
+   *  است، نه پایین آوردنِ این عدد. */
+  limit = 500,
+): Promise<ExamAttempt[]> {
   const rows = await query<{
     id: string;
     total_score: number;
@@ -342,8 +409,9 @@ export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
        from exam_attempts a
        left join exams e on e.id = a.exam_id
       where a.user_id = $1
-      order by a.created_at desc`,
-    [userId],
+      order by a.created_at desc, a.id
+      limit $2`,
+    [userId, limit],
   );
 
   return rows.map((r) => ({
@@ -401,7 +469,9 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
       [userId],
     ),
     queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = $1`, [userId]),
-    getExamAttempts(userId),
+    // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
+    // جزئیاتِ تک‌تکِ سؤال‌هایش خوانده می‌شد تا سه عدد ساخته شود.
+    getExamStats(userId),
   ]);
 
   const dayCounts: PanelOverview["dayCounts"] = [];
@@ -418,27 +488,24 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
     counts[row.area].correct += row.correct;
   }
 
-  const examScore = exams.reduce((s, a) => s + a.totalScore, 0);
-  const examMax = exams.reduce((s, a) => s + a.maxScore, 0);
+
 
   return {
     dayCounts,
     counts,
     bookmarks: bookmarkRow?.n ?? 0,
-    exams: {
-      attempts: exams.length,
-      best: exams.reduce(
-        (m, a) => Math.max(m, a.maxScore ? Math.round((a.totalScore / a.maxScore) * 100) : 0),
-        0,
-      ),
-      average: examMax ? Math.round((examScore / examMax) * 100) : 0,
-    },
+    exams,
   };
 }
 
 // --------------------------------------------------------- نشان‌شده‌ها ----
 
-export async function getBookmarks(userId: string, area?: BookmarkArea): Promise<Bookmark[]> {
+export async function getBookmarks(
+  userId: string,
+  area?: BookmarkArea,
+  /** ⚠️ همان استدلالِ کارنامه‌ها — محافظ، نه صفحه‌بندی. */
+  limit = 500,
+): Promise<Bookmark[]> {
   const rows = await query<{
     id: string;
     area: BookmarkArea;
@@ -453,8 +520,9 @@ export async function getBookmarks(userId: string, area?: BookmarkArea): Promise
        from user_bookmarks
       where user_id = $1
         and ($2::text is null or area = $2)
-      order by created_at desc`,
-    [userId, area ?? null],
+      order by created_at desc, id
+      limit $3`,
+    [userId, area ?? null, limit],
   );
 
   return rows.map((r) => ({

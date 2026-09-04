@@ -41,6 +41,8 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
       }
     }
 
+    const pictured = request.nextUrl.searchParams.get("pictured") === "1";
+
     const rows = await query<{
       id: string;
       word: string;
@@ -48,12 +50,19 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
       image: string | null;
       lesson: number;
     }>(
+      // ⚠️ `pictured` اختیاری است چون دو مصرف‌کننده دو چیز می‌خواهند:
+      // بازی فقط واژه‌هایی را می‌خواهد که تصویر دارند (و پیش از این همهٔ
+      // واژه‌ها را می‌گرفت و در *مرورگر* فیلتر می‌کرد — یعنی ردیف‌هایی که
+      // هرگز استفاده نمی‌شدند هم منتقل می‌شدند)، ولی فهرستِ درس همه را
+      // می‌خواهد. پس فیلتر پارامتری است، نه پیش‌فرض.
       `select id, word, meaning, image, lesson
          from vocab_words
         where grade = $1
           and ($2::int is null or lesson = $2)
+          and ($3::boolean is not true
+               or (image is not null and btrim(image) <> ''))
         order by lesson, sort_index`,
-      [grade, lesson],
+      [grade, lesson, pictured],
     );
 
     return ok({

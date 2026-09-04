@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteOrigin } from "@/lib/seo/site";
 import { Vazirmatn, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
@@ -24,7 +25,10 @@ const naskh = Noto_Naskh_Arabic({
   display: "swap",
 });
 
-const siteUrl = "https://aruzino.ir";
+/* ⚠️ آدرس دیگر اینجا هارد‌کد نیست. تا امروز رشتهٔ دامنهٔ قدیم در چهار فایل
+   جدا تکرار شده بود و عوض کردنش یعنی پیدا کردنِ هر چهار تا. حالا یک منبع
+   دارد: lib/seo/site.ts */
+const siteUrl = siteOrigin();
 const siteTitle = "سروا | آموزش وزن و عروض شعر فارسی به صورت آنلاین و رایگان";
 const siteDescription =
   "سروا پلتفرم آموزشی تعاملی برای یادگیری وزن، عروض و تقطیع شعر فارسی است. با آموزش گام‌به‌گام، آزمون‌های تعاملی و راهنمای صوتی، اوزان عروضی شعر پارسی را به سادگی یاد بگیرید.";
@@ -38,6 +42,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: siteTitle,
+    /* ⚠️ قالب عمداً فقط «سروا» می‌گذارد و نه چیز بیشتر. ولی چند صفحه خودشان
+       عنوانی می‌دادند که به «سروا» ختم می‌شد («مدار دستور | بازی‌های سروا»)
+       و نتیجه‌اش «… | بازی‌های سروا | سروا» می‌شد. آن عنوان‌ها اصلاح شدند؛
+       قاعده این است که عنوانِ صفحه هرگز خودش نامِ برند را تکرار نکند. */
     template: "%s | سروا",
   },
   verification: {
@@ -59,9 +67,11 @@ export const metadata: Metadata = {
   authors: [{ name: "سروا", url: siteUrl }],
   creator: "سروا",
   publisher: "سروا",
-  alternates: {
-    canonical: "/",
-  },
+  /* ⚠️ اینجا عمداً `alternates` نیست.
+     پیش‌تر `canonical: "/"` بود و چون متادیتا در Next ارث می‌رسد، هر صفحه‌ای
+     که canonicalِ خودش را نداشت خودش را تکراریِ صفحهٔ خانه اعلام می‌کرد.
+     canonical حالا وظیفهٔ خودِ هر صفحه است (lib/seo/metadata.ts) و صفحهٔ خانه
+     هم در app/page.tsx مالِ خودش را دارد. */
   robots: {
     index: true,
     follow: true,

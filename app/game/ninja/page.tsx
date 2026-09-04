@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import NinjaGame from "@/components/UI/ninja/NinjaGame";
 import { loadNinjaRounds } from "@/lib/ninja-content";
 
 export const metadata: Metadata = {
-  title: "نینجای دستور زبان | بازی‌های سروا",
+  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
+  alternates: { canonical: absoluteUrl("/game/ninja") },
+  title: "نینجای دستور زبان — بازی نقش کلمه",
   description: "کلمه‌ها در هوا پرتاب می‌شوند و فقط باید دستهٔ درست را برش بزنی.",
 };
 

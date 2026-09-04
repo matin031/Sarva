@@ -72,6 +72,16 @@ export default function GameShell({
   return (
     <ReportTargetProvider>
     <div dir="rtl" className="relative z-20">
+      {/* ⚠️ تیترِ صفحه. تا امروز `title` فقط داخلِ گفت‌وگوی «خروج» استفاده
+          می‌شد و صفحهٔ بازی هیچ H1 ای نداشت — نه برای موتور جست‌وجو، نه برای
+          کسی که با صفحه‌خوان کار می‌کند. ممیزیِ HTML این را در دو بازی
+          (نینجا و جاسوس) نشان داد؛ بقیه تیترِ خودشان را داشتند.
+
+          `sr-only` است و نه پنهانِ واقعی: همان متنی که کاربر می‌بیند و
+          می‌شنود، فقط جای دیداری اشغال نمی‌کند تا چیدمانِ بازی — که هر کدام
+          سربرگِ طراحی‌شدهٔ خودش را دارد — دست‌نخورده بماند. این پوشاندنِ
+          محتوا (cloaking) نیست: متن برای کاربر و خزنده یکی است. */}
+      <h1 className="sr-only">{title}</h1>
       {!immersive && (
       <div
         className={`container mx-auto flex max-w-4xl items-center justify-between gap-3 pt-6 ${

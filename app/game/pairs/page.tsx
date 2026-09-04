@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import PairsGame from "@/components/UI/pairs/PairsGame";
 import { loadMemoryDecks } from "@/lib/pairs-content";
 
 export const metadata: Metadata = {
-  title: "جفت‌های ادبی | بازی‌های سروا",
+  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
+  alternates: { canonical: absoluteUrl("/game/pairs") },
+  title: "جفت‌های ادبی — بازی آرایه‌ها",
   description: "پایه و آزمونت را انتخاب کن و هر اثر را از حافظه به پدیدآورنده‌اش برسان.",
 };
 

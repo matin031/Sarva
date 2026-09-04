@@ -5,7 +5,7 @@ import { getClubFeed, getClubStats, getClubViewer } from "@/lib/club/queries";
 import { POST_FORMS, POST_TAGS, type ClubFeedSort } from "@/lib/club/types";
 
 export const metadata: Metadata = {
-  title: "سروا کلاب | انجمن شعر سروا",
+  title: "سروا کلاب",
   description:
     "جایی برای کسانی که طبع شعر دارند: سروده‌ات را بفرست — با نام خودت یا بی‌نام — و دربارهٔ سروده‌های دیگران بنویس. هر سروده و دیدگاه پیش از انتشار بررسی می‌شود.",
   alternates: { canonical: "/sarvaclub" },

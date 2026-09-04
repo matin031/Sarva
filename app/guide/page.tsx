@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo/metadata";
 import GuideView from "@/components/UI/guide/GuideView";
 
 /**
@@ -12,17 +13,20 @@ import GuideView from "@/components/UI/guide/GuideView";
  * حالا مثل بقیهٔ صفحه‌های سایت است: یک سرور-کامپوننتِ نازک که فقط metadata
  * می‌دهد، و بخشِ متحرک در یک کلاینت-کامپوننت جدا.
  */
-export const metadata: Metadata = {
-  title: "راهنمای سروا | با هر بخش آشنا شو",
+/* ⚠️ تا پیش از این، یک layout هم برای همین مسیر metadata می‌داد و متنش با
+   اینجا فرق داشت — یعنی دو منبع برای عنوانِ یک صفحه. آن لایوت حذف شد.
+
+   ⚠️ عنوان عمداً «| با هر بخش آشنا شو» ندارد: قالبِ ریشه خودش « | سروا» را
+   اضافه می‌کند و عنوانِ سه‌تکه در نتیجهٔ جست‌وجو بریده می‌شود.
+
+   ⚠️ و `openGraph.url` نسبی بود («/guide»)؛ برای اشتراک‌گذاری آدرسِ مطلق
+   لازم است، که pageMetadata از منبعِ مشترک می‌سازد. */
+export const metadata: Metadata = pageMetadata({
+  path: "/guide",
+  title: "راهنمای سروا",
   description:
-    "راهنمای کاملِ سروا: عروضِ سماعی، وزن‌یاب، بازی‌های ادبی و دستوری، آزمون‌های نهایی و پنلِ پیشرفت — هر بخش کوتاه و کاربردی.",
-  alternates: { canonical: "/guide" },
-  openGraph: {
-    title: "راهنمای سروا",
-    description: "هر بخشِ سروا در چند خط: از عروضِ سماعی تا پنلِ پیشرفت.",
-    url: "/guide",
-  },
-};
+    "هر بخشِ سروا در چند خط: عروضِ سماعی، وزن‌یاب، بازی‌های ادبی و دستوری، آزمون‌های نهایی و پنلِ پیشرفت.",
+});
 
 export default function GuidePage() {
   return <GuideView />;

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo/metadata";
 import VaznYabSection from "@/components/UI/guide/VaznYabSection";
 import VaznYabHero3D from "@/components/UI/vazn-yab/VaznYabHero3D";
 import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
@@ -16,6 +18,21 @@ import MasterChallenge from "@/components/UI/vazn-yab/MasterChallenge";
 // بسازید که findMeterOnGanjoor را صدا بزند و در VaznYabSection پیش از
 // موتورِ محلی امتحانش کنید. آن‌جا برچسبِ انسانی می‌دهد که از ۸۴.۵٪ موتور
 // دقیق‌تر است — ولی فقط اگر واقعاً کار کردنش را دیده باشید.
+/**
+ * ⚠️ این صفحه هم مثل /aruz هیچ متادیتایی نداشت: عنوانِ خانه را می‌گرفت و
+ * `canonical: "/"` را ارث می‌برد، یعنی خودش را تکراریِ خانه اعلام می‌کرد.
+ *
+ * توضیح عمداً محدودیت را هم می‌گوید. وزن‌یابی اینجا با موتورِ محلی انجام
+ * می‌شود و همان‌طور که در یادداشتِ بالا آمده، خطا دارد. توصیفی که این را
+ * پنهان کند، کاربری می‌آورد که انتظارِ دقتِ کامل دارد و ناامید می‌رود.
+ */
+export const metadata: Metadata = pageMetadata({
+  path: "/vazn-yab",
+  title: "وزن‌یاب — تشخیص وزن شعر فارسی",
+  description:
+    "یک مصرع را بنویسید تا وزن عروضی و تقطیع آن را ببینید. وزن‌یاب در مرورگر شما اجرا می‌شود، نمونه و راهنمای خواندنِ نتیجه دارد، و مواردی که تشخیصش قطعی نیست را صریح می‌گوید.",
+});
+
 function page() {
   return (
     <div dir="rtl" className="container relative z-20">

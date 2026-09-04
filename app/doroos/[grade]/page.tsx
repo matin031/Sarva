@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import { notFound } from "next/navigation";
 import { GRADES, getGrade } from "@/lib/doroos";
 import LessonPicker from "@/components/UI/doroos/LessonPicker";
@@ -14,10 +15,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { grade: key } = await params;
   const grade = getGrade(key);
-  if (!grade) return { title: "درسنامه" };
+  // پایهٔ ناشناخته صفحه‌ای ندارد (`notFound` پایین‌تر)، پس canonical هم
+  // نمی‌گیرد — وگرنه یک آدرسِ ۴۰۴ خودش را معتبر اعلام می‌کرد.
+  if (!grade) return { title: "درسنامه", robots: { index: false, follow: false } };
   return {
     title: `درسنامهٔ ${grade.book} — پایهٔ ${grade.label}`,
-    description: `فهرستِ ۱۸ درسِ ${grade.book} با شرحِ بیت‌به‌بیت و تفکیکِ سه قلمرو.`,
+    description: `فهرستِ درس‌های ${grade.book} پایهٔ ${grade.label} با شرحِ بیت‌به‌بیت و تفکیکِ سه قلمرو زبانی، ادبی و فکری.`,
+    alternates: { canonical: absoluteUrl(`/doroos/${grade.key}`) },
   };
 }
 

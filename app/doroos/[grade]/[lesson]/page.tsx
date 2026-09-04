@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -32,11 +33,20 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${lesson.title} — ${grade.book}`,
+    // عنوان سه چیز را می‌گوید: نامِ درس، شماره‌اش، و پایه. پیش از این پایه
+    // نبود و «درس ۵» چند کتاب داشت — در نتیجهٔ جست‌وجو معلوم نمی‌شد کدام.
+    title: `${lesson.title} — درس ${number} ${grade.book} پایهٔ ${grade.label}`,
     description:
       lesson.kind === "poem"
-        ? `شرحِ بیت‌به‌بیتِ «${lesson.title}» با تفکیکِ قلمرو زبانی، ادبی و فکری.`
-        : `شرحِ «${lesson.title}» با تفکیکِ قلمرو زبانی، ادبی و فکری.`,
+        ? `شرحِ بیت‌به‌بیتِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`
+        : `شرحِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`,
+    /* ⚠️ canonical از شمارهٔ *نرمال‌شده* ساخته می‌شود، نه از رشتهٔ خام مسیر.
+       این همان چیزی است که مسئلهٔ آدرس‌های تکراری را حل می‌کند:
+       `/doroos/yazdahom/1` و `/01` و `/۱` و `/١` هر چهار تا همین صفحه را
+       نشان می‌دهند (parseLessonNumber ارقام فارسی و عربی و صفرِ ابتدایی را
+       می‌پذیرد). حالا هر چهار آدرس یک canonicalِ واحد اعلام می‌کنند و
+       موتور جست‌وجو یکی را نگه می‌دارد. */
+    alternates: { canonical: absoluteUrl(`/doroos/${grade.key}/${number}`) },
   };
 }
 

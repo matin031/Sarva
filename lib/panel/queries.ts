@@ -367,25 +367,44 @@ export async function getExamAttempts(userId: string): Promise<ExamAttempt[]> {
  *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
 export async function getPanelOverview(userId: string): Promise<PanelOverview> {
   const [activityRows, bookmarkRow, exams] = await Promise.all([
-    query<{ area: BookmarkArea; ok: boolean; at: string }>(
-      `select 'aruz'::text as area, is_correct as ok, answered_at as at
-         from (select is_correct, answered_at from user_answers
-                where user_id = $1 order by answered_at desc limit 3000) a
-       union all
-       select 'vocab'::text, is_correct, answered_at
-         from (select is_correct, answered_at from vocab_answers
-                where user_id = $1 order by answered_at desc limit 5000) v
-       union all
-       select 'jasoos'::text, is_correct, answered_at
-         from (select is_correct, answered_at from jasoos_answers
-                where user_id = $1 order by answered_at desc limit 3000) j`,
+    // ⚠️ تجمیع در دیتابیس، نه در کد.
+    //
+    // نسخهٔ قبلی ردیف‌های *خام* را می‌آورد با سقفِ ۳۰۰۰ + ۵۰۰۰ + ۳۰۰۰ —
+    // یعنی تا یازده هزار ردیف، برای صفحه‌ای که فقط چند شمارنده و یک نمودارِ
+    // سی‌روزه نشان می‌دهد. کد هم بعد همان یازده هزار ردیف را یکی‌یکی
+    // می‌شمرد و برای هرکدام یک `Intl.DateTimeFormat` می‌ساخت.
+    //
+    // حالا هر بخش به تفکیکِ روزِ تهران شمرده می‌شود: حداکثر چند صد ردیف،
+    // و شمارنده‌ها از جمعِ همان‌ها درمی‌آیند.
+    //
+    // ⚠️ سقف‌های قبلی هم برداشته شدند و این یک اصلاحِ درستی است، نه فقط
+    // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
+    // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
+    query<{ area: BookmarkArea; day: string; total: number; correct: number }>(
+      `select area,
+              to_char((at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
+              count(*)::int                           as total,
+              count(*) filter (where ok)::int         as correct
+         from (
+           select 'aruz'::text as area, is_correct as ok, answered_at as at
+             from user_answers where user_id = $1
+           union all
+           select 'vocab'::text, is_correct, answered_at
+             from vocab_answers where user_id = $1
+           union all
+           select 'jasoos'::text, is_correct, answered_at
+             from jasoos_answers where user_id = $1
+         ) t
+        where at is not null
+        group by area, 2
+        order by 2`,
       [userId],
     ),
     queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = $1`, [userId]),
     getExamAttempts(userId),
   ]);
 
-  const activity: PanelOverview["activity"] = [];
+  const dayCounts: PanelOverview["dayCounts"] = [];
   const counts: PanelOverview["counts"] = {
     aruz: { total: 0, correct: 0 },
     vocab: { total: 0, correct: 0 },
@@ -394,17 +413,16 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
   };
 
   for (const row of activityRows) {
-    if (!row.at) continue;
-    activity.push({ at: row.at, ok: row.ok, area: row.area });
-    counts[row.area].total += 1;
-    if (row.ok) counts[row.area].correct += 1;
+    dayCounts.push({ day: row.day, total: row.total, correct: row.correct, area: row.area });
+    counts[row.area].total += row.total;
+    counts[row.area].correct += row.correct;
   }
 
   const examScore = exams.reduce((s, a) => s + a.totalScore, 0);
   const examMax = exams.reduce((s, a) => s + a.maxScore, 0);
 
   return {
-    activity,
+    dayCounts,
     counts,
     bookmarks: bookmarkRow?.n ?? 0,
     exams: {
@@ -449,4 +467,49 @@ export async function getBookmarks(userId: string, area?: BookmarkArea): Promise
     note: r.note,
     createdAt: r.created_at,
   }));
+}
+
+/**
+ * فعالیتِ روزانه، تجمیع‌شده در دیتابیس.
+ *
+ * ⚠️ چرا جای getAruzActivity: آن تابع تا ۲۰۰۰ ردیفِ *خام* می‌آورد تا کلاینت
+ * خودش روزها را بشمارد. دو هزینه داشت:
+ *
+ *   • انتقال و تجزیهٔ دو هزار ردیف برای نموداری که سی عدد لازم دارد.
+ *   • `dailyBuckets` برای هر روز کلِ فهرست را فیلتر می‌کند و برای هر ردیف یک
+ *     `Intl.DateTimeFormat` می‌سازد — سی روز در دو هزار ردیف یعنی شصت هزار
+ *     قالب‌بندیِ تاریخ در هر بار باز شدنِ پنل، روی نخِ اصلیِ مرورگر.
+ *
+ * و یک درستیِ اضافه: سقفِ دو هزار ردیف یعنی کاربرِ پرکار روزهای قدیمی‌ترش
+ * بریده می‌شد و «رشتهٔ روزهای پیاپی» غلط درمی‌آمد. تجمیع در SQL این سقف را
+ * لازم ندارد.
+ *
+ * تاریخ‌ها به وقتِ تهران گروه می‌شوند — همان منطقه‌ای که کلاینت هم با آن
+ * حساب می‌کرد، پس نتیجه عوض نمی‌شود.
+ */
+export async function getAruzDayCounts(
+  userId: string,
+  days = 400,
+): Promise<{ day: string; total: number; correct: number }[]> {
+  const rows = await query<{ day: string; total: number; correct: number }>(
+    `select to_char((answered_at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
+            count(*)::int                                as total,
+            count(*) filter (where is_correct)::int      as correct
+       from user_answers
+      where user_id = $1
+        and answered_at >= now() - ($2 || ' days')::interval
+      group by 1
+      order by 1`,
+    [userId, days],
+  );
+  return rows;
+}
+
+/** آخرین پاسخ — یک مقدار، نه یک فهرست. */
+export async function getAruzLastAnsweredAt(userId: string): Promise<string | null> {
+  const row = await queryOne<{ at: string | null }>(
+    `select max(answered_at) as at from user_answers where user_id = $1`,
+    [userId],
+  );
+  return row?.at ?? null;
 }

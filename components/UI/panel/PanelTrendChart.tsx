@@ -8,12 +8,19 @@ import { dailyBuckets, fa } from "@/lib/panel/format";
  *  answered, the darker part is how much was right. */
 export default function PanelTrendChart({
   history,
+  buckets,
   days = 30,
 }: {
-  history: { at: string; ok: boolean }[];
+  history?: { at: string; ok: boolean }[];
+  /** سطل‌های ازپیش‌آماده — وقتی دیتابیس خودش روزها را شمرده باشد.
+   *
+   *  ⚠️ اختیاری است تا مصرف‌کننده‌های قدیمی (مثل واژه‌یاب) بی‌تغییر بمانند.
+   *  اگر داده شود، `history` نادیده گرفته می‌شود و هیچ دسته‌بندیِ سنگینی
+   *  روی کلاینت انجام نمی‌شود. */
+  buckets?: { label: string; total: number; correct: number }[];
   days?: number;
 }) {
-  const data = dailyBuckets(history, days).map((d) => ({
+  const data = (buckets ?? dailyBuckets(history ?? [], days)).map((d) => ({
     label: d.label,
     correct: d.correct,
     wrong: Math.max(d.total - d.correct, 0),

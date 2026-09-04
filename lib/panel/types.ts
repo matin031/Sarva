@@ -139,7 +139,9 @@ export type PanelUser = {
 };
 
 export type PanelOverview = {
-  activity: { at: string; ok: boolean; area: BookmarkArea }[];
+  /** فعالیت، تجمیع‌شده به تفکیکِ روز و بخش — نه ردیف‌های خام.
+   *  دلیلش در getPanelOverview نوشته شده. */
+  dayCounts: { day: string; total: number; correct: number; area: BookmarkArea }[];
   counts: Record<BookmarkArea, { total: number; correct: number }>;
   bookmarks: number;
   exams: { attempts: number; best: number; average: number };

@@ -6,7 +6,13 @@ import { toFa } from "@/components/UI/CircularProgress";
 import PanelSection from "@/components/UI/panel/PanelSection";
 import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
 import StatRing from "@/components/UI/panel/StatRing";
-import { relativeDay, scoreColor, streak } from "@/lib/panel/format";
+import { relativeDay, scoreColor } from "@/lib/panel/format";
+import {
+  bucketsFromDayCounts,
+  correctFromDayCounts,
+  streakFromDayCounts,
+  totalFromDayCounts,
+} from "@/lib/panel/day-counts";
 import type { BookmarkArea, PanelOverview } from "@/lib/panel/types";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -39,14 +45,18 @@ export default function HomePanel({
   memberSince: string | null;
   overview: PanelOverview;
 }) {
-  const { activity, counts, bookmarks, exams } = overview;
+  const { dayCounts, counts, bookmarks, exams } = overview;
 
-  const total = activity.length;
-  const correct = activity.filter((a) => a.ok).length;
+  /* ⚠️ همهٔ این‌ها از شمارشِ روزانه درمی‌آیند، نه از ردیف‌های خام.
+     پیش از این تا یازده هزار ردیف می‌آمد و همین‌جا یکی‌یکی شمرده می‌شد. */
+  const total = totalFromDayCounts(dayCounts);
+  const correct = correctFromDayCounts(dayCounts);
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
-  const days = streak(activity.map((a) => a.at));
-  const lastAt = activity.reduce<string | null>(
-    (m, a) => (!m || a.at > m ? a.at : m),
+  const days = streakFromDayCounts(dayCounts);
+  // آخرین روزِ فعالیت. دقتش «روز» است نه «لحظه» — که برای «آخرین فعالیت: ۳
+  // روز پیش» دقیقاً همان چیزی است که نشان داده می‌شود.
+  const lastAt = dayCounts.reduce<string | null>(
+    (m, d) => (d.total > 0 && (!m || d.day > m) ? d.day : m),
     null,
   );
 
@@ -182,7 +192,7 @@ export default function HomePanel({
 
       <PanelSection title="فعالیت در ۳۰ روز اخیر" icon="chart">
         <PanelTrendChart
-          history={activity.map((a) => ({ at: a.at, ok: a.ok }))}
+          buckets={bucketsFromDayCounts(dayCounts, 30)}
           days={30}
         />
       </PanelSection>

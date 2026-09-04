@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import AruzPanel from "@/components/UI/panel/AruzPanel";
 import {
-  getAruzActivity,
+  getAruzDayCounts,
   getAruzAttempts,
   getAruzSummary,
   getAruzWeightStats,
@@ -20,10 +20,10 @@ export default async function Page() {
   const user = await getPanelUser();
   if (!user) redirect("/auth");
 
-  const [page, summary, activity, bookmarks, weights] = await Promise.all([
+  const [page, summary, dayCounts, bookmarks, weights] = await Promise.all([
     getAruzAttempts(user.id, 0, PAGE_SIZE),
     getAruzSummary(user.id),
-    getAruzActivity(user.id),
+    getAruzDayCounts(user.id),
     getBookmarks(user.id, "aruz"),
     getAruzWeightStats(user.id),
   ]);
@@ -33,7 +33,7 @@ export default async function Page() {
       initialAttempts={page.attempts}
       initialHasMore={page.hasMore}
       summary={summary}
-      activity={activity}
+      dayCounts={dayCounts}
       bookmarks={bookmarks}
       weights={weights}
     />

@@ -9,7 +9,13 @@ import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
 import StatRing from "@/components/UI/panel/StatRing";
 import PanelSection from "@/components/UI/panel/PanelSection";
 import { loadMoreAruzAttempts } from "@/app/panel/aruz/actions";
-import { streak } from "@/lib/panel/format";
+import {
+  bucketsFromDayCounts,
+  correctFromDayCounts,
+  streakFromDayCounts,
+  totalFromDayCounts,
+  type DayCount,
+} from "@/lib/panel/day-counts";
 import type { AruzAttempt, AruzPanelData, Bookmark } from "@/lib/panel/types";
 
 /** The عروض page's whole body. The page itself is a Server Component that
@@ -19,14 +25,16 @@ export default function AruzPanel({
   initialAttempts,
   initialHasMore,
   summary,
-  activity,
+  dayCounts,
   bookmarks,
   weights,
 }: {
   initialAttempts: AruzAttempt[];
   initialHasMore: boolean;
   summary: AruzPanelData["summary"];
-  activity: { at: string; ok: boolean }[];
+  /** شمارشِ روزانه از دیتابیس — جای فهرستِ خامِ پاسخ‌ها.
+   *  دلیلش در lib/panel/day-counts.ts نوشته شده. */
+  dayCounts: DayCount[];
   bookmarks: Bookmark[];
   weights: { weight: string; total: number; correct: number }[];
 }) {
@@ -53,12 +61,13 @@ export default function AruzPanel({
 
   // `user_answers` is the per-question record, so it is the honest basis for
   // accuracy; the attempt totals are the fallback for older histories.
-  const answered = activity.length || summary.questions;
-  const correct = activity.length
-    ? activity.filter((x) => x.ok).length
-    : summary.correct;
+  // `user_answers` is the per-question record, so it is the honest basis for
+  // accuracy; the attempt totals are the fallback for older histories.
+  const answeredInRange = totalFromDayCounts(dayCounts);
+  const answered = answeredInRange || summary.questions;
+  const correct = answeredInRange ? correctFromDayCounts(dayCounts) : summary.correct;
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
-  const days = streak(activity.map((x) => x.at));
+  const days = streakFromDayCounts(dayCounts);
 
   return (
     <div>
@@ -127,7 +136,7 @@ export default function AruzPanel({
       </div>
 
       <PanelSection title="روند پیشرفت" icon="chart">
-        <PanelTrendChart history={activity} />
+        <PanelTrendChart buckets={bucketsFromDayCounts(dayCounts, 30)} />
       </PanelSection>
 
       <PanelSection

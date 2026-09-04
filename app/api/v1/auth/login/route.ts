@@ -4,7 +4,7 @@ import { createSession, findUserByEmail } from "@/lib/auth/session";
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { loginSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
-import { rateLimit, resetRateLimit } from "@/lib/api/rate-limit";
+import { rateLimitDb, resetRateLimitDb, sweepRateLimits } from "@/lib/api/rate-limit-db";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
@@ -44,8 +44,12 @@ export const POST = withRoute("/api/v1/auth/login", async (request: Request) => 
     //     IP عوض کند.
     //   • per-IP جلوی امتحان کردن یک رمز روی هزاران ایمیل را می‌گیرد
     //     (password spraying)، که سهمیهٔ per-email اصلاً نمی‌بیندش.
-    const emailLimit = rateLimit(`login:${email}`, 8, 15 * 60);
-    const ipLimit = rateLimit(`login-ip:${meta.ip ?? "unknown"}`, 40, 15 * 60);
+    // ردیف‌های منقضی را با احتمالِ کم پاک می‌کند — کلیدها ایمیل و IP دارند
+    // و نباید برای همیشه بمانند.
+    void sweepRateLimits();
+
+    const emailLimit = await rateLimitDb(`login:${email}`, 8, 15 * 60);
+    const ipLimit = await rateLimitDb(`login-ip:${meta.ip ?? "unknown"}`, 40, 15 * 60);
 
     if (!emailLimit.allowed || !ipLimit.allowed) {
       const wait = Math.max(emailLimit.retryAfterSeconds, ipLimit.retryAfterSeconds);
@@ -110,7 +114,7 @@ export const POST = withRoute("/api/v1/auth/login", async (request: Request) => 
 
     // ورودِ موفق سهمیه را آزاد می‌کند — کسی که رمزش را درست زده نباید به خاطر
     // چند غلطِ قبلی قفل بماند.
-    resetRateLimit(`login:${email}`);
+    await resetRateLimitDb(`login:${email}`);
 
     const { passwordHash: _passwordHash, ...safeUser } = user;
     const tokens = await createSession(safeUser, meta);

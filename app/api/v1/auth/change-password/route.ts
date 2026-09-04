@@ -6,7 +6,7 @@ import { createSession, findUserByEmail, revokeAllSessions } from "@/lib/auth/se
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { changePasswordSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { withRoute } from "@/lib/api/route";
 import { attachUserId, logger } from "@/lib/observability";
 
@@ -24,7 +24,7 @@ export const POST = withRoute("/api/v1/auth/change-password", async (request: Re
 
     attachUserId(user.id);
 
-    const limit = rateLimit(`change-password:${user.id}`, 5, 15 * 60);
+    const limit = await rateLimitDb(`change-password:${user.id}`, 5, 15 * 60);
     if (!limit.allowed) {
       return fail(`تلاش‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }

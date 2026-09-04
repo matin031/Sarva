@@ -5,7 +5,7 @@ import { createSession, toAuthUser } from "@/lib/auth/session";
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { registerSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
@@ -28,7 +28,7 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
 
     // جلوی ساخت انبوه حساب با اسکریپت. سخت‌گیرانه نیست — یک کلاس واقعی
     // ثبت‌نام می‌کند و ممکن است همه پشت یک IP مدرسه باشند.
-    const limit = rateLimit(`register:${meta.ip ?? "unknown"}`, 10, 15 * 60);
+    const limit = await rateLimitDb(`register:${meta.ip ?? "unknown"}`, 10, 15 * 60);
     if (!limit.allowed) {
       logger.warn("ثبت‌نام به‌خاطر سقف نرخ رد شد", {
         event: "auth.register.rate_limited",
@@ -54,7 +54,7 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
     // را نمی‌گیرد، چون مهاجم می‌تواند از چند IP بپرسد. با این سقف، هر ایمیل
     // در ربع ساعت فقط چند بار قابل پرسش است — بی‌فایده برای ساختن فهرست،
     // بی‌اثر برای کسی که واقعاً دارد ثبت‌نام می‌کند.
-    const emailLimit = rateLimit(`register-email:${email}`, 5, 15 * 60);
+    const emailLimit = await rateLimitDb(`register-email:${email}`, 5, 15 * 60);
     if (!emailLimit.allowed) {
       return fail(
         `تعداد تلاش‌ها زیاد بود. ${emailLimit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`,

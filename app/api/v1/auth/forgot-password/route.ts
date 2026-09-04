@@ -5,7 +5,7 @@ import { emailField, turnstileField } from "@/lib/auth/schemas";
 import { sendMail } from "@/lib/mail";
 import { passwordResetEmail } from "@/lib/mail/templates";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { withRoute } from "@/lib/api/route";
 import { logger } from "@/lib/observability";
@@ -37,8 +37,8 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
     const captcha = await verifyTurnstile(turnstileToken, meta.ip);
     if (!captcha.ok) return fail(captcha.error, 400);
 
-    const limit = rateLimit(`forgot:${email}`, 3, 15 * 60);
-    const ipLimit = rateLimit(`forgot-ip:${meta.ip ?? "unknown"}`, 15, 60 * 60);
+    const limit = await rateLimitDb(`forgot:${email}`, 3, 15 * 60);
+    const ipLimit = await rateLimitDb(`forgot-ip:${meta.ip ?? "unknown"}`, 15, 60 * 60);
     if (!limit.allowed || !ipLimit.allowed) {
       // حتی در حالت محدودشده هم پاسخ همان است، وگرنه خودِ ۴۲۹ می‌گفت این ایمیل
       // وجود دارد و چند بار درخواست شده.

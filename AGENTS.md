@@ -35,7 +35,21 @@ Reference: `API_DOCS.md` for endpoints, `README.md` for architecture,
 
 - `npm run db:check` — runs against a live database (connection, every table,
   view, enum, trigger, and the type-parser behaviour in `lib/db`).
+- `npm run db:check-sql` — pulls every SQL template literal out of `lib/`,
+  `app/` and `proxy.ts` and hands each one to Postgres as a `PREPARE` inside a
+  transaction that is rolled back. `PREPARE` does not run the query but does
+  fully analyse it: table names, column names, **function signatures** and type
+  compatibility. Run it after touching any query.
 - When no database is available, parse the SQL with `libpg-query` (the real
   Postgres parser). Doing this caught a `FILTER` clause attached to the wrong
   expression in `lib/auth/otp.ts` that typechecked cleanly and would have
   failed at runtime.
+
+Parsing alone is not enough, and the reason is worth remembering.
+`make_interval(mins => $1::double precision)` sat in `lib/auth/otp.ts` and
+`app/api/v1/auth/forgot-password/route.ts` from the day of the Postgres
+migration. It parses perfectly — it is only wrong once Postgres looks for an
+overload, because `mins` is `integer` and only `secs` is `double precision`.
+So email verification and password reset both returned 500 for every user,
+for months, with nothing in `tsc` or a parser to show for it. `db:check-sql`
+exists because of those two, and it is the check that finds that class of bug.

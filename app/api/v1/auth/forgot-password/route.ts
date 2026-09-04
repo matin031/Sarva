@@ -60,10 +60,17 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
         [user.id],
       );
 
+      // ⚠️ `secs` و نه `mins`: در make_interval تنها پارامترِ double precision
+      // همان secs است و بقیه integer اند، پس `mins => $3::double precision` با
+      // هیچ overload ای جور درنمی‌آمد و این insert همیشه خطا می‌داد — یعنی
+      // «بازیابی رمز» از زمان مهاجرت به پستگرس هرگز کار نکرده.
+      //
+      // همین اشتباه در lib/auth/otp.ts هم بود. برای پیدا کردنِ بقیه:
+      // npm run db:check-sql
       await execute(
         `insert into password_resets (user_id, token_hash, expires_at, requested_ip)
-         values ($1, $2, now() + make_interval(mins => $3::double precision), $4::inet)`,
-        [user.id, tokenHash, TTL_MINUTES, meta.ip],
+         values ($1, $2, now() + make_interval(secs => $3::double precision), $4::inet)`,
+        [user.id, tokenHash, TTL_MINUTES * 60, meta.ip],
       );
 
       const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");

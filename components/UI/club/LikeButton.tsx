@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toggleClubLike } from "@/lib/club/actions";
 import { fa } from "@/components/UI/club/ClubBits";
 
@@ -23,7 +22,6 @@ export default function LikeButton({
   initialCount: number;
   onNeedsAuth?: (message: string) => void;
 }) {
-  const router = useRouter();
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [pending, startTransition] = useTransition();
@@ -40,9 +38,18 @@ export default function LikeButton({
         onNeedsAuth?.(res.error);
         return;
       }
+      // ⚠️ اینجا `router.refresh()` بود و اضافی است.
+      //
+      // اکشن دو کار را از قبل انجام می‌دهد: وضعیتِ معتبر را برمی‌گرداند
+      // (همین دو خطِ بالا) و `revalidatePath` می‌زند، که خودِ Next با پاسخِ
+      // همان اکشن مسیرهای تازه‌شده را می‌آورد. refresh یک رفت‌وبرگشتِ RSC
+      // *دوم* روی همان مسیرها بود.
+      //
+      // اندازه‌گیری روی buildِ production: یک پسند سیزده درخواست و ۲۰٫۳
+      // کیلوبایت می‌ساخت — دو بار /sarvaclub، دو بار /panel/club، و هشت
+      // pre-fetchِ پستِ منفرد که با رندرِ دوبارهٔ فهرست راه می‌افتادند.
       setLiked(res.data.liked);
       setCount(res.data.likeCount);
-      router.refresh();
     });
   };
 

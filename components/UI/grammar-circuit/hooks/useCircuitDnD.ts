@@ -2,25 +2,34 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** کشیدن و رها کردن، با هدف‌گیریِ *دقیق*.
+/** کشیدن و رها کردن.
  *
- *  عمداً هیچ کتابخانه‌ای اینجا نیست و هیچ راهبردِ «نزدیک‌ترین مرکز» هم نیست.
- *  تنها قاعده این است: اشاره‌گر یا *داخلِ* یک ناحیهٔ لمسی است یا نیست.
+ *  ⚠️ این فایل قبلاً قاعدهٔ «یا دقیقاً داخل، یا هیچ» را داشت و رویش تأکید
+ *  هم می‌کرد. روی گوشی کار نمی‌کرد: با انگشت روی مرکزِ خانه، هیچ اتفاقی
+ *  نمی‌افتاد. آن قاعده برای موس نوشته شده بود، جایی که اشاره‌گر یک پیکسل
+ *  است — نه برای انگشتی که چهل پیکسل پهنا دارد.
  *
- *      داخلِ الف → الف
- *      داخلِ ب  → ب
- *      در شکاف  → هیچ
- *      بیرون    → هیچ
+ *  قاعدهٔ امروز:
  *
- *  «رها کردن در شکاف» پاسخِ غلط نیست؛ فقط یک تعاملِ ناتمام است. اگر روزی دو
- *  ناحیه هم‌پوشانی پیدا کنند، نتیجه «مبهم» است و هیچ اتصالی ثبت نمی‌شود —
- *  نه قرعه‌کشی، نه نزدیک‌ترین.
+ *      مرکزِ قطعه داخلِ الف            → الف
+ *      داخلِ هیچ، ولی نزدیکِ الف       → الف   (تا شعاعِ snapTolerance)
+ *      داخلِ هیچ و دور از همه          → هیچ
+ *      داخلِ دو ناحیهٔ هم‌پوشان         → هیچ (مبهم؛ حدس نمی‌زنیم)
+ *
+ *  «رها کردن در جایِ خالی» هنوز پاسخِ غلط نیست، فقط یک تعاملِ ناتمام است.
  */
 
 export type HitTestResult =
   | { kind: "none" }
   | { kind: "hit"; tokenId: string }
   | { kind: "ambiguous"; tokenIds: string[] };
+
+/** فاصلهٔ یک نقطه تا نزدیک‌ترین جای مستطیل (صفر اگر داخلش باشد). */
+function distanceToRect(x: number, y: number, r: DOMRect): number {
+  const dx = Math.max(r.left - x, 0, x - r.right);
+  const dy = Math.max(r.top - y, 0, y - r.bottom);
+  return Math.hypot(dx, dy);
+}
 
 export interface DragState {
   pieceId: string;
@@ -42,6 +51,8 @@ interface Options {
   enabled: boolean;
   activationDistance: number;
   touchLiftPx: number;
+  /** شعاعِ چسبیدن وقتی مرکزِ قطعه داخلِ هیچ خانه‌ای نیست. */
+  snapTolerance: number;
   onPickup: (pieceId: string) => void;
   onDrop: (pieceId: string, tokenId: string) => void;
   /** لغو — نه پاسخِ غلط. */
@@ -68,6 +79,7 @@ export function useCircuitDnD({
   enabled,
   activationDistance,
   touchLiftPx,
+  snapTolerance,
   onPickup,
   onDrop,
   onCancel,
@@ -120,18 +132,42 @@ export function useCircuitDnD({
     [],
   );
 
-  const hitTest = useCallback((x: number, y: number): HitTestResult => {
-    const matches: string[] = [];
+  /** کدام خانه؟
+   *
+   *  ⚠️ قاعدهٔ قبلی «یا دقیقاً داخل، یا هیچ» بود و روی گوشی شکست می‌خورد.
+   *  اندازه‌گیری‌اش: با انگشت دقیقاً روی مرکزِ خانه، هیچ خانه‌ای روشن
+   *  نمی‌شد و قطعه نمی‌نشست؛ تنها وقتی کار می‌کرد که انگشت حدودِ ۴۰ پیکسل
+   *  *پایین‌ترِ* خانه بود. کاربر هم دقیقاً همین را گزارش کرد.
+   *
+   *  دو چیز آن را می‌ساخت: نقطهٔ سنجش با محلِ گرفتنِ قطعه جابه‌جا می‌شد، و
+   *  ناحیهٔ لمسی با آنچه دیده می‌شود یکی نبود (۷۶×۶۶ در برابرِ ۶۶×۴۲، با
+   *  ۱۲ پیکسل جابه‌جایی). با قاعدهٔ «یا داخل یا هیچ»، هر خطای کوچکی یعنی
+   *  هیچ اتفاقی نیفتد — و کاربر نمی‌فهمد چرا.
+   *
+   *  حالا: اول داخل‌بودن، و اگر داخلِ هیچ‌کدام نبود، نزدیک‌ترین خانه در
+   *  شعاعِ `snapTolerance`. انگشتِ آدم روی شیشه حدودِ ۴۰ پیکسل پهناست؛
+   *  انتظارِ دقتِ پیکسلی از او، طراحیِ غلط است.
+   *
+   *  «مبهم» فقط وقتی است که دو خانه *هم‌پوشان* باشند — نه وقتی دو خانه
+   *  نزدیک‌اند. میانِ نامزدهای دورتر، نزدیک‌ترین برنده است. */
+  const hitTest = useCallback((x: number, y: number, tolerance = 0): HitTestResult => {
+    const inside: string[] = [];
+    let nearest: { tokenId: string; distance: number } | null = null;
+
     for (const [tokenId, el] of hitTargetsRef.current) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-        matches.push(tokenId);
-      }
+      const d = distanceToRect(x, y, r);
+      if (d === 0) inside.push(tokenId);
+      else if (!nearest || d < nearest.distance) nearest = { tokenId, distance: d };
     }
-    if (matches.length === 0) return { kind: "none" };
-    if (matches.length === 1) return { kind: "hit", tokenId: matches[0] };
-    return { kind: "ambiguous", tokenIds: matches };
+
+    if (inside.length === 1) return { kind: "hit", tokenId: inside[0] };
+    if (inside.length > 1) return { kind: "ambiguous", tokenIds: inside };
+    if (nearest && tolerance > 0 && nearest.distance <= tolerance) {
+      return { kind: "hit", tokenId: nearest.tokenId };
+    }
+    return { kind: "none" };
   }, []);
 
   /** جای پیش‌نمایش را می‌نویسد.
@@ -142,8 +178,20 @@ export function useCircuitDnD({
    *  می‌نشاند وقتی ناحیهٔ تحلیل افقی اسکرول شده بود. */
   const ghostPosition = useCallback(
     (pending: Pending, x: number, y: number) => {
-      const lift = pending.pointerType === "touch" ? touchLiftPx : 0;
-      return { left: x - pending.grabDx, top: y - pending.grabDy - lift };
+      if (pending.pointerType !== "touch") {
+        // موس دقیق است: قطعه از زیرِ همان نقطه‌ای بلند می‌شود که گرفته شده.
+        return { left: x - pending.grabDx, top: y - pending.grabDy };
+      }
+      // ⚠️ روی لمس، محلِ گرفتن عمداً *نادیده* گرفته می‌شود.
+      //
+      // قبلاً همان grabDx/grabDy لمس را هم اداره می‌کرد، یعنی نقطهٔ سنجشِ
+      // مقصد با هر بار برداشتن جابه‌جا می‌شد: اگر قطعه را از گوشه‌اش
+      // می‌گرفتی، مقصد نیم‌قطعه آن‌طرف‌تر سنجیده می‌شد. رفتاری که هر بار
+      // فرق کند یاد گرفتنی نیست؛ کاربر فقط می‌فهمد «گاهی می‌گیرد، گاهی نه».
+      //
+      // حالا قطعه همیشه وسطِ انگشت می‌نشیند و به اندازهٔ ثابتی بالاتر
+      // کشیده می‌شود تا زیرِ انگشت پنهان نماند — یک رابطهٔ ثابت، برای همه.
+      return { left: x - pending.width / 2, top: y - pending.height / 2 - touchLiftPx };
     },
     [touchLiftPx],
   );
@@ -210,7 +258,7 @@ export function useCircuitDnD({
       }
 
       const anchor = dropAnchor(pending, x, y);
-      const result = hitTest(anchor.x, anchor.y);
+      const result = hitTest(anchor.x, anchor.y, snapTolerance);
       if (result.kind === "hit") {
         onDrop(pending.pieceId, result.tokenId);
         return;
@@ -224,7 +272,7 @@ export function useCircuitDnD({
       // شکاف، بیرونِ برد یا ابهام → لغو، نه پاسخِ غلط.
       onCancel(pending.pieceId);
     },
-    [armClickSwallower, dropAnchor, hitTest, onCancel, onDrop],
+    [armClickSwallower, dropAnchor, hitTest, onCancel, onDrop, snapTolerance],
   );
 
   /** از `onPointerDown`ی خودِ ماژول صدا زده می‌شود. */
@@ -293,7 +341,7 @@ export function useCircuitDnD({
       if (!rafRef.current) rafRef.current = requestAnimationFrame(paintGhost);
 
       const anchor = dropAnchor(pending, event.clientX, event.clientY);
-      const result = hitTest(anchor.x, anchor.y);
+      const result = hitTest(anchor.x, anchor.y, snapTolerance);
       const next = result.kind === "hit" ? result.tokenId : null;
       // فقط یک هدف در هر لحظه، و فقط وقتی *عوض* شد رندر می‌گیریم.
       if (next !== activeTargetRef.current) {
@@ -342,7 +390,7 @@ export function useCircuitDnD({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       releaseClickSwallower();
     };
-  }, [activationDistance, dropAnchor, finish, ghostPosition, hitTest, onPickup, paintGhost, releaseClickSwallower]);
+  }, [activationDistance, dropAnchor, finish, ghostPosition, hitTest, onPickup, paintGhost, releaseClickSwallower, snapTolerance]);
 
   /** آیا این کلیک، دنبالهٔ یک کشیدنِ تمام‌شده است؟ */
   const shouldSuppressClick = useCallback(

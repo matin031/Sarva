@@ -249,6 +249,7 @@ export default function GrammarCircuitGame() {
     enabled: arrangeable,
     activationDistance: config.dragActivationDistance,
     touchLiftPx: config.touchDragLiftPx,
+    snapTolerance: config.dropSnapTolerancePx,
     onPickup,
     onDrop,
     onCancel: onDragCancel,

@@ -356,14 +356,91 @@ select l.id, s.role, s.is_spy, s.evidence, s.word, s.i
   ) as s(role, is_spy, evidence, word, i);`,
       },
       {
+        title: "مدار دستور — چه چیزی داریم؟",
+        description:
+          "اول این را بزنید. شمارِ پرسشِ منتشرشده و منتشرنشده به تفکیکِ پایه و درس — تا بدانید کجا کم دارید و کجا چیزی منتظرِ انتشار مانده.",
+        sql: `select grade, lesson,
+       count(*)                                as همه,
+       count(*) filter (where is_published)    as منتشرشده,
+       count(*) filter (where not is_published) as پیش‌نویس
+  from grammar_circuit_questions
+ group by grade, lesson
+ order by grade, lesson;`,
+      },
+      {
+        title: "مدار دستور — دیدنِ یک پرسش",
+        description:
+          "متنِ جمله از داخلِ payload بیرون کشیده می‌شود، پس لازم نیست jsonb را با چشم بخوانید. برای پیدا کردنِ پرسشی که می‌خواهید عوضش کنید.",
+        sql: `select source_id, grade, lesson, question_type, difficulty, is_published,
+       (select string_agg(t->>'text', ' ' order by ord)
+          from jsonb_array_elements(payload->'tokens') with ordinality as x(t, ord))
+         as جمله
+  from grammar_circuit_questions
+ where grade = 'yazdahom'      -- dahom | yazdahom | davazdahom
+   and lesson = 1
+ order by sort_index, source_id;`,
+      },
+      {
         title: "مدار دستور — انتشار / لغو انتشار",
         description:
-          "⚠️ ستون payload یک jsonb با ساختار دقیق است و موقع خواندن اعتبارسنجی می‌شود؛ ساختنش با دست عملاً ناممکن است. برای *افزودن* پرسش از پنل یا «npm run db:seed-grammar-circuit» استفاده کنید. این الگو فقط انتشار را عوض می‌کند.",
+          "امن‌ترین تغییر. با is_published = false پرسش از بازی کنار می‌رود بی‌آنکه پاک شود — برای وقتی به ایرادی مشکوکید ولی نمی‌خواهید از دستش بدهید.",
         sql: `update grammar_circuit_questions
    set is_published = true
  where grade = 'davazdahom'   -- dahom | yazdahom | davazdahom
    and lesson = 3
    and is_published = false;`,
+      },
+      {
+        title: "مدار دستور — حذف",
+        description:
+          "⚠️ برگشت‌ناپذیر. اول همان where را با یک select امتحان کنید تا ببینید چند ردیف می‌گیرد. اگر فقط می‌خواهید پرسش از بازی برود، «لغو انتشار» بهتر است.",
+        sql: `-- گامِ اول: ببینید چه چیزی پاک می‌شود
+select source_id, grade, lesson from grammar_circuit_questions
+ where source_id = 'gc-y11-l1-b01-1-1';
+
+-- گامِ دوم: اگر درست بود، همان where را اینجا بگذارید
+-- delete from grammar_circuit_questions
+--  where source_id = 'gc-y11-l1-b01-1-1';`,
+      },
+      {
+        title: "مدار دستور — جابه‌جایی درس و ترتیب",
+        description:
+          "پرسشی که اشتباه در درسِ دیگری نشسته، یا باید بالاتر بیاید. هیچ‌کدامِ این‌ها به payload دست نمی‌زنند، پس بی‌خطرند.",
+        sql: `-- بردنِ چند پرسش به درسِ دیگر
+update grammar_circuit_questions
+   set lesson = 4
+ where grade = 'yazdahom' and source_id in ('gc-y11-l1-b01-1-1');
+
+-- بالا بردنِ یک پرسش در ترتیبِ همان درس
+-- update grammar_circuit_questions set sort_index = 0
+--  where source_id = 'gc-y11-l1-b01-1-1';`,
+      },
+      {
+        title: "مدار دستور — سختی و توضیح",
+        description:
+          "difficulty عددی از ۱ تا ۵ است و explanation متنی است که بعد از پاسخ نشان داده می‌شود. هر دو متنِ ساده‌اند و اعتبارسنجی نمی‌خواهند.",
+        sql: `update grammar_circuit_questions
+   set difficulty = 3,
+       explanation = 'توضیحِ تازه'
+ where source_id = 'gc-y11-l1-b01-1-1';`,
+      },
+      {
+        title: "مدار دستور — افزودنِ پرسشِ تازه",
+        description:
+          "⚠️ این یکی را با SQL نزنید. ستونِ payload یک jsonb با ساختارِ دقیق است (roleDefinitions و tokens و pieces و circuitOrder) و پیش از نمایش اعتبارسنجی می‌شود — از جمله آزمونِ اینکه پرسش اصلاً حل‌شدنی هست یا در بن‌بست می‌افتد. یک payloadِ دست‌نویس که از آن آزمون رد نشود، بی‌صدا از بازی کنار می‌رود: در جدول هست ولی هیچ‌وقت دیده نمی‌شود. دو راهِ درست پایین آمده.",
+        sql: `-- راهِ یک: پنل مدیریت ← بازی‌ها ← مدار دستور ← «پرسشِ تازه»
+--   فرم همان اعتبارسنج را قبل از ذخیره اجرا می‌کند.
+--
+-- راهِ دو (برای افزودنِ انبوه): یک فایل JSON در
+--   lib/grammar-circuit/seed-data/ بگذارید و بزنید
+--     npm run db:seed-grammar-circuit
+--   هر پرسش پیش از نوشتن اعتبارسنجی می‌شود و source_id یکتاست،
+--   پس اجرای دوباره ردیف‌ها را *به‌روز* می‌کند نه تکراری.
+--   شکلِ فایل در lib/grammar-circuit/seed-data/README.md است.
+--
+-- بعد از هر افزودن، این را بزنید تا مطمئن شوید بازی می‌بیندشان:
+select grade, lesson, count(*) from grammar_circuit_questions
+ where is_published group by grade, lesson order by grade, lesson;`,
       },
     ],
   },

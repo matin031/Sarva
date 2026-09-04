@@ -46,12 +46,16 @@ const RATE_WINDOW_SECONDS = 60;
  *  There is no reason to go over the network for our own files at all: they sit
  *  on this very disk under public/. Reading them directly removes the whole
  *  class of problem — no Host header, no URL, no request to be redirected. */
-async function readPublicAsset(pathname: string): Promise<Buffer | null> {
+async function readLocalAsset(pathname: string): Promise<Buffer | null> {
   // Query string and fragment are not part of a file name.
   const clean = decodeURIComponent(pathname.split(/[?#]/)[0]);
 
-  const root = join(process.cwd(), "public");
-  const target = normalize(join(root, clean));
+  const isUpload = clean.startsWith("/uploads/");
+  const root = isUpload
+    ? normalize(process.env.UPLOADS_DIR ?? join(process.cwd(), "uploads"))
+    : join(process.cwd(), "public");
+  const relative = isUpload ? clean.slice("/uploads/".length) : clean;
+  const target = normalize(join(root, relative));
 
   // normalize() has already collapsed any `..`; this checks where it landed.
   if (target !== root && !target.startsWith(root + sep)) return null;
@@ -113,7 +117,7 @@ export async function GET(req: NextRequest) {
 
   // ---- same-origin asset: straight off the disk, no network at all --------
   if (src.startsWith("/") && !src.startsWith("//")) {
-    const raw = await readPublicAsset(src);
+    const raw = await readLocalAsset(src);
     if (!raw) return new Response("not found", { status: 404 });
 
     try {

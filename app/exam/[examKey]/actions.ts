@@ -3,7 +3,7 @@
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { MAX_ANSWER_KEYS, MAX_ANSWER_TEXT, regradeAttempt } from "@/lib/exam/regrade";
 import { gradePart } from "@/lib/exam/grading";
-import { getExamByKey } from "@/lib/exam/db-exam";
+import { getExamByKey, getExamQuestion } from "@/lib/exam/db-exam";
 import { queryOne, execute } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
@@ -22,11 +22,13 @@ export async function submitQuestion(
   questionNumber: number,
   answers: Record<number, unknown>,
 ): Promise<QuestionResult> {
-  const exam = await getExamByKey(examKey);
-  if (!exam) throw new Error(`Unknown exam: ${examKey}`);
-
-  const question = exam.sections.flatMap((s) => s.questions).find((q) => q.number === questionNumber);
-  if (!question) throw new Error(`Unknown question: ${questionNumber}`);
+  // ⚠️ فقط همین یک سؤال، نه کلِ برگه.
+  //
+  // پیش از این getExamByKey صدا زده می‌شد که پنج کوئری می‌زند و کلِ آزمون را
+  // می‌سازد — برای تصحیحِ *یک* سؤال. روی امتحانِ چهل‌سؤالی یعنی دویست کوئری
+  // در طولِ یک جلسه. سه کوئریِ محدود جای آن نشست.
+  const question = await getExamQuestion(examKey, questionNumber);
+  if (!question) throw new Error(`Unknown question: ${examKey}#${questionNumber}`);
 
   // exact_match parts are auto-graded here. Open-ended (conceptual) parts are
   // not auto-graded — the student sees the correct answer and scores

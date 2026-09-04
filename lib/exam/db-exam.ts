@@ -236,3 +236,101 @@ export async function freeExamKey(): Promise<string | null> {
   );
   return rows[0]?.exam_session ?? null;
 }
+
+/**
+ * فقط *یک* سؤالِ یک آزمون، با شمارهٔ آن.
+ *
+ * ⚠️ چرا لازم شد: `submitQuestion` برای تصحیحِ هر سؤال `getExamByKey` را صدا
+ * می‌زد، و آن پنج کوئری می‌زند و کلِ برگه را می‌سازد — بخش‌ها، همهٔ سؤال‌ها،
+ * همهٔ جزءها و همهٔ گزینه‌ها. روی یک امتحانِ چهل‌سؤالی یعنی دویست کوئری فقط
+ * برای تصحیح، در حالی که هر بار به یک سؤال نیاز است.
+ *
+ * اینجا سه کوئریِ محدود به همان یک سؤال است، و ردیف‌هایش هم کم‌اند.
+ *
+ * ⚠️ کلیدِ پاسخ همچنان اینجاست، پس این تابع هم مثل getExamByKey فقط
+ * سمتِ سرور. تصحیح باید روی سرور بماند.
+ */
+export async function getExamQuestion(
+  examKey: string,
+  questionNumber: number,
+): Promise<SeedQuestion | null> {
+  // یک کوئری، نه سه.
+  //
+  // ⚠️ گزینه‌ها داخلِ همان ردیفِ جزء با jsonb برمی‌گردند و جزءها داخلِ ردیفِ
+  // سؤال. با سه کوئریِ جدا سه رفت‌وبرگشت داشتیم و باید در کد دوباره
+  // گروه‌بندی می‌کردیم؛ همان الگویی که lib/jasoos-content.ts هم استفاده
+  // می‌کند.
+  const row = await queryOne<{
+    number: number;
+    page_ref: number | null;
+    instruction: string | null;
+    layout_pattern: string | null;
+    parts: {
+      label: string | null;
+      type: string;
+      score: number;
+      content: unknown;
+      correct_answer: unknown;
+      accepted_answers: string[] | null;
+      grading_mode: string;
+      ai_grading_hint: string | null;
+      options: { option_key: string | null; text: string; is_correct: boolean }[] | null;
+    }[] | null;
+  }>(
+    `select q.number, q.page_ref, q.instruction, q.layout_pattern,
+            (select jsonb_agg(jsonb_build_object(
+                      'label', p.label,
+                      'type', p.type,
+                      'score', p.score,
+                      'content', p.content,
+                      'correct_answer', p.correct_answer,
+                      'accepted_answers', p.accepted_answers,
+                      'grading_mode', p.grading_mode,
+                      'ai_grading_hint', p.ai_grading_hint,
+                      'options', (
+                        select jsonb_agg(jsonb_build_object(
+                                 'option_key', o.option_key,
+                                 'text', o.text,
+                                 'is_correct', o.is_correct)
+                               order by o.order_index)
+                          from exam_question_options o
+                         where o.question_part_id = p.id))
+                    order by p.part_index)
+               from exam_question_parts p
+              where p.question_id = q.id) as parts
+       from exam_questions q
+       join exam_sections s on s.id = q.exam_section_id
+       join exams e on e.id = s.exam_id
+      where e.exam_session = $1 and q.number = $2`,
+    [examKey, questionNumber],
+  );
+  if (!row) return null;
+
+  return {
+    number: row.number,
+    pageRef: row.page_ref ?? undefined,
+    layoutPattern: (row.layout_pattern as SeedQuestion["layoutPattern"]) ?? undefined,
+    instruction: row.instruction ?? undefined,
+    parts: (row.parts ?? []).map((p) => ({
+      label: p.label ?? undefined,
+      type: p.type as QuestionPartType,
+      score: p.score,
+      content: p.content as SeedPart["content"],
+      correctAnswer: p.correct_answer as SeedPart["correctAnswer"],
+      acceptedAnswers: p.accepted_answers ?? undefined,
+      gradingMode: p.grading_mode as SeedPart["gradingMode"],
+      aiGradingHint: p.ai_grading_hint ?? undefined,
+      // ⚠️ jsonb_agg روی مجموعهٔ خالی null می‌دهد نه []. جزئی که گزینه ندارد
+      // باید undefined بگیرد تا با خروجیِ getExamByKey یکی بماند.
+      options: p.options
+        ? p.options.map((o) => ({
+            optionKey: o.option_key ?? undefined,
+            text: o.text,
+            isCorrect: o.is_correct,
+          }))
+        : undefined,
+      // همان استدلالِ getExamByKey: سؤالِ تألیف‌شده در پنل تأییدشده است.
+      verified: true,
+    })),
+  };
+}

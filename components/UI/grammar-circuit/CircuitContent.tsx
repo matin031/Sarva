@@ -79,6 +79,9 @@ export default function CircuitContent({
     <div
       ref={contentRef}
       className="gc-content"
+      /* فازِ جریان روی خودِ ظرف، تا شیوه‌نامه بتواند لحظهٔ بسته شدنِ مدار را
+         بشناسد و تکانِ کوتاهِ «تِلِق» را بزند. */
+      data-phase={currentPhase}
       style={
         {
           // `position` درون‌خطی است چون لایهٔ SVG نسبت به همین کادر مطلق

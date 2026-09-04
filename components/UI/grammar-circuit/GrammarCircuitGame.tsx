@@ -4,6 +4,7 @@ import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 // شیوه‌نامهٔ همین بازی، کنارِ خودش. توضیحِ دلیلش بالای همان فایل است.
 import "./grammar-circuit.css";
+import "./grammar-circuit-atelier.css";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";

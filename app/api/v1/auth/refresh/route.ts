@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { refreshSession } from "@/lib/auth/session";
 import { hashRefreshToken } from "@/lib/auth/tokens";
-import { REFRESH_COOKIE, accessCookie, clearedCookies } from "@/lib/auth/cookies";
+import { REFRESH_COOKIE, accessCookie, refreshCookie, clearedCookies } from "@/lib/auth/cookies";
 import { fail, handleError, ok, withCookies } from "@/lib/api/http";
 import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { withRoute } from "@/lib/api/route";
@@ -36,9 +36,18 @@ export const POST = withRoute("/api/v1/auth/refresh", async () => {
       return withCookies(fail("سشن معتبر نیست. دوباره وارد شوید.", 401), clearedCookies()) as NextResponse;
     }
 
-    return withCookies(ok({ user: result.user }), [
-      accessCookie(result.tokens.accessToken),
-    ]) as NextResponse;
+    // ⚠️ توکنِ refresh چرخیده و توکنِ ورودی همین الان سوخت. اگر این کوکی
+    // نوشته نشود، مرورگر با رشتهٔ مرده می‌ماند و تازه‌سازیِ بعدی به‌عنوان
+    // «استفادهٔ مجدد» خوانده می‌شود — یعنی خروجِ ناگهانی از همهٔ دستگاه‌ها.
+    //
+    // نبودنش فقط یک حالت دارد: مسابقهٔ بی‌ضررِ دو درخواستِ همزمان. آنجا کوکیِ
+    // فعلیِ مرورگر همان توکنِ درست است و دست زدن به آن غلط است.
+    const cookiesToSet = [accessCookie(result.tokens.accessToken)];
+    if (result.tokens.refreshToken) {
+      cookiesToSet.push(refreshCookie(result.tokens.refreshToken));
+    }
+
+    return withCookies(ok({ user: result.user }), cookiesToSet) as NextResponse;
   } catch (err) {
     return handleError(err);
   }

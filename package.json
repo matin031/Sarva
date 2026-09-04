@@ -17,6 +17,7 @@
     "db:seed-grammar-circuit": "tsx scripts/seed-grammar-circuit.ts",
     "db:seed-aruz": "tsx scripts/seed-aruz.ts",
     "db:check-audio": "node scripts/check-audio.mjs",
+    "db:check-rotation": "tsx scripts/check-refresh-rotation.ts",
     "db:unseed-aruz": "tsx scripts/unseed-aruz.ts"
   },
   "dependencies": {

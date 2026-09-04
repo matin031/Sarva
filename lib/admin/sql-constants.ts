@@ -281,6 +281,36 @@ values
    and user_id = (select id from users where email = 'someone@example.com');`,
       },
       {
+        title: "دستگاه‌های فعالِ یک کاربر",
+        description:
+          "هر ردیف یک دستگاه است، نه یک بار تازه‌سازی. سشن‌هایی که چرخیده‌اند باطل‌اند و اینجا نمی‌آیند.",
+        sql: `select s.created_at as "ورود",
+       s.last_used_at as "آخرین استفاده",
+       s.user_agent as "مرورگر",
+       host(s.ip) as "آی‌پی"
+  from sessions s
+  join users u on u.id = s.user_id
+ where u.email = 'someone@example.com'
+   and s.revoked_at is null
+   and s.expires_at > now()
+ order by coalesce(s.last_used_at, s.created_at) desc;`,
+      },
+      {
+        title: "تاریخچهٔ کاملِ یک دستگاه",
+        description:
+          "هر بار تازه‌سازی یک ردیف تازه می‌سازد و قبلی را می‌سوزاند (rotated_to). زنجیره را از پایین به بالا بخوانید. اگر زنجیره‌ای ناگهان کامل باطل شده باشد، یعنی توکنِ سوخته‌ای دوباره استفاده شده — خودِ رویداد در لاگ با نام auth.refresh.reuse_detected ثبت می‌شود.",
+        sql: `select s.created_at as "ورود",
+       s.last_used_at as "استفاده",
+       s.revoked_at as "باطل شد",
+       case when s.rotated_to is not null then 'چرخید' else '—' end as "سرنوشت",
+       s.user_agent as "مرورگر"
+  from sessions s
+  join users u on u.id = s.user_id
+ where u.email = 'someone@example.com'
+   and s.family_id = 'شناسهٔ-خانواده-را-اینجا-بگذارید'
+ order by s.created_at;`,
+      },
+      {
         title: "حذف کامل یک کاربر",
         description:
           "⚠️ برگشت‌ناپذیر. پاسخ‌ها، آزمون‌ها و سروده‌هایش هم با cascade می‌روند. ابتدا با پیش‌نمایش ببینید چند ردیف است.",
@@ -569,7 +599,8 @@ values
       },
       {
         title: "پاک کردن سشن‌های منقضی",
-        description: "ردیف‌هایی که دیگر هیچ کاری نمی‌کنند و فقط جا می‌گیرند.",
+        description:
+          "ردیف‌هایی که دیگر هیچ کاری نمی‌کنند و فقط جا می‌گیرند. حلقه‌های سوختهٔ چرخش هم همین‌جا می‌روند: هر تازه‌سازی یک ردیف تازه می‌سازد، پس یک کاربرِ همیشه‌آنلاین در ماه چند هزار ردیف به جا می‌گذارد. نگه داشتنشان تا انقضای خانواده عمدی است — همان‌هاست که استفادهٔ مجدد را قابل تشخیص می‌کند.",
         sql: `delete from sessions
  where expires_at < now() - interval '30 days';`,
       },

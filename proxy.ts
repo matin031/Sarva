@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 import { refreshSession } from "@/lib/auth/session";
-import { ACCESS_COOKIE, REFRESH_COOKIE, accessCookie, clearedCookies } from "@/lib/auth/cookies";
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  accessCookie,
+  refreshCookie,
+  clearedCookies,
+} from "@/lib/auth/cookies";
 import { isCrossSiteRequest, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { REQUEST_ID_HEADER, logger, newRequestId } from "@/lib/observability";
@@ -152,13 +158,31 @@ export async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 
+  /**
+   * مسیرهایی که خودشان صاحبِ کوکی‌های سشن‌اند و proxy نباید در کارشان دخالت کند.
+   *
+   * ⚠️ این حصار از وقتی لازم شد که refresh token شروع به چرخیدن کرد. matcher
+   * پایینِ همین فایل مسیرهای /api را هم می‌گیرد، پس یک POST به
+   * /api/v1/auth/refresh دو بار refreshSession را صدا می‌زد: یک بار اینجا و
+   * یک بار در خودِ route. پیش از چرخش بی‌ضرر بود (فقط یک کوئریِ اضافه)، ولی
+   * حالا یعنی دو توکن در یک درخواست می‌سوزد و درستیِ کار به پنجرهٔ مدارا
+   * وابسته می‌شود — یعنی همان چیزی که فقط باید تورِ ایمنیِ مسابقه باشد،
+   * تبدیل به بخشی از مسیرِ عادی می‌شد.
+   *
+   * logout هم همین‌جاست: چرخاندنِ توکنی که یک لحظه بعد باطل می‌شود کارِ
+   * بیهوده‌ای است.
+   */
+  const ownsSessionCookies =
+    request.nextUrl.pathname === "/api/v1/auth/refresh" ||
+    request.nextUrl.pathname === "/api/v1/auth/logout";
+
   let claims = accessToken ? await verifyAccessToken(accessToken) : null;
   let response: NextResponse | null = null;
 
   // توکن دسترسی نداریم ولی refresh داریم → یک بار تلاش برای تازه‌سازی.
   // این تنها مسیری است که به دیتابیس می‌زند و در حالت عادی هر ۱۵ دقیقه یک بار
   // برای هر کاربر فعال اتفاق می‌افتد.
-  if (!claims && refreshToken) {
+  if (!claims && refreshToken && !ownsSessionCookies) {
     try {
       const refreshed = await refreshSession(refreshToken);
 
@@ -172,6 +196,16 @@ export async function proxy(request: NextRequest) {
         request.cookies.set(fresh.name, fresh.value);
         response = forward();
         response.cookies.set(fresh.name, fresh.value, fresh.options);
+
+        // refresh هم چرخیده و توکنِ ورودی سوخته است. اگر این کوکی روی پاسخ
+        // ننشیند، مرورگر با رشتهٔ مرده می‌ماند و تازه‌سازیِ بعدی «استفادهٔ
+        // مجدد» خوانده می‌شود — یعنی کاربر از همهٔ دستگاه‌هایش بیرون می‌افتد.
+        // undefined بودنش فقط یعنی مسابقهٔ بی‌ضرر؛ آنجا کوکیِ فعلی درست است.
+        if (refreshed.tokens.refreshToken) {
+          const rolled = refreshCookie(refreshed.tokens.refreshToken);
+          request.cookies.set(rolled.name, rolled.value);
+          response.cookies.set(rolled.name, rolled.value, rolled.options);
+        }
 
         claims = await verifyAccessToken(refreshed.tokens.accessToken);
       } else {

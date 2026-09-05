@@ -45,6 +45,19 @@ export interface MachineState {
   answeredCount: number;
   /** زمانِ بازشدنِ پنجرهٔ پاسخ (performance.now)، برای پاداشِ سرعت و تایمرِ HUD. */
   answerOpenedAt: number | null;
+  /**
+   * لحظه‌ای که بازیکن سمت را انتخاب کرد (performance.now).
+   *
+   * ⚠️ این فیلد وجود دارد چون پاداشِ سرعت پیش از این در `resolve` سنجیده
+   * می‌شد — یعنی *بعد* از پرش. مدتِ پرش (۶۵۰ms، ثابت) روی زمانِ فکر کردنِ
+   * بازیکن سوار می‌شد و از فرصتِ پاسخ کم می‌کرد. روی سرعتِ «سریع» که فرصت
+   * ۲۵۰۰ms است، این یعنی ۲۶٪ از دامنهٔ پاداش اصلاً دست‌یافتنی نبود، و هر
+   * پاسخی که بعد از ۱۸۵۰ms می‌آمد دقیقاً مثلِ نرسیدن نمره می‌گرفت.
+   *
+   * حالا لحظهٔ انتخاب همان‌جا که رخ می‌دهد ثبت می‌شود. سود دومش این است که
+   * `resolve` دیگر `performance.now()` صدا نمی‌زند و reducer خالص می‌ماند.
+   */
+  answeredAt: number | null;
   /** شناسهٔ پرسش‌هایی که بازیکن در آن‌ها شکست خورد.
    *  آرایه است و نه یک مقدار، چون مکانیکِ فعلی دور را با اولین اشتباه تمام
    *  می‌کند ولی حالت‌های آینده ممکن است چند اشتباه را اجازه دهند. */
@@ -90,6 +103,7 @@ export function initialMachineState(
     correctCount: 0,
     answeredCount: 0,
     answerOpenedAt: null,
+    answeredAt: null,
     failedQuestionIds: [],
     epoch: 0,
   };
@@ -143,7 +157,7 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
 
     case "questionShown":
       if (s.state !== "preparing") return s;
-      return to(s, "showingQuestion", { chosen: null, answerOpenedAt: null });
+      return to(s, "showingQuestion", { chosen: null, answerOpenedAt: null, answeredAt: null });
 
     case "answerWindowOpen":
       if (s.state !== "showingQuestion") return s;
@@ -151,7 +165,7 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
 
     case "answer": {
       if (s.state !== "waitingForAnswer") return s;
-      return to(s, "jumping", { chosen: a.side });
+      return to(s, "jumping", { chosen: a.side, answeredAt: a.now });
     }
 
     case "timeout":
@@ -184,7 +198,11 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
         });
       }
 
-      const elapsed = s.answerOpenedAt == null ? 0 : Math.max(0, performance.now() - s.answerOpenedAt);
+      /* از بازشدنِ پنجره تا لحظهٔ *انتخاب* — نه تا پایانِ پرش. */
+      const elapsed =
+        s.answerOpenedAt == null || s.answeredAt == null
+          ? 0
+          : Math.max(0, s.answeredAt - s.answerOpenedAt);
       const streak = s.streak + 1;
       return to(s, "correct", {
         streak,
@@ -224,6 +242,11 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
         stepIndex: next,
         chosen: null,
         answerOpenedAt: a.now,
+        /* این مسیر از `showingQuestion` نمی‌گذرد، پس پاک‌سازیِ آنجا شاملش
+           نمی‌شود و لحظهٔ انتخابِ پرسشِ قبلی همین‌طور می‌ماند. امروز بی‌ضرر
+           است (`answer` پیش از هر خواندنی رویش می‌نویسد) ولی یک مقدارِ کهنه
+           در حالت، تله‌ای است برای فردا. */
+        answeredAt: null,
       });
     }
 

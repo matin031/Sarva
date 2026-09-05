@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo } from "react";
+import SceneReady from "./scene/SceneReady";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
@@ -13,6 +14,8 @@ import { GameScene } from "./scene/GameScene";
    (و آنچه وارد می‌کند) در chunkـِ تنبل می‌نشیند. */
 
 export interface GameCanvasProps {
+  /** یک بار، وقتی مدل‌ها حل شدند و اولین فریم کشیده شد. */
+  onSceneReady?: () => void;
   machine: MachineState;
   config: AruzBridgeConfig;
   quality: QualitySettings;
@@ -25,6 +28,9 @@ export interface GameCanvasProps {
 }
 
 export default function GameCanvas(props: GameCanvasProps) {
+  /* ⚠️ `onSceneReady` جدا برداشته می‌شود و به `GameScene` پاس داده نمی‌شود:
+     مصرف‌کننده‌اش `SceneReady` است، نه صحنه. */
+  const { onSceneReady, ...sceneProps } = props;
   const { quality } = props;
 
   const glSettings = useMemo(
@@ -56,8 +62,11 @@ export default function GameCanvas(props: GameCanvasProps) {
       }}
       className="absolute inset-0"
     >
+      {/* ⚠️ `SceneReady` عمداً *داخلِ* همین مرز است: mount شدنش یعنی هرچه
+          این Suspense منتظرش بود حل شده. بیرونِ مرز، بی‌معنی می‌شد. */}
       <Suspense fallback={null}>
-        <GameScene {...props} />
+        <GameScene {...sceneProps} />
+        {onSceneReady && <SceneReady onReady={onSceneReady} />}
       </Suspense>
     </Canvas>
   );

@@ -2638,3 +2638,39 @@ html[data-quality="low"] [class*="backdrop-blur"] {
     will-change: auto;
   }
 }
+
+
+/* ── ضربانِ عددِ شمارشِ معکوسِ پلِ وزن ──────────────────────────────────────
+   ⚠️ فقط `transform` و `opacity` — همان قاعده‌ای که در «مدار دستور» با
+   اندازه‌گیری ثابت شد (انیمیت کردنِ فیلتر، ۵۷fps را به ۳۰ می‌رساند).
+
+   هر عدد کلیدِ React خودش را دارد، پس با عوض شدنِ عدد کامپوننت از نو ساخته
+   می‌شود و انیمیشن دوباره از صفر اجرا می‌شود — بدونِ نیاز به delay دستی. */
+@keyframes gcCountdownBeat {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.gc-countdown-beat {
+  animation: gcCountdownBeat var(--gc-countdown-beat-ms, 800ms) ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-countdown-beat {
+    animation: none;
+  }
+}

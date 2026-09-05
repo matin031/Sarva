@@ -16,7 +16,10 @@ import { GameTopBar } from "./GameTopBar";
 import { useGameViewportSize } from "./useGameViewportSize";
 import { isMobileMode, useViewportMode } from "./useViewportMode";
 import { GameHeader } from "./GameHeader";
-import { Countdown, SessionSetup } from "./SessionSetup";
+import {SessionSetup} from "./SessionSetup";
+/* Countdown از فایلِ خودش می‌آید: حالا خطِ زمانی و پایانِ شمارش را خودش
+   دارد و دیگر یک نمایشِ ساده کنارِ SessionSetup نیست. */
+import Countdown from "./Countdown";
 import {
   FinishedScreen,
   GameOverScreen,
@@ -61,6 +64,26 @@ function useHitDebug(): boolean {
     noopSubscribe,
     () => new URLSearchParams(window.location.search).has("debugHits"),
     () => false,
+  );
+}
+
+/**
+ * پیامِ «صحنه دارد آماده می‌شود».
+ *
+ * ⚠️ پیش از این، در فاصلهٔ بارگذاری هیچ چیزی گفته نمی‌شد: بوم سیاه بود و
+ * شمارش رویش می‌دوید. کاربر نمی‌دانست منتظرِ چیست یا اصلاً چیزی خراب شده.
+ */
+function SceneLoading() {
+  return (
+    <div
+      dir="rtl"
+      className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+      <p className="text-sm text-[#ffe9bd]/80">در حال آماده‌سازی پل…</p>
+    </div>
   );
 }
 
@@ -206,9 +229,21 @@ export default function AruzBridgeGame() {
               inputLocked={game.inputLocked}
               onChoose={game.choose}
               debugHitTargets={debugHitTargets}
+              onSceneReady={game.markSceneReady}
             />
           )}
-          {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
+          {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
+              روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}
+          {state === "countdown" &&
+            (game.sceneReady ? (
+              <Countdown
+                duration={game.config.countdownDuration}
+                onDone={game.finishCountdown}
+                reducedMotion={reducedMotion}
+              />
+            ) : (
+              <SceneLoading />
+            ))}
         </div>
       </div>
     );
@@ -297,10 +332,22 @@ export default function AruzBridgeGame() {
                 inputLocked={game.inputLocked}
                 onChoose={game.choose}
                 debugHitTargets={debugHitTargets}
+                onSceneReady={game.markSceneReady}
               />
             )}
 
-            {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
+            {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
+              روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}
+          {state === "countdown" &&
+            (game.sceneReady ? (
+              <Countdown
+                duration={game.config.countdownDuration}
+                onDone={game.finishCountdown}
+                reducedMotion={reducedMotion}
+              />
+            ) : (
+              <SceneLoading />
+            ))}
             <OrientationHint />
           </div>
         </div>

@@ -217,27 +217,3 @@ export function SessionSetup({
   );
 }
 
-/** شمارشِ کوتاهِ پیش از اولین پرسش. */
-export function Countdown({ duration }: { duration: number }) {
-  const beats = [3, 2, 1];
-  const each = duration / beats.length;
-  return (
-    <div
-      dir="rtl"
-      className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
-      aria-hidden
-    >
-      {beats.map((n, i) => (
-        <motion.span
-          key={n}
-          initial={{ opacity: 0, scale: 1.6 }}
-          animate={{ opacity: [0, 1, 1, 0], scale: [1.6, 1, 1, 0.85] }}
-          transition={{ duration: each / 1000, delay: (i * each) / 1000, times: [0, 0.25, 0.7, 1] }}
-          className="absolute font-sans text-7xl font-black text-[#ffe9bd] drop-shadow-[0_0_24px_rgba(217,164,65,0.5)] sm:text-8xl"
-        >
-          {fa.format(n)}
-        </motion.span>
-      ))}
-    </div>
-  );
-}

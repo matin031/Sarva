@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import AruzBridgeGame from "@/components/UI/aruz-bridge/AruzBridgeGame";
@@ -13,8 +15,17 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <GameShell title="پلِ وزن" dense>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "پلِ وزن", path: "/game/aruz-bridge" },
+        ])}
+      />
+      <GameShell title="پلِ وزن" dense>
       <AruzBridgeGame />
     </GameShell>
+    </>
   );
 }

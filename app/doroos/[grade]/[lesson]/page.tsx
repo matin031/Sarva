@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { absoluteUrl } from "@/lib/seo/site";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -76,7 +78,21 @@ export default async function Page({
   if (!grade || number === null || !isLessonInBook(number)) notFound();
 
   const lesson = await getLesson(gradeKey, number);
-  if (lesson) return <LessonView grade={grade} lesson={lesson} />;
+  if (lesson)
+    return (
+      <>
+        {/* مسیرِ واقعیِ صفحه — همانی که ناوبریِ خودِ سایت نشان می‌دهد. */}
+        <JsonLd
+          data={breadcrumbList([
+            { name: "خانه", path: "/" },
+            { name: "درسنامه", path: "/doroos" },
+            { name: grade.book, path: `/doroos/${grade.key}` },
+            { name: lesson.title, path: `/doroos/${grade.key}/${number}` },
+          ])}
+        />
+        <LessonView grade={grade} lesson={lesson} />
+      </>
+    );
 
   const ref = grade.lessons.find((l) => l.number === number);
 

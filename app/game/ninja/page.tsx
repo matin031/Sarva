@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import NinjaGame from "@/components/UI/ninja/NinjaGame";
@@ -18,8 +20,17 @@ export default async function Page() {
   const { rounds } = await loadNinjaRounds();
 
   return (
-    <GameShell title="نینجای دستور زبان" progressKeys={["ninja-progress"]}>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "نینجای دستور زبان", path: "/game/ninja" },
+        ])}
+      />
+      <GameShell title="نینجای دستور زبان" progressKeys={["ninja-progress"]}>
       <NinjaGame rounds={rounds} />
     </GameShell>
+    </>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { absoluteUrl } from "@/lib/seo/site";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { notFound } from "next/navigation";
 import { GRADES, getGrade } from "@/lib/doroos";
 import LessonPicker from "@/components/UI/doroos/LessonPicker";
@@ -33,5 +35,16 @@ export default async function Page({
   const { grade: key } = await params;
   const grade = getGrade(key);
   if (!grade) notFound();
-  return <LessonPicker grade={grade} />;
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "درسنامه", path: "/doroos" },
+          { name: grade.book, path: `/doroos/${grade.key}` },
+        ])}
+      />
+      <LessonPicker grade={grade} />
+    </>
+  );
 }

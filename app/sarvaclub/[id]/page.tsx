@@ -22,7 +22,11 @@ export async function generateMetadata({
   }
   const name = post.title ?? poemExcerpt(post.body, 1);
   return {
-    title: `${name} — سرودهٔ ${post.authorName} | سروا کلاب`,
+    /* ⚠️ «| سروا کلاب» از عنوان برداشته شد: قالبِ ریشه خودش « | سروا» را
+       اضافه می‌کند و نتیجه «… | سروا کلاب | سروا» می‌شد. این را ممیزیِ
+       اولیه نگرفت چون فقط صفحه‌های ثابت را نمونه می‌گرفت، نه یک سرودهٔ
+       واقعی را. */
+    title: `${name} — سرودهٔ ${post.authorName}`,
     description: poemExcerpt(post.body, 2),
     alternates: { canonical: `/sarvaclub/${post.id}` },
   };

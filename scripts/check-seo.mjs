@@ -67,6 +67,8 @@ async function look(path) {
     desc: pick(html, /<meta name="description" content="([^"]+)"/i),
     h1: pick(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim(),
     hasOld: html.includes(OLD_DOMAIN),
+    jsonLd: [...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+      .map((m) => m[1]),
     html,
   };
 }
@@ -112,6 +114,41 @@ for (const page of PAGES) {
       bad(`تکرارِ برند در عنوان: ${r.title}`);
     if (!r.desc) bad("توضیح (description) ندارد");
     if (!r.h1) bad("تیترِ H1 در HTMLِ اولیه نیست");
+
+    // ── دادهٔ ساختاریافته ────────────────────────────────────────────────
+    for (const raw of r.jsonLd) {
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        bad("JSON-LD معتبر نیست (parse نشد)");
+        continue;
+      }
+      // ⚠️ متنِ کاربر داخلِ اسکریپت نباید بتواند تگ را ببندد.
+      if (raw.includes("</script")) bad("JSON-LD امن serialize نشده");
+
+      const graph = parsed["@graph"] ?? [parsed];
+      for (const node of graph) {
+        // چیزهایی که نباید ساخته باشیم.
+        for (const forbidden of ["aggregateRating", "review", "offers", "priceRange"]) {
+          if (node[forbidden]) bad(`schema ادعای بی‌پشتوانه دارد: ${forbidden}`);
+        }
+        if (node["@type"] === "FAQPage") bad("FAQPage بدونِ پرسش‌وپاسخِ واقعیِ صفحه");
+
+        if (node["@type"] === "BreadcrumbList") {
+          const items = node.itemListElement ?? [];
+          if (!items.length) bad("BreadcrumbList خالی است");
+          items.forEach((it, i) => {
+            if (it.position !== i + 1) bad(`ترتیبِ breadcrumb غلط است (${it.position})`);
+            if (!it.name) bad("حلقهٔ breadcrumb نام ندارد");
+            if (!it.item || !/^https?:\/\//.test(it.item))
+              bad(`حلقهٔ breadcrumb آدرسِ مطلق ندارد: ${it.item}`);
+            if (String(it.item ?? "").includes(OLD_DOMAIN))
+              bad("breadcrumb به دامنهٔ قدیم اشاره می‌کند");
+          });
+        }
+      }
+    }
   }
 
   if (page.kind === "dupe") {

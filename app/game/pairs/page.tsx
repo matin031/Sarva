@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import PairsGame from "@/components/UI/pairs/PairsGame";
@@ -19,8 +21,17 @@ export default async function Page() {
   const { decks } = await loadMemoryDecks();
 
   return (
-    <GameShell title="جفت‌های ادبی" progressKeys={[]}>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "جفت‌های ادبی", path: "/game/pairs" },
+        ])}
+      />
+      <GameShell title="جفت‌های ادبی" progressKeys={[]}>
       <PairsGame decks={decks} />
     </GameShell>
+    </>
   );
 }

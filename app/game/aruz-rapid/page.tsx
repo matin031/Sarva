@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { absoluteUrl } from "@/lib/seo/site";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import RapidAruzGame from "@/components/UI/aruz-rapid/RapidAruzGame";
 
 export const metadata: Metadata = {
@@ -19,5 +21,18 @@ export const metadata: Metadata = {
  * (نوارِ بالای بازی، و لینکِ بازگشت در صفحهٔ آغاز و نتیجه).
  */
 export default function Page() {
-  return <RapidAruzGame />;
+  /* این بازی GameShell ندارد (توضیح بالا)، پس مسیرِ صفحه را خودش اعلام
+     می‌کند تا مثلِ بقیهٔ بازی‌ها breadcrumb داشته باشد. */
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "تقطیعِ سریع", path: "/game/aruz-rapid" },
+        ])}
+      />
+      <RapidAruzGame />
+    </>
+  );
 }

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import JasoosGame from "@/components/UI/jasoos/JasoosGame";
@@ -18,8 +20,17 @@ export default async function Page() {
   const { levels } = await loadJasoosLevels();
 
   return (
-    <GameShell title="جاسوسِ نقش‌ها" progressKeys={["jasoos-progress"]}>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "جاسوسِ نقش‌ها", path: "/game/jasoos" },
+        ])}
+      />
+      <GameShell title="جاسوسِ نقش‌ها" progressKeys={["jasoos-progress"]}>
       <JasoosGame levels={levels} />
     </GameShell>
+    </>
   );
 }

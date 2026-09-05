@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import GrammarCircuitGame from "@/components/UI/grammar-circuit/GrammarCircuitGame";
@@ -13,8 +15,17 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <GameShell title="مدار دستور" progressKeys={[]}>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "مدار دستور", path: "/game/grammar-circuit" },
+        ])}
+      />
+      <GameShell title="مدار دستور" progressKeys={[]}>
       <GrammarCircuitGame />
     </GameShell>
+    </>
   );
 }

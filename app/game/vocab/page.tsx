@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import VocabGame from "@/components/UI/vocab/VocabGame";
@@ -12,8 +14,17 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <GameShell title="واژه‌یاب" progressKeys={[]}>
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+          { name: "واژه‌یاب", path: "/game/vocab" },
+        ])}
+      />
+      <GameShell title="واژه‌یاب" progressKeys={[]}>
       <VocabGame />
     </GameShell>
+    </>
   );
 }

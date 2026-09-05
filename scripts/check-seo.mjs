@@ -33,6 +33,11 @@ const PAGES = [
   { path: "/game/aruz-rapid", kind: "public", label: "بازی تقطیع سریع" },
   { path: "/exam", kind: "public", label: "فهرست آزمون‌ها" },
   { path: "/sarvaclub", kind: "public", label: "کلاب" },
+  /* صفحه‌بندیِ کلاب: صفحهٔ دوم باید آدرسِ واقعی، canonicalِ خودش و لینکِ
+     a/href داشته باشد — نه canonical به صفحهٔ یک. */
+  { path: "/sarvaclub?page=2", kind: "public", label: "کلاب، صفحهٔ دوم", needsPageLink: true },
+  { path: "/sarvaclub?sort=popular", kind: "noindex", label: "کلاب، مرتب‌سازی" },
+  { path: "/sarvaclub?form=ghazal", kind: "noindex", label: "کلاب، فیلتر قالب" },
   { path: "/guide", kind: "public", label: "راهنما" },
   { path: "/about", kind: "public", label: "درباره" },
   { path: "/quiz", kind: "noindex", label: "جلسهٔ تمرین" },
@@ -114,6 +119,10 @@ for (const page of PAGES) {
       bad(`تکرارِ برند در عنوان: ${r.title}`);
     if (!r.desc) bad("توضیح (description) ندارد");
     if (!r.h1) bad("تیترِ H1 در HTMLِ اولیه نیست");
+
+    // لینکِ صفحه‌بندی باید در HTMLِ اولیه باشد، نه فقط با جاوااسکریپت.
+    if (page.needsPageLink && !/href="\/sarvaclub\?page=\d+"/.test(r.html))
+      bad("لینکِ صفحه‌بندی در HTMLِ اولیه نیست");
 
     // ── دادهٔ ساختاریافته ────────────────────────────────────────────────
     for (const raw of r.jsonLd) {

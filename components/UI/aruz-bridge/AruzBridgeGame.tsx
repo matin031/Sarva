@@ -32,6 +32,7 @@ import { useGameControls } from "./useGameControls";
 import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
+import { AccessibleOptions } from "./AccessibleOptions";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -238,6 +239,9 @@ export default function AruzBridgeGame() {
               onSceneReady={game.markSceneReady}
             />
           )}
+
+          {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
+          <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
           {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
               روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}
           {state === "countdown" &&
@@ -341,6 +345,9 @@ export default function AruzBridgeGame() {
                 onSceneReady={game.markSceneReady}
               />
             )}
+
+            {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
+            <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
 
             {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
               روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}

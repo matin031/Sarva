@@ -59,6 +59,20 @@ export default function GameCanvas(props: GameCanvasProps) {
         gl.toneMappingExposure = 1.08;
         // هزینهٔ عبورِ نور اینجا کوک می‌شود — این تنظیم روی رندرر است، نه ماده.
         gl.transmissionResolutionScale = quality.tier === "high" ? 0.5 : 0.25;
+
+        /* ⚠️ بوم برای فناوریِ کمکی پنهان می‌شود، و این عمدی است.
+
+           هرچه این بوم می‌گوید، جای دیگری به HTML هم هست: واژهٔ پرسش در
+           HUD، دو وزن در `AccessibleOptions`، و شمارش و بارگذاری در
+           ناحیه‌های `aria-live`. یک `<canvas>` بی‌نام در میانِ این‌ها فقط
+           یک گرهِ بی‌معنا به درختِ دسترس‌پذیری اضافه می‌کند.
+
+           ⚠️ چرا اینجا و نه به‌صورتِ prop روی `<Canvas>`: آن را به عنصرِ
+           واقعی نمی‌رساند — بررسیِ صفت‌های `<canvas>` نشان داد فقط
+           `style`، `data-engine`، `width` و `height` روی آن می‌نشینند.
+
+           ⚠️ اگر روزی چیزی *فقط* داخلِ بوم گفته شد، این باید برداشته شود. */
+        gl.domElement.setAttribute("aria-hidden", "true");
       }}
       className="absolute inset-0"
     >

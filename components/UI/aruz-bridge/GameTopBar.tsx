@@ -19,22 +19,33 @@ export function GameTopBar({
   muted: boolean;
   onToggleMute: () => void;
 }) {
+  /* ⚠️ دکمه‌ها واقعاً ۴۴×۴۴ هستند، نه ۳۰×۳۰ با ناحیهٔ لمسِ نامرئی.
+
+     اول راهِ شبه‌عنصر را رفتم — ظاهر دست‌نخورده می‌ماند و ناحیهٔ لمس گسترش
+     می‌یابد — ولی آزمونِ `elementFromPoint` نشان داد فقط دو ضلع از چهار ضلع
+     کار می‌کند: شبه‌عنصرِ همسایه و محتوای زیرِ نوار رویش می‌افتادند. یعنی
+     ناحیه‌ای که *به نظر* بزرگ‌تر شده بود، در عمل لمس را به دکمهٔ اشتباه
+     می‌داد؛ و این از هدفِ کوچک بدتر است.
+
+     پس اندازه واقعی شد. بهایش ۱۴ پیکسل ارتفاعِ نوار است که از بومِ بازی کم
+     می‌شود — معاملهٔ درستی است، چون هدفِ لمسیِ ۳۰ پیکسلی روی گوشی واقعاً
+     خطا می‌دهد. */
   const button =
-    "rounded-lg border border-border bg-card/70 p-1.5 text-muted-foreground transition-all hover:text-foreground active:scale-95";
+    "inline-flex size-11 items-center justify-center rounded-lg border border-border bg-card/70 text-muted-foreground transition-all hover:text-foreground active:scale-95";
 
   return (
     <div
       dir="rtl"
       className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-1.5"
     >
-      <Link href="/game" className="flex items-center gap-1.5" aria-label="سروا — بازگشت به بازی‌ها">
+      <Link href="/game" className="flex min-h-11 items-center gap-1.5" aria-label="سروا — بازگشت به بازی‌ها">
         <span className="size-7 text-primary">
           <MainLogo />
         </span>
         <span className="text-sm font-bold text-primary">سروا</span>
       </Link>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         {/* در حالتِ تمام‌صفحهٔ موبایل، نوارِ بالای پوسته وجود ندارد. */}
         <GameReportButton compact variant="bare" className={`${button} inline-flex items-center [&>svg]:size-4`} />
         <button

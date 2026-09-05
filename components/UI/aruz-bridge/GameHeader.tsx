@@ -59,8 +59,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** همان ظاهرِ `IconButton`، ولی دکمهٔ گزارش خودش دکمه‌اش را می‌سازد. */
+/* هدفِ لمسیِ ۴۴×۴۴ — چرایی و اینکه چرا شبه‌عنصر کافی نبود، در `GameTopBar`. */
 const ICON_BTN_CLS =
-  "rounded-lg border border-border bg-background/70 p-1.5 text-muted-foreground transition-all hover:text-foreground hover:border-primary/50 active:scale-95";
+  "inline-flex size-11 items-center justify-center rounded-lg border border-border bg-background/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/50 active:scale-95";
 
 function IconButton({
   onClick,
@@ -196,7 +197,7 @@ export function GameHeader({
           فرق کند، مرکز جابه‌جا نمی‌شود. */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
         {/* چپ: خروج و صدا — بخشی از پوستهٔ بازی، نه شناور روی صحنه */}
-        <div className="flex items-center justify-self-start gap-1.5">
+        <div className="flex items-center justify-self-start gap-2">
           <IconButton href="/game" label="خروج از بازی">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />

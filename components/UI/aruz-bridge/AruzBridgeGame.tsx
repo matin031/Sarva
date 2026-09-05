@@ -176,12 +176,33 @@ export default function AruzBridgeGame() {
     ? new Set(game.pool.map((q) => q.id)).size
     : null;
 
+  /* ⚠️ هر سه راهِ ورود به یک دور از همین دروازه می‌گذرند.
+
+     پیش از این، بررسیِ سهمیهٔ مهمان *فقط* روی دکمهٔ «شروعِ بازی» در صفحهٔ
+     تنظیمات بود. «دوباره» و «مرورِ اشتباه‌ها» مستقیم `beginRun` را صدا
+     می‌زدند، پس مهمانی که سهمیه‌اش تمام شده بود کافی بود به صفحهٔ تنظیمات
+     برنگردد و بی‌نهایت بازی کند.
+
+     آزموده شد: با شمارشِ دستیِ ۹۹ دور، «شروعِ بازی» جلویش گرفته می‌شد ولی
+     «دوباره» دورِ تازه را شروع می‌کرد.
+
+     (یادآوری: این شمارش در localStorage است و اجرای امنیتی نیست — هدفش
+     یادآوریِ ورود است. ولی یادآوری‌ای که از یک در می‌آید و از درِ بغلی رد
+     می‌شود، اصلاً یادآوری نیست.) */
+  const guardGuest = (run: () => void) => {
+    if (guest.blocked) {
+      setGuestPrompt(true);
+      return;
+    }
+    run();
+  };
+
   const resultActions: ResultActions = {
-    onRetry: game.retry,
+    onRetry: () => guardGuest(game.retry),
     onChangeSettings: game.backToSetup,
     failedCount: machine.failedQuestionIds.length,
     onReview: game.session.reviewMistakes
-      ? () => game.reviewMistakes(machine.failedQuestionIds)
+      ? () => guardGuest(() => game.reviewMistakes(machine.failedQuestionIds))
       : undefined,
   };
 
@@ -273,13 +294,7 @@ export default function AruzBridgeGame() {
         <SessionSetup
           session={game.session}
           onChange={game.setSession}
-          onStart={() => {
-            if (guest.blocked) {
-              setGuestPrompt(true);
-              return;
-            }
-            void game.startRun();
-          }}
+          onStart={() => guardGuest(() => void game.startRun())}
           loading={game.loading}
           error={game.loadError}
           availableUnique={availableUnique}

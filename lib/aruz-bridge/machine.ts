@@ -293,7 +293,7 @@ export function prepareSteps(
   let lastSide: Side | null = null;
   let run = 0;
 
-  return questions.map((question) => {
+  return questions.map((question, index) => {
     let correctSide: Side = random() < 0.5 ? "left" : "right";
     if (correctSide === lastSide && run >= MAX_RUN) {
       correctSide = correctSide === "left" ? "right" : "left";
@@ -303,6 +303,9 @@ export function prepareSteps(
 
     const wrong = question.distractors?.[0] ?? question.wrongPattern;
     return {
+      /* شمارهٔ نوبت پیشوند است تا تکرارِ یک پرسش در یک دور، دو هویتِ جدا
+         بگیرد. جزئیاتش در `PreparedStep.uid`. */
+      uid: `${index}:${question.id}`,
       question,
       correctSide,
       leftPattern: correctSide === "left" ? question.correctPattern : wrong,

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { breakingTile, glassStateFor, standSide } from "../../lib/aruz-bridge/glass";
-import type { Side } from "../../lib/aruz-bridge/types";
+import type { AruzBridgeQuestion, Side } from "../../lib/aruz-bridge/types";
 
 /* یک پلِ ساختگی: سمتِ درستِ هر مرحله همان چیزی است که بازیکن روی آن می‌ایستد. */
 const steps: readonly { readonly correctSide: Side }[] = [
@@ -102,5 +102,39 @@ test("بدونِ انتخاب و بدونِ پایانِ زمان، چیزی ن�
   assert.equal(
     breakingTile({ state: "cracking", failure: "wrong", stepIndex: 1, chosen: null, steps }),
     null,
+  );
+});
+
+/* ── هویتِ هر نوبت ────────────────────────────────────────────────────────── */
+
+test("با تکرارِ یک پرسش در یک دور، هر نوبت هویتِ جدا دارد", async () => {
+  const { prepareSteps } = await import("../../lib/aruz-bridge/machine");
+  const q: AruzBridgeQuestion = {
+    id: "same",
+    promptText: "بادِ صَبا",
+    correctPattern: "فاعلاتن",
+    wrongPattern: "مفاعیلن",
+    difficulty: 1,
+  };
+  // همان پرسش، پنج نوبت — چیزی که «اجازهٔ تکرار» واقعاً می‌سازد
+  const steps = prepareSteps([q, q, q, q, q]);
+
+  const uids = new Set(steps.map((s) => s.uid));
+  assert.equal(uids.size, steps.length, "هر نوبت باید uid یکتا داشته باشد");
+
+  /* صحنه پنج مرحله را هم‌زمان نشان می‌دهد و `tileId` را از همین می‌سازد.
+     با `question.id` هر ده کاشی فقط دو شناسه داشتند، پس hoverِ کاشیِ فعلی
+     کاشی‌های جلوتر را هم روشن می‌کرد. */
+  const tileIds = steps.flatMap((s) => [`${s.uid}:left`, `${s.uid}:right`]);
+  assert.equal(new Set(tileIds).size, tileIds.length, "شناسهٔ کاشی‌ها نباید تصادم کند");
+
+  const byQuestionId = steps.flatMap((s) => [
+    `${s.question.id}:left`,
+    `${s.question.id}:right`,
+  ]);
+  assert.equal(
+    new Set(byQuestionId).size,
+    2,
+    "شاهدِ باگِ پیشین: بر پایهٔ شناسهٔ پرسش، ده کاشی فقط دو هویت داشتند",
   );
 });

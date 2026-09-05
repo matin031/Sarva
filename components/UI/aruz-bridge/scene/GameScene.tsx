@@ -144,7 +144,7 @@ export function GameScene({
         const target = machine.steps[machine.stepIndex];
         publishInteractionDebug({
           lastSelectedSide: side,
-          lastClickedTileId: target ? `${target.question.id}:${side}` : null,
+          lastClickedTileId: target ? `${target.uid}:${side}` : null,
           lastJumpTarget: { x: tileX(side), z: stepZ(machine.stepIndex) },
         });
       }
@@ -326,7 +326,7 @@ export function GameScene({
         const revealAnswer = isCurrent && (state === "gameOver" || state === "finished");
 
         return (
-          <group key={pair.question.id}>
+          <group key={pair.uid}>
             {(["left", "right"] as const).map((side) => (
               <GlassTile
                 key={side}
@@ -341,8 +341,12 @@ export function GameScene({
                 seed={index * 31 + (side === "left" ? 1 : 2)}
                 /* یک شیء، یک هویت: همین `tileId` هم hover را تعیین می‌کند،
                    هم انتخاب را، هم مقصدِ پرش — چون `side` از همان جفت
-                   آماده‌شده می‌آید و جای دیگری دوباره قرعه نمی‌خورد. */
-                tileId={`${pair.question.id}:${side}`}
+                   آماده‌شده می‌آید و جای دیگری دوباره قرعه نمی‌خورد.
+
+                   ⚠️ از `uid` ساخته می‌شود و نه `question.id`: با تکرارِ
+                   مجاز، دو نوبت از یک پرسش می‌توانند هم‌زمان دیده شوند و
+                   شناسهٔ مشترک یعنی hoverِ یکی، دیگری را هم روشن می‌کرد. */
+                tileId={`${pair.uid}:${side}`}
                 side={side}
                 selectable={isCurrent && selectable}
                 hoveredTileId={effectiveHoverId}

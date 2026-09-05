@@ -188,24 +188,10 @@ export default function LoginForm({
         className=" relative border border-primary/40 gap-x-4 bg-primary/10
        py-2 rounded-xl px-2 grid grid-cols-2 items-center text-center"
       >
-        {/* نشانگرِ لغزانِ تب.
-
-            ⚠️ پیش از این `right-1` بود و نگاشتش برعکس: در سندِ چپ‌به‌راست،
-            ستونِ اول (ایمیل) چپ می‌نشست و ستونِ دوم (موبایل) راست، پس
-            لنگر انداختن به راست یعنی «روی موبایل» و `translate-x-0` درست
-            کار می‌کرد.
-
-            با درست شدنِ جهتِ ریشه، ستونِ اول به راست رفت — ولی لنگر همچنان
-            راست بود، یعنی نشانگر روی *ایمیل* می‌ماند در حالی که تبِ فعال
-            موبایل بود. در اسکرین‌شات دقیقاً همین دیده شد: فرمِ شمارهٔ موبایل
-            باز بود ولی قرصِ تیره روی «ایمیل».
-
-            حالا `start-1` است — یعنی روی ستونِ *اول* در هر جهتی — و جابه‌جایی
-            برای تبِ دوم انجام می‌شود، نه اول. */}
         <span
-          className={`absolute top-1 start-1 h-[calc(100%-8px)] w-[calc(50%-8px)]
+          className={`absolute top-1 right-1 h-[calc(100%-8px)] w-[calc(50%-8px)]
                 bg-primary rounded-xl transition-transform duration-500 ease-in-out
-                ${tab === "email" ? "translate-x-0" : "-translate-x-[calc(100%+8px)]"}`}
+                ${tab === "mobile" ? "translate-x-0" : "-translate-x-[calc(100%+8px)]"}`}
         />
         <button
           type="button"
@@ -245,20 +231,10 @@ export default function LoginForm({
             <label className=" text-sm text-muted-foreground">
               شمارۀ موبایل
             </label>
-            {/* ⚠️ `dir="ltr"` روی خودِ ورودی لازم است، نه روی ظرف.
-                شمارهٔ تلفن دنباله‌ای از ارقام است و در بندِ راست‌به‌چپ،
-                گروه‌های عددیْ راست‌به‌چپ چیده می‌شوند: «۰۹۱۳ ۱۱۸ ۱۲۳۴» به
-                «۱۲۳۴ ۱۱۸ ۰۹۱۳» تبدیل می‌شد. در اسکرین‌شاتِ پس از تغییرِ
-                جهتِ ریشه دقیقاً همین دیده شد.
-
-                `inputMode="tel"` هم صفحه‌کلیدِ عددی را روی گوشی باز می‌کند. */}
             <input
               {...registerMobile("mobile")}
-              dir="ltr"
               className=" text-left placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4 py-3 border border-muted-foreground/10 rounded-xl w-full"
               type="text"
-              inputMode="tel"
-              autoComplete="tel"
               placeholder="0913 118 1234"
               disabled={showOtp}
             />
@@ -268,15 +244,8 @@ export default function LoginForm({
               </p>
             )}
           </div>
-          {/* ⚠️ نقطه در *پایانِ* جمله نوشته می‌شود، نه ابتدایش.
-              پیش از این «.کد تأیید…» بود — نقطه را دستی اولِ رشته گذاشته
-              بودند تا در سندِ چپ‌به‌راست آخرِ خط دیده شود. با درست شدنِ
-              جهتِ ریشه، همان ترفند نقطه را به ابتدای خط برد.
-
-              الگوریتمِ دوسویهٔ مرورگر خودش نشانه‌گذاری را سرِ جایش
-              می‌گذارد؛ کاری که رشته باید بکند فقط درست نوشته شدن است. */}
           <p className=" text-sm mt-1 text-muted-foreground">
-            کد تأیید با پیامک برایت ارسال می‌شود.
+            .کد تأیید با پیامک برایت ارسال می‌شود
           </p>
         </div>
       )}

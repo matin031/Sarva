@@ -1,6 +1,4 @@
 "use client";
-
-import BackLink from "@/components/UI/BackLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -366,7 +364,7 @@ export default function VocabChallenge({
       {/* top bar: exit + progress dots */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <button onClick={onExit} className="text-sm text-muted-foreground hover:text-primary">
-          خروج
+          ← خروج
         </button>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           {steps.map((_, i) => (
@@ -512,11 +510,9 @@ function Shell({
     <div dir="rtl" className="container mx-auto my-8 max-w-2xl sm:my-12">
       <div className="mb-6 text-center">
         {onBack && (
-          /* ⚠️ `float-right` → `float-start`: در RTL «ابتدای ظرف» سمتِ راست
-             است و در LTR سمتِ چپ. با ویژگیِ منطقی هر دو درست می‌مانند. */
-          <BackLink onClick={onBack} className="float-start">
-            بازگشت
-          </BackLink>
+          <button onClick={onBack} className="float-right text-sm text-muted-foreground hover:text-primary">
+            ← بازگشت
+          </button>
         )}
         <h1 className="text-2xl font-bold text-primary sm:text-3xl">{title}</h1>
         {subtitle && <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{subtitle}</p>}

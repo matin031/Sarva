@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveHitTarget, type HitTestResult } from "@/lib/grammar-circuit/hit-test";
+
+export type { HitTestResult };
 
 /** کشیدن و رها کردن.
  *
@@ -12,24 +15,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  قاعدهٔ امروز:
  *
  *      مرکزِ قطعه داخلِ الف            → الف
+ *      داخلِ الف و ب (هم‌پوشان)        → آنکه مرکزش نزدیک‌تر است
  *      داخلِ هیچ، ولی نزدیکِ الف       → الف   (تا شعاعِ snapTolerance)
  *      داخلِ هیچ و دور از همه          → هیچ
- *      داخلِ دو ناحیهٔ هم‌پوشان         → هیچ (مبهم؛ حدس نمی‌زنیم)
  *
  *  «رها کردن در جایِ خالی» هنوز پاسخِ غلط نیست، فقط یک تعاملِ ناتمام است.
  */
 
-export type HitTestResult =
-  | { kind: "none" }
-  | { kind: "hit"; tokenId: string }
-  | { kind: "ambiguous"; tokenIds: string[] };
-
-/** فاصلهٔ یک نقطه تا نزدیک‌ترین جای مستطیل (صفر اگر داخلش باشد). */
-function distanceToRect(x: number, y: number, r: DOMRect): number {
-  const dx = Math.max(r.left - x, 0, x - r.right);
-  const dy = Math.max(r.top - y, 0, y - r.bottom);
-  return Math.hypot(dx, dy);
-}
 
 export interface DragState {
   pieceId: string;
@@ -132,42 +124,19 @@ export function useCircuitDnD({
     [],
   );
 
-  /** کدام خانه؟
+  /** کدام خانه؟ — پل به هندسهٔ محض.
    *
-   *  ⚠️ قاعدهٔ قبلی «یا دقیقاً داخل، یا هیچ» بود و روی گوشی شکست می‌خورد.
-   *  اندازه‌گیری‌اش: با انگشت دقیقاً روی مرکزِ خانه، هیچ خانه‌ای روشن
-   *  نمی‌شد و قطعه نمی‌نشست؛ تنها وقتی کار می‌کرد که انگشت حدودِ ۴۰ پیکسل
-   *  *پایین‌ترِ* خانه بود. کاربر هم دقیقاً همین را گزارش کرد.
-   *
-   *  دو چیز آن را می‌ساخت: نقطهٔ سنجش با محلِ گرفتنِ قطعه جابه‌جا می‌شد، و
-   *  ناحیهٔ لمسی با آنچه دیده می‌شود یکی نبود (۷۶×۶۶ در برابرِ ۶۶×۴۲، با
-   *  ۱۲ پیکسل جابه‌جایی). با قاعدهٔ «یا داخل یا هیچ»، هر خطای کوچکی یعنی
-   *  هیچ اتفاقی نیفتد — و کاربر نمی‌فهمد چرا.
-   *
-   *  حالا: اول داخل‌بودن، و اگر داخلِ هیچ‌کدام نبود، نزدیک‌ترین خانه در
-   *  شعاعِ `snapTolerance`. انگشتِ آدم روی شیشه حدودِ ۴۰ پیکسل پهناست؛
-   *  انتظارِ دقتِ پیکسلی از او، طراحیِ غلط است.
-   *
-   *  «مبهم» فقط وقتی است که دو خانه *هم‌پوشان* باشند — نه وقتی دو خانه
-   *  نزدیک‌اند. میانِ نامزدهای دورتر، نزدیک‌ترین برنده است. */
+   *  تاریخچه و قاعده‌ها در `lib/grammar-circuit/hit-test.ts` نوشته شده؛ اینجا
+   *  فقط مستطیل‌های زندهٔ DOM جمع می‌شوند و به آن سپرده می‌شوند. */
   const hitTest = useCallback((x: number, y: number, tolerance = 0): HitTestResult => {
-    const inside: string[] = [];
-    let nearest: { tokenId: string; distance: number } | null = null;
-
+    /* ترتیبِ Map ترتیبِ درج است و آن هم ترتیبِ سند — که در تساویِ کامل
+       تعیین‌کننده می‌شود. هندسه‌اش در `lib/grammar-circuit/hit-test.ts` است و
+       همان‌جا تست دارد. */
+    const candidates = [];
     for (const [tokenId, el] of hitTargetsRef.current) {
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) continue;
-      const d = distanceToRect(x, y, r);
-      if (d === 0) inside.push(tokenId);
-      else if (!nearest || d < nearest.distance) nearest = { tokenId, distance: d };
+      candidates.push({ tokenId, rect: el.getBoundingClientRect() });
     }
-
-    if (inside.length === 1) return { kind: "hit", tokenId: inside[0] };
-    if (inside.length > 1) return { kind: "ambiguous", tokenIds: inside };
-    if (nearest && tolerance > 0 && nearest.distance <= tolerance) {
-      return { kind: "hit", tokenId: nearest.tokenId };
-    }
-    return { kind: "none" };
+    return resolveHitTarget(x, y, candidates, tolerance);
   }, []);
 
   /** جای پیش‌نمایش را می‌نویسد.
@@ -263,13 +232,7 @@ export function useCircuitDnD({
         onDrop(pending.pieceId, result.tokenId);
         return;
       }
-      if (result.kind === "ambiguous" && process.env.NODE_ENV !== "production") {
-        console.error(
-          "[grammar-circuit] رها کردن مبهم بود؛ هیچ اتصالی ثبت نشد. " +
-            `ناحیه‌های لمسیِ هم‌پوشان: ${result.tokenIds.join(", ")}`,
-        );
-      }
-      // شکاف، بیرونِ برد یا ابهام → لغو، نه پاسخِ غلط.
+      // شکاف یا بیرونِ برد → لغو، نه پاسخِ غلط.
       onCancel(pending.pieceId);
     },
     [armClickSwallower, dropAnchor, hitTest, onCancel, onDrop, snapTolerance],

@@ -23,11 +23,14 @@ import { useChromeMode } from "@/lib/immersive-mode";
  *    visit. */
 export default function GameShell({
   title,
+  ownHeading = false,
   progressKeys = [],
   dense = false,
   children,
 }: {
   title: string;
+  /** خودِ بازی H1 دارد؟ اگر بله، پوسته دومی نمی‌سازد. */
+  ownHeading?: boolean;
   /** localStorage keys holding this game's in-progress round */
   progressKeys?: string[];
   /**
@@ -72,16 +75,21 @@ export default function GameShell({
   return (
     <ReportTargetProvider>
     <div dir="rtl" className="relative z-20">
-      {/* ⚠️ تیترِ صفحه. تا امروز `title` فقط داخلِ گفت‌وگوی «خروج» استفاده
-          می‌شد و صفحهٔ بازی هیچ H1 ای نداشت — نه برای موتور جست‌وجو، نه برای
-          کسی که با صفحه‌خوان کار می‌کند. ممیزیِ HTML این را در دو بازی
-          (نینجا و جاسوس) نشان داد؛ بقیه تیترِ خودشان را داشتند.
+      {/* ⚠️ تیترِ صفحه، فقط وقتی خودِ بازی تیتری ندارد.
+          
+          داستانش: `title` قبلاً فقط داخلِ گفت‌وگوی «خروج» استفاده می‌شد و
+          نینجا و جاسوس هیچ H1 ای نداشتند. یک `sr-only` اینجا گذاشتم — و
+          ممیزیِ بعدی نشان داد چهار بازیِ دیگر (مدار دستور، پلِ وزن،
+          واژه‌یاب، جفت‌های ادبی) تیترِ خودشان را دارند و حالا *دو* H1
+          گرفته‌اند.
+
+          پس شرطی شد. `ownHeading` را همان صفحه‌ای می‌دهد که می‌داند بازی‌اش
+          تیتر دارد؛ حدس زدن از داخلِ پوسته ممکن نیست.
 
           `sr-only` است و نه پنهانِ واقعی: همان متنی که کاربر می‌بیند و
-          می‌شنود، فقط جای دیداری اشغال نمی‌کند تا چیدمانِ بازی — که هر کدام
-          سربرگِ طراحی‌شدهٔ خودش را دارد — دست‌نخورده بماند. این پوشاندنِ
-          محتوا (cloaking) نیست: متن برای کاربر و خزنده یکی است. */}
-      <h1 className="sr-only">{title}</h1>
+          می‌شنود، فقط جای دیداری اشغال نمی‌کند. cloaking نیست — متن برای
+          کاربر و خزنده یکی است. */}
+      {!ownHeading && <h1 className="sr-only">{title}</h1>}
       {!immersive && (
       <div
         className={`container mx-auto flex max-w-4xl items-center justify-between gap-3 pt-6 ${

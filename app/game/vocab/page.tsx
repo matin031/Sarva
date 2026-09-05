@@ -22,7 +22,9 @@ export default function Page() {
           { name: "واژه‌یاب", path: "/game/vocab" },
         ])}
       />
-      <GameShell title="واژه‌یاب" progressKeys={[]}>
+      <GameShell
+        /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
+        ownHeading title="واژه‌یاب" progressKeys={[]}>
       <VocabGame />
     </GameShell>
     </>

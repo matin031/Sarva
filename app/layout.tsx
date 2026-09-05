@@ -149,6 +149,29 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* ⚠️ تورِ ایمنیِ محتوا وقتی جاوااسکریپت اجرا نمی‌شود.
+            
+            بخشِ زیادی از محتوای آموزشی با motion و `whileInView` ظاهر
+            می‌شود، یعنی سرور آن را با `opacity:0` می‌فرستد و جاوااسکریپت
+            رویتش می‌کند. اندازه‌گیری: یک صفحهٔ درس ۱۷۶ عنصرِ `opacity:0`
+            در HTMLِ اولیه دارد.
+
+            متن *در* HTML هست، پس خزنده آن را می‌بیند. مسئله آدمی است که
+            جاوااسکریپتش اجرا نمی‌شود — افزونه، شبکهٔ قطع‌شده، مرورگرِ
+            قدیمی: او یک صفحهٔ درسِ کاملاً سفید می‌بیند و فکر می‌کند سایت
+            خراب است.
+
+            این چند خط همان حالت را می‌پوشاند. داخلِ `<noscript>` است، پس
+            وقتی جاوااسکریپت هست هیچ اثری ندارد و انیمیشن‌ها دست‌نخورده
+            می‌مانند. */}
+        <noscript>
+          <style>{`
+            [style*="opacity:0"] { opacity: 1 !important; }
+            [style*="opacity: 0"] { opacity: 1 !important; }
+            [style*="transform:translate"] { transform: none !important; }
+            [style*="transform: translate"] { transform: none !important; }
+          `}</style>
+        </noscript>
         <LogoReveal />
         <Suspense>
           <NavigationProgress />

@@ -23,7 +23,9 @@ export default function Page() {
           { name: "مدار دستور", path: "/game/grammar-circuit" },
         ])}
       />
-      <GameShell title="مدار دستور" progressKeys={[]}>
+      <GameShell
+        /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
+        ownHeading title="مدار دستور" progressKeys={[]}>
       <GrammarCircuitGame />
     </GameShell>
     </>

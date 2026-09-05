@@ -23,7 +23,9 @@ export default function Page() {
           { name: "پلِ وزن", path: "/game/aruz-bridge" },
         ])}
       />
-      <GameShell title="پلِ وزن" dense>
+      <GameShell
+        /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
+        ownHeading title="پلِ وزن" dense>
       <AruzBridgeGame />
     </GameShell>
     </>

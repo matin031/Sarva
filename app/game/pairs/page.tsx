@@ -29,7 +29,9 @@ export default async function Page() {
           { name: "جفت‌های ادبی", path: "/game/pairs" },
         ])}
       />
-      <GameShell title="جفت‌های ادبی" progressKeys={[]}>
+      <GameShell
+        /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
+        ownHeading title="جفت‌های ادبی" progressKeys={[]}>
       <PairsGame decks={decks} />
     </GameShell>
     </>

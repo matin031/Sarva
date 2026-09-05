@@ -22,7 +22,11 @@ export async function generateMetadata({
   }
   const name = post.title ?? poemExcerpt(post.body, 1);
   return {
-    title: `${name} — سرودهٔ ${post.authorName} | سروا کلاب`,
+    /* ⚠️ «| سروا کلاب» از عنوان برداشته شد: قالبِ ریشه خودش « | سروا» را
+       اضافه می‌کند و نتیجه «… | سروا کلاب | سروا» می‌شد. این را ممیزیِ
+       اولیه نگرفت چون فقط صفحه‌های ثابت را نمونه می‌گرفت، نه یک سرودهٔ
+       واقعی را. */
+    title: `${name} — سرودهٔ ${post.authorName}`,
     description: poemExcerpt(post.body, 2),
     alternates: { canonical: `/sarvaclub/${post.id}` },
   };
@@ -48,7 +52,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 6l6 6-6 6M21 12H3" />
         </svg>
         بازگشت به سروا کلاب
       </Link>

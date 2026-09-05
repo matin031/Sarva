@@ -4,6 +4,7 @@ import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 // شیوه‌نامهٔ همین بازی، کنارِ خودش. توضیحِ دلیلش بالای همان فایل است.
 import "./grammar-circuit.css";
+import "./grammar-circuit-atelier.css";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -42,6 +43,7 @@ import { useCircuitLayout } from "./hooks/useCircuitLayout";
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion";
 import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 import { immersiveMode } from "@/lib/immersive-mode";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
@@ -90,6 +92,9 @@ export default function GrammarCircuitGame() {
   /* متنِ جمله از توکن‌ها بازسازی می‌شود — همان‌طور که خودِ بازی نشانش
      می‌دهد، با جداکنندهٔ دقیقِ هر توکن. `join(" ")` اینجا غلط بود: نیم‌فاصله
      و نشانه‌گذاری در داده صریح‌اند. */
+  /* دورِ زنده فقط صفحهٔ بازی است؛ «تنظیمات» و «نتایج» بیرون‌اند. */
+  useRoundGuard(state.screen === "playing");
+
   useSetReportTarget(
     prepared
       ? {
@@ -249,6 +254,7 @@ export default function GrammarCircuitGame() {
     enabled: arrangeable,
     activationDistance: config.dragActivationDistance,
     touchLiftPx: config.touchDragLiftPx,
+    snapTolerance: config.dropSnapTolerancePx,
     onPickup,
     onDrop,
     onCancel: onDragCancel,

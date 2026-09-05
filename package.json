@@ -20,6 +20,9 @@
     "db:check-rotation": "tsx scripts/check-refresh-rotation.ts",
     "db:check-otp": "tsx scripts/check-otp-attempts.ts",
     "db:check-sql": "tsx scripts/check-sql.ts",
+    "seo:check": "node scripts/check-seo.mjs",
+    "seo:render": "node scripts/check-render.mjs",
+    "seo:perf": "node scripts/check-perf.mjs",
     "db:unseed-aruz": "tsx scripts/unseed-aruz.ts"
   },
   "dependencies": {

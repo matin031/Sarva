@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import { BRIDGE_Y, stepZ, tileX } from "@/lib/aruz-bridge/layout";
+import { breakingTile, glassStateFor, standSide } from "@/lib/aruz-bridge/glass";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type {
@@ -36,14 +37,10 @@ const JUMP_PEAK = 1.15;
 
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
-/** کدام کاشی زیرِ پای بازیکن است، پیش از مرحلهٔ `index`. */
-function standSide(machine: MachineState, index: number): Side | null {
-  if (index === 0) return null;
-  return machine.steps[index - 1]?.correctSide ?? null;
-}
-
 function standVector(machine: MachineState, index: number): THREE.Vector3 {
-  const side = standSide(machine, index);
+  /* همان `standSide` که منطقِ شکستن هم از آن استفاده می‌کند. یک نسخهٔ محلی
+     اینجا بود؛ دو کپی از «کدام کاشی زیرِ پاست» دیر یا زود از هم دور می‌شوند. */
+  const side = standSide(machine.steps, index);
   return side === null
     ? new THREE.Vector3(0, BRIDGE_Y, 0)
     : new THREE.Vector3(tileX(side), BRIDGE_Y, stepZ(index - 1));
@@ -112,10 +109,30 @@ export function GameScene({
      ثانیه از لحظهٔ ورود به حالتِ فعلی. با هر گذار صفر می‌شود. همهٔ
      انیمیشن‌های زمان‌دار از همین یک عدد تغذیه می‌شوند، پس تصویر دقیقاً با
      همان زمان‌بندی‌ای پیش می‌رود که ماشینِ حالت تایمرش را روی آن گذاشته. */
+  /* ⚠️ ساعتِ دیواری، نه جمعِ deltaهای سقف‌خورده.
+
+     پیش از این `clock` جمعِ `Math.min(delta, 0.05)` بود. سقف برای پایداریِ
+     انتگرال‌گیری درست است، ولی همین سقف این ساعت را از ساعتی که *ماشینِ
+     حالت* با آن کار می‌کند جدا می‌کرد: تایمرهای ماشین `setTimeout`اند و
+     زمانِ واقعی را می‌شمارند.
+
+     هر فریمِ کندتر از ۵۰ میلی‌ثانیه — یک وقفهٔ زباله‌روبی، یک تبِ کُندشده —
+     فقط ۵۰ میلی‌ثانیه به این ساعت اضافه می‌کرد ولی زمانِ واقعی همان‌قدر که
+     بود می‌گذشت. پس در لحظه‌ای که ماشین `landed` می‌فرستاد، `p` هنوز به ۱
+     نرسیده بود و `landing` بازیکن را با یک `copy(destination)` به مقصد
+     می‌چسباند: بقیهٔ مسیر پریده می‌شد.
+
+     با ساعتِ دیواری، `p` دقیقاً وقتی به ۱ می‌رسد که تایمر هم می‌رسد. سقفِ
+     `dt` سرِ جایش می‌ماند، چون هنوز برای حالت‌هایی که مستقیم انتگرال
+     می‌گیرند (مثلِ `gameOver`) لازم است. */
   const clock = useRef(0);
-  useEffect(() => {
-    clock.current = 0;
-  }, [state, epoch]);
+  const stateStart = useRef(0);
+  /* ⚠️ مهرِ زمان داخلِ خودِ فریم زده می‌شود و نه در یک `useEffect`.
+
+     با effect، فریمی که *پیش از* اجرای effect می‌رسید هنوز مهرِ حالتِ قبلی
+     را می‌دید و انیمیشن برای یک فریم از وسط شروع می‌شد. اینجا اولین فریمی
+     که حالتِ تازه را می‌بیند، خودش مهر می‌زند — پس چنین فریمی وجود ندارد. */
+  const stamped = useRef<{ state: GameState; epoch: number } | null>(null);
 
   /* یک شناسه برای کلِ صحنه. «کدام کاشی hover است» یک پرسشِ سراسری است، نه
      حالتی که هر کاشی جدا برای خودش نگه دارد؛ وگرنه دو کاشی می‌توانند
@@ -147,7 +164,7 @@ export function GameScene({
         const target = machine.steps[machine.stepIndex];
         publishInteractionDebug({
           lastSelectedSide: side,
-          lastClickedTileId: target ? `${target.question.id}:${side}` : null,
+          lastClickedTileId: target ? `${target.uid}:${side}` : null,
           lastJumpTarget: { x: tileX(side), z: stepZ(machine.stepIndex) },
         });
       }
@@ -194,7 +211,14 @@ export function GameScene({
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
-    clock.current += dt;
+
+    const now = performance.now();
+    if (stamped.current?.state !== state || stamped.current?.epoch !== epoch) {
+      stamped.current = { state, epoch };
+      stateStart.current = now;
+    }
+    // زمانِ سپری‌شده از ورود به این حالت — همان ساعتی که تایمرِ ماشین دارد
+    clock.current = (now - stateStart.current) / 1000;
     const t = clock.current;
 
     switch (state) {
@@ -249,33 +273,22 @@ export function GameScene({
     }
   });
 
-  /* ── حالتِ دیداریِ هر کاشی ───────────────────────────────────────────────
-     دو سناریوی مرگ، دو کاشیِ متفاوت:
-       • پاسخِ غلط  → کاشیِ *انتخاب‌شده* می‌شکند.
-       • پایانِ زمان → کاشیِ *زیرِ پا* می‌شکند (بی‌عملی هم سقوط دارد). */
-  const breaking = useMemo(() => {
-    const failing =
-      state === "cracking" || state === "shattering" || state === "falling" || state === "gameOver";
-    if (!failing) return null;
+  /* حالتِ دیداریِ کاشی‌ها منطقِ خالص است و در `lib/aruz-bridge/glass.ts`
+     زندگی می‌کند — همان‌جا هم تست دارد. صحنه فقط صدایش می‌زند. */
+  const breaking = useMemo(
+    () =>
+      breakingTile({
+        state,
+        failure: machine.failure,
+        stepIndex,
+        chosen,
+        steps: machine.steps,
+      }),
+    [state, machine.failure, machine.steps, stepIndex, chosen],
+  );
 
-    if (machine.failure === "timeout") {
-      const side = standSide(machine, stepIndex);
-      return { index: side === null ? -1 : stepIndex - 1, side };
-    }
-    return chosen ? { index: stepIndex, side: chosen } : null;
-  }, [state, machine, stepIndex, chosen]);
-
-  const glassStateFor = (index: number, side: Side | null): GlassState => {
-    if (!breaking || breaking.index !== index || breaking.side !== side) return "intact";
-    switch (state) {
-      case "cracking":
-        return "cracking";
-      case "shattering":
-        return "shattering";
-      default:
-        return "broken";
-    }
-  };
+  const tileState = (index: number, side: Side | null): GlassState =>
+    glassStateFor(state, breaking, index, side);
 
   /* چند جفت رندر شود. مه بقیه را می‌خورد، پس بیش از این هزینهٔ بی‌فایده است —
      و کمتر از این یعنی جفتِ بعدی جلوی چشمِ بازیکن ناگهان ظاهر می‌شود. */
@@ -323,7 +336,7 @@ export function GameScene({
           مرگ دقیقاً مثلِ بقیهٔ مراحل اتفاق بیفتد. */}
       <GlassTile
         position={[0, BRIDGE_Y, 0]}
-        state={glassStateFor(-1, null)}
+        state={tileState(-1, null)}
         quality={quality}
         impactX={impact.x}
         impactZ={impact.z}
@@ -340,12 +353,12 @@ export function GameScene({
         const revealAnswer = isCurrent && (state === "gameOver" || state === "finished");
 
         return (
-          <group key={pair.question.id}>
+          <group key={pair.uid}>
             {(["left", "right"] as const).map((side) => (
               <GlassTile
                 key={side}
                 position={[tileX(side), BRIDGE_Y, stepZ(index)]}
-                state={glassStateFor(index, side)}
+                state={tileState(index, side)}
                 quality={quality}
                 impactX={impact.x}
                 impactZ={impact.z}
@@ -355,8 +368,12 @@ export function GameScene({
                 seed={index * 31 + (side === "left" ? 1 : 2)}
                 /* یک شیء، یک هویت: همین `tileId` هم hover را تعیین می‌کند،
                    هم انتخاب را، هم مقصدِ پرش — چون `side` از همان جفت
-                   آماده‌شده می‌آید و جای دیگری دوباره قرعه نمی‌خورد. */
-                tileId={`${pair.question.id}:${side}`}
+                   آماده‌شده می‌آید و جای دیگری دوباره قرعه نمی‌خورد.
+
+                   ⚠️ از `uid` ساخته می‌شود و نه `question.id`: با تکرارِ
+                   مجاز، دو نوبت از یک پرسش می‌توانند هم‌زمان دیده شوند و
+                   شناسهٔ مشترک یعنی hoverِ یکی، دیگری را هم روشن می‌کرد. */
+                tileId={`${pair.uid}:${side}`}
                 side={side}
                 selectable={isCurrent && selectable}
                 hoveredTileId={effectiveHoverId}

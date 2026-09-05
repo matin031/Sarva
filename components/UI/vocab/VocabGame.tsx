@@ -1,4 +1,6 @@
 "use client";
+
+import BackLink from "@/components/UI/BackLink";
 import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
 import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { freeVocabLessons } from "@/lib/guest/policy";
@@ -31,6 +33,7 @@ import {
 } from "@/lib/vocab-preload";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 import VocabChallenge from "./VocabChallenge";
 import MeaningModal from "./MeaningModal";
 import BookmarkButton from "@/components/UI/BookmarkButton";
@@ -261,6 +264,10 @@ export default function VocabGame() {
   /* پوستهٔ بازی دکمهٔ گزارش را می‌سازد؛ اینجا فقط می‌گوییم الان چه چیزی روی
      صفحه است. وقتی پرسشی در کار نیست (صفحهٔ انتخاب یا نتیجه) `null` می‌رود
      و دکمه اصلاً دیده نمی‌شود. */
+  /* دورِ زنده: آزمون یا چالش. انتخابِ پایه/درس/حالت، بارگذاری و صفحهٔ
+     نتیجه چیزی برای از دست دادن ندارند. */
+  useRoundGuard(screen === "quiz" || screen === "challenge");
+
   useSetReportTarget(
     q
       ? {
@@ -705,16 +712,11 @@ export default function VocabGame() {
         {/* top bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {reviewing ? (
-            <button
-              onClick={() => setScreen("result")}
-              className="text-sm font-bold text-muted-foreground hover:text-primary"
-            >
-              ← بازگشت به نتیجه
-            </button>
+            <BackLink onClick={() => setScreen("result")} className="font-bold">
+              بازگشت به نتیجه
+            </BackLink>
           ) : (
-            <button onClick={() => setScreen("lesson")} className="text-sm text-muted-foreground hover:text-primary">
-              ← درس‌ها
-            </button>
+            <BackLink onClick={() => setScreen("lesson")}>درس‌ها</BackLink>
           )}
           <div className="flex items-center gap-2">
             <button
@@ -959,7 +961,7 @@ function Shell({
       <div className="mb-6 text-center">
         {onBack && (
           <button onClick={onBack} className="float-right text-sm text-muted-foreground hover:text-primary">
-            ← بازگشت
+            بازگشت
           </button>
         )}
         <h1 className="text-2xl font-bold text-primary sm:text-3xl">{title}</h1>

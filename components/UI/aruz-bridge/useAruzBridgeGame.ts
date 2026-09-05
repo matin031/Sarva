@@ -205,6 +205,13 @@ export function useAruzBridgeGame({
 
       const activeSession = overrides?.sessionOverride ?? session;
 
+      /* ⚠️ هر دورِ تازه از نو منتظرِ صحنه می‌ماند.
+         `beginRun` تنها راهِ ورود به دور است — «شروع»، «دوباره» و «مرورِ
+         اشتباه‌ها» هر سه از همین‌جا می‌گذرند — پس یک جا صفر کردن، برای هر
+         سه یکسان عمل می‌کند. بدونِ این، دورِ دوم شمارش را بدونِ انتظار
+         شروع می‌کرد چون پرچم از دورِ قبل روشن مانده بود. */
+      setSceneReady(false);
+
       // «شروع» یک ژستِ واقعیِ کاربر است — تنها جایی که مرورگر اجازهٔ باز کردنِ صدا می‌دهد.
       void audioRef.current?.unlock();
 
@@ -251,6 +258,18 @@ export function useAruzBridgeGame({
     };
   }, []);
 
+  /* ── آماده‌بودنِ صحنه ──────────────────────────────────────────────────
+     ⚠️ شمارشِ معکوس تا اینجا با یک `setTimeout` خالص جلو می‌رفت و هیچ
+     ربطی به بارگذاریِ صحنه نداشت. روی اولین بازدید با کشِ خالی، ممکن بود
+     «۳ ۲ ۱» روی یک بومِ خالی بشمارد و بازی وقتی شروع شود که کاربر هنوز
+     پل را ندیده.
+
+     `sceneReady` را خودِ صحنه از داخلِ مرزِ Suspense خبر می‌دهد
+     (scene/SceneReady.tsx) و یک‌بارمصرف است: با هر شروعِ دوباره صفر
+     می‌شود تا دورِ تازه هم منتظر بماند. */
+  const [sceneReady, setSceneReady] = useState(false);
+  const markSceneReady = useCallback(() => setSceneReady(true), []);
+
   /* ── ساعتِ بازی ────────────────────────────────────────────────────────── */
   /* یک تایمر برای هر حالت. کلیدِ اثر `[state, epoch]` است، پس هر گذارِ
      پذیرفته‌شده تایمرِ قبلی را لغو می‌کند و هیچ callbackِ کهنه‌ای شلیک
@@ -263,14 +282,16 @@ export function useAruzBridgeGame({
     machine.chosen != null && machine.chosen === currentStep(machine)?.correctSide;
 
   useEffect(() => {
+    /* ⚠️ `countdown` عمداً اینجا تایمر ندارد. خطِ زمانی‌اش را خودِ
+       کامپوننتِ Countdown دارد و پایانش را با `countdownDone` خبر می‌دهد،
+       تا عددِ «۱» حتماً دیده شود و مکثِ تبِ مخفی روی هر دو اثر بگذارد. */
+    if (state === "countdown") return;
+
     const duration = durationFor(state, config, answeredCorrectly);
     if (duration === null) return;
 
     const id = window.setTimeout(() => {
       switch (state) {
-        case "countdown":
-          dispatch({ type: "countdownDone" });
-          break;
         case "preparing":
           dispatch({ type: "questionShown", now: performance.now() });
           break;
@@ -401,6 +422,11 @@ export function useAruzBridgeGame({
     pool,
     choose,
     startRun: beginRun,
+    /* آماده‌بودنِ صحنه و راهِ اعلامش — مصرف‌کننده شمارش را به این گره می‌زند. */
+    sceneReady,
+    markSceneReady,
+    /** پایانِ شمارش را خودِ Countdown خبر می‌دهد، نه یک تایمرِ موازی. */
+    finishCountdown: useCallback(() => dispatch({ type: "countdownDone" }), []),
     retry,
     reviewMistakes,
     backToSetup,

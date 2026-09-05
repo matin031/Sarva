@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -32,11 +35,20 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${lesson.title} — ${grade.book}`,
+    // عنوان سه چیز را می‌گوید: نامِ درس، شماره‌اش، و پایه. پیش از این پایه
+    // نبود و «درس ۵» چند کتاب داشت — در نتیجهٔ جست‌وجو معلوم نمی‌شد کدام.
+    title: `${lesson.title} — درس ${number} ${grade.book} پایهٔ ${grade.label}`,
     description:
       lesson.kind === "poem"
-        ? `شرحِ بیت‌به‌بیتِ «${lesson.title}» با تفکیکِ قلمرو زبانی، ادبی و فکری.`
-        : `شرحِ «${lesson.title}» با تفکیکِ قلمرو زبانی، ادبی و فکری.`,
+        ? `شرحِ بیت‌به‌بیتِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`
+        : `شرحِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`,
+    /* ⚠️ canonical از شمارهٔ *نرمال‌شده* ساخته می‌شود، نه از رشتهٔ خام مسیر.
+       این همان چیزی است که مسئلهٔ آدرس‌های تکراری را حل می‌کند:
+       `/doroos/yazdahom/1` و `/01` و `/۱` و `/١` هر چهار تا همین صفحه را
+       نشان می‌دهند (parseLessonNumber ارقام فارسی و عربی و صفرِ ابتدایی را
+       می‌پذیرد). حالا هر چهار آدرس یک canonicalِ واحد اعلام می‌کنند و
+       موتور جست‌وجو یکی را نگه می‌دارد. */
+    alternates: { canonical: absoluteUrl(`/doroos/${grade.key}/${number}`) },
   };
 }
 
@@ -66,7 +78,21 @@ export default async function Page({
   if (!grade || number === null || !isLessonInBook(number)) notFound();
 
   const lesson = await getLesson(gradeKey, number);
-  if (lesson) return <LessonView grade={grade} lesson={lesson} />;
+  if (lesson)
+    return (
+      <>
+        {/* مسیرِ واقعیِ صفحه — همانی که ناوبریِ خودِ سایت نشان می‌دهد. */}
+        <JsonLd
+          data={breadcrumbList([
+            { name: "خانه", path: "/" },
+            { name: "درسنامه", path: "/doroos" },
+            { name: grade.book, path: `/doroos/${grade.key}` },
+            { name: lesson.title, path: `/doroos/${grade.key}/${number}` },
+          ])}
+        />
+        <LessonView grade={grade} lesson={lesson} />
+      </>
+    );
 
   const ref = grade.lessons.find((l) => l.number === number);
 
@@ -77,7 +103,7 @@ export default async function Page({
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 6l6 6-6 6M21 12H3" />
         </svg>
         بازگشت به {grade.book}
       </Link>

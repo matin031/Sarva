@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import ExamSection from "@/components/UI/ExamSection";
 import VaznYabHomeSection from "@/components/UI/VaznYabHomeSection";
 import VocabHomeSection from "@/components/UI/VocabHomeSection";
@@ -9,6 +11,20 @@ import SiteHighlightsSection from "@/components/UI/SiteHighlightsSection";
 import StartLearningSection from "@/components/UI/StartLearningSection";
 import VerseCard from "@/components/UI/WaveDivider";
 import SupportersSection from "@/components/site/SupportersSection";
+
+/**
+ * ⚠️ صفحهٔ خانه canonicalِ صریحِ خودش را می‌گیرد.
+ *
+ * پیش از این `canonical: "/"` در لایوتِ ریشه بود و *همهٔ* صفحه‌ها آن را ارث
+ * می‌بردند. آن سطر برداشته شد، پس خانه هم باید مالِ خودش را داشته باشد —
+ * وگرنه هیچ صفحه‌ای canonical نمی‌داشت.
+ *
+ * عنوان و توضیح در لایوتِ ریشه‌اند (`title.default`) چون همان‌ها پیش‌فرضِ
+ * سایت‌اند؛ اینجا فقط canonical اضافه می‌شود تا آن‌ها بازنویسی نشوند.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: absoluteUrl("/") },
+};
 
 export default function Home() {
   return (

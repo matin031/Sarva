@@ -25,12 +25,19 @@ export default function ClubFeed({
   initialHasMore,
   viewerName,
   filters,
+  startPage = 0,
 }: {
   initialPosts: ClubPost[];
   initialHasMore: boolean;
   /** null when nobody is signed in */
   viewerName: string | null;
   filters: { sort: ClubFeedSort; form?: string; tag?: string };
+  /** صفحه‌ای که سرور همین حالا داده (صفرمبنا).
+   *
+   *  ⚠️ لازم شد چون فهرست دیگر همیشه از صفحهٔ صفر شروع نمی‌شود: آدرس
+   *  `?page=3` را سرور رندر می‌کند و دکمهٔ «بیشتر» باید صفحهٔ *چهارم* را
+   *  بخواهد، نه دوباره صفحهٔ یک را. */
+  startPage?: number;
 }) {
   const reduced = useReducedMotion();
   // ⚠️ فقط صفحه‌های *بعدی* در state می‌مانند. صفحهٔ اول همیشه همان چیزی است
@@ -49,7 +56,7 @@ export default function ClubFeed({
   // می‌دارد که کاربر خودش خواسته: صفحه‌های بارگذاری‌شدهٔ بعدی.
   const [extra, setExtra] = useState<ClubPost[]>([]);
   const [moreState, setMoreState] = useState<boolean | null>(null);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(startPage);
   const [composing, setComposing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

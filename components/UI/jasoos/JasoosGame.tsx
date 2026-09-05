@@ -13,6 +13,7 @@ import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
 import GameIntro from "@/components/UI/games/GameIntro";
 import { JasoosPreview } from "@/components/UI/games/GamePreviews";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 
 type Screen = "intro" | "settings" | "map" | "scene" | "gameover" | "win";
 type GameOverReason = "lives" | "time";
@@ -69,6 +70,10 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   const restoredOwnerRef = useRef<string | null>(null);
 
   const level = runLevels[levelIndex];
+
+  /* دورِ زنده: روی نقشه یا داخلِ صحنه. «معرفی»، «تنظیمات» و صفحه‌های
+     پایان بیرون‌اند. */
+  useRoundGuard(screen === "map" || screen === "scene");
 
   useSetReportTarget(
     level

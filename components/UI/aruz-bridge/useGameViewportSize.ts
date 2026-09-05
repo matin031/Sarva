@@ -74,7 +74,21 @@ export function useGameViewportSize({
 
     const vh = window.innerHeight;
 
-    const containerWidth = container.clientWidth;
+    /* ⚠️ `clientWidth` بالشتک (padding) را *در خود دارد*، ولی کادرِ بازی
+       داخلِ جعبهٔ محتوای همین ظرف می‌نشیند. اینجا مستقیم `clientWidth`
+       گرفته می‌شد، پس کادر به اندازهٔ کلِ بالشتکِ دو طرف پهن‌تر از جای
+       واقعی‌اش می‌شد و با `mx-auto` از هر طرف نصفش بیرون می‌زد.
+
+       اندازه‌گیریِ پذیرش این را نشان داد — ظرف `px-3 sm:px-4` دارد:
+
+         نمایشگر ۷۶۸   کادر ۷۵۳px پهن، از ‎−۱۶‎ تا ۷۳۷ → سرریزِ افقیِ ۱۶px
+         نمایشگر ۱۰۲۴  کادر ۱۰۰۹px پهن، از ‎−۱۶‎ تا ۹۹۳ → سرریزِ ۱px
+
+       روی ۱۴۴۰ پیدا نبود، چون آنجا سقفِ ۱۱۵۲ زودتر می‌رسید و کادر هنوز از
+       جعبهٔ محتوا کوچک‌تر بود — برای همین تا امروز از چشم افتاده بود. */
+    const style = window.getComputedStyle(container);
+    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const containerWidth = Math.max(0, container.clientWidth - padX);
     const hudHeight = hudRef.current?.offsetHeight ?? 0;
 
     /* بالای ظرف در فضای *سند*، نه در فضای دید: سربرگِ سایت و هر چیزِ دیگری

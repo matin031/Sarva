@@ -16,7 +16,10 @@ import { GameTopBar } from "./GameTopBar";
 import { useGameViewportSize } from "./useGameViewportSize";
 import { isMobileMode, useViewportMode } from "./useViewportMode";
 import { GameHeader } from "./GameHeader";
-import { Countdown, SessionSetup } from "./SessionSetup";
+import {SessionSetup} from "./SessionSetup";
+/* Countdown از فایلِ خودش می‌آید: حالا خطِ زمانی و پایانِ شمارش را خودش
+   دارد و دیگر یک نمایشِ ساده کنارِ SessionSetup نیست. */
+import Countdown from "./Countdown";
 import {
   FinishedScreen,
   GameOverScreen,
@@ -28,6 +31,8 @@ import { useAruzBridgeGame } from "./useAruzBridgeGame";
 import { useGameControls } from "./useGameControls";
 import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
+import { AccessibleOptions } from "./AccessibleOptions";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -61,6 +66,26 @@ function useHitDebug(): boolean {
     noopSubscribe,
     () => new URLSearchParams(window.location.search).has("debugHits"),
     () => false,
+  );
+}
+
+/**
+ * پیامِ «صحنه دارد آماده می‌شود».
+ *
+ * ⚠️ پیش از این، در فاصلهٔ بارگذاری هیچ چیزی گفته نمی‌شد: بوم سیاه بود و
+ * شمارش رویش می‌دوید. کاربر نمی‌دانست منتظرِ چیست یا اصلاً چیزی خراب شده.
+ */
+function SceneLoading() {
+  return (
+    <div
+      dir="rtl"
+      className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+      <p className="text-sm text-[#ffe9bd]/80">در حال آماده‌سازی پل…</p>
+    </div>
   );
 }
 
@@ -105,6 +130,11 @@ export default function AruzBridgeGame() {
   const isFinished = state === "finished";
   const showBridge = !inSetup && !isOver && !isFinished;
 
+  /* همان شرطی که پل را نشان می‌دهد، نگهبانِ خروج را هم مسلح می‌کند — یک
+     حالت، دو مصرف. روی صفحهٔ تنظیمات و صفحهٔ نتیجه چیزی برای از دست دادن
+     نیست، پس نوسازیِ صفحه هم نباید سؤال کند. */
+  useRoundGuard(showBridge);
+
   /* پایانِ دست یک «دور» است — چه باخت چه تمام کردن. ثبت در همان لحظه‌ای که
      صفحهٔ پایان می‌آید، نه هنگامِ شروع: مهمانی که وسطِ دست صفحه را ببندد
      نباید سهمیه‌اش سوخته باشد. */
@@ -146,12 +176,33 @@ export default function AruzBridgeGame() {
     ? new Set(game.pool.map((q) => q.id)).size
     : null;
 
+  /* ⚠️ هر سه راهِ ورود به یک دور از همین دروازه می‌گذرند.
+
+     پیش از این، بررسیِ سهمیهٔ مهمان *فقط* روی دکمهٔ «شروعِ بازی» در صفحهٔ
+     تنظیمات بود. «دوباره» و «مرورِ اشتباه‌ها» مستقیم `beginRun` را صدا
+     می‌زدند، پس مهمانی که سهمیه‌اش تمام شده بود کافی بود به صفحهٔ تنظیمات
+     برنگردد و بی‌نهایت بازی کند.
+
+     آزموده شد: با شمارشِ دستیِ ۹۹ دور، «شروعِ بازی» جلویش گرفته می‌شد ولی
+     «دوباره» دورِ تازه را شروع می‌کرد.
+
+     (یادآوری: این شمارش در localStorage است و اجرای امنیتی نیست — هدفش
+     یادآوریِ ورود است. ولی یادآوری‌ای که از یک در می‌آید و از درِ بغلی رد
+     می‌شود، اصلاً یادآوری نیست.) */
+  const guardGuest = (run: () => void) => {
+    if (guest.blocked) {
+      setGuestPrompt(true);
+      return;
+    }
+    run();
+  };
+
   const resultActions: ResultActions = {
-    onRetry: game.retry,
+    onRetry: () => guardGuest(game.retry),
     onChangeSettings: game.backToSetup,
     failedCount: machine.failedQuestionIds.length,
     onReview: game.session.reviewMistakes
-      ? () => game.reviewMistakes(machine.failedQuestionIds)
+      ? () => guardGuest(() => game.reviewMistakes(machine.failedQuestionIds))
       : undefined,
   };
 
@@ -206,9 +257,24 @@ export default function AruzBridgeGame() {
               inputLocked={game.inputLocked}
               onChoose={game.choose}
               debugHitTargets={debugHitTargets}
+              onSceneReady={game.markSceneReady}
             />
           )}
-          {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
+
+          {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
+          <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
+          {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
+              روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}
+          {state === "countdown" &&
+            (game.sceneReady ? (
+              <Countdown
+                duration={game.config.countdownDuration}
+                onDone={game.finishCountdown}
+                reducedMotion={reducedMotion}
+              />
+            ) : (
+              <SceneLoading />
+            ))}
         </div>
       </div>
     );
@@ -228,13 +294,7 @@ export default function AruzBridgeGame() {
         <SessionSetup
           session={game.session}
           onChange={game.setSession}
-          onStart={() => {
-            if (guest.blocked) {
-              setGuestPrompt(true);
-              return;
-            }
-            void game.startRun();
-          }}
+          onStart={() => guardGuest(() => void game.startRun())}
           loading={game.loading}
           error={game.loadError}
           availableUnique={availableUnique}
@@ -297,10 +357,25 @@ export default function AruzBridgeGame() {
                 inputLocked={game.inputLocked}
                 onChoose={game.choose}
                 debugHitTargets={debugHitTargets}
+                onSceneReady={game.markSceneReady}
               />
             )}
 
-            {state === "countdown" && <Countdown duration={game.config.countdownDuration} />}
+            {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
+            <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
+
+            {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
+              روشن، نه یک بومِ خالی که کاربر نداند منتظرِ چیست. */}
+          {state === "countdown" &&
+            (game.sceneReady ? (
+              <Countdown
+                duration={game.config.countdownDuration}
+                onDone={game.finishCountdown}
+                reducedMotion={reducedMotion}
+              />
+            ) : (
+              <SceneLoading />
+            ))}
             <OrientationHint />
           </div>
         </div>

@@ -195,7 +195,17 @@ function Header({ compact = false }: { compact?: boolean }) {
       /* حالتِ جمع‌شده را پلِ وزن روشن می‌کند (lib/immersive-mode.ts). دو سازوکار
          کنارِ همند و با هم تداخل ندارند: یکی سربرگ را کاملاً برمی‌دارد، دیگری
          فقط فشرده‌اش می‌کند. */
-      className={`flex justify-between items-center flex-row-reverse container ${
+      /* ⚠️ `flex-row-reverse` برداشته شد.
+         
+         این کلاس وقتی گذاشته شده بود که سندْ `ltr` بود و سربرگ باید
+         *دستی* آینه می‌شد تا راست‌به‌چپ دیده شود. حالا که ریشه `rtl` است،
+         همان کلاس دوباره آینه‌اش می‌کرد و لوگو به چپ می‌رفت — در
+         اسکرین‌شاتِ پیش/پس دقیقاً همین دیده شد.
+
+         بدونِ این کلاس، ترتیبِ DOM (لوگو اول) در جریانِ RTL خودش لوگو را
+         سمتِ راست می‌نشاند. ترتیبِ دیداری، ترتیبِ DOM و ترتیبِ فوکوس هر سه
+         یکی می‌شوند. */
+      className={`flex justify-between items-center container ${
         compact ? "mt-1.5" : "mt-4"
       }`}
     >
@@ -295,7 +305,8 @@ function Header({ compact = false }: { compact?: boolean }) {
         >
           <div className=" block z-200 relative">
             <button
-              className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2 flex-row-reverse"
+              /* همان دلیلِ بالا: آینهٔ دستی، حالا که ریشه rtl است، زیادی است. */
+              className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2"
               onClick={() => {
                 setOpenMenuMobile((prev) => !prev);
               }}
@@ -321,7 +332,7 @@ function Header({ compact = false }: { compact?: boolean }) {
               className={`${openMenuMobile ? " translate-y-2 visible opacity-100" : " -translate-y-7 invisible opacity-0"} 
              transition-transform duration-150 ease-in-out absolute bg-menu-mobile 
              border-border border py-5 px-4 rounded-lg gap-x-6 flex 
-              items-center -left-30 justify-between gap-y-6 w-50 sm:w-62.5 flex-wrap`}
+              items-center end-0 justify-between gap-y-6 w-50 sm:w-62.5 flex-wrap`}
             >
               {menuItemsMobile.map((l) => (
                 <Link

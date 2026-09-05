@@ -60,6 +60,11 @@ export interface GrammarCircuitConfig {
   /** پیش‌نمایشِ کشیده‌شده روی لمس، این‌قدر بالاتر از انگشت دیده می‌شود؛
    *  محاسبهٔ مقصد همچنان با مختصاتِ واقعیِ انگشت است. */
   touchDragLiftPx: number;
+  /** تا این فاصله از یک خانه، قطعه به همان خانه می‌چسبد.
+   *
+   *  ⚠️ صفر یعنی همان رفتارِ قدیمی: «یا دقیقاً داخل، یا هیچ» — که روی گوشی
+   *  عملاً یعنی «هیچ». اندازه‌اش عمداً هم‌مرتبهٔ پهنای انگشت است. */
+  dropSnapTolerancePx: number;
 
   /** «لمس کن، بعد لمس کن» — روی موبایل مسیرِ اصلی است، نه راهِ دومِ اضطراری.
    *  خاموش‌کردنش فقط کشیدن و صفحه‌کلید را باقی می‌گذارد. */
@@ -121,6 +126,7 @@ export const GRAMMAR_CIRCUIT_CONFIG: GrammarCircuitConfig = {
   leaderLineThreshold: 3,
 
   touchDragLiftPx: 44,
+  dropSnapTolerancePx: 44,
 
   allowTapToPlace: true,
   allowCorrectModuleRemoval: false,

@@ -9,6 +9,7 @@ import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./Ninja
 import GameIntro from "@/components/UI/games/GameIntro";
 import { NinjaPreview } from "@/components/UI/games/GamePreviews";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 
 type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
 
@@ -42,6 +43,10 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
 
   /* گزارش روی *نقش* است نه روی یک واژه: اگر واژه‌ای در دستهٔ اشتباه نشسته
      باشد، مدیر باید همان نقش را باز کند. خودِ واژه در یادداشتِ کاربر می‌آید. */
+  /* دورِ زنده: از وقتی نقشِ دور کارت خورده تا پیش از صفحهٔ نتیجه.
+     «معرفی» و «تنظیمات» چیزی برای از دست دادن ندارند. */
+  useRoundGuard(screen === "study" || screen === "slicing");
+
   useSetReportTarget(
     (screen === "study" || screen === "slicing") && round
       ? {

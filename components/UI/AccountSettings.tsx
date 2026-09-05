@@ -166,9 +166,17 @@ function AccountSettings() {
             </button>
           </div>
         </form>
+        {/* ⚠️ `dir="ltr"` از روی *فرم* برداشته شد.
+            
+            روی خودِ `<form>` نشسته بود، یعنی تیترِ «تغییر رمز عبور» و
+            برچسب‌های فارسی هم چپ‌به‌راست می‌شدند؛ بعد با `flex-row-reverse`
+            روی هر ردیف جبرانش کرده بودند. دو خطای روی هم که همدیگر را
+            تقریباً می‌پوشاندند.
+
+            چیزی که واقعاً باید چپ‌به‌راست باشد خودِ *ورودیِ رمز* است، نه
+            ظرفش. `dir="ltr"` حالا روی همان input هاست و ظرف فارسی مانده. */}
         <form
           className=" glass relative rounded-xl z-20 p-4 "
-          dir="ltr"
           onSubmit={passwordForm.handleSubmit(changePasswordSubmit)}
         >
           <h3 className="text-lg">تغییر رمز عبور</h3>
@@ -177,10 +185,11 @@ function AccountSettings() {
               <label className="text-sm text-muted-foreground">
                 رمز عبور فعلی
               </label>
-              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
+              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex items-center">
                 <input
                   {...passwordForm.register("prevPassword")}
-                  className="pl-2 h-full text-left placeholder:text-right placeholder:text-muted-foreground/30 outline-none w-full"
+                  dir="ltr"
+                  className="pe-2 h-full text-left placeholder:text-left placeholder:text-muted-foreground/30 outline-none w-full"
                   type={showPassword.prevPass ? "text" : "password"}
                   placeholder="*************"
                 />
@@ -234,10 +243,11 @@ function AccountSettings() {
               <label className="text-sm text-muted-foreground">
                 رمز عبور جدید
               </label>
-              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
+              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex items-center">
                 <input
                   {...passwordForm.register("newPassword")}
-                  className="pl-2 h-full text-left placeholder:text-right placeholder:text-muted-foreground/30 outline-none w-full"
+                  dir="ltr"
+                  className="pe-2 h-full text-left placeholder:text-left placeholder:text-muted-foreground/30 outline-none w-full"
                   type={showPassword.newPass ? "text" : "password"}
                   placeholder="*************"
                 />
@@ -291,10 +301,11 @@ function AccountSettings() {
               <label className="text-sm text-muted-foreground">
                 تکرار رمز عبور
               </label>
-              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
+              <div className="border px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex items-center">
                 <input
                   {...passwordForm.register("confirmNewPassword")}
-                  className="pl-2 h-full text-left placeholder:text-right placeholder:text-muted-foreground/30 outline-none w-full"
+                  dir="ltr"
+                  className="pe-2 h-full text-left placeholder:text-left placeholder:text-muted-foreground/30 outline-none w-full"
                   type={showPassword.confirmPass ? "text" : "password"}
                   placeholder="*************"
                 />

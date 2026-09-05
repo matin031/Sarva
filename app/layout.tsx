@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import { siteOrigin } from "@/lib/seo/site";
 import { Vazirmatn, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
 import SiteChrome from "@/components/SiteChrome";
 import LogoReveal from "@/components/UI/LogoReveal";
-import { ToastContainer } from "react-toastify";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -24,7 +24,10 @@ const naskh = Noto_Naskh_Arabic({
   display: "swap",
 });
 
-const siteUrl = "https://aruzino.ir";
+/* ⚠️ آدرس دیگر اینجا هارد‌کد نیست. تا امروز رشتهٔ دامنهٔ قدیم در چهار فایل
+   جدا تکرار شده بود و عوض کردنش یعنی پیدا کردنِ هر چهار تا. حالا یک منبع
+   دارد: lib/seo/site.ts */
+const siteUrl = siteOrigin();
 const siteTitle = "سروا | آموزش وزن و عروض شعر فارسی به صورت آنلاین و رایگان";
 const siteDescription =
   "سروا پلتفرم آموزشی تعاملی برای یادگیری وزن، عروض و تقطیع شعر فارسی است. با آموزش گام‌به‌گام، آزمون‌های تعاملی و راهنمای صوتی، اوزان عروضی شعر پارسی را به سادگی یاد بگیرید.";
@@ -38,6 +41,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: siteTitle,
+    /* ⚠️ قالب عمداً فقط «سروا» می‌گذارد و نه چیز بیشتر. ولی چند صفحه خودشان
+       عنوانی می‌دادند که به «سروا» ختم می‌شد («مدار دستور | بازی‌های سروا»)
+       و نتیجه‌اش «… | بازی‌های سروا | سروا» می‌شد. آن عنوان‌ها اصلاح شدند؛
+       قاعده این است که عنوانِ صفحه هرگز خودش نامِ برند را تکرار نکند. */
     template: "%s | سروا",
   },
   verification: {
@@ -59,9 +66,11 @@ export const metadata: Metadata = {
   authors: [{ name: "سروا", url: siteUrl }],
   creator: "سروا",
   publisher: "سروا",
-  alternates: {
-    canonical: "/",
-  },
+  /* ⚠️ اینجا عمداً `alternates` نیست.
+     پیش‌تر `canonical: "/"` بود و چون متادیتا در Next ارث می‌رسد، هر صفحه‌ای
+     که canonicalِ خودش را نداشت خودش را تکراریِ صفحهٔ خانه اعلام می‌کرد.
+     canonical حالا وظیفهٔ خودِ هر صفحه است (lib/seo/metadata.ts) و صفحهٔ خانه
+     هم در app/page.tsx مالِ خودش را دارد. */
   robots: {
     index: true,
     follow: true,
@@ -127,6 +136,17 @@ export default function RootLayout({
   return (
     <html
       lang="fa"
+      /* ⚠️ جهتِ سند. تا امروز `lang="fa"` بود ولی `dir` نبود، پس مرورگر
+         کلِ سند را `ltr` می‌گرفت و هر صفحه‌ای که راست‌به‌چپ می‌خواست باید
+         خودش `dir="rtl"` می‌گذاشت — ۱۳۵ فایل همین کار را کرده بودند.
+
+         نتیجه‌اش این بود که هر چیزی که آن `dir` دستی را جا انداخته بود
+         بی‌صدا چپ‌به‌راست می‌ماند، و ویژگی‌های منطقیِ CSS (ms/me، start/end)
+         در سراسر سایت برعکس عمل می‌کردند.
+
+         آن ۱۳۵ مورد عمداً پاک نشدند: زائدند ولی بی‌ضرر، و برداشتنِ
+         دسته‌جمعی‌شان تغییرِ بزرگی است که سود ندارد. */
+      dir="rtl"
       className={`${vazirmatn.variable} ${naskh.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
@@ -139,23 +159,34 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* ⚠️ تورِ ایمنیِ محتوا وقتی جاوااسکریپت اجرا نمی‌شود.
+            
+            بخشِ زیادی از محتوای آموزشی با motion و `whileInView` ظاهر
+            می‌شود، یعنی سرور آن را با `opacity:0` می‌فرستد و جاوااسکریپت
+            رویتش می‌کند. اندازه‌گیری: یک صفحهٔ درس ۱۷۶ عنصرِ `opacity:0`
+            در HTMLِ اولیه دارد.
+
+            متن *در* HTML هست، پس خزنده آن را می‌بیند. مسئله آدمی است که
+            جاوااسکریپتش اجرا نمی‌شود — افزونه، شبکهٔ قطع‌شده، مرورگرِ
+            قدیمی: او یک صفحهٔ درسِ کاملاً سفید می‌بیند و فکر می‌کند سایت
+            خراب است.
+
+            این چند خط همان حالت را می‌پوشاند. داخلِ `<noscript>` است، پس
+            وقتی جاوااسکریپت هست هیچ اثری ندارد و انیمیشن‌ها دست‌نخورده
+            می‌مانند. */}
+        <noscript>
+          <style>{`
+            [style*="opacity:0"] { opacity: 1 !important; }
+            [style*="opacity: 0"] { opacity: 1 !important; }
+            [style*="transform:translate"] { transform: none !important; }
+            [style*="transform: translate"] { transform: none !important; }
+          `}</style>
+        </noscript>
         <LogoReveal />
         <Suspense>
           <NavigationProgress />
         </Suspense>
         <SiteChrome>{children}</SiteChrome>
-        <ToastContainer
-          position="top-center"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick={false}
-          rtl={true}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
       </body>
     </html>
   );

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { absoluteUrl } from "@/lib/seo/site";
 import ExamBrowser from "@/components/exam/ExamBrowser";
 import { listExamSummaries } from "@/lib/exam/db-exam";
 
 export const metadata: Metadata = {
+  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
+  alternates: { canonical: absoluteUrl("/exam") },
   title: "آزمون‌های آنلاین",
 };
 

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import GameReportButton from "@/components/UI/games/GameReportButton";
 import CircuitPersianBackground from "./CircuitPersianBackground";
+import { useBoardPan } from "./hooks/useBoardPan";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -56,6 +57,10 @@ export default function ActiveShell({
   tray,
   banner,
 }: ActiveShellProps) {
+  // کشیدنِ تخته با انگشت — راهِ دومی که به اسکرولِ بومیِ مرورگر وابسته نیست.
+  // دلیلش در خودِ هوک نوشته شده: روی سافاریِ آیفون اسکرولِ بومی نمی‌گرفت.
+  useBoardPan(viewportRef, true);
+
   return (
     <div
       dir="rtl"

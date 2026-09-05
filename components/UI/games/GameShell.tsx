@@ -111,7 +111,8 @@ export default function GameShell({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+              /* فلشِ بازگشت رو به راست — در RTL «عقب» سمتِ راست است. */
+              d="M15 6l6 6-6 6M21 12H3"
             />
           </svg>
           <span className={dense ? "[@media(max-height:560px)]:hidden" : undefined}>

@@ -136,6 +136,17 @@ export default function RootLayout({
   return (
     <html
       lang="fa"
+      /* ⚠️ جهتِ سند. تا امروز `lang="fa"` بود ولی `dir` نبود، پس مرورگر
+         کلِ سند را `ltr` می‌گرفت و هر صفحه‌ای که راست‌به‌چپ می‌خواست باید
+         خودش `dir="rtl"` می‌گذاشت — ۱۳۵ فایل همین کار را کرده بودند.
+
+         نتیجه‌اش این بود که هر چیزی که آن `dir` دستی را جا انداخته بود
+         بی‌صدا چپ‌به‌راست می‌ماند، و ویژگی‌های منطقیِ CSS (ms/me، start/end)
+         در سراسر سایت برعکس عمل می‌کردند.
+
+         آن ۱۳۵ مورد عمداً پاک نشدند: زائدند ولی بی‌ضرر، و برداشتنِ
+         دسته‌جمعی‌شان تغییرِ بزرگی است که سود ندارد. */
+      dir="rtl"
       className={`${vazirmatn.variable} ${naskh.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a

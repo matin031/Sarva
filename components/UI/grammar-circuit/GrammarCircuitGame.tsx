@@ -43,6 +43,7 @@ import { useCircuitLayout } from "./hooks/useCircuitLayout";
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion";
 import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 import { immersiveMode } from "@/lib/immersive-mode";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
@@ -91,6 +92,9 @@ export default function GrammarCircuitGame() {
   /* متنِ جمله از توکن‌ها بازسازی می‌شود — همان‌طور که خودِ بازی نشانش
      می‌دهد، با جداکنندهٔ دقیقِ هر توکن. `join(" ")` اینجا غلط بود: نیم‌فاصله
      و نشانه‌گذاری در داده صریح‌اند. */
+  /* دورِ زنده فقط صفحهٔ بازی است؛ «تنظیمات» و «نتایج» بیرون‌اند. */
+  useRoundGuard(state.screen === "playing");
+
   useSetReportTarget(
     prepared
       ? {

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import OverlayPortal from "@/components/UI/OverlayPortal";
 import GameReportButton from "@/components/UI/games/GameReportButton";
 import { ReportTargetProvider } from "@/lib/reports/target";
+import { RoundGuardProvider } from "@/lib/games/round-guard";
 import { useChromeMode } from "@/lib/immersive-mode";
 
 /** Wraps a single game page.
@@ -15,9 +16,10 @@ import { useChromeMode } from "@/lib/immersive-mode";
  *  predictable:
  *
  *  - `beforeunload` asks the browser to confirm a refresh or tab close while a
- *    round is under way. Browsers only surface this once the player has
- *    actually interacted with the page, so opening a game and immediately
- *    leaving stays friction-free.
+ *    round is under way — and *only* then. Each game reports that itself
+ *    through `useRoundGuard`; the shell cannot tell from the outside, and when
+ *    it guessed "always" the warning fired on setup and result screens too,
+ *    where there was nothing to lose. See `lib/games/round-guard.tsx`.
  *  - Leaving via the in-page back link goes through our own confirm dialog and
  *    clears the saved round, so no half-finished state leaks into the next
  *    visit. */
@@ -52,15 +54,23 @@ export default function GameShell({
      می‌خورند. بازی‌هایی که این حالت را روشن نمی‌کنند تغییری نمی‌بینند. */
   const immersive = useChromeMode() !== "off";
 
+  /* هر بازی با `useRoundGuard` این را روشن/خاموش می‌کند. تا وقتی هیچ بازی‌ای
+     چیزی نگفته، نگهبان نصب نمی‌شود. */
+  const [roundActive, setRoundActive] = useState(false);
+  /* بازیکن خودش زده «بله، خارج شو» — دیگر نباید دوباره از او پرسیده شود. */
+  const leavingRef = useRef(false);
+
   useEffect(() => {
+    if (!roundActive) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current) return;
       e.preventDefault();
       // required by some browsers to trigger the native dialog
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
+  }, [roundActive]);
 
   const leave = () => {
     for (const k of progressKeys) {
@@ -68,8 +78,14 @@ export default function GameShell({
         localStorage.removeItem(k);
       } catch {}
     }
-    // the shell is unmounting anyway; drop the guard so the navigation is clean
-    window.onbeforeunload = null;
+    /* ⚠️ اینجا قبلاً `window.onbeforeunload = null` بود و هیچ کاری نمی‌کرد:
+       نگهبان با `addEventListener` نصب شده و آن خانهٔ دیگری است — پاک کردنِ
+       خصیصه شنونده را برنمی‌دارد. روی این پیوند به چشم نمی‌آمد، چون `Link`
+       ناوبریِ سمتِ کلاینت است و اصلاً `beforeunload` نمی‌زند؛ ولی کدی که
+       ظاهراً محافظت را برمی‌دارد و در واقع نمی‌دارد، دفعهٔ بعد کسی را گمراه
+       می‌کند. حالا خودِ نگهبان این پرچم را می‌خواند. */
+    leavingRef.current = true;
+    setRoundActive(false);
   };
 
   return (
@@ -133,7 +149,7 @@ export default function GameShell({
       </div>
       )}
 
-      {children}
+      <RoundGuardProvider value={setRoundActive}>{children}</RoundGuardProvider>
 
       <AnimatePresence>
         {confirmExit && (

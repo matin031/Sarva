@@ -31,6 +31,7 @@ import { useAruzBridgeGame } from "./useAruzBridgeGame";
 import { useGameControls } from "./useGameControls";
 import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -127,6 +128,11 @@ export default function AruzBridgeGame() {
   const isOver = state === "gameOver";
   const isFinished = state === "finished";
   const showBridge = !inSetup && !isOver && !isFinished;
+
+  /* همان شرطی که پل را نشان می‌دهد، نگهبانِ خروج را هم مسلح می‌کند — یک
+     حالت، دو مصرف. روی صفحهٔ تنظیمات و صفحهٔ نتیجه چیزی برای از دست دادن
+     نیست، پس نوسازیِ صفحه هم نباید سؤال کند. */
+  useRoundGuard(showBridge);
 
   /* پایانِ دست یک «دور» است — چه باخت چه تمام کردن. ثبت در همان لحظه‌ای که
      صفحهٔ پایان می‌آید، نه هنگامِ شروع: مهمانی که وسطِ دست صفحه را ببندد

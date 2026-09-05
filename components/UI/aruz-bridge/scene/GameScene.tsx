@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import { BRIDGE_Y, stepZ, tileX } from "@/lib/aruz-bridge/layout";
+import { breakingTile, glassStateFor, standSide } from "@/lib/aruz-bridge/glass";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type {
@@ -36,14 +37,10 @@ const JUMP_PEAK = 1.15;
 
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
-/** کدام کاشی زیرِ پای بازیکن است، پیش از مرحلهٔ `index`. */
-function standSide(machine: MachineState, index: number): Side | null {
-  if (index === 0) return null;
-  return machine.steps[index - 1]?.correctSide ?? null;
-}
-
 function standVector(machine: MachineState, index: number): THREE.Vector3 {
-  const side = standSide(machine, index);
+  /* همان `standSide` که منطقِ شکستن هم از آن استفاده می‌کند. یک نسخهٔ محلی
+     اینجا بود؛ دو کپی از «کدام کاشی زیرِ پاست» دیر یا زود از هم دور می‌شوند. */
+  const side = standSide(machine.steps, index);
   return side === null
     ? new THREE.Vector3(0, BRIDGE_Y, 0)
     : new THREE.Vector3(tileX(side), BRIDGE_Y, stepZ(index - 1));
@@ -249,33 +246,22 @@ export function GameScene({
     }
   });
 
-  /* ── حالتِ دیداریِ هر کاشی ───────────────────────────────────────────────
-     دو سناریوی مرگ، دو کاشیِ متفاوت:
-       • پاسخِ غلط  → کاشیِ *انتخاب‌شده* می‌شکند.
-       • پایانِ زمان → کاشیِ *زیرِ پا* می‌شکند (بی‌عملی هم سقوط دارد). */
-  const breaking = useMemo(() => {
-    const failing =
-      state === "cracking" || state === "shattering" || state === "falling" || state === "gameOver";
-    if (!failing) return null;
+  /* حالتِ دیداریِ کاشی‌ها منطقِ خالص است و در `lib/aruz-bridge/glass.ts`
+     زندگی می‌کند — همان‌جا هم تست دارد. صحنه فقط صدایش می‌زند. */
+  const breaking = useMemo(
+    () =>
+      breakingTile({
+        state,
+        failure: machine.failure,
+        stepIndex,
+        chosen,
+        steps: machine.steps,
+      }),
+    [state, machine.failure, machine.steps, stepIndex, chosen],
+  );
 
-    if (machine.failure === "timeout") {
-      const side = standSide(machine, stepIndex);
-      return { index: side === null ? -1 : stepIndex - 1, side };
-    }
-    return chosen ? { index: stepIndex, side: chosen } : null;
-  }, [state, machine, stepIndex, chosen]);
-
-  const glassStateFor = (index: number, side: Side | null): GlassState => {
-    if (!breaking || breaking.index !== index || breaking.side !== side) return "intact";
-    switch (state) {
-      case "cracking":
-        return "cracking";
-      case "shattering":
-        return "shattering";
-      default:
-        return "broken";
-    }
-  };
+  const tileState = (index: number, side: Side | null): GlassState =>
+    glassStateFor(state, breaking, index, side);
 
   /* چند جفت رندر شود. مه بقیه را می‌خورد، پس بیش از این هزینهٔ بی‌فایده است —
      و کمتر از این یعنی جفتِ بعدی جلوی چشمِ بازیکن ناگهان ظاهر می‌شود. */
@@ -323,7 +309,7 @@ export function GameScene({
           مرگ دقیقاً مثلِ بقیهٔ مراحل اتفاق بیفتد. */}
       <GlassTile
         position={[0, BRIDGE_Y, 0]}
-        state={glassStateFor(-1, null)}
+        state={tileState(-1, null)}
         quality={quality}
         impactX={impact.x}
         impactZ={impact.z}
@@ -345,7 +331,7 @@ export function GameScene({
               <GlassTile
                 key={side}
                 position={[tileX(side), BRIDGE_Y, stepZ(index)]}
-                state={glassStateFor(index, side)}
+                state={tileState(index, side)}
                 quality={quality}
                 impactX={impact.x}
                 impactZ={impact.z}

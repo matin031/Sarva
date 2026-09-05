@@ -15,6 +15,7 @@ import {
   type MemoryTerm,
 } from "@/lib/literary-pairs";
 import { useSetReportTarget } from "@/lib/reports/target";
+import { useRoundGuard } from "@/lib/games/round-guard";
 
 // اول پایه، بعد نوبت، بعد مرورِ آثار، بعد خودِ بازی. دو صفحهٔ اول همان چیزی
 // است که آزمون‌های واقعی دارند: دانش‌آموزِ دهم قرار نیست کتاب دوازدهم را
@@ -90,6 +91,10 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
   /* گزارش روی *دستهٔ* اثر–پدیدآور است: یک جفتِ غلط با همان پایه و نوبت پیدا
      می‌شود، و چند جفتِ اولِ دور در snapshot می‌ماند تا حتی بعدِ ویرایش هم
      بشود موردش را با جست‌وجوی متن یافت. */
+  /* این بازی پیشرفتش را ذخیره نمی‌کند، پس ترکِ صفحه در میانهٔ چیدن
+     واقعاً دور را می‌سوزاند. صفحه‌های انتخابِ پایه و نوبت بیرون‌اند. */
+  useRoundGuard(phase === "study" || phase === "playing");
+
   useSetReportTarget(
     (phase === "study" || phase === "playing") && grade && term
       ? {

@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  SCHEMA_COLUMNS_SQL,
+  SCHEMA_CONSTRAINTS_SQL,
+} from "@/lib/admin/sql-introspection";
 import mysql, { type Connection, type FieldPacket, type ResultSetHeader } from "mysql2/promise";
 import { splitSqlStatements, hasImplicitCommit, commandOf } from "@/lib/admin/sql-split";
 import { requireAdmin } from "@/lib/require-admin";
@@ -518,54 +522,23 @@ export async function adminSchemaOverview(): Promise<SchemaTable[]> {
     //     اولی `enum('a','b')` و `varchar(191)` می‌دهد، دومی فقط `enum` و
     //     `varchar` که برای مدیر بی‌فایده است.
     const [rows] = await conn.query<mysql.RowDataPacket[]>(
-      `select
-         t.table_name                                     as table_name,
-         coalesce(t.table_rows, 0)                        as approx_rows,
-         c.column_name                                    as column_name,
-         c.column_type                                    as data_type,
-         c.is_nullable = 'YES'                            as is_nullable,
-         c.column_default                                 as column_default,
-         c.column_key = 'PRI'                             as is_pk,
-         k.referenced                                     as referenced
-       from information_schema.tables t
-       join information_schema.columns c
-         on c.table_schema = t.table_schema and c.table_name = t.table_name
-       left join (
-         select table_schema, table_name, column_name,
-                concat(referenced_table_name, '.', referenced_column_name) as referenced
-           from information_schema.key_column_usage
-          where referenced_table_name is not null
-          group by table_schema, table_name, column_name,
-                   referenced_table_name, referenced_column_name
-       ) k
-         on k.table_schema = c.table_schema
-        and k.table_name = c.table_name
-        and k.column_name = c.column_name
-       where t.table_schema = database() and t.table_type = 'BASE TABLE'
-       order by t.table_name, c.ordinal_position`,
+      SCHEMA_COLUMNS_SQL,
     );
 
     // محدودیت‌ها جدا خوانده می‌شوند: چسباندنشان به کوئری بالا هر ستون را به
     // تعداد محدودیت‌های جدول تکرار می‌کرد.
     const [constraintRows] = await conn.query<mysql.RowDataPacket[]>(
-      `select cc.table_name as table_name,
-              cc.constraint_name as name,
-              concat('CHECK ', cc.check_clause) as definition
-         from information_schema.check_constraints cc
-        where cc.constraint_schema = database()
-       union all
-       select tc.table_name,
-              tc.constraint_name,
-              concat('UNIQUE (', group_concat(kcu.column_name
-                       order by kcu.ordinal_position separator ', '), ')')
-         from information_schema.table_constraints tc
-         join information_schema.key_column_usage kcu
-           on kcu.constraint_schema = tc.constraint_schema
-          and kcu.constraint_name = tc.constraint_name
-          and kcu.table_name = tc.table_name
-        where tc.table_schema = database() and tc.constraint_type = 'UNIQUE'
-        group by tc.table_name, tc.constraint_name
-        order by 1, 2`,
+      // ⚠️ information_schema.check_constraints ستون table_name **ندارد**.
+      //
+      // ستون‌هایش فقط این چهارتاست: CONSTRAINT_CATALOG، CONSTRAINT_SCHEMA،
+      // CONSTRAINT_NAME و CHECK_CLAUSE. یعنی خودش نمی‌داند قید مالِ کدام
+      // جدول است؛ آن را باید از table_constraints گرفت.
+      //
+      // این باگ از هیچ‌کدام از بررسی‌های خودکار رد نمی‌شد: db:check-sql
+      // عمداً کنسول را رد می‌کند (کوئریِ کنسول را کاربر می‌نویسد) و
+      // db:check-snippets فقط الگوهای آماده را می‌سنجد، نه کوئریِ
+      // درون‌نگریِ خودِ کنسول. فقط با باز کردن صفحهٔ /admin/sql پیدا شد.
+      SCHEMA_CONSTRAINTS_SQL,
     );
 
     const tables = new Map<string, SchemaTable>();

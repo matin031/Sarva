@@ -56,15 +56,28 @@ export async function adminListUsers(
 
   const search = params.query?.trim();
   if (search) {
-    // یک پارامتر، دو ستون. % ها اینجا اضافه می‌شوند و نه در رشتهٔ کوئری، پس
-    // ورودی کاربر هرگز بخشی از خودِ SQL نمی‌شود.
-    values.push(`%${search}%`);
-    conditions.push(`(u.email ilike $${values.length} or u.full_name ilike $${values.length})`);
+    // ⚠️ در MySQL هر `?` یک پارامتر مصرف می‌کند.
+    //
+    // نسخهٔ پستگرسی `$n` را دو بار می‌نوشت و *یک* مقدار می‌فرستاد، چون آنجا
+    // شماره‌گذاری است. اینجا باید دو بار فرستاده شود، وگرنه شمارِ پارامترها
+    // با شمارِ `?` ها نمی‌خواند و کوئری رد می‌شود.
+    //
+    // ⚠️ و `like` به‌جای `ilike`: ILIKE اصلاً در MySQL وجود ندارد. لازم هم
+    // نیست — ستون‌های متنی این جدول collation حساس به بزرگی و کوچکی دارند
+    // ولی جست‌وجوی مدیر نباید حساس باشد، پس هر دو طرف با lower() یکدست
+    // می‌شوند. (utf8mb4_0900_ai_ci اینجا کار نمی‌کرد: ستون email از نوع
+    // citext-معادل است و ستون full_name نیست.)
+    //
+    // % ها اینجا اضافه می‌شوند و نه در رشتهٔ کوئری، پس ورودی کاربر هرگز
+    // بخشی از خودِ SQL نمی‌شود.
+    const pattern = `%${search.toLowerCase()}%`;
+    values.push(pattern, pattern);
+    conditions.push("(lower(u.email) like ? or lower(u.full_name) like ?)");
   }
 
   if (params.role) {
     values.push(enumArg(params.role, ["student", "admin"], "نقش نامعتبر است."));
-    conditions.push(`u.role = $${values.length}`);
+    conditions.push("u.role = ?");
   }
 
   if (params.status === "banned") conditions.push("u.is_banned");
@@ -75,9 +88,7 @@ export async function adminListUsers(
 
   const limit = Math.min(Math.max(params.limit ?? USER_PAGE_SIZE, 1), 200);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(params.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
@@ -99,7 +110,7 @@ export async function adminListUsers(
       -- id به‌عنوان شکنندهٔ تساوی: بدون آن، دو کاربر با created_at یکسان
       -- (ثبت‌نام دسته‌جمعی یک کلاس) می‌توانند در دو صفحه تکرار یا جا بیفتند.
       order by u.created_at desc, u.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, placeholders } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, enumArg } from "@/lib/api/action-input";
 import {
@@ -65,7 +65,7 @@ export async function adminListAudit(
 
   if (filter.actorId) {
     values.push(uuidArg(filter.actorId, "شناسهٔ مدیر نامعتبر است."));
-    conditions.push(`actor_id = $${values.length}`);
+    conditions.push("actor_id = ?");
   }
   if (filter.action) {
     // فهرست بسته است، پس هر رشتهٔ ناشناخته‌ای رد می‌شود.
@@ -73,20 +73,26 @@ export async function adminListAudit(
       return { rows: [], total: 0 };
     }
     values.push(filter.action);
-    conditions.push(`action = $${values.length}`);
+    conditions.push("action = ?");
   }
   if (filter.destructiveOnly) {
-    values.push([...DESTRUCTIVE_ACTIONS]);
-    conditions.push(`action = any($${values.length}::text[])`);
+    // ⚠️ `= any($n::text[])` نحوِ آرایهٔ PostgreSQL است و در MySQL وجود
+    // ندارد. معادلش `in (?, ?, …)` است با یک جای‌نگهدار به ازای هر عضو —
+    // و همان تعداد مقدار، چون در MySQL هر `?` یکی مصرف می‌کند.
+    //
+    // فهرست از یک ثابتِ کد می‌آید و نه از کاربر، ولی باز هم پارامتری
+    // فرستاده می‌شود: چسباندنِ مقدارها به متنِ کوئری عادتی است که روزی
+    // روی یک مقدارِ کاربری تکرار می‌شود.
+    const actions = [...DESTRUCTIVE_ACTIONS];
+    values.push(...actions);
+    conditions.push(`action in (${placeholders(actions.length)})`);
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
 
   const limit = Math.min(Math.max(filter.limit ?? AUDIT_PAGE_SIZE, 1), 200);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(filter.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
@@ -108,7 +114,7 @@ export async function adminListAudit(
        from admin_audit_log
        ${where}
       order by created_at desc, id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 

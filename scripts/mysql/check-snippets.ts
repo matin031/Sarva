@@ -21,6 +21,7 @@ import mysql from "mysql2/promise";
 import { SQL_SNIPPETS } from "@/lib/admin/sql-constants";
 import { splitSqlStatements } from "@/lib/admin/sql-split";
 import { inspectSql } from "@/lib/admin/sql-guard";
+import { SCHEMA_COLUMNS_SQL, SCHEMA_CONSTRAINTS_SQL } from "@/lib/admin/sql-introspection";
 
 /**
  * جای‌خالی‌های الگوها را با مقدارِ نمونه پر می‌کند.
@@ -78,6 +79,32 @@ async function main() {
           });
         }
       }
+    }
+  }
+
+  // ⚠️ کوئری‌های درون‌نگریِ خودِ کنسول هم اینجا سنجیده می‌شوند.
+  //
+  // این‌ها الگوی آماده نیستند و ما نوشته‌ایمشان، ولی در هیچ بررسی دیگری
+  // نمی‌آمدند: db:check-sql عمداً کنسول را رد می‌کند. نتیجه‌اش یک باگ
+  // واقعی بود — `cc.table_name` روی جدولی که چنین ستونی ندارد — که فقط با
+  // باز کردنِ دستیِ صفحهٔ /admin/sql پیدا شد.
+  for (const [name, sql] of [
+    ["ستون‌های اسکیما", SCHEMA_COLUMNS_SQL],
+    ["محدودیت‌های اسکیما", SCHEMA_CONSTRAINTS_SQL],
+  ] as const) {
+    checked += 1;
+    const handle = `introspect_${counter++}`;
+    try {
+      await conn.query(`PREPARE \`${handle}\` FROM ?`, [sql]);
+      await conn.query(`DEALLOCATE PREPARE \`${handle}\``);
+    } catch (e) {
+      const err = e as { errno?: number; sqlMessage?: string };
+      failures.push({
+        group: "درون‌نگریِ کنسول",
+        title: name,
+        error: `${err.errno ?? "?"}: ${err.sqlMessage ?? String(e)}`,
+        sql: sql.replace(/\s+/g, " ").slice(0, 140),
+      });
     }
   }
 

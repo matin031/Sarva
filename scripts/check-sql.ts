@@ -289,12 +289,84 @@ async function checkRequiredColumns(
 }
 
 
+
+// ---------------------------------------------------------------------------
+// قطعه‌های SQL که *بیرون* از کوئریِ اصلی ساخته می‌شوند
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ این پاس به‌خاطر سه باگ واقعی اضافه شد، و علتِ نادیده ماندنشان مهم است.
+ *
+ * `scanLeftovers` روی متنِ همان template literal ای اجرا می‌شود که به
+ * `query()` داده شده. ولی این سه فایل شرط‌هایشان را جای دیگری می‌ساختند:
+ *
+ *     conditions.push(`u.role = $${values.length}`);   // ← یک رشتهٔ جدا
+ *     ...
+ *     query(`select … ${where} …`, values);            // ← این اسکن می‌شد
+ *
+ * یعنی `$1` هرگز داخل رشته‌ای که اسکن می‌شد ظاهر نمی‌شد. کوئریِ بازسازی‌شده
+ * هم بدون فیلتر ساخته می‌شود، پس در PREPARE هم مشکلی نشان نمی‌داد — و
+ * `/admin/users` تازه روی هاست با «Undeclared variable: $1» می‌افتاد.
+ *
+ * پس این پاس روی **متنِ خامِ فایل** کار می‌کند و نه روی SQL استخراج‌شده. سه
+ * الگو را می‌گیرد که هیچ‌کدام در MySQL معنا ندارند و هیچ‌کدام هم در کدِ
+ * غیر-SQL به‌طور تصادفی پیش نمی‌آیند.
+ */
+const SOURCE_SMELLS: { re: RegExp; why: string }[] = [
+  {
+    // `$${values.length}` — اصطلاحِ ساختِ جای‌نگهدارِ شماره‌دارِ PostgreSQL.
+    re: /\$\$\{/,
+    why: "ساختِ جای‌نگهدارِ $n مالِ PostgreSQL است؛ در MySQL هر جای‌نگهدار ? است",
+  },
+  {
+    re: /\bilike\b/i,
+    why: "ILIKE در MySQL وجود ندارد؛ lower(x) like ? لازم است",
+  },
+  {
+    re: /=\s*any\s*\(/i,
+    why: "`= any(array)` نحوِ PostgreSQL است؛ در MySQL `in (?, ?, …)`",
+  },
+];
+
+/**
+ * کامنت‌های TypeScript حذف می‌شوند تا توضیحی که *دربارهٔ* این الگوها نوشته
+ * شده، خودش گزارش نشود. (بدون این، هر کامنتی که تفاوت دو موتور را توضیح
+ * می‌دهد ابزار را قرمز می‌کرد — یعنی مستندسازیِ خوب جریمه می‌شد.)
+ */
+function stripTsComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+}
+
+function scanSourceSmells(files: string[]): { file: string; line: number; why: string }[] {
+  const hits: { file: string; line: number; why: string }[] = [];
+  for (const file of files) {
+    const lines = stripTsComments(readFileSync(file, "utf8")).split("\n");
+    lines.forEach((line, i) => {
+      for (const { re, why } of SOURCE_SMELLS) {
+        if (re.test(line)) hits.push({ file, line: i + 1, why });
+      }
+    });
+  }
+  return hits;
+}
+
 async function main() {
   const files = [...walkTs("lib"), ...walkTs("app"), "proxy.ts"].filter(
     (f) => !SKIP.some((re) => re.test(f)),
   );
 
   for (const f of files) extract(f);
+
+  // ⚠️ پیش از هر اتصالی: این پاس به دیتابیس نیاز ندارد و اگر چیزی پیدا کند،
+  // ادامه دادن بی‌فایده است — کوئری‌های ساخته‌شده از آن قطعه‌ها به‌هرحال
+  // در زمان اجرا می‌شکنند.
+  const smells = scanSourceSmells(files);
+  if (smells.length) {
+    console.log(`\n${smells.length} قطعهٔ SQL با نحوِ PostgreSQL در کد مانده:\n`);
+    for (const h of smells) console.log(`  ${h.file}:${h.line}\n    ${h.why}`);
+    console.log("");
+    process.exit(1);
+  }
 
   const url = process.env.DATABASE_URL;
   if (!url) {

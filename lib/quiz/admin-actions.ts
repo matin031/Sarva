@@ -103,13 +103,16 @@ export async function quizAdminList(params: QuizListParams = {}): Promise<{ item
   const conditions: string[] = [];
   const values: unknown[] = [];
 
+  // ⚠️ جای‌نگهدارها `?` اند و نه `$n`: در MySQL شماره‌گذاری وجود ندارد و هر
+  // `?` به‌ترتیب یک مقدار از آرایه برمی‌دارد. پس ترتیبِ push کردن *همان*
+  // ترتیبِ ظاهر شدنِ `?` در متنِ کوئری است.
   if (params.type) {
     values.push(params.type);
-    conditions.push(`q.type = $${values.length}`);
+    conditions.push("q.type = ?");
   }
   if (params.difficulty) {
     values.push(params.difficulty);
-    conditions.push(`q.difficulty = $${values.length}`);
+    conditions.push("q.difficulty = ?");
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
@@ -117,9 +120,8 @@ export async function quizAdminList(params: QuizListParams = {}): Promise<{ item
   let limitClause = "";
   if (params.limit !== undefined) {
     values.push(params.limit);
-    limitClause += ` limit $${values.length}`;
     values.push(params.offset ?? 0);
-    limitClause += ` offset $${values.length}`;
+    limitClause = " limit ? offset ?";
   }
 
   const rows = await query<{

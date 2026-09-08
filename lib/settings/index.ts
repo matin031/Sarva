@@ -1,5 +1,5 @@
 import "server-only";
-import { queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute } from "@/lib/db";
 
 /**
  * تنظیماتی که ادمین بدون deploy عوض می‌کند.
@@ -175,11 +175,14 @@ export async function getSetting(key: SettingKey): Promise<string | null> {
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const row = await queryOne<{ value: unknown }>("select value from app_settings where key = ?", [
-    key,
-  ]);
+  // ⚠️ `key` در MySQL کلمهٔ کلیدی است و بدون backtick خطای نحوی می‌دهد.
+  // (در PostgreSQL محفوظ نبود و بی‌مشکل کار می‌کرد.)
+  const row = await queryOne<{ value: unknown }>(
+    "select value from app_settings where `key` = ?",
+    [key],
+  );
 
-  // value از نوع jsonb است، پس رشته‌ها به‌صورت رشتهٔ JS برمی‌گردند. هر چیز
+  // value از نوع JSON است، پس رشته‌ها به‌صورت رشتهٔ JS برمی‌گردند. هر چیز
   // دیگری (عدد، شیء) یعنی کسی دستی ردیف را خراب کرده — نادیده گرفته می‌شود تا
   // یک ردیفِ بد کل ارسال ایمیل را نشکند.
   const fromDb = typeof row?.value === "string" && row.value.trim() ? row.value.trim() : null;
@@ -207,11 +210,24 @@ export async function setSetting(
   value: string,
   updatedBy: string,
 ): Promise<void> {
+  // ⚠️ `to_jsonb($2::text)` یعنی «این رشته را به یک مقدارِ JSON از نوع رشته
+  // تبدیل کن» — یعنی 'abc' می‌شود "abc" و نه abc. معادلش در MySQL
+  // CAST(? AS JSON) *نیست*: آن، رشتهٔ ورودی را به‌عنوان *متنِ JSON* تفسیر
+  // می‌کند و روی مقداری مثل `smtp.example.com` خطا می‌دهد.
+  //
+  // JSON_QUOTE دقیقاً همان کارِ to_jsonb روی متن را می‌کند: نقل‌قول می‌گذارد
+  // و کاراکترهای ویژه را escape می‌کند.
+  //
+  // ⚠️ ON DUPLICATE KEY UPDATE و نه REPLACE: دومی ردیف را حذف و دوباره درج
+  // می‌کند، یعنی created_at و هر ستونِ ننوشته را از دست می‌دهد و تریگرهای
+  // حذف را هم به‌راه می‌اندازد.
+  //
+  // VALUES(col) در MySQL 8 منسوخ است؛ الگوی جدید با alias است.
   await execute(
-    `insert into app_settings (key, value, updated_by)
-     values ($1, to_jsonb($2::text), $3)
-     on conflict (key) do update
-       set value = excluded.value, updated_at = now(6), updated_by = excluded.updated_by`,
+    "insert into app_settings (`key`, value, updated_by)\n" +
+      "     values (?, json_quote(?), ?) as new\n" +
+      "     on duplicate key update\n" +
+      "       value = new.value, updated_at = now(6), updated_by = new.updated_by",
     [key, value, updatedBy],
   );
   cache.delete(key);
@@ -219,7 +235,7 @@ export async function setSetting(
 
 /** حذف مقدارِ دیتابیس، یعنی برگشت به مقدار env. */
 export async function clearSetting(key: SettingKey): Promise<void> {
-  await execute("delete from app_settings where key = ?", [key]);
+  await execute("delete from app_settings where `key` = ?", [key]);
   cache.delete(key);
 }
 
@@ -240,10 +256,18 @@ export type ListedSetting = {
 
 /** همهٔ تنظیمات با منبعشان — برای نمایش در پنل. */
 export async function listSettings(): Promise<ListedSetting[]> {
-  const rows = await queryOne<{ pairs: Record<string, unknown> | null }>(
-    `select jsonb_object_agg(key, value) as pairs from app_settings`,
+  // ⚠️ jsonb_object_agg معادلِ مستقیم ندارد. JSON_OBJECTAGG هست، ولی روی
+  // جدولِ خالی مقدار NULL می‌دهد (مثل خودِ jsonb_object_agg) و اگر کلید
+  // تکراری باشد بی‌صدا آخری را نگه می‌دارد.
+  //
+  // اینجا اصلاً لازم نیست: تعداد تنظیمات انگشت‌شمار است و ساختنِ شیء در
+  // TypeScript هم ساده‌تر است و هم از تلهٔ کلیدِ تکراری دور. ضمناً
+  // `key` باید backtick بخورد.
+  const rows = await query<{ key: string; value: unknown }>(
+    "select `key`, value from app_settings",
   );
-  const stored = (rows?.pairs ?? {}) as Record<string, unknown>;
+  const stored: Record<string, unknown> = {};
+  for (const r of rows) stored[r.key] = r.value;
 
   return (Object.keys(SETTING_SPECS) as SettingKey[]).map((key) => {
     const spec = SETTING_SPECS[key];

@@ -1,9 +1,10 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
-import { query, queryOne, execute, transaction } from "@/lib/db";
+import { query, queryOne, execute, transaction, isUniqueViolation } from "@/lib/db";
 import {
   correctAnswerSchemaByType,
   questionPartContentSchema,
@@ -282,26 +283,29 @@ export async function adminCreateExam(input: {
   const admin = await requireAdmin();
 
   try {
-    const row = await queryOne<{ id: string }>(
-      `insert into exams (subject, grade, title, exam_session, total_score)
-       values ($1, $2, $3, $4, $5) returning id`,
-      [input.subject, input.grade, input.title, input.examKey, input.totalScore],
+    // شناسه در برنامه ساخته می‌شود — MySQL نه DEFAULT تصادفیِ نسخهٔ ۴ دارد
+    // و نه RETURNING.
+    const examId = randomUUID();
+    await execute(
+      `insert into exams (id, subject, grade, title, exam_session, total_score)
+       values (?, ?, ?, ?, ?, ?)`,
+      [examId, input.subject, input.grade, input.title, input.examKey, input.totalScore],
     );
 
     await recordAudit({
       actor: admin,
       action: "exam.create",
       targetType: "exam",
-      targetId: row!.id,
+      targetId: examId,
       summary: `آزمون «${input.title}» ساخته شد`,
       metadata: { examKey: input.examKey, grade: input.grade, totalScore: input.totalScore },
     });
 
-    return { ok: true, data: { id: row!.id } };
+    return { ok: true, data: { id: examId } };
   } catch (err) {
     // exam_session یکتاست و این محتمل‌ترین خطای این تابع است. پیام خام پستگرس
     // («duplicate key value violates unique constraint») به درد ادمین نمی‌خورد.
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["آزمونی با این شناسه از قبل وجود دارد."] };
     }
     logger.error("ساخت آزمون ناموفق بود", { event: "exam.create_failed", err });
@@ -316,24 +320,25 @@ export async function adminCreateSection(
   const admin = await requireAdmin();
 
   try {
-    const row = await queryOne<{ id: string }>(
-      `insert into exam_sections (exam_id, title, order_index, section_score)
-       values ($1, $2, $3, $4) returning id`,
-      [examId, input.title, input.orderIndex, input.sectionScore],
+    const sectionId = randomUUID();
+    await execute(
+      `insert into exam_sections (id, exam_id, title, order_index, section_score)
+       values (?, ?, ?, ?, ?)`,
+      [sectionId, examId, input.title, input.orderIndex, input.sectionScore],
     );
 
     await recordAudit({
       actor: admin,
       action: "exam.section_create",
       targetType: "exam_section",
-      targetId: row!.id,
+      targetId: sectionId,
       summary: `بخش «${input.title}» به یک آزمون اضافه شد`,
       metadata: { examId, sectionScore: input.sectionScore },
     });
 
-    return { ok: true, data: { id: row!.id } };
+    return { ok: true, data: { id: sectionId } };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["بخشی با این ترتیب از قبل در این آزمون هست."] };
     }
     logger.error("ساخت بخش آزمون ناموفق بود", { event: "exam.section_create_failed", err });
@@ -376,32 +381,46 @@ export async function adminUpsertQuestion(
         // حذف بخش‌ها؛ گزینه‌هایشان با cascade می‌روند
         await tx.execute(`delete from exam_question_parts where question_id = ?`, [id]);
       } else {
-        const created = await tx.queryOne<{ id: string }>(
+        // ⚠️ زیرکوئری از همان جدولِ مقصد می‌خواند و MySQL این را رد می‌کند
+        // (خطای ۱۰۹۳). جدولِ مشتق آن را حل می‌کند: اول مادی می‌شود، بعد
+        // INSERT اجرا می‌شود.
+        //
+        // پارامترها هم تکرار می‌شوند چون $1 دو بار می‌آمد.
+        id = randomUUID();
+        await tx.execute(
           `insert into exam_questions
-             (exam_section_id, number, page_ref, instruction, layout_pattern, order_index)
-           values ($1, $2, $3, $4, $5,
-                   (select count(*) from exam_questions where exam_section_id = $1))
-           returning id`,
-          [sectionId, input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null],
+             (id, exam_section_id, number, page_ref, instruction, layout_pattern, order_index)
+           select ?, ?, ?, ?, ?, ?, n
+             from (select count(*) as n from exam_questions
+                    where exam_section_id = ?) t`,
+          [
+            id,
+            sectionId,
+            input.number,
+            input.pageRef ?? null,
+            input.instruction ?? null,
+            input.layoutPattern ?? null,
+            sectionId,
+          ],
         );
-        id = created!.id;
       }
 
       for (const [partIndex, part] of input.parts.entries()) {
-        const partRow = await tx.queryOne<{ id: string }>(
+        const partId = randomUUID();
+        await tx.execute(
           `insert into exam_question_parts
-             (question_id, part_index, label, type, score, content,
+             (id, question_id, part_index, label, type, score, content,
               correct_answer, accepted_answers, grading_mode, ai_grading_hint)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           returning id`,
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
+            partId,
             id,
             partIndex,
             part.label ?? null,
             part.type,
             part.score,
-            // jsonb از رشتهٔ JSON ساخته می‌شود. اگر شیء خام را می‌دادیم، درایور
-            // آن را به نمایش متنیِ رکورد پستگرس تبدیل می‌کرد، نه JSON.
+            // JSON از رشتهٔ JSON ساخته می‌شود. اگر شیء خام را می‌دادیم، درایور
+            // آن را به نمایش متنیِ خودش تبدیل می‌کرد، نه JSON.
             JSON.stringify(part.content),
             JSON.stringify(part.correctAnswer),
             part.acceptedAnswers === undefined ? null : JSON.stringify(part.acceptedAnswers),
@@ -413,9 +432,9 @@ export async function adminUpsertQuestion(
         for (const [i, o] of (part.options ?? []).entries()) {
           await tx.execute(
             `insert into exam_question_options
-               (question_part_id, option_key, order_index, text, is_correct)
-             values (?, ?, ?, ?, ?)`,
-            [partRow!.id, o.optionKey ?? null, i, o.text, o.isCorrect],
+               (id, question_part_id, option_key, order_index, text, is_correct)
+             values (?, ?, ?, ?, ?, ?)`,
+            [randomUUID(), partId, o.optionKey ?? null, i, o.text, o.isCorrect],
           );
         }
       }
@@ -434,7 +453,7 @@ export async function adminUpsertQuestion(
 
     return { ok: true, data: { id: questionId } };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["سؤالی با این شماره در این بخش از قبل هست."] };
     }
     logger.error("ذخیرهٔ سؤال آزمون ناموفق بود", { event: "exam.question_save_failed", err });
@@ -488,7 +507,7 @@ export async function adminUpdateExam(
       [title, examKey, input.grade, input.totalScore, id],
     );
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["آزمون دیگری با این شناسه وجود دارد."] };
     }
     throw err;

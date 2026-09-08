@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { invalidateAvailability } from "@/lib/grammar-circuit/availability-cache";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, isUniqueViolation } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -67,13 +67,6 @@ export type AdminGcQuestion = {
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type SaveResult = { ok: true; id: string } | { ok: false; error: string; problems?: string[] };
-
-const UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err &&
-    (err as { code?: string }).code === UNIQUE_VIOLATION;
-}
 
 type Row = {
   id: string;

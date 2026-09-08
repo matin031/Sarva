@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { query, queryOne, execute, transaction } from "@/lib/db";
+import { query, queryOne, execute, transaction, isUniqueViolation } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -31,13 +31,6 @@ export type AdminNinjaCategory = {
 };
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-
-const UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err &&
-    (err as { code?: string }).code === UNIQUE_VIOLATION;
-}
 
 type CategoryRow = {
   id: string;

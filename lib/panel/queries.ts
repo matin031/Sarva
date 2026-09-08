@@ -449,24 +449,42 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
     // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
     // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
     query<{ area: BookmarkArea; day: string; total: number; correct: number }>(
+      // ⚠️ گروه‌بندی روزِ تهران، سه تفاوت با نسخهٔ PostgreSQL:
+      //
+      //   ۱) `at time zone 'Asia/Tehran'` → CONVERT_TZ(x, '+00:00', 'Asia/Tehran').
+      //      مبدأ صریحاً '+00:00' است و نه 'UTC': اولی همیشه کار می‌کند،
+      //      دومی به جدول‌های منطقهٔ زمانی نیاز دارد.
+      //
+      //   ⚠️⚠️ مقصد ولی *باید* نامِ منطقه باشد و نه یک offset ثابت، و این
+      //      یعنی جدول‌های mysql.time_zone باید بارگذاری شده باشند. اگر
+      //      نباشند CONVERT_TZ مقدار NULL می‌دهد و کلِ نمودار خالی می‌شود
+      //      بی‌آنکه خطایی بدهد. (scripts/db-check.mjs همین را می‌سنجد.)
+      //
+      //      و offset ثابتِ +03:30 جایگزین نیست: ایران تا ۲۰۲۲ ساعت
+      //      تابستانی داشت، پس تاریخ‌های قدیمی‌تر یک ساعت جابه‌جا می‌شدند
+      //      و پاسخ‌های نزدیک نیمه‌شب به روزِ اشتباه می‌افتادند. آزموده شد:
+      //      ۲۰۲۰-۰۶-۰۱ در تهران +۰۴:۳۰ است و ۲۰۲۰-۱۲-۰۱ برابر +۰۳:۳۰.
+      //
+      //   ۲) `to_char(…, 'YYYY-MM-DD')` → DATE_FORMAT(…, '%Y-%m-%d').
+      //   ۳) `count(*) filter (where ok)` → count(case when ok then 1 end).
       `select area,
-              to_char((at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
-              count(*)::int                           as total,
-              count(*) filter (where ok)::int         as correct
+              date_format(convert_tz(at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
+              count(*)                             as total,
+              count(case when ok then 1 end)       as correct
          from (
-           select 'aruz'::text as area, is_correct as ok, answered_at as at
-             from user_answers where user_id = $1
+           select 'aruz' as area, is_correct as ok, answered_at as at
+             from user_answers where user_id = ?
            union all
-           select 'vocab'::text, is_correct, answered_at
-             from vocab_answers where user_id = $1
+           select 'vocab', is_correct, answered_at
+             from vocab_answers where user_id = ?
            union all
-           select 'jasoos'::text, is_correct, answered_at
-             from jasoos_answers where user_id = $1
+           select 'jasoos', is_correct, answered_at
+             from jasoos_answers where user_id = ?
          ) t
         where at is not null
         group by area, 2
         order by 2`,
-      [userId],
+      [userId, userId, userId],
     ),
     queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = ?`, [userId]),
     // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
@@ -516,13 +534,14 @@ export async function getBookmarks(
     note: string | null;
     created_at: string;
   }>(
+    // $2 دو بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر ? یک جاست.
     `select id, area, ref_id, title, subtitle, payload, note, created_at
        from user_bookmarks
-      where user_id = $1
-        and ($2::text is null or area = $2)
+      where user_id = ?
+        and (? is null or area = ?)
       order by created_at desc, id
-      limit $3`,
-    [userId, area ?? null, limit],
+      limit ?`,
+    [userId, area ?? null, area ?? null, limit],
   );
 
   return rows.map((r) => ({
@@ -560,12 +579,16 @@ export async function getAruzDayCounts(
   days = 400,
 ): Promise<{ day: string; total: number; correct: number }[]> {
   const rows = await query<{ day: string; total: number; correct: number }>(
-    `select to_char((answered_at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
-            count(*)::int                                as total,
-            count(*) filter (where is_correct)::int      as correct
+    // `($2 || ' days')::interval` یعنی ساختنِ بازه از یک عدد. در MySQL
+    // بازه نحوِ خودش را دارد و پارامتر هم می‌پذیرد: `interval ? day`.
+    // (اینجا `||` هم بود که در MySQL یعنی OR — بی‌صدا یک عبارتِ بولی
+    //  می‌ساخت به‌جای رشته.)
+    `select date_format(convert_tz(answered_at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
+            count(*)                                  as total,
+            count(case when is_correct then 1 end)    as correct
        from user_answers
-      where user_id = $1
-        and answered_at >= now(6) - ($2 || ' days')::interval
+      where user_id = ?
+        and answered_at >= now(6) - interval ? day
       group by 1
       order by 1`,
     [userId, days],

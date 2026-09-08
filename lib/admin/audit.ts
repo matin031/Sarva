@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { execute, queryOne } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth/types";
@@ -309,9 +310,10 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
   try {
     await execute(
       `insert into admin_audit_log
-         (actor_id, actor_email, action, target_type, target_id, summary, metadata, ip, request_id)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, actor_id, actor_email, action, target_type, target_id, summary, metadata, ip, request_id)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        randomUUID(),
         entry.actor.id,
         entry.actor.email,
         entry.action,
@@ -442,22 +444,42 @@ export async function recordError(
     //
     // در به‌روزرسانی، اطلاعاتِ *آخرین* رخداد جایگزین می‌شود ولی stack اولی
     // می‌ماند: اولین بار همان جایی است که علت را می‌گوید.
+    // ⚠️ `on conflict (fingerprint) where resolved_at is null` یک upsert روی
+    // *ایندکس جزئی* بود. MySQL ایندکس جزئی ندارد، ولی همان تضمین با یک ستونِ
+    // محاسباتی بازسازی شده:
+    //
+    //     fingerprint_open = IF(resolved_at IS NULL, fingerprint, NULL)
+    //     UNIQUE KEY (fingerprint_open)
+    //
+    // ردیفِ رسیدگی‌شده NULL می‌گیرد و چون MySQL چند NULL را در UNIQUE مجاز
+    // می‌داند، با هیچ‌کس برخورد نمی‌کند — یعنی خطایی که برگشته باز هم ردیف
+    // تازه می‌سازد، همان رفتار قبلی.
+    //
+    // پس ON DUPLICATE KEY UPDATE اینجا دقیقاً روی همان شرط عمل می‌کند، بدون
+    // اینکه لازم باشد کلید را نام ببریم.
+    //
+    // `excluded.` در MySQL نیست؛ الگوی جانشینش alias بعد از VALUES است
+    // (شکل قدیمیِ VALUES(col) در MySQL 8 منسوخ شده).
+    //
+    // $11 دو بار می‌آمد (first و last request id) و در MySQL دو ? جدا
+    // می‌خواهد، پس مقدار دو بار فرستاده می‌شود.
     await execute(
       `insert into app_error_log
-         (source, message, context, detail, fingerprint,
+         (id, source, message, context, detail, fingerprint,
           error_name, error_code, digest, environment, release,
           first_request_id, last_request_id, metadata)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, $12::jsonb)
-       on conflict (fingerprint) where resolved_at is null
-       do update set occurrences      = app_error_log.occurrences + 1,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) as new
+       on duplicate key update
+                     occurrences      = app_error_log.occurrences + 1,
                      last_seen_at     = now(6),
-                     last_request_id  = excluded.last_request_id,
-                     metadata         = excluded.metadata,
-                     error_code       = coalesce(excluded.error_code, app_error_log.error_code),
-                     digest           = coalesce(excluded.digest, app_error_log.digest),
-                     release          = excluded.release,
-                     detail           = coalesce(app_error_log.detail, excluded.detail)`,
+                     last_request_id  = new.last_request_id,
+                     metadata         = new.metadata,
+                     error_code       = coalesce(new.error_code, app_error_log.error_code),
+                     digest           = coalesce(new.digest, app_error_log.digest),
+                     release          = new.release,
+                     detail           = coalesce(app_error_log.detail, new.detail)`,
       [
+        randomUUID(),
         row.source,
         row.message,
         row.context,
@@ -468,6 +490,8 @@ export async function recordError(
         row.digest,
         row.environment,
         row.release,
+        // یک بار برای first_request_id و یک بار برای last_request_id
+        row.requestId,
         row.requestId,
         JSON.stringify(row.metadata),
       ],

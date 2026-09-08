@@ -1,108 +1,204 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import mysql, {
+  type Pool,
+  type PoolConnection,
+  type ResultSetHeader,
+  type RowDataPacket,
+  type FieldPacket,
+} from "mysql2/promise";
 import { logger } from "@/lib/observability";
 
 /**
- * اتصال به PostgreSQL — جایگزین سه کلاینت Supabase.
+ * اتصال به MySQL.
  *
- * تنها راه رسیدن به دیتابیس در کل پروژه همین فایل است. دیگر خبری از
- * «کلاینت مرورگری / کلاینت سشن‌دار / کلاینت service-role» نیست، چون آن تفکیک
- * فقط به این دلیل وجود داشت که RLS باید می‌فهمید درخواست از طرف کیست. حالا
- * هیچ درخواستی از مرورگر به دیتابیس نمی‌رسد، پس یک اتصال داریم و تصمیمِ
- * «این کاربر اجازهٔ این کار را دارد؟» بالاتر گرفته می‌شود — در lib/auth.
+ * تنها راه رسیدن به دیتابیس در کل پروژه همین فایل است. هیچ درخواستی از مرورگر
+ * به دیتابیس نمی‌رسد، پس یک اتصال داریم و تصمیمِ «این کاربر اجازهٔ این کار را
+ * دارد؟» بالاتر گرفته می‌شود — در lib/auth.
+ *
+ * ⚠️ RLS وجود ندارد و MySQL هم چیزی معادلش ندارد. هر قاعدهٔ دسترسی در کد
+ * اپلیکیشن است. کوئری‌ای که `where user_id = ?` را جا بگذارد، داده لو می‌دهد و
+ * دیتابیس جلویش را نمی‌گیرد.
+ *
+ * ---------------------------------------------------------------------------
+ * قرارداد این ماژول از زمان PostgreSQL عوض نشده
+ * ---------------------------------------------------------------------------
+ * query<T>()    → T[]
+ * queryOne<T>() → T | null
+ * execute()     → تعداد ردیف‌های تحت‌تأثیر
+ * transaction() → روی یک اتصال اختصاصی
+ *
+ * عمداً یکسان مانده تا مهاجرت فقط متنِ SQL را عوض کند و نه منطقِ پایین‌دستش.
  */
 
 // ---------------------------------------------------------------------------
 // مبدل‌های نوع
 // ---------------------------------------------------------------------------
-// این بخش باید قبل از باز شدن هر اتصالی اجرا شود، وگرنه مبدل‌ها روی
-// connection هایی که زودتر ساخته شده‌اند اثر نمی‌کنند.
 //
-// چرا اصلاً لازم است: PostgREST (که Supabase جلوی دیتابیس گذاشته بود) همه چیز
-// را به JSON تبدیل می‌کرد، و کل کد این پروژه بر اساس همان JSON نوشته شده. درایور
-// خام `pg` سه نوع را متفاوت برمی‌گرداند و هر سه بی‌سروصدا خراب می‌کنند:
+// کدِ این پروژه بر اساس شکلی از داده نوشته شده که روزی PostgREST می‌داد و بعد
+// درایور pg با سه setTypeParser آن را بازسازی می‌کرد. mysql2 پیش‌فرض‌های
+// خودش را دارد و چهار جا با آن قرارداد نمی‌خواند. هر چهار مورد بی‌صدا خراب
+// می‌کنند، نه با خطا:
 //
-//   • int8 (خروجی count(*)) → رشتهٔ "123" می‌آید نه عدد. یعنی total + 1
-//     می‌شود "1231" و هیچ خطایی هم نمی‌دهد.
+//   • DECIMAL  → mysql2 رشته می‌دهد ("12.50"). نمرهٔ سؤال‌ها numeric(5,2) و
+//     numeric(6,2) اند؛ با رشته، جمعِ نمرات الحاقِ رشته می‌شود. بدترین حالت،
+//     چون خطا نمی‌دهد و فقط نمرهٔ اشتباه می‌دهد.
 //
-//   • numeric (نمرهٔ سؤال‌ها: score، total_score، section_score) → رشتهٔ "12.50".
-//     یعنی جمعِ نمرات به‌جای عدد، الحاق رشته می‌شود. این بدترین حالت است چون
-//     خطا نمی‌دهد، فقط نمرهٔ اشتباه می‌دهد.
+//   • DATETIME → mysql2 شیء Date می‌دهد. دو مشکل: کد پایین‌دست رشتهٔ ISO
+//     می‌خواهد (lib/panel/format.ts امضای (iso: string) دارد)، و Date فقط
+//     میلی‌ثانیه دارد در حالی که ستون‌ها DATETIME(6) اند — یعنی میکروثانیه‌ها
+//     همان‌جا می‌سوزند.
 //
-//   • timestamptz → شیء Date می‌آید نه رشتهٔ ISO. کل lib/panel/format.ts
-//     امضای (iso: string) دارد و داخلش Date.parse() صدا می‌زند؛ با Date
-//     میلی‌ثانیه از دست می‌رود و groupIntoSessions اشتباه گروه‌بندی می‌کند.
+//   • TINYINT(1) → عدد ۰/۱ می‌دهد نه boolean. `if (row.is_banned)` با عدد ۰
+//     درست کار می‌کند ولی `row.is_banned === false` نه، و JSON.stringify هم
+//     عدد می‌فرستد به کلاینت.
 //
-// با این سه خط، شکلِ داده‌ای که به کد می‌رسد دقیقاً همان چیزی می‌ماند که تا
-// دیروز از PostgREST می‌آمد — که یعنی فاز ۵ فقط کوئری‌ها را عوض می‌کند، نه
-// منطق پایین‌دستشان را.
+//   • BIGINT → mysql2 وقتی مقدار از Number.MAX_SAFE_INTEGER بگذرد رشته
+//     می‌دهد. count(*) هرگز آنجا نمی‌رسد ولی سکوت در برابرش خطرناک است.
+//
+// راه‌حل typeCast است و نه گشتن در نتیجه: typeCast موقع خواندنِ خودِ ستون
+// اجرا می‌شود، پس هم ارزان است و هم به متنِ خام دسترسی دارد — که برای
+// میکروثانیه لازم است.
 
-// پارسر اصلی باید قبل از جایگزینی گرفته شود، وگرنه بازگشتِ بی‌پایان می‌شود.
-//
-// ولی «گرفتنِ پارسر فعلی و پیچیدنش» فقط یک بار درست است، و این ماژول تضمینی
-// ندارد که یک بار اجرا شود:
-//
-//   • جدولِ پارسرها داخل `pg-types` است و در Next 16 هر چیزی که در node_modules
-//     باشد external است — یعنی یک نمونه در کل فرایند، از require نود.
-//   • همین فایل ولی bundle می‌شود، و هر entry باندلِ خودش را دارد. proxy.ts به
-//     lib/auth/session و از آنجا به همین فایل می‌رسد، route ها هم مستقلاً. در
-//     dev هم هر بار کامپایل مجدد یک نمونهٔ تازه است. (کش کردن Pool روی
-//     globalThis پایین همین فایل، اعترافِ همین موضوع است.)
-//
-// پس بارِ دوم، `getTypeParser` پارسر *اصلی* را برنمی‌گرداند؛ wrapper بارِ اول را
-// برمی‌گرداند که رشته می‌دهد نه Date — و رشته `toISOString` ندارد:
-//
-//     TypeError: parseTimestamptz(...).toISOString is not a function
-//
-// این خطا در لاگین دیده شد (findUserByEmail، ستون created_at). ربطی به نسخهٔ
-// پستگرس ندارد: اگر فرمتِ خروجی ناآشنا بود، postgres-date مقدار null می‌داد و
-// پیام خطا «reading 'toISOString' of null» می‌شد، نه «is not a function».
-//
-// راه‌حل: wrapper خودمان را علامت‌دار می‌کنیم و اگر از قبل نشسته باشد دست
-// نمی‌زنیم. برچسب یک رشتهٔ ثابت است نه Symbol، چون باید بین نمونه‌های مختلفِ
-// این ماژول هم شناسایی شود.
-const ISO_PARSER_BRAND = "__sarvaIsoTimestampParser";
+/**
+ * فیلدی که به typeCast می‌رسد.
+ *
+ * ⚠️ عمداً `string()` ندارد، با اینکه mysql2 دارد.
+ *
+ * دلیلش یک تلهٔ واقعی است که با آزمون پیدا شد: در پروتکل *باینری* (یعنی هر
+ * چیزی که با execute و prepared statement می‌رود، که کل این ماژول همان است)،
+ * `field.string()` فقط برای بعضی نوع‌ها درست جواب می‌دهد. برای LONGLONG و
+ * SHORT و VARCHAR بایت‌های خام را به‌عنوان متن می‌خواند و آشغال می‌دهد:
+ *
+ *     count(*)        → "\u0000"        (به‌جای "1")
+ *     subject VARCHAR → "\u0000\u0000\b�"  (به‌جای "فارسی")
+ *
+ * بدتر اینکه هر دوِ `string()` و `next()` مکان‌نمای بستهٔ داده را جلو می‌برند،
+ * پس صدا زدنِ هر دو روی یک فیلد، *فیلدهای بعدی* را هم خراب می‌کند — یعنی یک
+ * اشتباه در یک ستون، ستون‌های دیگر را بی‌صدا به‌هم می‌ریزد.
+ *
+ * پس قاعده: همیشه `next()`، دقیقاً یک بار، و بعد رویش کار کن.
+ */
+type CastField = {
+  type: string;
+  length: number;
+  name: string;
+};
 
-type MaybeBrandedParser = ((raw: string) => unknown) & { [ISO_PARSER_BRAND]?: true };
+/**
+ * 'YYYY-MM-DD HH:MM:SS[.ffffff]' → 'YYYY-MM-DDTHH:MM:SS.fff[fff]Z'
+ *
+ * ستون‌ها DATETIME(6) اند و قرارداد این است که همیشه UTC در آن‌ها نوشته شده
+ * (createPool زیر timezone را روی 'Z' می‌گذارد و هر نوشتنی هم UTC است). پس
+ * چسباندنِ 'Z' یک فرض نیست، نتیجهٔ همان قرارداد است.
+ *
+ * ⚠️ از new Date() رد نمی‌شویم. اگر می‌شدیم — که رفتار پیش‌فرض mysql2 است —
+ * '…07.123456' می‌شد '…07.123Z' و سه رقم میکروثانیه بی‌صدا می‌سوخت. با
+ * dateStrings متنِ خام می‌رسد و اینجا فقط بازچینی می‌شود، پس هر چه در ستون
+ * هست بیرون می‌آید.
+ *
+ * حداقل سه رقم اعشار تولید می‌شود تا شکلِ خروجی با toISOString() قبلی یکی
+ * بماند و چیزی که رشته‌ها را مقایسه می‌کند غافلگیر نشود.
+ */
+function datetimeToIso(raw: string): string {
+  // '0000-00-00 …' — با sql_mode سخت‌گیرانه نوشتنش ممکن نیست، ولی دادهٔ
+  // قدیمیِ واردشده می‌تواند داشته باشدش. به Date تبدیل نمی‌شود (که Invalid
+  // Date می‌داد و بی‌صدا می‌شکست)؛ خام رد می‌شود تا Date.parse رویش NaN بدهد
+  // و قابل تشخیص باشد.
+  if (raw.startsWith("0000-")) return raw;
 
-function installIsoTimestampParser(oid: number): void {
-  const current = types.getTypeParser(oid) as MaybeBrandedParser;
-  if (current[ISO_PARSER_BRAND]) return; // قبلاً نصب شده
-
-  const wrapper: MaybeBrandedParser = (raw: string) => {
-    const parsed = current(raw);
-    if (parsed instanceof Date) return parsed.toISOString();
-
-    // 'infinity' و '-infinity' — پستگرس اجازه‌شان می‌دهد و postgres-date عددِ
-    // Infinity برمی‌گرداند که ISO ندارد. متن خام رد می‌شود تا به‌جای ۵۰۰ گرفتن،
-    // کدِ پایین‌دست چیزی ببیند که Date.parse رویش NaN می‌دهد و قابل تشخیص است.
-    if (typeof parsed === "number") return raw;
-
-    // رشته: یعنی برچسب را از دست داده‌ایم ولی زنجیره سالم است — دوباره نپیچ.
-    if (typeof parsed === "string") return parsed;
-
-    // null: تاریخی که parser نشناخته. همان null می‌ماند (مقدارِ SQL NULL هم
-    // اصلاً به اینجا نمی‌رسد؛ pg خودش قبل از صدا زدن parser جدایش می‌کند).
-    return parsed;
-  };
-  wrapper[ISO_PARSER_BRAND] = true;
-
-  types.setTypeParser(oid, wrapper);
+  const [datePart, timePart = "00:00:00"] = raw.split(" ");
+  const [clock, fraction] = timePart.split(".");
+  const frac = (fraction ?? "").padEnd(3, "0");
+  return `${datePart}T${clock}.${frac}Z`;
 }
 
-installIsoTimestampParser(types.builtins.TIMESTAMPTZ);
-installIsoTimestampParser(types.builtins.TIMESTAMP);
+/**
+ * typeCast — تنها جایی که شکلِ داده تصمیم گرفته می‌شود.
+ *
+ * ⚠️ boolean فقط برای ستون‌های واقعیِ TINYINT(1) اعمال می‌شود.
+ *
+ * عبارت‌های محاسباتی (`exists(…)`، `x > 0`) در MySQL نوع LONGLONG می‌گیرند و
+ * از عددِ ثابتِ `select 5` قابل تشخیص نیستند — هر دو LONGLONG با طول ۱ اند.
+ * پس تبدیلشان اینجا ممکن نیست بدون اینکه `select 5` هم boolean شود.
+ *
+ * آن‌ها با toBool() (پایین همین فایل) در محلِ استفاده تبدیل می‌شوند — صریح،
+ * قابل grep، و قابل تست.
+ */
+function typeCast(field: CastField, next: () => unknown): unknown {
+  const value = next();
+  if (value === null || value === undefined) return null;
 
-// Number و نه parseFloat: parseFloat روی "12abc" مقدار ۱۲ می‌دهد و خرابی را
-// پنهان می‌کند؛ Number در همان حالت NaN می‌دهد که دیده می‌شود.
-//
-// دقت: numeric در Postgres دلخواه‌دقت است و double نیست. اینجا بی‌خطر است چون
-// تنها numeric های ما نمره‌اند — numeric(5,2) و numeric(6,2)، یعنی حداکثر
-// ۹۹۹۹.۹۹ که خیلی زیر مرز دقت double است. اگر روزی ستون پولی یا شناسهٔ بزرگ
-// اضافه شد، آن ستون باید مبدل خودش را داشته باشد.
-types.setTypeParser(types.builtins.NUMERIC, (v) => Number(v));
-types.setTypeParser(types.builtins.INT8, (v) => Number(v));
+  switch (field.type) {
+    case "DATETIME":
+    case "TIMESTAMP":
+      // با dateStrings رشته می‌آید. اگر روزی آن گزینه برداشته شود، Date
+      // می‌آید و این شاخه جلوی خرابیِ بی‌صدا را می‌گیرد.
+      return typeof value === "string"
+        ? datetimeToIso(value)
+        : (value as Date).toISOString();
+
+    // DATE بدون زمان: supported_at فقط تاریخ است و نباید روزش با تبدیلِ
+    // منطقه‌ای جابه‌جا شود. رشته می‌ماند، همان‌طور که در Postgres هم می‌ماند.
+    case "DATE":
+    case "NEWDATE":
+      return value;
+
+    case "NEWDECIMAL":
+    case "DECIMAL": {
+      // Number و نه parseFloat: parseFloat روی "12abc" مقدار ۱۲ می‌دهد و
+      // خرابی را پنهان می‌کند؛ Number همان‌جا NaN می‌دهد که دیده می‌شود.
+      //
+      // دقت: تنها DECIMAL های ما نمره‌اند — (5,2) و (6,2)، یعنی حداکثر
+      // ۹۹۹۹٫۹۹ که خیلی زیر مرز دقت double است. اگر روزی ستون پولی اضافه شد،
+      // آن ستون باید مسیر خودش را داشته باشد.
+      return typeof value === "number" ? value : Number(value);
+    }
+
+    case "LONGLONG": {
+      if (typeof value === "number") return value;
+      const n = Number(value);
+      if (!Number.isSafeInteger(n)) {
+        // از محدودهٔ امنِ عدد در JS بیرون است. رشته رد می‌شود تا به‌جای یک
+        // عددِ بی‌صدا-اشتباه، جایی که استفاده می‌شود بشکند و دیده شود.
+        logger.warn("عدد صحیح بزرگ‌تر از محدودهٔ امنِ JS", {
+          event: "db.bigint.unsafe",
+          column: field.name,
+        });
+        return value;
+      }
+      return n;
+    }
+
+    case "TINY":
+      // فقط TINYINT(1) — یعنی همان چیزی که در DDL «boolean» نوشته شده.
+      // TINYINT(4) و مانندش عددِ واقعی‌اند و باید عدد بمانند.
+      return field.length === 1 ? value !== 0 : value;
+
+    default:
+      // JSON را خودِ mysql2 می‌خواند و شیء/آرایه/عدد/رشته/null می‌دهد —
+      // دقیقاً مثل jsonb در pg. متن هم همین‌جا رد می‌شود.
+      return value;
+  }
+}
+
+/**
+ * عبارت‌های boolean که از MySQL عدد برمی‌گردند.
+ *
+ * MySQL نوع boolean ندارد؛ `exists(...)` و `a = b` هر دو ۰/۱ می‌دهند و از یک
+ * عددِ معمولی قابل تشخیص نیستند. پس هر جا کوئری یک boolean محاسبه می‌کند،
+ * نتیجه از اینجا رد می‌شود.
+ *
+ * رشته هم پذیرفته می‌شود چون در حالتِ عبورِ عددِ بزرگ (بالا) ممکن است رشته
+ * برسد، و "0" در JS truthy است — که دقیقاً همان باگی است که این تابع جلویش
+ * را می‌گیرد.
+ */
+export function toBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") return value !== "" && value !== "0";
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Pool
@@ -120,23 +216,47 @@ function connectionString(): string {
 }
 
 function createPool(): Pool {
-  const pool = new Pool({
-    connectionString: connectionString(),
-    // سقف اتصال. پیش‌فرض ۱۰ برای این مقیاس فراوان است و از طرفی جلوی
-    // خالی کردن سهمیهٔ اتصال پستگرس توسط یک نشتِ اتصال را می‌گیرد.
-    max: Number(process.env.PGPOOL_MAX ?? 10),
-    // اتصال بی‌کار بعد از این مدت بسته می‌شود
-    idleTimeoutMillis: 30_000,
+  const pool = mysql.createPool({
+    uri: connectionString(),
+
+    // سقف اتصال. پیش‌فرض ۱۰ برای این مقیاس فراوان است و از طرفی جلوی خالی
+    // کردن سهمیهٔ اتصالِ سرور توسط یک نشتِ اتصال را می‌گیرد.
+    connectionLimit: Number(process.env.DBPOOL_MAX ?? 10),
+
     // اگر پس از این مدت اتصالی آزاد نشد، به‌جای معلق ماندن خطا می‌دهیم —
     // درخواستی که برای همیشه منتظر بماند از درخواستی که شکست بخورد بدتر است.
-    connectionTimeoutMillis: 10_000,
-  });
+    waitForConnections: true,
+    queueLimit: 0,
+    connectTimeout: 10_000,
+    idleTimeout: 30_000,
 
-  // یک اتصالِ بی‌کار که سمت سرور قطع شود (ری‌استارت پستگرس، تایم‌اوت شبکه)
-  // روی خودِ Pool رویداد error می‌دهد. بدون این شنونده، Node آن را
-  // unhandled می‌بیند و کل فرایند را می‌کشد.
-  pool.on("error", (err) => {
-    logger.error("خطای اتصالِ بی‌کارِ دیتابیس", { event: "db.pool.error", err });
+    // ⚠️ خاموش. کنسول SQL مدیر اتصالِ جدا و محدودِ خودش را دارد؛ اگر pool
+    // عمومی چنددستوری بود، هر تزریقی که یک نقطه‌ویرگول رد می‌کرد می‌توانست
+    // دستور دوم اجرا کند.
+    multipleStatements: false,
+
+    // 'Z' یعنی درایور مقادیر Date را UTC تفسیر می‌کند. خواندن از typeCast رد
+    // می‌شود و اصلاً به این نمی‌رسد، ولی *نوشتن* Date به این وابسته است:
+    // بدون آن، درایور Date را با منطقهٔ محلیِ سرور می‌نوشت و همان ستون روی دو
+    // ماشین با TZ متفاوت دو مقدار می‌گرفت.
+    timezone: "Z",
+
+    // ⚠️ بدون این، mysql2 برای DATETIME یک شیء Date می‌سازد و چون Date فقط
+    // میلی‌ثانیه دارد، سه رقم میکروثانیهٔ ستون‌های DATETIME(6) همان‌جا از بین
+    // می‌رود — پیش از آنکه typeCast اصلاً چیزی ببیند.
+    dateStrings: true,
+
+    typeCast: typeCast as never,
+
+    // عددهای بزرگ به‌جای اینکه بی‌صدا گرد شوند، رشته می‌آیند؛ typeCast بالا
+    // تصمیم می‌گیرد چه کند.
+    supportBigNumbers: true,
+    bigNumberStrings: true,
+
+    // نام ستون‌های تکراری در JOIN روی هم نیفتند. (پیش‌فرض هم همین است؛ صریح
+    // نوشته شده چون رفتارِ برعکسش داده را بی‌صدا گم می‌کند.)
+    nestTables: false,
+    charset: "utf8mb4_0900_ai_ci",
   });
 
   return pool;
@@ -144,7 +264,7 @@ function createPool(): Pool {
 
 // در dev، هر بار که Next ماژول‌ها را دوباره بار می‌کند یک Pool تازه ساخته
 // می‌شد و قبلی‌ها با اتصال‌های بازشان رها می‌شدند — بعد از چند بار ذخیره،
-// پستگرس با «too many clients» جواب می‌داد. نگه داشتن روی globalThis از
+// سرور با «too many connections» جواب می‌داد. نگه داشتن روی globalThis از
 // بازبارگذاری جان سالم به در می‌برد. در production یک بار ساخته می‌شود.
 const globalForDb = globalThis as unknown as { __sarvaPool?: Pool };
 
@@ -157,9 +277,6 @@ let poolInstance: Pool | null = globalForDb.__sarvaPool ?? null;
  * ماشینی که DATABASE_URL ندارد شکست می‌خورد — و مرحلهٔ build داکر دقیقاً همان
  * ماشین است. Next برای جمع‌آوری اطلاعات صفحه‌ها هر route را import می‌کند، پس
  * هر کاری که در سطح ماژول انجام شود در زمان build هم اجرا می‌شود.
- *
- * (این دقیقاً همان چیزی بود که در اولین build این فاز شکست:
- *  «Failed to collect page data for /api/v1/auth/logout».)
  */
 export function getPool(): Pool {
   if (!poolInstance) {
@@ -168,22 +285,6 @@ export function getPool(): Pool {
   }
   return poolInstance;
 }
-
-// ---------------------------------------------------------------------------
-// کوئری
-// ---------------------------------------------------------------------------
-
-/** هر چیزی که می‌شود به کوئری داد: pool یا کلاینتِ داخل تراکنش. */
-type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
-
-/** آستانهٔ «این کوئری کند بود». در زمان اجرا خوانده می‌شود و نه در زمان import،
- *  چون مرحلهٔ build داکر هیچ .env ای ندارد و مقدارِ آنجا روی سرور بی‌معناست. */
-function slowQueryMs(): number {
-  const raw = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
-  return Number.isFinite(raw) && raw > 0 ? raw : 500;
-}
-
-const isProduction = () => process.env.NODE_ENV === "production";
 
 // ---------------------------------------------------------------------------
 // شناسایی کوئری در لاگ، بدون لو دادن خودِ کوئری
@@ -198,11 +299,7 @@ const isProduction = () => process.env.NODE_ENV === "production";
  * متوجه شود.
  *
  * پس دو چیز لاگ می‌شود که برای پیدا کردن کوئری کافی‌اند و هیچ داده‌ای ندارند:
- *
- *   • **operation** — `SELECT` / `INSERT` / … . برای فهمیدنِ «چه نوع کاری کند
- *     است» کافی است.
- *   • **fingerprint** — هشِ کوتاهِ متنِ نرمال‌شده. دو خطِ لاگ با اثرانگشت
- *     یکسان قطعاً یک کوئری‌اند، و با `rg` در کد پیدا می‌شود.
+ * operation (SELECT/INSERT/…) و fingerprint (هشِ کوتاهِ متنِ نرمال‌شده).
  *
  * در حالت توسعه (و فقط آنجا) متنِ کوتاه‌شدهٔ کوئری هم می‌آید، چون آنجا خودِ
  * توسعه‌دهنده تنها خوانندهٔ لاگ است.
@@ -214,7 +311,11 @@ function describe(text: string): { op: string; fp: string } {
   if (cached) return cached;
 
   const normalized = text
+    // ⚠️ هر سه شکلِ کامنت در MySQL: `-- ` و `#` و `/* */`. نسخهٔ PostgreSQL
+    // فقط `--` را می‌شناخت؛ با `#` دو کوئریِ یکسان دو اثرانگشت می‌گرفتند.
     .replace(/--[^\n]*/g, " ")
+    .replace(/#[^\n]*/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -236,31 +337,17 @@ function describe(text: string): { op: string; fp: string } {
  * ⚠️ در production **اصلاً** لاگ نمی‌شوند. این تابع فقط در حالت توسعه صدا
  * زده می‌شود.
  *
- * قبلاً لاگِ خطای کوئری مستقیماً `JSON.stringify(params)` را می‌نوشت. برای
- * دیباگ عالی بود و از نظر امنیتی گران: هر خطای کوئری این‌ها را در
- * `docker compose logs` می‌گذاشت —
- *
- *   • هشِ refresh token (در createSession و refreshSession). دیتابیس دقیقاً
- *     همین هش را ذخیره می‌کند، پس داشتنش یعنی داشتنِ سشن.
- *   • هشِ توکن بازنشانی رمز، یعنی امکان تصاحب حساب.
- *   • هشِ کد OTP، هشِ رمز عبور، ایمیل و IP کاربران.
- *
- * رمز عبورِ متن‌ساده هرگز به این لایه نمی‌رسد (همیشه قبلش argon2 می‌شود)، ولی
- * بقیه کافی بودند: یک فایل لاگِ لو رفته = دسترسی به حساب‌ها.
- *
- * حالا هر رشتهٔ بلندی که شبیه راز است با طول و نوعش جایگزین می‌شود. چیزی که
- * برای دیباگ لازم است — «پارامتر سوم null بود» یا «چهارم عدد ۷ بود» — سر جایش
- * می‌ماند.
+ * قبلاً لاگِ خطای کوئری مستقیماً JSON.stringify(params) را می‌نوشت. برای
+ * دیباگ عالی بود و از نظر امنیتی گران: هر خطای کوئری هشِ refresh token، هشِ
+ * توکن بازنشانی رمز، هشِ کد OTP، ایمیل و IP کاربران را در لاگ می‌گذاشت. یک
+ * فایل لاگِ لو رفته = دسترسی به حساب‌ها.
  */
 function redactParams(params: unknown[]): string {
   const safe = params.map((value) => {
     if (value === null || value === undefined) return value;
 
     if (typeof value === "string") {
-      // hex/base64url بلند = هش یا توکن. هر رشتهٔ بلند دیگری هم می‌تواند
-      // محتوای کاربر باشد (متن سروده، دیدگاه) که آن هم در لاگ جایی ندارد.
       if (value.length > 24) return `[رشتهٔ ${value.length} نویسه‌ای]`;
-      // ایمیل حتی وقتی کوتاه است شناسایی‌کننده است.
       if (value.includes("@")) return "[ایمیل]";
       return value;
     }
@@ -273,7 +360,13 @@ function redactParams(params: unknown[]): string {
   return JSON.stringify(safe).slice(0, 300);
 }
 
-/** فیلدهای مشترکِ هر خطِ لاگِ دیتابیس. در production فقط همین‌ها. */
+function slowQueryMs(): number {
+  const raw = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
+  return Number.isFinite(raw) && raw > 0 ? raw : 500;
+}
+
+const isProduction = () => process.env.NODE_ENV === "production";
+
 function baseFields(text: string, durationMs: number, inTransaction: boolean) {
   const { op, fp } = describe(text);
   return {
@@ -284,59 +377,113 @@ function baseFields(text: string, durationMs: number, inTransaction: boolean) {
   };
 }
 
-/** آنچه فقط در حالت توسعه اضافه می‌شود. */
 function devFields(text: string, params?: unknown[]) {
   if (isProduction()) return {};
   return {
     db_statement: text.replace(/\s+/g, " ").slice(0, 200),
-    // نام عمدی: «شکلِ» پارامترها، نه خودشان. redactDeep در لاگر هر کلیدی را
-    // که به `params` ختم شود کامل پنهان می‌کند، و این فیلد باید در حالت
-    // توسعه دیده شود — چیزی که داخلش است هم از قبل بی‌خطر شده.
     ...(params?.length ? { db_param_shapes: redactParams(params) } : {}),
   };
 }
 
+// ---------------------------------------------------------------------------
+// خطاها
+// ---------------------------------------------------------------------------
+
+/**
+ * خطای نقضِ یکتایی.
+ *
+ * در PostgreSQL کد ۲۳۵۰۵ بود و چند جا (بانک آزمون، مدیریتِ بازی‌ها) رویش
+ * شاخه می‌زدند تا به‌جای ۵۰۰، پیامِ «تکراری است» بدهند. MySQL شمارهٔ دیگری
+ * می‌دهد (۱۰۶۲)، پس اگر آن مقایسه‌ها دست‌نخورده می‌ماندند، هر تکراری‌ای از
+ * امروز ۵۰۰ می‌شد.
+ *
+ * به‌جای پخش کردنِ عدد ۱۰۶۲ در کد، یک تابع: کد فراخوان از شمارهٔ خطای موتور
+ * بی‌خبر می‌ماند و مهاجرتِ بعدی هم فقط همین‌جا را عوض می‌کند.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  const code = (err as { errno?: number })?.errno;
+  // 1062 ER_DUP_ENTRY — نقض UNIQUE/PRIMARY
+  // 1586 ER_DUP_ENTRY_WITH_KEY_NAME — همان، با نام کلید
+  return code === 1062 || code === 1586;
+}
+
+/** نقض کلید خارجی — ردیفِ ارجاع‌شده نیست، یا هنوز ارجاع‌کننده دارد. */
+export function isForeignKeyViolation(err: unknown): boolean {
+  const code = (err as { errno?: number })?.errno;
+  // 1452 افزودنِ ارجاع به ردیفِ ناموجود، 1451 حذفِ ردیفی که هنوز ارجاع دارد
+  return code === 1451 || code === 1452;
+}
+
+/** نقض CHECK. */
+export function isCheckViolation(err: unknown): boolean {
+  return (err as { errno?: number })?.errno === 3819;
+}
+
+/**
+ * خطایی که خودِ ما با SIGNAL از داخل تریگر بلند کرده‌ایم.
+ * فعلاً فقط نگهبانِ «آخرین راه ورود» روی user_identities.
+ */
+export function isTriggerAssertion(err: unknown): boolean {
+  return (err as { errno?: number })?.errno === 1644;
+}
+
+/** پیامِ خطای تریگر — برای نشان دادن به کاربر. */
+export function triggerAssertionMessage(err: unknown): string | null {
+  if (!isTriggerAssertion(err)) return null;
+  return (err as { sqlMessage?: string }).sqlMessage ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// اجرا
+// ---------------------------------------------------------------------------
+
+type Runner = Pool | PoolConnection;
+
 /**
  * تنها نقطه‌ای که یک کوئری واقعاً اجرا می‌شود.
  *
- * ⚠️ قبلاً `execute` و `tx.execute` مستقیم `pool.query` را صدا می‌زدند و از
- * این مسیر رد نمی‌شدند — یعنی یک insert کند یا یک delete شکست‌خورده هیچ ردی
- * در لاگ نمی‌گذاشت. حالا هر چهار تابع (query، queryOne، execute و همتاهای
- * داخل تراکنش) از همین‌جا می‌گذرند.
- *
- * ⚠️ اینجا هرگز `recordError` صدا زده نمی‌شود.
+ * ⚠️ اینجا هرگز recordError صدا زده نمی‌شود.
  *
  * دلیلش یک حلقهٔ کشنده است: دیتابیس قطع می‌شود → کوئری خطا می‌دهد → اگر
  * می‌خواستیم خطا را در دیتابیس ثبت کنیم، آن insert هم خطا می‌داد → و آن خطا
  * دوباره… . خطای دیتابیس فقط به stdout می‌رود؛ ثبتِ ماندگارش کارِ لایهٔ
  * بالاتر است (handleError یا onRequestError) که یک بار انجامش می‌دهد.
  */
-async function runQuery<T extends QueryResultRow>(
-  on: Queryable,
+async function runQuery(
+  on: Runner,
   text: string,
   params: unknown[] | undefined,
   inTransaction: boolean,
-): Promise<QueryResult<T>> {
+): Promise<[unknown, FieldPacket[]]> {
   const startedAt = performance.now();
   try {
-    const result = (await on.query<T>(text, params as never)) as QueryResult<T>;
+    // ⚠️ execute و نه query: execute دستور را به‌صورت prepared به سرور
+    // می‌فرستد، یعنی مقدارها هرگز داخل متنِ SQL نمی‌روند — همان تضمینی که
+    // $1 در PostgreSQL می‌داد.
+    //
+    // (query در mysql2 مقدارها را سمتِ کلاینت escape و داخل متن درج می‌کند.
+    //  امن هست، ولی «امن به‌شرط درست بودنِ escape» با «اصلاً وارد متن نشدن»
+    //  یکی نیست.)
+    const result = await on.execute(text, (params ?? []) as never);
     const ms = performance.now() - startedAt;
 
     if (ms > slowQueryMs()) {
-      // کوئری کند در لاگ می‌آید ولی جلویش گرفته نمی‌شود — هشدار است نه خطا.
+      const rows = result[0];
       logger.warn("کوئری کند", {
         event: "db.query.slow",
         ...baseFields(text, ms, inTransaction),
-        row_count: result.rowCount ?? result.rows?.length ?? 0,
+        row_count: Array.isArray(rows)
+          ? rows.length
+          : ((rows as ResultSetHeader)?.affectedRows ?? 0),
         ...devFields(text),
       });
     }
 
-    return result;
+    return result as [unknown, FieldPacket[]];
   } catch (err) {
     const ms = performance.now() - startedAt;
 
-    // پیام خام پستگرس معمولاً می‌گوید چه شد ولی نمی‌گوید کجا. اثرانگشت و
+    // پیام خام موتور معمولاً می‌گوید چه شد ولی نمی‌گوید کجا. اثرانگشت و
     // operation این را جبران می‌کنند — بدون اینکه متن کوئری یا مقادیر به لاگ
     // برسند. (به خطای بالادست هم چیزی اضافه نمی‌شود، چون آن پیام ممکن است به
     // کاربر نشان داده شود و ساختار دیتابیس چیزی نیست که کاربر باید ببیند.)
@@ -351,24 +498,59 @@ async function runQuery<T extends QueryResultRow>(
   }
 }
 
-/** همان runQuery، ولی فقط ردیف‌ها. */
-async function run<T extends QueryResultRow>(
-  on: Queryable,
+async function run<T>(
+  on: Runner,
   text: string,
   params?: unknown[],
   inTransaction = false,
 ): Promise<T[]> {
-  const result = await runQuery<T>(on, text, params, inTransaction);
-  return result.rows;
+  const [rows] = await runQuery(on, text, params, inTransaction);
+  // INSERT/UPDATE/DELETE هم از این مسیر رد می‌شوند اگر کسی query() صدایشان
+  // بزند؛ آنجا rows یک ResultSetHeader است نه آرایه. آرایهٔ خالی بهتر از
+  // برگرداندنِ یک شیء با شکلِ غلط است.
+  return Array.isArray(rows) ? (rows as T[]) : [];
+}
+
+/**
+ * تعدادِ ردیف‌هایی که واقعاً عوض شدند.
+ *
+ * ⚠️ این تابع از affectedRows استفاده می‌کند و نه changedRows، و تفاوتشان در
+ * MySQL معنادار است:
+ *
+ *   • UPDATE ای که مقدارِ تازه‌اش با قدیمی یکی است → affectedRows = ۱ ولی
+ *     changedRows = ۰.
+ *   • INSERT ... ON DUPLICATE KEY UPDATE → درج = ۱، به‌روزرسانی = ۲، و
+ *     «بود و عوض نشد» = ۰.
+ *
+ * قرارداد قبلی rowCount در PostgreSQL بود، یعنی «چند ردیف هدف قرار گرفت».
+ * affectedRows همان معنا را می‌دهد و changedRows نه — پس هر جای کد که
+ * `if (n === 0) return notFound` دارد با affectedRows درست می‌ماند.
+ *
+ * ⚠️ استثنا: در upsert نمی‌شود از عدد فهمید «درج شد یا به‌روز شد». هر جا این
+ * تفکیک لازم باشد، کوئری باید خودش جواب را بدهد (مثلاً با یک SELECT بعدی در
+ * همان تراکنش) و نه از روی این عدد حدس زده شود.
+ */
+async function runExecute(
+  on: Runner,
+  text: string,
+  params: unknown[] | undefined,
+  inTransaction: boolean,
+): Promise<number> {
+  const [result] = await runQuery(on, text, params, inTransaction);
+  if (Array.isArray(result)) return result.length;
+  return (result as ResultSetHeader)?.affectedRows ?? 0;
 }
 
 /** همهٔ ردیف‌ها. */
-export function query<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T[]> {
+export function query<T extends RowDataPacket | object>(
+  text: string,
+  params?: unknown[],
+): Promise<T[]> {
   return run<T>(getPool(), text, params);
 }
 
-/** اولین ردیف، یا null. جایگزین maybeSingle() در Supabase. */
-export async function queryOne<T extends QueryResultRow>(
+/** اولین ردیف، یا null. */
+export async function queryOne<T extends RowDataPacket | object>(
   text: string,
   params?: unknown[],
 ): Promise<T | null> {
@@ -377,69 +559,112 @@ export async function queryOne<T extends QueryResultRow>(
 }
 
 /** تعداد ردیف‌های تحت‌تأثیر — برای insert/update/delete که خروجی نمی‌خواهند. */
-export async function execute(text: string, params?: unknown[]): Promise<number> {
-  const result = await runQuery(getPool(), text, params, false);
-  return result.rowCount ?? 0;
+export function execute(text: string, params?: unknown[]): Promise<number> {
+  return runExecute(getPool(), text, params, false);
 }
 
-// ---------------------------------------------------------------------------
-// تراکنش
-// ---------------------------------------------------------------------------
-
-/** همان چند تابع بالا، ولی روی کلاینتِ اختصاصیِ یک تراکنش. */
+/**
+ * شناسهٔ AUTO_INCREMENT آخرین درج.
+ *
+ * فقط برای jasoos_levels که تنها جدولِ AUTO_INCREMENT پروژه است. بقیهٔ
+ * جدول‌ها UUID دارند و شناسه‌شان را اپ قبل از INSERT می‌سازد
+ * (crypto.randomUUID)، پس چیزی برای خواندن ندارند.
+ *
+ * ⚠️ حتماً روی همان اتصالِ درج. LAST_INSERT_ID در MySQL مقدارِ هر اتصال را
+ * جدا نگه می‌دارد، پس اگر INSERT روی یک اتصال از pool برود و این روی اتصالِ
+ * دیگری، شناسهٔ کسِ دیگری برمی‌گردد. برای همین بیرون از transaction() در
+ * دسترس نیست.
+ */
 export type Tx = {
-  query<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T[]>;
-  queryOne<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T | null>;
+  query<T extends RowDataPacket | object>(text: string, params?: unknown[]): Promise<T[]>;
+  queryOne<T extends RowDataPacket | object>(
+    text: string,
+    params?: unknown[],
+  ): Promise<T | null>;
   execute(text: string, params?: unknown[]): Promise<number>;
+  /** شناسهٔ AUTO_INCREMENT آخرین درجِ همین تراکنش. */
+  insertId(text: string, params?: unknown[]): Promise<number>;
 };
 
 /**
  * چند دستور در یک تراکنش. اگر callback خطا بدهد rollback می‌شود.
  *
- * چرا لازم است: در Supabase هر فراخوانی یک درخواست HTTP جدا بود و تراکنش عملاً
- * وجود نداشت — به همین دلیل جاهایی مثل adminUpsertQuestion که سؤال و بخش‌ها و
- * گزینه‌ها را پشت سر هم می‌نویسد، اگر وسط کار خطا می‌خورد نیمه‌کاره رها می‌شد.
- * حالا آن دسته کارها اتمیک می‌شوند.
- *
  * نکتهٔ مهم: از `tx` استفاده کنید نه از query سراسری. اگر داخل callback از
  * query سراسری استفاده کنید، آن دستور روی اتصالِ دیگری از pool اجرا می‌شود،
  * یعنی بیرونِ تراکنش — و با rollback برنمی‌گردد.
+ *
+ * ⚠️⚠️ در MySQL بعضی دستورها **commit ضمنی** دارند: هر DDL (CREATE/ALTER/
+ * DROP)، TRUNCATE، و چند تای دیگر. اجرای آن‌ها داخل این تابع تراکنش را
+ * همان‌جا می‌بندد و rollback بعدی هیچ کاری نمی‌کند — بی‌آنکه خطایی بدهد.
+ * در PostgreSQL این‌طور نبود و DDL هم برمی‌گشت. پس اینجا فقط DML.
+ * (کنسول SQL مدیر همین را جداگانه گارد می‌کند.)
  */
 export async function transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const client = await getPool().connect();
+  const conn = await getPool().getConnection();
 
-  // جنریک‌ها صریح نوشته شده‌اند: در یک object literal، TypeScript پارامتر نوعِ
-  // متد را از امضای Tx برنمی‌دارد و T را به QueryResultRow فرو می‌کاهد.
   const tx: Tx = {
-    query<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T[]> {
-      return run<T>(client, text, params, true);
+    query<R extends RowDataPacket | object>(text: string, params?: unknown[]): Promise<R[]> {
+      return run<R>(conn, text, params, true);
     },
-    async queryOne<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T | null> {
-      const rows = await run<T>(client, text, params, true);
+    async queryOne<R extends RowDataPacket | object>(
+      text: string,
+      params?: unknown[],
+    ): Promise<R | null> {
+      const rows = await run<R>(conn, text, params, true);
       return rows[0] ?? null;
     },
-    async execute(text: string, params?: unknown[]): Promise<number> {
-      // ⚠️ قبلاً این یکی مستقیم client.query را صدا می‌زد و از instrumentation
-      // بیرون بود — یعنی یک update کندِ داخل تراکنش نامرئی می‌ماند.
-      const result = await runQuery(client, text, params, true);
-      return result.rowCount ?? 0;
+    execute(text: string, params?: unknown[]): Promise<number> {
+      return runExecute(conn, text, params, true);
+    },
+    async insertId(text: string, params?: unknown[]): Promise<number> {
+      const [result] = await runQuery(conn, text, params, true);
+      return (result as ResultSetHeader)?.insertId ?? 0;
     },
   };
 
   try {
-    await runQuery(client, "begin", undefined, true);
+    await conn.beginTransaction();
     const out = await fn(tx);
-    await runQuery(client, "commit", undefined, true);
+    await conn.commit();
     return out;
   } catch (err) {
     // اگر خودِ rollback هم شکست بخورد (اتصال مرده)، خطای اصلی مهم‌تر است و
-    // نباید با خطای rollback جایگزین شود. (semantics دست‌نخورده است؛ فقط
-    // شکستِ rollback حالا در لاگ دیده می‌شود.)
-    await runQuery(client, "rollback", undefined, true).catch(() => {});
+    // نباید با خطای rollback جایگزین شود.
+    await conn.rollback().catch(() => {});
     throw err;
   } finally {
     // بدون این، اتصال هرگز به pool برنمی‌گردد و بعد از چند خطا pool خالی
     // می‌شود و کل اپ معلق می‌ماند.
-    client.release();
+    conn.release();
   }
+}
+
+// ---------------------------------------------------------------------------
+// کمک‌کارهای SQL
+// ---------------------------------------------------------------------------
+
+/**
+ * فهرست جای‌نگهدار برای IN.
+ *
+ * در PostgreSQL این کار با `= any($1::uuid[])` انجام می‌شد و یک پارامتر
+ * می‌گرفت. MySQL آرایه به‌عنوان پارامتر ندارد، پس به ازای هر عضو یک `?`.
+ *
+ * ⚠️ آرایهٔ خالی: `IN ()` در MySQL خطای نحوی است. اینجا به‌جایش یک عبارتِ
+ * همیشه-نادرست تولید می‌شود، که همان معنای «هیچ‌کدام» را می‌دهد —
+ * `x IN (any([]))` در PostgreSQL هم همین بود.
+ */
+export function placeholders(count: number): string {
+  if (count <= 0) return "NULL";
+  return Array.from({ length: count }, () => "?").join(", ");
+}
+
+/**
+ * الگوی LIKE با گریزِ کاراکترهای ویژه.
+ *
+ * ⚠️ بدون این، جست‌وجوی کاربر برای «۱۰۰%» یا «a_b» به الگوی wildcard تبدیل
+ * می‌شود و نتیجهٔ اشتباه می‌دهد. backslash اول می‌آید وگرنه گریزِ خودش دوباره
+ * گریز می‌خورد.
+ */
+export function likePattern(raw: string): string {
+  return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }

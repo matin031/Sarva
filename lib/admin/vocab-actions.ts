@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
@@ -98,11 +99,14 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
     // بودند و دو افزودنِ همزمان می‌توانستند هر دو یک شماره بگیرند.
     await transaction(async (tx) => {
       await tx.execute(
-        `insert into vocab_words (grade, lesson, word, meaning, image, sort_index)
-         values ($1, $2, $3, $4, $5,
-                 coalesce((select max(sort_index) from vocab_words
-                            where grade = $1 and lesson = $2), 0) + 1)`,
-        [input.grade, input.lesson, word, meaning, image],
+        // جدولِ مشتق، به همان دلیلِ خطای ۱۰۹۳ که در ninja و pairs توضیح
+        // داده شده.
+        `insert into vocab_words (id, grade, lesson, word, meaning, image, sort_index)
+         select ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+           from (select max(sort_index) as m from vocab_words
+                  where grade = ? and lesson = ?) t`,
+        [randomUUID(), input.grade, input.lesson, word, meaning, image,
+         input.grade, input.lesson],
       );
     });
 

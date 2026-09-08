@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
@@ -136,11 +137,14 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
     // و درج در یک تراکنش‌اند تا دو افزودنِ همزمان یک شماره نگیرند.
     await transaction(async (tx) => {
       await tx.execute(
-        `insert into memory_pairs (grade, term, work, author, sort_index)
-         values ($1, $2, $3, $4,
-                 coalesce((select max(sort_index) from memory_pairs
-                            where grade = $1 and term = $2), 0) + 1)`,
-        [input.grade, input.term, work, author],
+        // ⚠️ جدولِ مشتق لازم است: MySQL اجازه نمی‌دهد زیرکوئریِ یک INSERT از
+        // جدولِ مقصد بخواند (خطای ۱۰۹۳). و پارامترها تکرار می‌شوند چون در
+        // MySQL هر ? یک جاست، بر خلاف $1 که چند بار می‌آمد.
+        `insert into memory_pairs (id, grade, term, work, author, sort_index)
+         select ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+           from (select max(sort_index) as m from memory_pairs
+                  where grade = ? and term = ?) t`,
+        [randomUUID(), input.grade, input.term, work, author, input.grade, input.term],
       );
     });
 
@@ -229,11 +233,14 @@ export async function pairsAdminBulkAdd(input: {
 
       for (const p of parsed) {
         next++;
+        // ON DUPLICATE KEY UPDATE با مقدارِ خودش = «هیچ کاری نکن»، ولی بر
+        // خلاف INSERT IGNORE فقط نقضِ کلید یکتا را می‌بلعد و بقیهٔ خطاها را
+        // بالا می‌فرستد.
         inserted += await tx.execute(
-          `insert into memory_pairs (grade, term, work, author, sort_index)
-           values ($1, $2, $3, $4, $5)
-           on conflict (grade, term, work) do nothing`,
-          [input.grade, input.term, p.work, p.author, next],
+          `insert into memory_pairs (id, grade, term, work, author, sort_index)
+           values (?, ?, ?, ?, ?, ?)
+           on duplicate key update work = work`,
+          [randomUUID(), input.grade, input.term, p.work, p.author, next],
         );
       }
       return inserted;

@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
@@ -51,18 +52,59 @@ type CategoryRow = {
 export async function ninjaAdminOverview(): Promise<AdminNinjaCategory[]> {
   await requireAdmin();
 
-  const rows = await query<CategoryRow>(
+  // ⚠️ jsonb_agg(… order by …) معادلِ قابل‌اتکا در MySQL ندارد.
+  //
+  // JSON_ARRAYAGG هست، ولی مستندات MySQL صریح می‌گویند ترتیبِ عناصرش تضمین
+  // نشده است. در عمل امروز ترتیبِ زیرکوئری را نگه می‌دارد (آزموده شد)، ولی
+  // «امروز کار می‌کند» برای ترتیبی که کاربر می‌بیند کافی نیست: با تغییر
+  // نسخه یا نقشهٔ اجرا می‌تواند بی‌صدا به‌هم بریزد.
+  //
+  // پس ردیف‌ها مرتب خوانده می‌شوند و گروه‌بندی در TypeScript انجام می‌شود.
+  // یک JOIN به‌جای زیرکوئری، و ترتیب همان‌جا در ORDER BY تضمین می‌شود.
+  const rows = await query<{
+    id: string;
+    label: string;
+    hint: string;
+    enabled: boolean;
+    sort_index: number;
+    word_id: string | null;
+    word: string | null;
+    word_sort_index: number | null;
+  }>(
     `select c.id, c.label, c.hint, c.enabled, c.sort_index,
-            (select jsonb_agg(jsonb_build_object(
-                      'id', w.id, 'word', w.word, 'sort_index', w.sort_index)
-                    order by w.sort_index, w.word)
-               from ninja_words w
-              where w.category_id = c.id) as words
+            w.id as word_id, w.word, w.sort_index as word_sort_index
        from ninja_categories c
-      order by c.sort_index, c.label`,
+       left join ninja_words w on w.category_id = c.id
+      order by c.sort_index, c.label, w.sort_index, w.word`,
   );
 
-  return rows.map((r) => ({
+  // LEFT JOIN یعنی نقشِ بی‌کلمه یک ردیف با word_id تهی می‌دهد؛ آن ردیف نباید
+  // به یک کلمهٔ ساختگی تبدیل شود. (در نسخهٔ قبلی، زیرکوئری برای چنین نقشی
+  // NULL می‌داد و `?? []` جمعش می‌کرد — همان رفتار اینجا حفظ شده.)
+  const byCategory = new Map<string, CategoryRow>();
+  for (const r of rows) {
+    let cat = byCategory.get(r.id);
+    if (!cat) {
+      cat = {
+        id: r.id,
+        label: r.label,
+        hint: r.hint,
+        enabled: r.enabled,
+        sort_index: r.sort_index,
+        words: [],
+      };
+      byCategory.set(r.id, cat);
+    }
+    if (r.word_id !== null) {
+      cat.words!.push({
+        id: r.word_id,
+        word: r.word!,
+        sort_index: r.word_sort_index!,
+      });
+    }
+  }
+
+  return [...byCategory.values()].map((r) => ({
     id: r.id,
     label: r.label,
     hint: r.hint,
@@ -116,10 +158,18 @@ export async function ninjaCategorySave(
 
     await transaction(async (tx) => {
       await tx.execute(
-        `insert into ninja_categories (label, hint, enabled, sort_index)
-         values (?, ?, ?,
-                 coalesce((select max(sort_index) from ninja_categories), 0) + 1)`,
-        [label, hint, input.enabled],
+        // ⚠️ MySQL اجازه نمی‌دهد در زیرکوئریِ یک INSERT، از همان جدولِ مقصد
+        // بخوانی: «ERROR 1093: You can't specify target table … for update
+        // in FROM clause». این دقیقاً همان کوئری‌ای است که در PostgreSQL
+        // بی‌مشکل بود.
+        //
+        // راه‌حل، بردنِ زیرکوئری به یک جدولِ مشتق است: MySQL آن را اول
+        // مادی می‌کند و بعد INSERT را اجرا می‌کند، پس دیگر «خواندن از جدولِ
+        // در حالِ نوشتن» نیست.
+        `insert into ninja_categories (id, label, hint, enabled, sort_index)
+         select ?, ?, ?, ?, coalesce(m, 0) + 1
+           from (select max(sort_index) as m from ninja_categories) t`,
+        [randomUUID(), label, hint, input.enabled],
       );
     });
 
@@ -219,11 +269,19 @@ export async function ninjaWordsAdd(input: {
 
       for (const word of words) {
         next++;
+        // ⚠️ INSERT IGNORE نه — آن هر خطایی را می‌بلعد. ON DUPLICATE KEY
+        // UPDATE فقط روی نقضِ کلید یکتا اثر می‌کند، و به‌روزرسانیِ ستون با
+        // مقدارِ خودش یعنی «هیچ کاری نکن».
+        //
+        // ⚠️ عددِ برگشتی هم فرق دارد: در MySQL یک درجِ تازه ۱ می‌دهد و یک
+        // برخوردِ بی‌اثر ۰ — که همان چیزی است که `inserted` می‌شمارد. (اگر
+        // ستون واقعاً عوض می‌شد، ۲ می‌داد و شمارش را خراب می‌کرد؛ به همین
+        // دلیل مقدار با خودش جایگزین می‌شود.)
         inserted += await tx.execute(
-          `insert into ninja_words (category_id, word, sort_index)
-           values ($1, $2, $3)
-           on conflict (category_id, word) do nothing`,
-          [categoryId, word, next],
+          `insert into ninja_words (id, category_id, word, sort_index)
+           values (?, ?, ?, ?)
+           on duplicate key update word = word`,
+          [randomUUID(), categoryId, word, next],
         );
       }
       return inserted;
@@ -309,12 +367,20 @@ export async function ninjaWordMove(
     // تازه می‌نشست و مدیر بعد از جابه‌جایی پیدایش نمی‌کرد.
     const moved = await transaction(async (tx) =>
       tx.execute(
+        // همان محدودیتِ ۱۰۹۳: زیرکوئری نمی‌تواند از جدولِ در حالِ به‌روزرسانی
+        // بخواند. جدولِ مشتق آن را حل می‌کند.
+        //
+        // ترتیب پارامترها هم عوض شد: در PostgreSQL شمارهٔ $1 دو بار می‌آمد و
+        // یک مقدار می‌گرفت؛ اینجا هر ? یک جاست.
         `update ninja_words
-            set category_id = $1,
-                sort_index = coalesce(
-                  (select max(sort_index) from ninja_words where category_id = $1), 0) + 1
-          where id = $2`,
-        [categoryId, id],
+            set category_id = ?,
+                sort_index = (
+                  select coalesce(m, 0) + 1
+                    from (select max(sort_index) as m
+                            from ninja_words
+                           where category_id = ?) t)
+          where id = ?`,
+        [categoryId, categoryId, id],
       ),
     );
     if (!moved) return { ok: false, error: "این کلمه پیدا نشد." };

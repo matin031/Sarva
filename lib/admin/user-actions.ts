@@ -1,6 +1,6 @@
 "use server";
 
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { revokeAllSessions } from "@/lib/auth/session";
 import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
@@ -170,10 +170,12 @@ export async function adminUserCounts(): Promise<{
 }> {
   await requireAdmin();
   const row = await queryOne<{ total: number; admins: number; banned: number; unverified: number }>(
-    `select count(*)                                          as total,
-            count(*) filter (where role = 'admin')            as admins,
-            count(*) filter (where is_banned)                 as banned,
-            count(*) filter (where email_verified_at is null) as unverified
+    // FILTER (WHERE …) → COUNT(CASE …). روی جدولِ خالی هر چهار عدد ۰
+    // می‌شوند، مثل قبل.
+    `select count(*)                                                as total,
+            count(case when role = 'admin' then 1 end)              as admins,
+            count(case when is_banned then 1 end)                   as banned,
+            count(case when email_verified_at is null then 1 end)   as unverified
        from users`,
   );
   return {
@@ -285,7 +287,39 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
     }
   }
 
-  await execute("delete from users where id = ?", [userId]);
+  // ⚠️⚠️ حذف کاربر در MySQL شمارنده‌های کلاب را کج می‌گذارد، و این را باید
+  // خودِ کد جبران کند.
+  //
+  // در PostgreSQL حذفِ آبشاریِ FK تریگرهای ردیفی را اجرا می‌کرد، پس با رفتنِ
+  // لایک‌ها و دیدگاه‌های این کاربر، like_count و comment_count سروده‌های
+  // *دیگران* هم خودبه‌خود درست می‌شد. MySQL این کار را نمی‌کند — cascade
+  // هیچ تریگری را صدا نمی‌زند.
+  //
+  // با آزمون روی هر دو موتور تأیید شد: کاربر «الف» سرودهٔ «ب» را لایک
+  // می‌کند، بعد حساب «الف» حذف می‌شود.
+  //
+  //     PostgreSQL → like_count سرودهٔ «ب» می‌شود ۰  (درست)
+  //     MySQL      → like_count سرودهٔ «ب» روی ۱ می‌ماند  (کج، برای همیشه)
+  //
+  // پس قبل از حذف، سروده‌های تحت‌تأثیر شناسایی می‌شوند و بعد از حذف
+  // شمارنده‌شان بازسازی می‌شود. همه در یک تراکنش، وگرنه یک خطای میانی
+  // دقیقاً همان ناسازگاری را به جا می‌گذاشت که می‌خواهیم جلویش را بگیریم.
+  await transaction(async (tx) => {
+    const affected = await tx.query<{ post_id: string }>(
+      `select post_id from club_likes where user_id = ?
+       union
+       select post_id from club_comments where user_id = ?`,
+      [userId, userId],
+    );
+
+    await tx.execute("delete from users where id = ?", [userId]);
+
+    // سروده‌های خودِ کاربر با همان cascade رفته‌اند، پس club_recount روی
+    // آن‌ها بی‌اثر و بی‌ضرر است؛ سروده‌های دیگران همین‌جا درست می‌شوند.
+    for (const { post_id } of affected) {
+      await tx.execute("call club_recount(?)", [post_id]);
+    }
+  });
 
   // بعد از حذف، خودِ ردیف کاربر دیگر وجود ندارد — پس هر چیزی که برای فهمیدن
   // «چه کسی حذف شد» لازم است باید در همین خلاصه باشد.

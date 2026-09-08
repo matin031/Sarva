@@ -117,8 +117,20 @@ await cp(join(ROOT, ".next", "standalone"), OUT, { recursive: true });
 
 // ⚠️ این فایل‌ها فقط از build عبور کرده‌اند و روی هاست به درد نمی‌خورند.
 // ماندنشان یعنی فرستادنِ تنظیمات و قفلِ وابستگی‌ها روی فضای عمومی.
-for (const junk of ["tsconfig.tsbuildinfo", "package-lock.json"]) {
-  await rm(join(OUT, junk), { force: true });
+//
+// ⚠️ و کمربند دوم برای چیزهایی که ردیابِ Next ممکن است دوباره واردشان کند.
+// آن ردیاب به‌خاطر دسترسیِ پویای فایل در مسیر /uploads محتاطانه عمل می‌کند
+// و هر فایلی در ریشهٔ پروژه ممکن است سر از خروجی دربیاورد. یک بار deploy/
+// را — که خودش یک zip چهل‌مگابایتی دارد — داخل بستهٔ بعدی گذاشت، یعنی هر
+// build حجم را تصاعدی زیاد می‌کرد. next.config جلویش را می‌گیرد؛ این خط
+// تضمین می‌کند که اگر آن تنظیم روزی از کار افتاد، بی‌صدا نگذرد.
+for (const junk of [
+  "tsconfig.tsbuildinfo",
+  "package-lock.json",
+  "deploy",
+  "cpanel-app.js",
+]) {
+  await rm(join(OUT, junk), { recursive: true, force: true });
 }
 
 step("کپی .next/static  (standalone خودش این را نمی‌آورد)");

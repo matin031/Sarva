@@ -151,7 +151,7 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
   // دو سقف جدا: یکی برای انفجار ناگهانی، یکی برای صف. دومی مهم‌تر است — مدیر
   // نباید پنل را باز کند و چهل شعر از یک حساب ببیند و هیچ از بقیه.
   const limits = await queryOne<{ today_count: number; pending_count: number }>(
-    `select count(*) filter (where created_at > now() - interval '24 hours') as today_count,
+    `select count(*) filter (where created_at > now(6) - interval '24 hours') as today_count,
             count(*) filter (where status = 'pending')                       as pending_count
        from club_posts where user_id = $1`,
     [viewer.id],
@@ -214,14 +214,14 @@ export async function updateClubPost(id: string, input: PostInput): Promise<Acti
 
   const updated = await execute(
     `update club_posts
-        set title = $1, body = $2, form = $3, tags = $4, meter = $5,
-            is_anonymous = $6, author_name = $7,
+        set title = ?, body = ?, form = ?, tags = ?, meter = ?,
+            is_anonymous = ?, author_name = ?,
             status = 'pending', review_note = null, featured = false,
             -- متن عوض شده، پس بررسیِ قبلی دیگر دربارهٔ این متن نیست. بدون
             -- پاک کردنشان، ردیفی که در صف نشسته هنوز می‌گفت چه کسی و کِی
             -- تأییدش کرده.
             reviewed_at = null, reviewed_by = null
-      where id = $8 and user_id = $9`,
+      where id = ? and user_id = ?`,
     [
       valid.title,
       valid.body,
@@ -250,7 +250,7 @@ export async function deleteClubPost(id: string): Promise<ActionResult<null>> {
   const bad = badId(id, "سروده");
   if (bad) return bad;
 
-  const deleted = await execute("delete from club_posts where id = $1 and user_id = $2", [
+  const deleted = await execute("delete from club_posts where id = ? and user_id = ?", [
     id,
     viewer.id,
   ]);
@@ -287,7 +287,7 @@ export async function createClubComment(
 
   const todayCount = await queryOne<{ n: number }>(
     `select count(*) as n from club_comments
-      where user_id = $1 and created_at > now() - interval '24 hours'`,
+      where user_id = ? and created_at > now(6) - interval '24 hours'`,
     [viewer.id],
   );
   if ((todayCount?.n ?? 0) >= DAILY_COMMENT_LIMIT) {
@@ -297,7 +297,7 @@ export async function createClubComment(
   // این چک قبلاً در `with check` سیاست insert بود: دیدگاه فقط روی سروده‌ای که
   // واقعاً منتشر شده. بدون آن، کسی می‌توانست روی شعرِ در صف یا ردشده نظر بگذارد.
   const post = await queryOne<{ id: string }>(
-    "select id from club_posts where id = $1 and status = 'approved'",
+    "select id from club_posts where id = ? and status = 'approved'",
     [postId],
   );
   if (!post) {
@@ -313,7 +313,7 @@ export async function createClubComment(
   if (parentId) {
     const target = await queryOne<{ id: string; parent_id: string | null }>(
       `select id, parent_id from club_comments
-        where id = $1 and post_id = $2 and status = 'approved'`,
+        where id = ? and post_id = ? and status = 'approved'`,
       [parentId, postId],
     );
 
@@ -334,7 +334,7 @@ export async function createClubComment(
     await execute(
       `insert into club_comments
          (post_id, user_id, author_name, parent_id, reply_to_id, body, status)
-       values ($1, $2, $3, $4, $5, $6, 'pending')`,
+       values (?, ?, ?, ?, ?, ?, 'pending')`,
       [
         postId,
         viewer.id,
@@ -363,7 +363,7 @@ export async function deleteClubComment(id: string, postId: string): Promise<Act
   const bad = badId(id, "دیدگاه");
   if (bad) return bad;
 
-  const deleted = await execute("delete from club_comments where id = $1 and user_id = $2", [
+  const deleted = await execute("delete from club_comments where id = ? and user_id = ?", [
     id,
     viewer.id,
   ]);
@@ -407,12 +407,12 @@ export async function toggleClubLike(
       if (!removed) {
         // این شرط قبلاً در سیاست insert بود: لایک فقط روی سرودهٔ منتشرشده.
         const post = await tx.queryOne<{ id: string }>(
-          "select id from club_posts where id = $1 and status = 'approved'",
+          "select id from club_posts where id = ? and status = 'approved'",
           [postId],
         );
         if (!post) return null;
 
-        await tx.execute("insert into club_likes (post_id, user_id) values ($1, $2)", [
+        await tx.execute("insert into club_likes (post_id, user_id) values (?, ?)", [
           postId,
           viewer.id,
         ]);
@@ -420,7 +420,7 @@ export async function toggleClubLike(
 
       // شمارنده را تریگر club_likes_count در همین تراکنش به‌روز کرده
       const post = await tx.queryOne<{ like_count: number }>(
-        "select like_count from club_posts where id = $1",
+        "select like_count from club_posts where id = ?",
         [postId],
       );
 

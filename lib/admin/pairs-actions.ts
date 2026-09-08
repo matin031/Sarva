@@ -56,7 +56,7 @@ export async function pairsAdminList(
   const rows = await query<PairRow>(
     `select id, work, author, sort_index
        from memory_pairs
-      where grade = $1 and term = $2
+      where grade = ? and term = ?
       order by sort_index, work`,
     [deck.grade, deck.term],
   );
@@ -74,7 +74,7 @@ export async function pairsAdminCounts(): Promise<MemoryDeckCounts> {
   await requireAdmin();
 
   const rows = await query<{ grade: string; term: string; n: number }>(
-    `select grade, term, count(*)::int as n
+    `select grade, term, count(*) as n
        from memory_pairs
       group by grade, term`,
   );
@@ -114,8 +114,8 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
       const id = uuidArg(input.id, "شناسهٔ جفت نامعتبر است.");
       const updated = await execute(
         `update memory_pairs
-            set grade = $1, term = $2, work = $3, author = $4
-          where id = $5`,
+            set grade = ?, term = ?, work = ?, author = ?
+          where id = ?`,
         [input.grade, input.term, work, author, id],
       );
       if (!updated) return { ok: false, error: "این جفت پیدا نشد." };
@@ -222,7 +222,7 @@ export async function pairsAdminBulkAdd(input: {
         (
           await tx.queryOne<{ max: number }>(
             `select coalesce(max(sort_index), 0) as max
-               from memory_pairs where grade = $1 and term = $2`,
+               from memory_pairs where grade = ? and term = ?`,
             [input.grade, input.term],
           )
         )?.max ?? 0;
@@ -262,11 +262,11 @@ export async function pairsAdminDelete(id: string): Promise<ActionResult> {
 
   // قبل از حذف خوانده می‌شود، وگرنه لاگ فقط یک uuid خواهد داشت.
   const target = await queryOne<{ work: string; author: string; grade: string; term: string }>(
-    "select work, author, grade, term from memory_pairs where id = $1",
+    "select work, author, grade, term from memory_pairs where id = ?",
     [id],
   );
 
-  const deleted = await execute("delete from memory_pairs where id = $1", [id]);
+  const deleted = await execute("delete from memory_pairs where id = ?", [id]);
   if (!deleted) return { ok: false, error: "این جفت پیدا نشد." };
 
   await recordAudit({

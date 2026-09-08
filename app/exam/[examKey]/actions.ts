@@ -80,7 +80,7 @@ export async function submitExamAttempt(
   const user = await getCurrentUser();
   if (!user) return { saved: false, reason: "guest" };
 
-  const exam = await queryOne<{ id: string }>("select id from exams where exam_session = $1", [
+  const exam = await queryOne<{ id: string }>("select id from exams where exam_session = ?", [
     examKey,
   ]);
   if (!exam) return { saved: false, reason: "unknown_exam" };
@@ -121,7 +121,7 @@ export async function submitExamAttempt(
   try {
     await execute(
       `insert into exam_attempts (user_id, exam_id, total_score, max_score, question_results, answers)
-       values ($1, $2, $3, $4, $5, $6)`,
+       values (?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         exam.id,

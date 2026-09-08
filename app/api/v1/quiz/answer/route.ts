@@ -42,7 +42,7 @@ export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) =>
     // گزینه باید واقعاً مالِ همین سؤال باشد، وگرنه می‌شد گزینهٔ درستِ سؤال
     // دیگری را فرستاد و امتیاز گرفت.
     const option = await queryOne<{ is_correct: boolean }>(
-      `select is_correct from question_options where id = $1 and question_id = $2`,
+      `select is_correct from question_options where id = ? and question_id = ?`,
       [selectedOptionId, questionId],
     );
 
@@ -56,7 +56,7 @@ export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) =>
     // دو کلیک سریع می‌توانست به خطای کلید تکراری بخورد.
     await execute(
       `insert into user_answers (user_id, question_id, selected_option_id, is_correct, answered_at)
-       values ($1, $2, $3, $4, now())
+       values ($1, $2, $3, $4, now(6))
        on conflict (user_id, question_id) do update
          set selected_option_id = excluded.selected_option_id,
              is_correct         = excluded.is_correct,

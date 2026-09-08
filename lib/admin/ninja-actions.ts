@@ -98,7 +98,7 @@ export async function ninjaCategorySave(
     if (input.id) {
       const id = uuidArg(input.id, "شناسهٔ نقش نامعتبر است.");
       const updated = await execute(
-        `update ninja_categories set label = $1, hint = $2, enabled = $3 where id = $4`,
+        `update ninja_categories set label = ?, hint = ?, enabled = ? where id = ?`,
         [label, hint, input.enabled, id],
       );
       if (!updated) return { ok: false, error: "این نقش پیدا نشد." };
@@ -117,7 +117,7 @@ export async function ninjaCategorySave(
     await transaction(async (tx) => {
       await tx.execute(
         `insert into ninja_categories (label, hint, enabled, sort_index)
-         values ($1, $2, $3,
+         values (?, ?, ?,
                  coalesce((select max(sort_index) from ninja_categories), 0) + 1)`,
         [label, hint, input.enabled],
       );
@@ -147,12 +147,12 @@ export async function ninjaCategoryDelete(id: string): Promise<ActionResult> {
   id = uuidArg(id, "شناسهٔ نقش نامعتبر است.");
 
   const target = await queryOne<{ label: string; n: number }>(
-    `select c.label, (select count(*)::int from ninja_words w where w.category_id = c.id) as n
-       from ninja_categories c where c.id = $1`,
+    `select c.label, (select count(*) from ninja_words w where w.category_id = c.id) as n
+       from ninja_categories c where c.id = ?`,
     [id],
   );
 
-  const deleted = await execute("delete from ninja_categories where id = $1", [id]);
+  const deleted = await execute("delete from ninja_categories where id = ?", [id]);
   if (!deleted) return { ok: false, error: "این نقش پیدا نشد." };
 
   await recordAudit({
@@ -188,7 +188,7 @@ export async function ninjaWordsAdd(input: {
   const categoryId = uuidArg(input.categoryId, "شناسهٔ نقش نامعتبر است.");
 
   const category = await queryOne<{ label: string }>(
-    "select label from ninja_categories where id = $1",
+    "select label from ninja_categories where id = ?",
     [categoryId],
   );
   if (!category) return { ok: false, error: "این نقش پیدا نشد." };
@@ -212,7 +212,7 @@ export async function ninjaWordsAdd(input: {
         (
           await tx.queryOne<{ max: number }>(
             `select coalesce(max(sort_index), 0) as max
-               from ninja_words where category_id = $1`,
+               from ninja_words where category_id = ?`,
             [categoryId],
           )
         )?.max ?? 0;
@@ -259,7 +259,7 @@ export async function ninjaWordRename(
   if (trimmed.length > 40) return { ok: false, error: "کلمه نباید بیشتر از ۴۰ نویسه باشد." };
 
   try {
-    const updated = await execute("update ninja_words set word = $1 where id = $2", [
+    const updated = await execute("update ninja_words set word = ? where id = ?", [
       trimmed,
       id,
     ]);
@@ -299,7 +299,7 @@ export async function ninjaWordMove(
   categoryId = uuidArg(categoryId, "شناسهٔ نقش نامعتبر است.");
 
   const target = await queryOne<{ label: string }>(
-    "select label from ninja_categories where id = $1",
+    "select label from ninja_categories where id = ?",
     [categoryId],
   );
   if (!target) return { ok: false, error: "نقشِ مقصد پیدا نشد." };
@@ -345,11 +345,11 @@ export async function ninjaWordDelete(id: string): Promise<ActionResult> {
   const target = await queryOne<{ word: string; label: string }>(
     `select w.word, c.label
        from ninja_words w join ninja_categories c on c.id = w.category_id
-      where w.id = $1`,
+      where w.id = ?`,
     [id],
   );
 
-  const deleted = await execute("delete from ninja_words where id = $1", [id]);
+  const deleted = await execute("delete from ninja_words where id = ?", [id]);
   if (!deleted) return { ok: false, error: "این کلمه پیدا نشد." };
 
   await recordAudit({

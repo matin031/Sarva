@@ -143,7 +143,7 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
             u.email_verified_at, u.is_banned,
             (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at
        from users u
-      where u.id = $1`,
+      where u.id = ?`,
     [id],
   );
 
@@ -204,12 +204,12 @@ export async function adminSetUserRole(
   // ایمیل قبل از تغییر خوانده می‌شود تا خلاصهٔ لاگ نام واقعی را داشته باشد و
   // نه یک uuid که بعداً هیچ معنایی برای خواننده ندارد.
   const target = await queryOne<{ email: string; role: string }>(
-    "select email, role from users where id = $1",
+    "select email, role from users where id = ?",
     [userId],
   );
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
-  const updated = await execute("update users set role = $1 where id = $2", [role, userId]);
+  const updated = await execute("update users set role = ? where id = ?", [role, userId]);
   if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
   await recordAudit({
@@ -242,10 +242,10 @@ export async function adminSetUserBanned(
 
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
 
-  const target = await queryOne<{ email: string }>("select email from users where id = $1", [userId]);
+  const target = await queryOne<{ email: string }>("select email from users where id = ?", [userId]);
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
-  const updated = await execute("update users set is_banned = $1 where id = $2", [banned, userId]);
+  const updated = await execute("update users set is_banned = ? where id = ?", [banned, userId]);
   if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
   if (banned) await revokeAllSessions(userId);
@@ -273,7 +273,7 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
 
   // شمردن مدیرها قبل از حذف: سایتی بدون هیچ مدیری یعنی پنل برای همیشه بسته.
   const target = await queryOne<{ role: string; email: string; full_name: string | null }>(
-    "select role, email, full_name from users where id = $1",
+    "select role, email, full_name from users where id = ?",
     [userId],
   );
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
@@ -285,7 +285,7 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
     }
   }
 
-  await execute("delete from users where id = $1", [userId]);
+  await execute("delete from users where id = ?", [userId]);
 
   // بعد از حذف، خودِ ردیف کاربر دیگر وجود ندارد — پس هر چیزی که برای فهمیدن
   // «چه کسی حذف شد» لازم است باید در همین خلاصه باشد.

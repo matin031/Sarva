@@ -136,7 +136,7 @@ async function resolveScopes(
           for (const id of list) {
             const key = id.split("#")[0];
             const row = await queryOne<{ id: string }>(
-              "select id::text from exams where exam_session = $1",
+              "select id from exams where exam_session = ?",
               [key],
             );
             if (row) put(area, id, { examId: row.id });
@@ -313,7 +313,7 @@ export async function reportAdminList(
 export async function reportAdminCounts(): Promise<Record<string, number>> {
   await requireAdmin();
   const rows = await query<{ area: string; n: number }>(
-    "select area, count(*)::int as n from content_reports where status = 'open' group by area",
+    "select area, count(*) as n from content_reports where status = 'open' group by area",
   );
   const out: Record<string, number> = {};
   for (const r of rows) out[r.area] = r.n;
@@ -353,7 +353,7 @@ export async function reportAdminSetStatus(
     `update content_reports
         set status = $1,
             admin_note = coalesce($2, admin_note),
-            resolved_at = case when $3 then now() else null end,
+            resolved_at = case when $3 then now(6) else null end,
             resolved_by = case when $3 then $4::uuid else null end
       where id = $5
     returning area, snapshot`,
@@ -391,8 +391,8 @@ export async function reportAdminResolveTarget(
 
   const count = await execute(
     `update content_reports
-        set status = 'resolved', resolved_at = now(), resolved_by = $1
-      where area = $2 and target_id = $3 and status <> 'resolved'`,
+        set status = 'resolved', resolved_at = now(6), resolved_by = ?
+      where area = ? and target_id = ? and status <> 'resolved'`,
     [admin.id, a, target],
   );
 
@@ -415,12 +415,12 @@ export async function reportAdminDelete(id: string): Promise<ActionResult> {
 
   // متن را *پیش* از حذف می‌خوانیم، وگرنه در لاگ فقط یک uuid می‌ماند.
   const existing = await queryOne<{ area: string; snapshot: string | null }>(
-    "select area, snapshot from content_reports where id = $1",
+    "select area, snapshot from content_reports where id = ?",
     [reportId],
   );
   if (!existing) return { ok: false, errors: ["این گزارش پیدا نشد."] };
 
-  await execute("delete from content_reports where id = $1", [reportId]);
+  await execute("delete from content_reports where id = ?", [reportId]);
 
   await recordAudit({
     actor: admin,

@@ -218,7 +218,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
   }>(
     `select id, post_id, parent_id, reply_to_id, author_name, body, status,
             review_note, created_at
-       from club_comments where post_id = $1 order by created_at, id`,
+       from club_comments where post_id = ? order by created_at, id`,
     [postId],
   );
 
@@ -261,10 +261,10 @@ export async function clubAdminSetPostStatus(
     `update club_posts
         set status       = $1,
             review_note  = $2,
-            reviewed_at  = now(),
+            reviewed_at  = now(6),
             reviewed_by  = $3,
             published_at = case when $1 = 'approved'
-                                then coalesce(published_at, now())
+                                then coalesce(published_at, now(6))
                                 else published_at end,
             -- شعری که از فید برداشته می‌شود نباید بالای همان فید سنجاق بماند
             featured     = case when $1 = 'approved' then featured else false end
@@ -297,7 +297,7 @@ export async function clubAdminSetPostFeatured(
   featured = boolArg(featured, "مقدار برگزیده نامعتبر است.");
 
   const updated = await execute(
-    `update club_posts set featured = $1 where id = $2 and status = 'approved'`,
+    `update club_posts set featured = ? where id = ? and status = 'approved'`,
     [featured, id],
   );
   if (!updated) return { ok: false, error: "فقط سرودهٔ منتشرشده می‌تواند برگزیده شود." };
@@ -320,11 +320,11 @@ export async function clubAdminDeletePost(id: string): Promise<ActionResult<null
 
   // قبل از حذف خوانده می‌شود: بعدش ردیفی نمانده که لاگ بتواند به آن اشاره کند.
   const target = await queryOne<{ author_name: string; title: string | null }>(
-    "select author_name, title from club_posts where id = $1",
+    "select author_name, title from club_posts where id = ?",
     [id],
   );
 
-  const deleted = await execute("delete from club_posts where id = $1", [id]);
+  const deleted = await execute("delete from club_posts where id = ?", [id]);
   if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
 
   await recordAudit({
@@ -354,7 +354,7 @@ export async function clubAdminSetCommentStatus(
 
   const row = await queryOne<{ post_id: string }>(
     `update club_comments
-        set status = $1, review_note = $2, reviewed_at = now(), reviewed_by = $3
+        set status = $1, review_note = $2, reviewed_at = now(6), reviewed_by = $3
       where id = $4
       returning post_id`,
     [status, reviewNote, admin.id, id],
@@ -465,7 +465,7 @@ export async function clubAdminResolveReport(
   status = enumArg(status, ["resolved", "dismissed"], "وضعیت گزارش نامعتبر است.");
 
   const updated = await execute(
-    `update club_reports set status = $1, resolved_at = now(), resolved_by = $2 where id = $3`,
+    `update club_reports set status = ?, resolved_at = now(6), resolved_by = ? where id = ?`,
     [status, admin.id, id],
   );
   if (!updated) return { ok: false, error: "این گزارش پیدا نشد." };

@@ -150,7 +150,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
     title: string;
     exam_session: string | null;
     total_score: number;
-  }>(`select id, subject, grade, title, exam_session, total_score from exams where id = $1`, [examId]);
+  }>(`select id, subject, grade, title, exam_session, total_score from exams where id = ?`, [examId]);
 
   if (!exam) return null;
 
@@ -159,7 +159,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
   const [sections, questions, parts, options] = await Promise.all([
     query<{ id: string; title: string; order_index: number; section_score: number }>(
       `select id, title, order_index, section_score
-         from exam_sections where exam_id = $1 order by order_index`,
+         from exam_sections where exam_id = ? order by order_index`,
       [examId],
     ),
     query<{
@@ -173,7 +173,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
       `select q.id, q.exam_section_id, q.number, q.page_ref, q.instruction, q.layout_pattern
          from exam_questions q
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by q.order_index`,
       [examId],
     ),
@@ -194,7 +194,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
          from exam_question_parts p
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by p.part_index`,
       [examId],
     ),
@@ -204,7 +204,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
          join exam_question_parts p on p.id = o.question_part_id
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by o.order_index`,
       [examId],
     ),
@@ -369,12 +369,12 @@ export async function adminUpsertQuestion(
         id = input.id;
         await tx.execute(
           `update exam_questions
-              set number = $1, page_ref = $2, instruction = $3, layout_pattern = $4
-            where id = $5`,
+              set number = ?, page_ref = ?, instruction = ?, layout_pattern = ?
+            where id = ?`,
           [input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null, id],
         );
         // حذف بخش‌ها؛ گزینه‌هایشان با cascade می‌روند
-        await tx.execute(`delete from exam_question_parts where question_id = $1`, [id]);
+        await tx.execute(`delete from exam_question_parts where question_id = ?`, [id]);
       } else {
         const created = await tx.queryOne<{ id: string }>(
           `insert into exam_questions
@@ -414,7 +414,7 @@ export async function adminUpsertQuestion(
           await tx.execute(
             `insert into exam_question_options
                (question_part_id, option_key, order_index, text, is_correct)
-             values ($1, $2, $3, $4, $5)`,
+             values (?, ?, ?, ?, ?)`,
             [partRow!.id, o.optionKey ?? null, i, o.text, o.isCorrect],
           );
         }
@@ -477,14 +477,14 @@ export async function adminUpdateExam(
   if (errors.length) return { ok: false, errors };
 
   const before = await queryOne<{ title: string; exam_session: string | null }>(
-    "select title, exam_session from exams where id = $1",
+    "select title, exam_session from exams where id = ?",
     [id],
   );
   if (!before) return { ok: false, errors: ["آزمون پیدا نشد."] };
 
   try {
     await execute(
-      `update exams set title = $1, exam_session = $2, grade = $3, total_score = $4 where id = $5`,
+      `update exams set title = ?, exam_session = ?, grade = ?, total_score = ? where id = ?`,
       [title, examKey, input.grade, input.totalScore, id],
     );
   } catch (err) {
@@ -519,7 +519,7 @@ export async function adminExamAttemptCount(examId: string): Promise<number> {
   await requireAdmin();
   const id = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
   const row = await queryOne<{ n: number }>(
-    "select count(*) as n from exam_attempts where exam_id = $1",
+    "select count(*) as n from exam_attempts where exam_id = ?",
     [id],
   );
   return row?.n ?? 0;
@@ -530,11 +530,11 @@ export async function adminDeleteQuestion(questionId: string): Promise<ActionRes
   questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
 
   const target = await queryOne<{ number: number }>(
-    "select number from exam_questions where id = $1",
+    "select number from exam_questions where id = ?",
     [questionId],
   );
 
-  const deleted = await execute("delete from exam_questions where id = $1", [questionId]);
+  const deleted = await execute("delete from exam_questions where id = ?", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
 
   await recordAudit({
@@ -555,11 +555,11 @@ export async function adminDeleteSection(sectionId: string): Promise<ActionResul
   const target = await queryOne<{ title: string; n: number }>(
     `select s.title,
             (select count(*) from exam_questions q where q.exam_section_id = s.id) as n
-       from exam_sections s where s.id = $1`,
+       from exam_sections s where s.id = ?`,
     [sectionId],
   );
 
-  const deleted = await execute("delete from exam_sections where id = $1", [sectionId]);
+  const deleted = await execute("delete from exam_sections where id = ?", [sectionId]);
   if (!deleted) return { ok: false, errors: ["بخش پیدا نشد."] };
 
   await recordAudit({
@@ -582,11 +582,11 @@ export async function adminDeleteExam(examId: string): Promise<ActionResult<null
   const target = await queryOne<{ title: string; exam_session: string | null; n: number }>(
     `select e.title, e.exam_session,
             (select count(*) from exam_attempts a where a.exam_id = e.id) as n
-       from exams e where e.id = $1`,
+       from exams e where e.id = ?`,
     [examId],
   );
 
-  const deleted = await execute("delete from exams where id = $1", [examId]);
+  const deleted = await execute("delete from exams where id = ?", [examId]);
   if (!deleted) return { ok: false, errors: ["آزمون پیدا نشد."] };
 
   await recordAudit({

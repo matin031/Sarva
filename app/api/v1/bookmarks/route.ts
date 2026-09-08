@@ -106,7 +106,7 @@ export const GET = withRoute("/api/v1/bookmarks", async (request: NextRequest) =
     // حالت «آیا این نشان شده؟» — یک بولی، نه فهرست
     if (area && refId) {
       const row = await queryOne<{ id: string }>(
-        `select id from user_bookmarks where user_id = $1 and area = $2 and ref_id = $3`,
+        `select id from user_bookmarks where user_id = ? and area = ? and ref_id = ?`,
         [user.id, area, refId],
       );
       return ok({ bookmarked: row !== null, id: row?.id ?? null });
@@ -195,10 +195,10 @@ export const DELETE = withRoute("/api/v1/bookmarks", async (request: Request) =>
 
     // حذفی که چیزی را پیدا نکند خطا نیست: نتیجهٔ مطلوب («نشان نشده») حاصل شده.
     if ("id" in b) {
-      await execute("delete from user_bookmarks where id = $1 and user_id = $2", [b.id, user.id]);
+      await execute("delete from user_bookmarks where id = ? and user_id = ?", [b.id, user.id]);
     } else {
       await execute(
-        "delete from user_bookmarks where user_id = $1 and area = $2 and ref_id = $3",
+        "delete from user_bookmarks where user_id = ? and area = ? and ref_id = ?",
         [user.id, b.area, b.refId],
       );
     }
@@ -223,7 +223,7 @@ export const PATCH = withRoute("/api/v1/bookmarks", async (request: Request) => 
     if (!body.ok) return body.response;
 
     const updated = await execute(
-      "update user_bookmarks set note = $1 where id = $2 and user_id = $3",
+      "update user_bookmarks set note = ? where id = ? and user_id = ?",
       [body.data.note.trim() || null, body.data.id, user.id],
     );
 

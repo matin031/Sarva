@@ -59,7 +59,7 @@ export const POST = withRoute("/api/v1/jasoos/answer", async (request: Request) 
       `insert into jasoos_answers
          (user_id, level_id, category, verse_line_1, verse_line_2,
           chosen_role, correct_role, is_correct)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       values (?, ?, ?, ?, ?, ?, ?, ?)`,
       [user.id, r.levelId, r.category, r.verseLine1, r.verseLine2,
        r.chosenRole, r.correctRole, r.isCorrect],
     );

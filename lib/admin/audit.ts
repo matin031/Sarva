@@ -310,7 +310,7 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
     await execute(
       `insert into admin_audit_log
          (actor_id, actor_email, action, target_type, target_id, summary, metadata, ip, request_id)
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::inet, $9)`,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         entry.actor.id,
         entry.actor.email,
@@ -450,7 +450,7 @@ export async function recordError(
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, $12::jsonb)
        on conflict (fingerprint) where resolved_at is null
        do update set occurrences      = app_error_log.occurrences + 1,
-                     last_seen_at     = now(),
+                     last_seen_at     = now(6),
                      last_request_id  = excluded.last_request_id,
                      metadata         = excluded.metadata,
                      error_code       = coalesce(excluded.error_code, app_error_log.error_code),

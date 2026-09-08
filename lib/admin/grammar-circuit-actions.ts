@@ -152,9 +152,9 @@ export async function gcAdminList(input: {
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
        from grammar_circuit_questions
-      where grade = $1 and lesson = $2
+      where grade = ? and lesson = ?
       order by sort_index, source_id
-      limit $3`,
+      limit ?`,
     [input.grade, input.lesson, LIST_LIMIT],
   );
 
@@ -201,7 +201,7 @@ export async function gcAdminGet(id: string): Promise<AdminGcQuestion | null> {
   const row = await queryOne<Row>(
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
-       from grammar_circuit_questions where id = $1`,
+       from grammar_circuit_questions where id = ?`,
     [questionId],
   );
   if (!row) return null;
@@ -312,9 +312,9 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
       const id = uuidArg(input.id, "شناسهٔ پرسش نامعتبر است.");
       const updated = await execute(
         `update grammar_circuit_questions
-            set grade = $1, lesson = $2, question_type = $3, payload = $4::jsonb,
-                difficulty = $5, explanation = $6, attribution = $7, is_published = $8
-          where id = $9`,
+            set grade = ?, lesson = ?, question_type = ?, payload = ?,
+                difficulty = ?, explanation = ?, attribution = ?, is_published = ?
+          where id = ?`,
         [
           input.grade,
           input.lesson,
@@ -395,7 +395,7 @@ export async function gcAdminSetPublished(
   const row = await queryOne<Row>(
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
-       from grammar_circuit_questions where id = $1`,
+       from grammar_circuit_questions where id = ?`,
     [questionId],
   );
   if (!row) return { ok: false, error: "این پرسش پیدا نشد." };
@@ -412,7 +412,7 @@ export async function gcAdminSetPublished(
     }
   }
 
-  await execute("update grammar_circuit_questions set is_published = $1 where id = $2", [
+  await execute("update grammar_circuit_questions set is_published = ? where id = ?", [
     published,
     questionId,
   ]);
@@ -439,12 +439,12 @@ export async function gcAdminDelete(id: string): Promise<ActionResult> {
   const questionId = uuidArg(id, "شناسهٔ پرسش نامعتبر است.");
 
   const target = await queryOne<{ source_id: string; grade: string; lesson: number }>(
-    "select source_id, grade, lesson from grammar_circuit_questions where id = $1",
+    "select source_id, grade, lesson from grammar_circuit_questions where id = ?",
     [questionId],
   );
 
   invalidateAvailability();
-  const deleted = await execute("delete from grammar_circuit_questions where id = $1", [
+  const deleted = await execute("delete from grammar_circuit_questions where id = ?", [
     questionId,
   ]);
   if (!deleted) return { ok: false, error: "این پرسش پیدا نشد." };

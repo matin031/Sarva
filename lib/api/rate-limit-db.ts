@@ -1,5 +1,5 @@
 import "server-only";
-import { query, execute } from "@/lib/db";
+import { execute, transaction } from "@/lib/db";
 import { logger } from "@/lib/observability";
 
 /**
@@ -39,12 +39,43 @@ export async function rateLimitDb(
   windowSeconds: number,
 ): Promise<RateLimitResult> {
   try {
-    const rows = await query<{ hits: number; reset_at: string }>(
-      `select hits, reset_at from rate_limit_hit($1, $2)`,
-      [key, windowSeconds],
-    );
-    const hits = rows[0]?.hits ?? 1;
-    const resetAt = rows[0]?.reset_at ? new Date(rows[0].reset_at).getTime() : Date.now();
+    // ⚠️ چرا تراکنش، و چرا تابعِ دیتابیسی جایگزین نشد.
+    //
+    // در PostgreSQL این کار را تابع rate_limit_hit در یک statement انجام
+    // می‌داد: INSERT … ON CONFLICT DO UPDATE … RETURNING. هیچ‌کدام از سه
+    // تکه در MySQL وجود ندارد — نه RETURNING، و نه تابعی که مجموعه
+    // برگرداند.
+    //
+    // ترجمهٔ ساده‌لوحانه یک رویه بود که upsert کند و بعد SELECT بزند. ولی
+    // بدنهٔ رویه در حالت autocommit دو تراکنشِ جداست: قفلِ ردیف بعد از
+    // upsert آزاد می‌شود و SELECT می‌تواند مقدارِ درخواستِ دیگری را بخواند.
+    // یعنی همان lost-update ای که این ماژول اصلاً برای جلوگیری از آن نوشته
+    // شده، از در پشتی برمی‌گشت — و دقیقاً در حالتِ حمله که درخواست‌ها
+    // موازی می‌آیند.
+    //
+    // پس upsert و SELECT داخل *یک* تراکنش روی *یک* اتصال. قفلِ ردیفِ
+    // InnoDB که با upsert گرفته می‌شود تا COMMIT نگه داشته می‌شود، پس هیچ
+    // درخواستِ موازی‌ای نمی‌تواند بین این دو بنویسد.
+    const row = await transaction(async (tx) => {
+      await tx.execute(
+        `insert into rate_limits (\`key\`, count, reset_at)
+              values (?, 1, now(6) + interval ? second)
+         on duplicate key update
+              -- پنجره تمام شده؟ از نو شروع کن. وگرنه یکی اضافه کن.
+              count    = if(reset_at <= now(6), 1, count + 1),
+              reset_at = if(reset_at <= now(6),
+                            now(6) + interval ? second,
+                            reset_at)`,
+        [key, windowSeconds, windowSeconds],
+      );
+      return tx.queryOne<{ hits: number; reset_at: string }>(
+        "select count as hits, reset_at from rate_limits where `key` = ?",
+        [key],
+      );
+    });
+
+    const hits = row?.hits ?? 1;
+    const resetAt = row?.reset_at ? new Date(row.reset_at).getTime() : Date.now();
     const retryAfterSeconds = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
 
     return {
@@ -72,7 +103,9 @@ export async function rateLimitDb(
 /** آزاد کردنِ سهمیه — پس از ورودِ موفق. */
 export async function resetRateLimitDb(key: string): Promise<void> {
   try {
-    await execute(`select rate_limit_reset($1)`, [key]);
+    // تابعِ rate_limit_reset فقط یک delete بود؛ در MySQL خودِ delete کافی
+    // است و روتینِ جدا چیزی اضافه نمی‌کرد.
+    await execute("delete from rate_limits where `key` = ?", [key]);
   } catch {
     // آزاد نشد؛ کاربر تا پایانِ پنجره سهمیهٔ سوخته دارد. آزاردهنده، نه خطرناک.
   }
@@ -89,7 +122,7 @@ export async function resetRateLimitDb(key: string): Promise<void> {
 export async function sweepRateLimits(probability = 0.01): Promise<void> {
   if (Math.random() >= probability) return;
   try {
-    await execute(`delete from rate_limits where reset_at <= now()`);
+    await execute(`delete from rate_limits where reset_at <= now(6)`);
   } catch {
     // جارو نشد؛ دفعهٔ بعد.
   }

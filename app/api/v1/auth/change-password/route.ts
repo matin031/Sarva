@@ -46,7 +46,7 @@ export const POST = withRoute("/api/v1/auth/change-password", async (request: Re
       return fail("رمز جدید نباید با رمز فعلی یکی باشد.", 400);
     }
 
-    await execute("update users set password_hash = $1 where id = $2", [
+    await execute("update users set password_hash = ? where id = ?", [
       await hashPassword(newPassword),
       user.id,
     ]);

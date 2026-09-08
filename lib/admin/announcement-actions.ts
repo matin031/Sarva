@@ -238,12 +238,12 @@ export async function announcementAdminDelete(id: string): Promise<ActionResult>
 
   // متن را *قبل* از حذف می‌خوانیم، وگرنه در لاگ فقط یک uuid می‌ماند.
   const existing = await queryOne<{ body: string }>(
-    "select body from site_announcements where id = $1",
+    "select body from site_announcements where id = ?",
     [announcementId],
   );
   if (!existing) return { ok: false, errors: ["این اعلان پیدا نشد."] };
 
-  await execute("delete from site_announcements where id = $1", [announcementId]);
+  await execute("delete from site_announcements where id = ?", [announcementId]);
 
   await recordAudit({
     actor: admin,

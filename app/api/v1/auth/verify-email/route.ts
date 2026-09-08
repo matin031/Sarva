@@ -40,7 +40,7 @@ export const POST = withRoute("/api/v1/auth/verify-email", async (request: Reque
     const result = await checkOtp(user.email, "signup_verify", toLatinDigits(body.data.code));
     if (!result.ok) return fail(result.error, 400);
 
-    await execute("update users set email_verified_at = now() where id = $1", [user.id]);
+    await execute("update users set email_verified_at = now(6) where id = ?", [user.id]);
 
     // کاربرِ تازه از دیتابیس خوانده می‌شود تا پاسخ، وضعیت واقعی را نشان بدهد و
     // نه نسخهٔ کهنه‌ای که ابتدای درخواست داشتیم.

@@ -21,7 +21,7 @@ export const GET = withRoute("/api/v1/quiz/answered", async (request: NextReques
     // .in(...) می‌فرستاد؛ چون تعداد سؤال‌های یک کاربر کوچک است، فرستادن کل
     // فهرست در URL (که می‌تواند به سقف طول برسد) ارزشی ندارد.
     const rows = await query<{ question_id: string }>(
-      `select question_id from user_answers where user_id = $1`,
+      `select question_id from user_answers where user_id = ?`,
       [user.id],
     );
 

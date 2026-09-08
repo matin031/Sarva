@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { execute, queryOne } from "@/lib/db";
 import { emailField, turnstileField } from "@/lib/auth/schemas";
@@ -45,7 +45,7 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
       return ok({ sent: true });
     }
 
-    const user = await queryOne<{ id: string }>("select id from users where email = $1", [email]);
+    const user = await queryOne<{ id: string }>("select id from users where email = ?", [email]);
 
     if (user) {
       const token = randomBytes(32).toString("base64url");
@@ -55,8 +55,8 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
 
       // درخواست‌های قبلی باطل می‌شوند: دو لینک فعال یعنی دو راه ورود.
       await execute(
-        `update password_resets set consumed_at = now()
-          where user_id = $1 and consumed_at is null`,
+        `update password_resets set consumed_at = now(6)
+          where user_id = ? and consumed_at is null`,
         [user.id],
       );
 
@@ -68,9 +68,12 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
       // همین اشتباه در lib/auth/otp.ts هم بود. برای پیدا کردنِ بقیه:
       // npm run db:check-sql
       await execute(
-        `insert into password_resets (user_id, token_hash, expires_at, requested_ip)
-         values ($1, $2, now() + make_interval(secs => $3::double precision), $4::inet)`,
-        [user.id, tokenHash, TTL_MINUTES * 60, meta.ip],
+        // این هم مثل otp.ts از همان روزِ مهاجرت به PostgreSQL شکسته بود:
+        // make_interval فقط برای secs نوع double precision دارد. در MySQL
+        // بازهٔ زمانی نحوِ خودش را دارد و پارامتر هم می‌پذیرد.
+        `insert into password_resets (id, user_id, token_hash, expires_at, requested_ip)
+         values (?, ?, ?, now(6) + interval ? second, ?)`,
+        [randomUUID(), user.id, tokenHash, TTL_MINUTES * 60, meta.ip],
       );
 
       const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");

@@ -46,19 +46,37 @@ export const POST = withRoute("/api/v1/auth/reset-password", async (request: Req
     // شرطِ consumed_at is null داخل خودِ update است و نه یک select جداگانه:
     // دو درخواست همزمان با یک توکن، فقط یکی‌شان ردیف را می‌گیرد.
     const userId = await transaction(async (tx) => {
-      const reset = await tx.queryOne<{ user_id: string }>(
-        `update password_resets
-            set consumed_at = now()
-          where token_hash = $1
+      // ⚠️ MySQL نه RETURNING دارد و نه راهی برای «مصرف کن و بگو مالِ که
+      // بود» در یک دستور. ولی تضمینِ یک‌بارمصرف بودن نباید ضعیف شود:
+      // دو درخواستِ همزمان با یک توکن باید فقط یکی‌شان موفق شود.
+      //
+      // پس select با `for update` و بلافاصله update، هر دو داخل همین
+      // تراکنش. قفلِ ردیف تا commit نگه داشته می‌شود، پس درخواست دوم پشتِ
+      // اولی می‌ماند و وقتی نوبتش شد، ردیف دیگر consumed_at دارد و شرطِ
+      // update صفر ردیف برمی‌گرداند.
+      //
+      // ⚠️ نتیجهٔ همان update بررسی می‌شود و نه فقط پیدا شدنِ ردیف: بدون آن،
+      // هر دو درخواست ردیف را می‌دیدند و هر دو رمز را عوض می‌کردند.
+      const reset = await tx.queryOne<{ id: string; user_id: string }>(
+        `select id, user_id
+           from password_resets
+          where token_hash = ?
             and consumed_at is null
-            and expires_at > now()
-          returning user_id`,
+            and expires_at > now(6)
+          for update`,
         [tokenHash],
       );
 
       if (!reset) return null;
 
-      await tx.execute("update users set password_hash = $1 where id = $2", [
+      const consumed = await tx.execute(
+        `update password_resets set consumed_at = now(6)
+          where id = ? and consumed_at is null`,
+        [reset.id],
+      );
+      if (consumed === 0) return null;
+
+      await tx.execute("update users set password_hash = ? where id = ?", [
         passwordHash,
         reset.user_id,
       ]);

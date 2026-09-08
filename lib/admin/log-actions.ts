@@ -227,7 +227,7 @@ export async function adminListErrors(
        from app_error_log
        ${where}
       order by last_seen_at desc, id
-      limit $1 offset $2`,
+      limit ? offset ?`,
     [limit, offset],
   );
 
@@ -271,8 +271,8 @@ export async function adminResolveError(id: string): Promise<ActionResult> {
   const errorId = uuidArg(id, "شناسهٔ خطا نامعتبر است.");
 
   const updated = await execute(
-    `update app_error_log set resolved_at = now(), resolved_by = $1
-      where id = $2 and resolved_at is null`,
+    `update app_error_log set resolved_at = now(6), resolved_by = ?
+      where id = ? and resolved_at is null`,
     [admin.id, errorId],
   );
 
@@ -286,7 +286,7 @@ export async function adminResolveError(id: string): Promise<ActionResult> {
 export async function adminResolveAllErrors(): Promise<ActionResult<{ count: number }>> {
   const admin = await requireAdmin();
   const count = await execute(
-    "update app_error_log set resolved_at = now(), resolved_by = $1 where resolved_at is null",
+    "update app_error_log set resolved_at = now(6), resolved_by = ? where resolved_at is null",
     [admin.id],
   );
   revalidatePath("/admin/activity");
@@ -328,15 +328,15 @@ export async function adminRecentActivity(): Promise<RecentActivity> {
   }>(
     `select
        (select count(*) from users
-         where created_at > date_trunc('day', now()))              as users_today,
+         where created_at > date_trunc('day', now(6)))              as users_today,
        (select count(*) from users
-         where created_at > now() - interval '7 days')             as users_week,
+         where created_at > now(6) - interval '7 days')             as users_week,
        (select count(*) from quiz_attempts
-         where created_at > now() - interval '7 days')             as quiz_week,
+         where created_at > now(6) - interval '7 days')             as quiz_week,
        (select count(*) from exam_attempts
-         where created_at > now() - interval '7 days')             as exam_week,
+         where created_at > now(6) - interval '7 days')             as exam_week,
        (select count(*) from club_posts
-         where created_at > now() - interval '7 days')             as club_week,
+         where created_at > now(6) - interval '7 days')             as club_week,
        (select count(*) from app_error_log
          where resolved_at is null)                                as open_errors`,
   );

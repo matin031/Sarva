@@ -247,7 +247,7 @@ export async function getMyPosts(viewer: ClubViewer): Promise<ClubPost[]> {
   if (!viewer) return [];
 
   const rows = await query<PostRow>(
-    `select ${POST_COLUMNS} from club_posts where user_id = $1 order by created_at desc, id`,
+    `select ${POST_COLUMNS} from club_posts where user_id = ? order by created_at desc, id`,
     [viewer.id],
   );
 
@@ -270,7 +270,7 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
             p.title as post_title, p.body as post_body
        from club_comments c
        left join club_posts p on p.id = c.post_id
-      where c.user_id = $1
+      where c.user_id = ?
       order by c.created_at desc, c.id
       limit 200`,
     [viewer.id],
@@ -315,7 +315,7 @@ export async function getMyLikedPosts(viewer: ClubViewer): Promise<ClubPost[]> {
     `select ${POST_COLUMNS_P}
        from club_likes l
        join club_posts p on p.id = l.post_id
-      where l.user_id = $1
+      where l.user_id = ?
         and p.status = 'approved'
       order by l.created_at desc, p.id
       limit 100`,

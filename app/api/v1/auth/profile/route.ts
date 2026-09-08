@@ -46,7 +46,7 @@ export const PATCH = withRoute("/api/v1/auth/profile", async (request: Request) 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;
 
-    await execute("update users set full_name = $1 where id = $2", [body.data.name, user.id]);
+    await execute("update users set full_name = ? where id = ?", [body.data.name, user.id]);
 
     const updated = await findUserById(user.id);
     return ok({ user: updated });

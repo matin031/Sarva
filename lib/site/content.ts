@@ -84,8 +84,8 @@ export async function activeAnnouncement(): Promise<PublicAnnouncement | null> {
     `select id, updated_at, title, body, tone, link_url, link_label, dismissible
        from site_announcements
       where is_active
-        and (starts_at is null or starts_at <= now())
-        and (ends_at   is null or ends_at   >  now())
+        and (starts_at is null or starts_at <= now(6))
+        and (ends_at   is null or ends_at   >  now(6))
       order by priority desc, created_at desc
       limit 1`,
   );

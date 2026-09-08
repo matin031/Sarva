@@ -1,5 +1,6 @@
 import "server-only";
-import { query, queryOne, execute, transaction } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { query, queryOne, execute, transaction, toBool } from "@/lib/db";
 import { logger } from "@/lib/observability";
 import { refreshTtlSeconds } from "./config";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "./tokens";
@@ -43,13 +44,13 @@ export function toAuthUser(row: UserRow): AuthUser {
 }
 
 export async function findUserById(id: string): Promise<AuthUser | null> {
-  const row = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = $1`, [id]);
+  const row = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [id]);
   return row ? toAuthUser(row) : null;
 }
 
 export async function findUserByEmail(email: string): Promise<(AuthUser & { passwordHash: string }) | null> {
   const row = await queryOne<UserRow & { password_hash: string }>(
-    `select ${USER_COLUMNS}, password_hash from users where email = $1`,
+    `select ${USER_COLUMNS}, password_hash from users where email = ?`,
     [email],
   );
   return row ? { ...toAuthUser(row), passwordHash: row.password_hash } : null;
@@ -59,11 +60,27 @@ export async function findUserByEmail(email: string): Promise<(AuthUser & { pass
 export async function createSession(user: AuthUser, meta: RequestMeta = {}): Promise<IssuedTokens> {
   const refreshToken = generateRefreshToken();
 
-  const row = await queryOne<{ id: string }>(
-    `insert into sessions (user_id, refresh_token_hash, user_agent, ip, expires_at)
-     values ($1, $2, $3, $4, now() + make_interval(secs => $5::double precision))
-     returning id`,
+  // ⚠️ شناسه اینجا ساخته می‌شود و نه در دیتابیس.
+  //
+  // در PostgreSQL ستون `default gen_random_uuid()` داشت و `returning id` آن را
+  // پس می‌داد. MySQL هیچ‌کدام را ندارد: نه UUID تصادفیِ نسخهٔ ۴ به‌عنوان
+  // DEFAULT (تابع UUID() نسخهٔ ۱ است — مبتنی بر زمان و MAC و قابل حدس)، و نه
+  // RETURNING.
+  //
+  // راهِ جایگزینِ رایج — INSERT و بعد SELECT — اینجا اصلاً کار نمی‌کند: کلیدِ
+  // یکتای این ردیف هشِ refresh token است و برای پیدا کردنش باید دوباره با
+  // همان هش جست‌وجو کنیم، که هم یک رفت‌وبرگشتِ اضافه است و هم بین دو دستور
+  // پنجرهٔ مسابقه باز می‌کند.
+  //
+  // ساختنِ UUID در برنامه هر دو مشکل را ندارد و از نظر تصادفی بودن هم
+  // ضعیف‌تر نیست: crypto.randomUUID همان نسخهٔ ۴ است که pgcrypto می‌ساخت.
+  const sessionId = randomUUID();
+
+  await execute(
+    `insert into sessions (id, user_id, refresh_token_hash, user_agent, ip, expires_at)
+     values (?, ?, ?, ?, ?, now(6) + interval ? second)`,
     [
+      sessionId,
       user.id,
       hashRefreshToken(refreshToken),
       meta.userAgent ?? null,
@@ -74,10 +91,8 @@ export async function createSession(user: AuthUser, meta: RequestMeta = {}): Pro
     ],
   );
 
-  if (!row) throw new Error("ساخت سشن ناموفق بود.");
-
-  const accessToken = await signAccessToken({ sub: user.id, role: user.role, sid: row.id });
-  return { accessToken, refreshToken, sessionId: row.id };
+  const accessToken = await signAccessToken({ sub: user.id, role: user.role, sid: sessionId });
+  return { accessToken, refreshToken, sessionId };
 }
 
 /**
@@ -130,18 +145,32 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
       user_agent: string | null;
       ip: string | null;
       created_at: string;
-      expired: boolean;
-      recently_rotated: boolean;
+      // ⚠️ عمداً boolean نیست. MySQL برای عبارتِ محاسباتی ۰/۱ می‌دهد و نوعِ
+      // ستون هم چیزی نیست که typeCast بتواند از آن boolean بسازد (از یک
+      // عددِ معمولی قابل تشخیص نیست). نوعِ unknown اینجا مجبور می‌کند که
+      // پایین‌تر از toBool رد شوند — یعنی کامپایلر جای آدم یادش می‌ماند.
+      expired: unknown;
+      recently_rotated: unknown;
     }>(
+      // ⚠️ host(ip) حذف شد و نه فراموش: در PostgreSQL ستون از نوع inet بود و
+      // host() نمایشِ متنیِ بدونِ prefix می‌داد. در MySQL همین ستون VARCHAR
+      // است و از قبل متن است، پس تبدیلی لازم ندارد.
+      //
+      // ⚠️ expired و recently_rotated در MySQL عدد ۰/۱ برمی‌گردند و نه
+      // boolean — MySQL نوع boolean ندارد و عبارتِ محاسباتی را نمی‌شود از یک
+      // عددِ معمولی تشخیص داد. پس toBool پایین‌تر رویشان اعمال می‌شود؛ بدون
+      // آن `if (session.expired)` با عددِ ۰ درست کار می‌کرد ولی مقایسهٔ
+      // صریح با false نه.
       `select id, user_id, family_id, rotated_to, revoked_at, expires_at,
-              user_agent, host(ip) as ip, created_at,
-              expires_at <= now() as expired,
-              revoked_at > now() - make_interval(secs => $2::double precision)
-                as recently_rotated
+              user_agent, ip, created_at,
+              expires_at <= now(6) as expired,
+              revoked_at > now(6) - interval ? second as recently_rotated
          from sessions
-        where refresh_token_hash = $1
+        where refresh_token_hash = ?
         for update`,
-      [tokenHash, ROTATION_GRACE_SECONDS],
+      // ترتیب عوض شد: در PostgreSQL شماره‌ها ($2 قبل از $1) ترتیبِ آرایه را
+      // تعیین می‌کردند، در MySQL خودِ جای ? تعیینش می‌کند.
+      [ROTATION_GRACE_SECONDS, tokenHash],
     );
 
     if (!session) return { kind: "none" as const };
@@ -149,10 +178,10 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
     if (session.rotated_to !== null) {
       // این توکن قبلاً چرخیده. یا مسابقهٔ بی‌ضررِ چند ثانیه پیش است، یا کسی
       // نسخه‌ای از یک توکنِ مرده دارد.
-      if (session.recently_rotated) {
+      if (toBool(session.recently_rotated)) {
         const heir = await tx.queryOne<{ id: string }>(
           `select id from sessions
-            where id = $1 and revoked_at is null and expires_at > now()`,
+            where id = ? and revoked_at is null and expires_at > now(6)`,
           [session.rotated_to],
         );
         // جانشین زنده است → همان مسابقه. توکنِ تازه را دوباره نمی‌سازیم
@@ -163,8 +192,8 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
       // استفادهٔ مجدد. کدام‌یک کاربرِ واقعی است معلوم نیست، پس کلِ زنجیره
       // می‌رود و هر دو طرف باید دوباره وارد شوند.
       const revoked = await tx.execute(
-        `update sessions set revoked_at = now()
-          where family_id = $1 and revoked_at is null`,
+        `update sessions set revoked_at = now(6)
+          where family_id = ? and revoked_at is null`,
         [session.family_id],
       );
       return {
@@ -177,9 +206,9 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
 
     // باطل‌شده ولی نچرخیده = خروجِ معمولی، تغییر رمز، یا مسدود شدن. هیچ حمله‌ای
     // در کار نیست؛ فقط «دوباره وارد شو».
-    if (session.revoked_at !== null || session.expired) return { kind: "none" as const };
+    if (session.revoked_at !== null || toBool(session.expired)) return { kind: "none" as const };
 
-    const userRow = await tx.queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = $1`, [
+    const userRow = await tx.queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [
       session.user_id,
     ]);
     if (!userRow) return { kind: "none" as const };
@@ -197,12 +226,16 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
     // created_at هم به ارث می‌رسد، وگرنه صفحهٔ «دستگاه‌های من» بعد از هر چرخش
     // می‌گفت این دستگاه همین چند دقیقه پیش وارد شده — و کاربر نمی‌توانست
     // ورودِ ناآشنا را از سشنِ همیشگیِ خودش تشخیص بدهد.
-    const created = await tx.queryOne<{ id: string }>(
+    // همان استدلالِ createSession: شناسه در برنامه ساخته می‌شود چون MySQL نه
+    // DEFAULT تصادفی دارد و نه RETURNING.
+    const nextSessionId = randomUUID();
+
+    await tx.execute(
       `insert into sessions
-         (user_id, refresh_token_hash, user_agent, ip, expires_at, family_id, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7)
-       returning id`,
+         (id, user_id, refresh_token_hash, user_agent, ip, expires_at, family_id, created_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        nextSessionId,
         session.user_id,
         hashRefreshToken(nextRefresh),
         session.user_agent,
@@ -212,19 +245,22 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
         session.created_at,
       ],
     );
-    if (!created) throw new Error("چرخش سشن ناموفق بود.");
 
     await tx.execute(
+      // ⚠️ ترتیب پارامترها برعکسِ نسخهٔ PostgreSQL است. آنجا $2 در set و $1
+      // در where بود و آرایه [session.id, created.id] با شماره‌ها تطبیق
+      // می‌شد. اینجا ? ها موقعیتی‌اند، پس آرایه هم باید جابه‌جا شود — یک
+      // تبدیلِ مکانیکیِ بی‌دقت درست همین‌جا سشنِ اشتباهی را باطل می‌کرد.
       `update sessions
-          set revoked_at = now(), rotated_to = $2, last_used_at = now()
-        where id = $1`,
-      [session.id, created.id],
+          set revoked_at = now(6), rotated_to = ?, last_used_at = now(6)
+        where id = ?`,
+      [nextSessionId, session.id],
     );
 
     return {
       kind: "rotated" as const,
       user: toAuthUser(userRow),
-      sessionId: created.id,
+      sessionId: nextSessionId,
       refreshToken: nextRefresh,
     };
   });
@@ -244,7 +280,7 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
   }
 
   if (outcome.kind === "race") {
-    const userRow = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = $1`, [
+    const userRow = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [
       outcome.userId,
     ]);
     if (!userRow || userRow.is_banned) return null;
@@ -273,8 +309,8 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
 /** خروج از این دستگاه. */
 export async function revokeSessionByToken(rawRefreshToken: string): Promise<void> {
   await execute(
-    `update sessions set revoked_at = now()
-      where refresh_token_hash = $1 and revoked_at is null`,
+    `update sessions set revoked_at = now(6)
+      where refresh_token_hash = ? and revoked_at is null`,
     [hashRefreshToken(rawRefreshToken)],
   );
 }
@@ -287,7 +323,7 @@ export async function revokeSessionByToken(rawRefreshToken: string): Promise<voi
  */
 export async function revokeAllSessions(userId: string): Promise<number> {
   return execute(
-    `update sessions set revoked_at = now() where user_id = $1 and revoked_at is null`,
+    `update sessions set revoked_at = now(6) where user_id = ? and revoked_at is null`,
     [userId],
   );
 }
@@ -316,9 +352,9 @@ export async function listActiveSessions(userId: string): Promise<ActiveSession[
     last_used_at: string | null;
     refresh_token_hash: string;
   }>(
-    `select id, user_agent, host(ip) as ip, created_at, last_used_at, refresh_token_hash
+    `select id, user_agent, ip, created_at, last_used_at, refresh_token_hash
        from sessions
-      where user_id = $1 and revoked_at is null and expires_at > now()
+      where user_id = ? and revoked_at is null and expires_at > now(6)
       order by coalesce(last_used_at, created_at) desc`,
     [userId],
   );

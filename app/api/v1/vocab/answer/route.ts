@@ -46,7 +46,7 @@ export const POST = withRoute("/api/v1/vocab/answer", async (request: Request) =
 
     await execute(
       `insert into vocab_answers (user_id, grade, lesson, word, meaning, image, is_correct)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+       values (?, ?, ?, ?, ?, ?, ?)`,
       [user.id, b.grade, b.lesson, b.word, b.meaning, b.image, b.isCorrect],
     );
 

@@ -54,7 +54,7 @@ export async function adminExamAttemptsForUser(userId: string): Promise<ExamAtte
             e.title as exam_title
        from exam_attempts a
        left join exams e on e.id = a.exam_id
-      where a.user_id = $1
+      where a.user_id = ?
       order by a.created_at desc`,
     [userId],
   );

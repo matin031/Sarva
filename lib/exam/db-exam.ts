@@ -23,7 +23,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
     total_score: number;
   }>(
     `select id, subject, grade, title, exam_session, total_score
-       from exams where exam_session = $1`,
+       from exams where exam_session = ?`,
     [examKey],
   );
 
@@ -38,7 +38,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
   const [sections, questions, parts, options] = await Promise.all([
     query<{ id: string; title: string; order_index: number; section_score: number }>(
       `select id, title, order_index, section_score
-         from exam_sections where exam_id = $1 order by order_index`,
+         from exam_sections where exam_id = ? order by order_index`,
       [exam.id],
     ),
     query<{
@@ -52,7 +52,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
       `select q.id, q.exam_section_id, q.number, q.page_ref, q.instruction, q.layout_pattern
          from exam_questions q
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by q.order_index`,
       [exam.id],
     ),
@@ -73,7 +73,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
          from exam_question_parts p
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by p.part_index`,
       [exam.id],
     ),
@@ -88,7 +88,7 @@ export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
          join exam_question_parts p on p.id = o.question_part_id
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by o.order_index`,
       [exam.id],
     ),

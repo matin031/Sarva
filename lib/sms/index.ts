@@ -118,7 +118,7 @@ export async function sendSms(message: SmsMessage): Promise<void> {
     });
     await execute(
       `insert into sms_log (to_number, body, provider, status, provider_message_id)
-       values ($1, $2, $3, 'sent', $4)`,
+       values (?, ?, ?, 'sent', ?)`,
       [message.to, message.body, adapter.name, result.providerMessageId],
     );
   } catch (err) {
@@ -131,7 +131,7 @@ export async function sendSms(message: SmsMessage): Promise<void> {
 
     await execute(
       `insert into sms_log (to_number, body, provider, status, error)
-       values ($1, $2, $3, 'failed', $4)`,
+       values (?, ?, ?, 'failed', ?)`,
       [message.to, message.body, adapter.name, (err as Error).message.slice(0, 500)],
     ).catch(() => {});
 

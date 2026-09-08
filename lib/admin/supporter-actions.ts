@@ -74,7 +74,7 @@ export async function supporterAdminList(): Promise<AdminSupporter[]> {
   await requireAdmin();
   const rows = await query<Row>(
     `select id, display_name, message, tier, amount_label, link_url, avatar_url,
-            is_visible, supported_at::text as supported_at, sort_index, created_at
+            is_visible, supported_at as supported_at, sort_index, created_at
        from site_supporters
       order by sort_index, created_at desc`,
   );
@@ -196,12 +196,12 @@ export async function supporterAdminDelete(id: string): Promise<ActionResult> {
   const supporterId = uuidArg(id, "شناسهٔ حامی نامعتبر است.");
 
   const existing = await queryOne<{ display_name: string }>(
-    "select display_name from site_supporters where id = $1",
+    "select display_name from site_supporters where id = ?",
     [supporterId],
   );
   if (!existing) return { ok: false, errors: ["این حامی پیدا نشد."] };
 
-  await execute("delete from site_supporters where id = $1", [supporterId]);
+  await execute("delete from site_supporters where id = ?", [supporterId]);
 
   await recordAudit({
     actor: admin,

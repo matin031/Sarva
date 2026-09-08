@@ -29,7 +29,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
             u.is_banned, u.created_at
        from user_identities i
        join users u on u.id = i.user_id
-      where i.provider = 'google' and i.provider_account_id = $1`,
+      where i.provider = 'google' and i.provider_account_id = ?`,
     [g.sub],
   );
   if (existing.length > 0) {
@@ -40,7 +40,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
 
   // ۲) حسابی با همین ایمیل
   const byEmail = await query<UserRow>(`select id, email, full_name, role, email_verified_at, is_banned, created_at
-       from users where email = $1`, [g.email]);
+       from users where email = ?`, [g.email]);
   if (byEmail.length > 0) {
     // ⚠️ اینجا حساس‌ترین نقطهٔ کلِ این قابلیت است.
     //
@@ -83,7 +83,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
     );
     await tx.execute(
       `insert into user_identities (user_id, provider, provider_account_id, email)
-       values ($1, 'google', $2, $3)`,
+       values (?, 'google', ?, ?)`,
       [inserted[0].id, g.sub, g.email],
     );
     return inserted[0];

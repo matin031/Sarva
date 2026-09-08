@@ -175,7 +175,7 @@ export async function getSetting(key: SettingKey): Promise<string | null> {
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const row = await queryOne<{ value: unknown }>("select value from app_settings where key = $1", [
+  const row = await queryOne<{ value: unknown }>("select value from app_settings where key = ?", [
     key,
   ]);
 
@@ -211,7 +211,7 @@ export async function setSetting(
     `insert into app_settings (key, value, updated_by)
      values ($1, to_jsonb($2::text), $3)
      on conflict (key) do update
-       set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by`,
+       set value = excluded.value, updated_at = now(6), updated_by = excluded.updated_by`,
     [key, value, updatedBy],
   );
   cache.delete(key);
@@ -219,7 +219,7 @@ export async function setSetting(
 
 /** حذف مقدارِ دیتابیس، یعنی برگشت به مقدار env. */
 export async function clearSetting(key: SettingKey): Promise<void> {
-  await execute("delete from app_settings where key = $1", [key]);
+  await execute("delete from app_settings where key = ?", [key]);
   cache.delete(key);
 }
 

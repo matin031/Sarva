@@ -14,12 +14,6 @@
 -- =============================================================================
 
 
-CREATE TABLE `schema_migrations` (
-  `name` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs NOT NULL,
-  `applied_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs ROW_FORMAT=DYNAMIC;
-
 CREATE TABLE `users` (
   `id` CHAR(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
   `email` VARCHAR(320) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci NOT NULL,

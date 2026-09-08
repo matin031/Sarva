@@ -194,9 +194,13 @@ export const CITEXT_COLUMNS = new Set([
  * دو خودارجاعی اینجا حل نمی‌شوند و در ETL دو مرحله‌ای‌اند:
  *   • sessions.rotated_to → sessions
  *   • club_comments.parent_id / reply_to_id → club_comments
+ *
+ * ⚠️ schema_migrations عمداً اینجا نیست: اجراکنندهٔ migration خودش می‌سازدش
+ * (با `create table if not exists`) و ستون‌های بیشتری هم دارد — checksum و
+ * started_at و finished_at که نسخهٔ PostgreSQL نداشت. اگر مولد هم می‌ساختش،
+ * اولین اجرا روی دیتابیس خالی با «Table already exists» می‌مرد.
  */
 export const TABLE_ORDER = [
-  "schema_migrations",
   "users",
   "sessions",
   "email_otps",

@@ -203,7 +203,7 @@ const LEFTOVERS: { re: RegExp; why: string }[] = [
  */
 function stripSqlComments(sql: string): string {
   return sql
-    .replace(/--[^\n]*/g, " ")
+    .replace(/--(?:[ \t][^\n]*|(?=\n|$))/g, " ")
     .replace(/#[^\n]*/g, " ")
     .replace(/\/\*[\s\S]*?\*\//g, " ");
 }

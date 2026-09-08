@@ -2,8 +2,8 @@
 
 ⚠️ این فایل تولید شده است (`scripts/mysql/gen-schema.mjs`).
 
-- جدول‌ها: **40**
-- ستون‌ها: **348**
+- جدول‌ها: **39**
+- ستون‌ها: **346**
 - enum ها: `grading_mode` (4 مقدار)، `question_part_type` (18 مقدار)
 
 ## ستون‌های UUID بدون DEFAULT
@@ -55,13 +55,6 @@
 - `club_posts.tags`
 
 ## جدول ستون‌به‌ستون
-
-### `schema_migrations`
-
-| ستون | نوع مبدأ | نوع مقصد | DEFAULT مبدأ | DEFAULT مقصد |
-|---|---|---|---|---|
-| `name` | `text NOT NULL` | `VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs` | `—` | `—` |
-| `applied_at` | `timestamp with time zone NOT NULL` | `DATETIME(6)` | `now()` | `CURRENT_TIMESTAMP(6)` |
 
 ### `users`
 

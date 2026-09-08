@@ -240,7 +240,9 @@ async function main() {
   await client.end();
 
   const tables = [...new Set(cat.columns.map((c) => c.table_name))];
-  const missing = tables.filter((t) => !TABLE_ORDER.includes(t));
+  const missing = tables.filter(
+    (t) => !TABLE_ORDER.includes(t) && t !== "schema_migrations",
+  );
   if (missing.length) {
     throw new Error(
       `جدولِ ناشناخته در مبدأ که در TABLE_ORDER نیست: ${missing.join(", ")}\n` +
@@ -248,6 +250,8 @@ async function main() {
         `بی‌صدا رد نمی‌شود.`,
     );
   }
+  // schema_migrations مالِ اجراکننده است و در TABLE_ORDER نیست.
+  const OWNED_BY_RUNNER = new Set(["schema_migrations"]);
   const absent = TABLE_ORDER.filter((t) => !tables.includes(t));
   if (absent.length) throw new Error(`جدولِ TABLE_ORDER که در مبدأ نیست: ${absent.join(", ")}`);
 

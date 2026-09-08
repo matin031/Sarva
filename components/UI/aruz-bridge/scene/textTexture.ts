@@ -42,7 +42,7 @@ export function createTextTexture({
   aspect = 2.6,
   color = "#f2fdff",
   glow = "rgba(2, 16, 24, 0.85)",
-  fontWeight = 800,
+  fontWeight = 700,
   fontFamily = 'Vazirmatn, "Noto Naskh Arabic", system-ui, sans-serif',
 }: TextTextureOptions): THREE.CanvasTexture | null {
   if (typeof document === "undefined") return null;
@@ -79,18 +79,18 @@ export function createTextTexture({
      هالهٔ نرمِ تیره، یک خطِ دورِ بسیار باریک، و بعد خودِ حرف — پس نتیجه شبیهِ
      چیزی است که روی شیشه *حکاکی یا چاپ* شده. */
   ctx.shadowColor = glow;
-  ctx.shadowBlur = fontSize * 0.42;
+  ctx.shadowBlur = fontSize * 0.16;
   ctx.shadowOffsetY = fontSize * 0.05;
   ctx.fillStyle = "rgba(0,0,0,0)"; // فقط سایه کشیده می‌شود، نه پُرکنندهٔ حروف
   ctx.strokeStyle = glow;
   ctx.lineJoin = "round";
-  ctx.lineWidth = Math.max(2, fontSize * 0.16);
+  ctx.lineWidth = Math.max(2, fontSize * 0.055);
   ctx.strokeText(text, cx, cy);
 
   // خطِ دورِ نازک: متن را از هر پس‌زمینه‌ای جدا می‌کند بی‌آنکه ضخیم دیده شود
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-  ctx.lineWidth = Math.max(1.5, fontSize * 0.055);
+  ctx.lineWidth = Math.max(1.5, fontSize * 0.025);
   ctx.strokeStyle = "rgba(4, 26, 34, 0.85)";
   ctx.strokeText(text, cx, cy);
 

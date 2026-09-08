@@ -4,6 +4,7 @@ import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { buildFracture } from "@/lib/aruz-bridge/fracture";
 import { TILE_DEPTH, TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
@@ -16,14 +17,17 @@ import { Shards } from "./Shards";
 
 /** هندسهٔ کاشی برای همهٔ کاشی‌ها یکی است — یک بار ساخته و یک بار به GPU
  *  فرستاده می‌شود. همان الگوی `GalaxyScene` برای کره‌ها و حلقه‌هایش. */
-const SLAB_GEOMETRY = new THREE.BoxGeometry(TILE_WIDTH, TILE_THICKNESS, TILE_DEPTH);
-const EDGE_GEOMETRY = new THREE.EdgesGeometry(SLAB_GEOMETRY);
-const fittingParts = [-1, 1].flatMap(x => [-1, 1].map(z =>
-  new THREE.BoxGeometry(.095, .024, .095).translate(x * (TILE_WIDTH / 2 - .075), TILE_THICKNESS / 2 + .012, z * (TILE_DEPTH / 2 - .075)),
-));
+const SLAB_GEOMETRY = new RoundedBoxGeometry(TILE_WIDTH, TILE_THICKNESS, TILE_DEPTH, 2, .024);
+const outlineBox = new THREE.BoxGeometry(TILE_WIDTH - .025, TILE_THICKNESS - .025, TILE_DEPTH - .025);
+const EDGE_GEOMETRY = new THREE.EdgesGeometry(outlineBox);
+outlineBox.dispose();
+const fittingParts = [-1, 1].flatMap(x => [-1, 1].flatMap(z => [
+  new THREE.BoxGeometry(.14, .028, .038).translate(x * (TILE_WIDTH / 2 - .085), TILE_THICKNESS / 2 + .008, z * (TILE_DEPTH / 2 - .035)),
+  new THREE.BoxGeometry(.038, .028, .14).translate(x * (TILE_WIDTH / 2 - .035), TILE_THICKNESS / 2 + .008, z * (TILE_DEPTH / 2 - .085)),
+]));
 const FITTING_GEOMETRY = mergeGeometries(fittingParts)!;
 fittingParts.forEach(part => part.dispose());
-const FITTING_MATERIAL = new THREE.MeshStandardMaterial({ color: "#c6ad78", metalness: .72, roughness: .3 });
+const FITTING_MATERIAL = new THREE.MeshStandardMaterial({ color: "#bca477", metalness: .55, roughness: .32 });
 
 /* یک کاشیِ شیشه‌ای.
  *

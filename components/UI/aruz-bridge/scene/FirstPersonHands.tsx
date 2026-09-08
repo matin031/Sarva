@@ -10,7 +10,7 @@ function HandMesh() {
   return <>
     <mesh position={[0, -.13, .04]} raycast={NO_RAYCAST}>
       <capsuleGeometry args={[.064, .24, 4, 10]} />
-      <meshStandardMaterial color="#128b87" roughness={.65} />
+      <meshStandardMaterial color="#376f72" roughness={.9} />
     </mesh>
     <mesh position={[0, .012, .015]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_RAYCAST}>
       <torusGeometry args={[.063, .012, 6, 12]} />

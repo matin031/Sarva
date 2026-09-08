@@ -380,7 +380,7 @@ export function GameScene({
       })}
 
       {cameraView === "first" ? <FirstPersonHands state={state} reducedMotion={reducedMotion} /> : (
-        <Player positionRef={playerPos} jumpPhaseRef={jumpPhase} facingRef={facing} useModel={false}
+        <Player positionRef={playerPos} jumpPhaseRef={jumpPhase} facingRef={facing} useModel={false} reducedMotion={reducedMotion}
           animation={state === "jumping" ? "jump" : state === "landing" ? "land" : state === "falling" || state === "gameOver" ? "fall" : "idle"} />
       )}
     </>

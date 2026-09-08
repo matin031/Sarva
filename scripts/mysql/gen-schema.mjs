@@ -250,8 +250,8 @@ async function main() {
         `بی‌صدا رد نمی‌شود.`,
     );
   }
-  // schema_migrations مالِ اجراکننده است و در TABLE_ORDER نیست.
-  const OWNED_BY_RUNNER = new Set(["schema_migrations"]);
+  // schema_migrations مالِ اجراکننده است و در TABLE_ORDER نیست (بالا از
+  // بررسیِ «جدول ناشناخته» مستثنا شده).
   const absent = TABLE_ORDER.filter((t) => !tables.includes(t));
   if (absent.length) throw new Error(`جدولِ TABLE_ORDER که در مبدأ نیست: ${absent.join(", ")}`);
 

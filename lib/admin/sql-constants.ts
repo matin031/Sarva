@@ -2,7 +2,7 @@
  * ثابت‌ها و الگوهای کنسول SQL.
  *
  * جدا از lib/admin/sql-console.ts نگه داشته شده، به همان دلیل همیشگی: یک فایل
- * `"use server"` فقط تابع async می‌تواند export کند و یک آرایهٔ ثابت آنجا
+ * \`"use server"\` فقط تابع async می‌تواند export کند و یک آرایهٔ ثابت آنجا
  * build را می‌شکند (همان الگوی lib/admin/log-constants.ts).
  */
 
@@ -12,7 +12,7 @@ export type SqlRunMode = "preview" | "commit";
 export const MAX_SQL_LENGTH = 200_000;
 
 /** بیشترین ردیفی که به مرورگر فرستاده می‌شود. کوئری کامل اجرا می‌شود؛ فقط
- *  *نمایش* بریده می‌شود، وگرنه یک `select * from users` مرورگر را می‌خواباند. */
+ *  *نمایش* بریده می‌شود، وگرنه یک \`select * from users\` مرورگر را می‌خواباند. */
 export const MAX_RESULT_ROWS = 300;
 
 /** سقف زمان هر اجرا. یک کوئریِ اشتباه نباید دیتابیس را قفل کند. */
@@ -54,6 +54,12 @@ export type SqlSnippetGroup = {
  * عوض شد، «راهنمای جدول‌ها» — که از خودِ دیتابیس خوانده می‌شود — همیشه راست
  * می‌گوید و این فهرست باید با آن هماهنگ شود.
  */
+/**
+ * یادداشتِ مشترکِ الگوهایی که در PostgreSQL با CTEِ نویسنده نوشته شده بودند.
+ */
+const CTE_NOTE =
+  "⚠️ در MySQL نمی‌شود INSERT را داخل CTE گذاشت و شناسه را با RETURNING گرفت. جایش یک متغیر نشست است: اول شناسه ساخته و در @qid نگه داشته می‌شود، بعد هر دو درج از آن استفاده می‌کنند. هر سه دستور را با هم اجرا کنید. (uuid() نسخهٔ ۱ می‌سازد و نه ۴ — برای شناسهٔ محتوا که عمومی است اشکالی ندارد و یکتاست.)";
+
 export const SQL_SNIPPETS: SqlSnippetGroup[] = [
   {
     key: "read",
@@ -62,10 +68,13 @@ export const SQL_SNIPPETS: SqlSnippetGroup[] = [
     snippets: [
       {
         title: "تعداد ردیف هر جدول",
-        description: "برای فهمیدن اینکه کجا داده هست و کجا خالی است.",
-        sql: `select relname as جدول, n_live_tup as ردیف
-  from pg_stat_user_tables
- order by n_live_tup desc;`,
+        description:
+          "برای فهمیدن اینکه کجا داده هست و کجا خالی است. ⚠️ عددِ InnoDB تخمینی است " +
+          "(مثل n_live_tup در PostgreSQL)؛ برای «خالی هست یا نه» دقیق است، برای گزارش نه.",
+        sql: `select table_name as جدول, table_rows as ردیف_تخمینی
+  from information_schema.tables
+ where table_schema = database() and table_type = 'BASE TABLE'
+ order by table_rows desc;`,
       },
       {
         title: "کاربران تازه",
@@ -84,10 +93,10 @@ export const SQL_SNIPPETS: SqlSnippetGroup[] = [
         title: "فعالیت هفتهٔ گذشته",
         description: "چند کاربر تازه، چند آزمون، چند سرودهٔ کلاب.",
         sql: `select
-  (select count(*) from users        where created_at > now() - interval '7 days') as کاربر_تازه,
-  (select count(*) from quiz_attempts where created_at > now() - interval '7 days') as آزمون_عروض,
-  (select count(*) from exam_attempts where created_at > now() - interval '7 days') as امتحان,
-  (select count(*) from club_posts    where created_at > now() - interval '7 days') as سروده;`,
+  (select count(*) from users        where created_at > now(6) - interval 7 day) as کاربر_تازه,
+  (select count(*) from quiz_attempts where created_at > now(6) - interval 7 day) as آزمون_عروض,
+  (select count(*) from exam_attempts where created_at > now(6) - interval 7 day) as امتحان,
+  (select count(*) from club_posts    where created_at > now(6) - interval 7 day) as سروده;`,
       },
       {
         title: "سؤال‌های عروض سماعی",
@@ -95,13 +104,17 @@ export const SQL_SNIPPETS: SqlSnippetGroup[] = [
         sql: `select q.id,
        q.type,
        q.difficulty,
-       left(array_to_string(q.poem, ' / '), 60) as بیت,
+       left(coalesce((select group_concat(jt.v order by jt.ord separator ' / ')
+                -- ⚠️ coalesce داخلِ json_table لازم است: poem می‌تواند NULL
+                -- باشد (سؤالِ صوتی) و JSON_TABLE با NULL خطای ۱۲۱۰ می‌دهد.
+                from json_table(coalesce(q.poem, cast('[]' as json)), '$[*]'
+                     columns (ord for ordinality, v text path '$')) jt), ''), 60) as بیت,
        count(o.id)                              as گزینه,
-       count(*) filter (where o.is_correct)     as پاسخ_درست
+       count(case when o.is_correct then 1 end)     as پاسخ_درست
   from questions q
   left join question_options o on o.question_id = q.id
  group by q.id
- having count(*) filter (where o.is_correct) <> 1
+ having count(case when o.is_correct then 1 end) <> 1
  order by q.created_at desc;`,
       },
     ],
@@ -117,70 +130,62 @@ export const SQL_SNIPPETS: SqlSnippetGroup[] = [
       {
         title: "افزودن یک سؤال «بیت ← صوت»",
         description:
-          "صورت سؤال یک بیت است و گزینه‌ها فایل صوتی. با CTE نوشته شده تا شناسهٔ سؤال بدون کپی‌کردنِ دستی به گزینه‌ها برسد.",
-        sql: `with q as (
-  insert into questions (type, poem, difficulty)
-  values (
-    'poem-to-audio',                      -- poem-to-audio | audio-to-poem | weight-to-audio
-    array['مصراع اول', 'مصراع دوم'],       -- بیت سؤال
-    'medium'                              -- easy | medium | hard
-  )
-  returning id
-)
-insert into question_options (question_id, audio_url, is_correct, x)
-select q.id, v.url, v.correct, v.x
-  from q,
-       (values
-         ('/uploads/quiz-audio/الف.mp3', true , -40),
-         ('/uploads/quiz-audio/ب.mp3',   false,  40),
-         ('/uploads/quiz-audio/ج.mp3',   false, -40),
-         ('/uploads/quiz-audio/د.mp3',   false,  40)
-       ) as v(url, correct, x);`,
+          "صورت سؤال یک بیت است و گزینه‌ها فایل صوتی. " + CTE_NOTE,
+        sql: `set @qid = uuid();
+
+insert into questions (id, type, poem, difficulty)
+values (
+  @qid,
+  'poem-to-audio',                      -- poem-to-audio | audio-to-poem | weight-to-audio
+  json_array('مصراع اول', 'مصراع دوم'),       -- بیت سؤال
+  'medium'                              -- easy | medium | hard
+);
+
+insert into question_options (id, question_id, audio_url, is_correct, x)
+values (uuid(), @qid, '/uploads/quiz-audio/الف.mp3', true , -40),
+       (uuid(), @qid, '/uploads/quiz-audio/ب.mp3',   false,  40),
+       (uuid(), @qid, '/uploads/quiz-audio/ج.mp3',   false, -40),
+       (uuid(), @qid, '/uploads/quiz-audio/د.mp3',   false,  40);`,
       },
       {
         title: "افزودن یک سؤال «وزن ← صوت»",
         description:
-          "صورت سؤال الگوی وزن است (در poem[1] می‌نشیند) و گزینه‌ها فایل صوتی.",
-        sql: `with q as (
-  insert into questions (type, poem, difficulty)
-  values ('weight-to-audio', array['فاعلاتن فاعلاتن فاعلاتن فاعلن'], 'medium')
-  returning id
-)
-insert into question_options (question_id, audio_url, is_correct, x)
-select q.id, v.url, v.correct, v.x
-  from q,
-       (values
-         ('/uploads/quiz-audio/الف.mp3', true , -40),
-         ('/uploads/quiz-audio/ب.mp3',   false,  40)
-       ) as v(url, correct, x);`,
+          "صورت سؤال الگوی وزن است (در عضو اول poem می‌نشیند) و گزینه‌ها فایل صوتی. " +
+          CTE_NOTE,
+        sql: `set @qid = uuid();
+
+insert into questions (id, type, poem, difficulty)
+values (@qid, 'weight-to-audio', json_array('فاعلاتن فاعلاتن فاعلاتن فاعلن'), 'medium');
+
+insert into question_options (id, question_id, audio_url, is_correct, x)
+values (uuid(), @qid, '/uploads/quiz-audio/الف.mp3', true , -40),
+       (uuid(), @qid, '/uploads/quiz-audio/ب.mp3',   false,  40);`,
       },
       {
         title: "افزودن یک سؤال «صوت ← بیت»",
-        description: "صورت سؤال یک فایل صوتی است و گزینه‌ها بیت‌اند. تنها نوعی که برای ورود انبوه با SQL مناسب است، چون فقط یک فایل صوتی لازم دارد.",
-        sql: `with q as (
-  insert into questions (type, audio_url, difficulty)
-  values ('audio-to-poem', '/uploads/quiz-audio/سؤال.mp3', 'medium')
-  returning id
-)
-insert into question_options (question_id, poem, is_correct, x)
-select q.id, v.poem, v.correct, v.x
-  from q,
-       (values
-         (array['مصراع اول درست', 'مصراع دوم درست'], true , -40),
-         (array['مصراع اول غلط ۱', 'مصراع دوم غلط ۱'], false,  40),
-         (array['مصراع اول غلط ۲', 'مصراع دوم غلط ۲'], false, -40)
-       ) as v(poem, correct, x);`,
+        description:
+          "صورت سؤال یک فایل صوتی است و گزینه‌ها بیت‌اند. تنها نوعی که برای ورود " +
+          "انبوه با SQL مناسب است، چون فقط یک فایل صوتی لازم دارد. " + CTE_NOTE,
+        sql: `set @qid = uuid();
+
+insert into questions (id, type, audio_url, difficulty)
+values (@qid, 'audio-to-poem', '/uploads/quiz-audio/سؤال.mp3', 'medium');
+
+insert into question_options (id, question_id, poem, is_correct, x)
+values (uuid(), @qid, json_array('مصراع اول درست', 'مصراع دوم درست'), true , -40),
+       (uuid(), @qid, json_array('مصراع اول غلط ۱', 'مصراع دوم غلط ۱'), false,  40),
+       (uuid(), @qid, json_array('مصراع اول غلط ۲', 'مصراع دوم غلط ۲'), false, -40);`,
       },
       {
         title: "سؤال‌های ناقص را پیدا کن",
         description:
           "سؤالی که پاسخ درست ندارد یا دو پاسخ درست دارد، در بازی خراب دیده می‌شود. این کوئری همه‌شان را می‌آورد.",
         sql: `select q.id, q.type, count(o.id) as گزینه,
-       count(*) filter (where o.is_correct) as پاسخ_درست
+       count(case when o.is_correct then 1 end) as پاسخ_درست
   from questions q
   left join question_options o on o.question_id = q.id
  group by q.id
-having count(*) filter (where o.is_correct) <> 1
+having count(case when o.is_correct then 1 end) <> 1
     or count(o.id) < 2
  order by q.created_at desc;`,
       },
@@ -261,7 +266,7 @@ values
         title: "تأیید دستی ایمیل",
         description: "وقتی ایمیل تأیید به دست کاربر نمی‌رسد و می‌خواهید دستی بازش کنید.",
         sql: `update users
-   set email_verified_at = now()
+   set email_verified_at = now(6)
  where email = 'someone@example.com'
    and email_verified_at is null;`,
       },
@@ -276,7 +281,7 @@ values
         title: "خروج اجباری از همهٔ دستگاه‌ها",
         description: "همهٔ سشن‌های یک کاربر باطل می‌شوند؛ دفعهٔ بعد باید دوباره وارد شود.",
         sql: `update sessions
-   set revoked_at = now()
+   set revoked_at = now(6)
  where revoked_at is null
    and user_id = (select id from users where email = 'someone@example.com');`,
       },
@@ -284,30 +289,33 @@ values
         title: "دستگاه‌های فعالِ یک کاربر",
         description:
           "هر ردیف یک دستگاه است، نه یک بار تازه‌سازی. سشن‌هایی که چرخیده‌اند باطل‌اند و اینجا نمی‌آیند.",
-        sql: `select s.created_at as "ورود",
-       s.last_used_at as "آخرین استفاده",
-       s.user_agent as "مرورگر",
-       host(s.ip) as "آی‌پی"
+        sql: `select s.created_at as \`ورود\`,
+       s.last_used_at as \`آخرین استفاده\`,
+       s.user_agent as \`مرورگر\`,
+       s.ip as \`آی‌پی\`
   from sessions s
   join users u on u.id = s.user_id
  where u.email = 'someone@example.com'
    and s.revoked_at is null
-   and s.expires_at > now()
+   and s.expires_at > now(6)
  order by coalesce(s.last_used_at, s.created_at) desc;`,
       },
       {
         title: "تاریخچهٔ کاملِ یک دستگاه",
         description:
           "هر بار تازه‌سازی یک ردیف تازه می‌سازد و قبلی را می‌سوزاند (rotated_to). زنجیره را از پایین به بالا بخوانید. اگر زنجیره‌ای ناگهان کامل باطل شده باشد، یعنی توکنِ سوخته‌ای دوباره استفاده شده — خودِ رویداد در لاگ با نام auth.refresh.reuse_detected ثبت می‌شود.",
-        sql: `select s.created_at as "ورود",
-       s.last_used_at as "استفاده",
-       s.revoked_at as "باطل شد",
-       case when s.rotated_to is not null then 'چرخید' else '—' end as "سرنوشت",
-       s.user_agent as "مرورگر"
+        sql: `select s.created_at as \`ورود\`,
+       s.last_used_at as \`استفاده\`,
+       s.revoked_at as \`باطل شد\`,
+       case when s.rotated_to is not null then 'چرخید' else '—' end as \`سرنوشت\`,
+       s.user_agent as \`مرورگر\`
   from sessions s
   join users u on u.id = s.user_id
  where u.email = 'someone@example.com'
-   and s.family_id = 'شناسهٔ-خانواده-را-اینجا-بگذارید'
+   -- ⚠️ ستونِ family_id از نوع CHAR(36) با collation اسکی است و رشتهٔ
+   --    نوشته‌شده در ویرایشگر utf8mb4. بدون collate صریح، MySQL با
+   --    «Illegal mix of collations» رد می‌کند.
+   and s.family_id = convert('00000000-0000-0000-0000-000000000000' using ascii)
  order by s.created_at;`,
       },
       {
@@ -329,61 +337,66 @@ values
         title: "پلِ وزن — افزودن انبوه",
         description: "هر ردیف یک عبارت با الگوی درست و غلط.",
         sql: `insert into aruz_bridge_questions
-  (source_id, phrase, correct_pattern, wrong_pattern, difficulty, explanation, is_published, sort_index)
+  (id, source_id, phrase, correct_pattern, wrong_pattern, difficulty, explanation, is_published, sort_index)
 values
-  (1001, 'عبارت نمونهٔ یک', 'U - - ', 'U U - ', 2, 'توضیح کوتاه', true, 0),
-  (1002, 'عبارت نمونهٔ دو', '- U - ', '- - U ', 3, null,          true, 1)
-on conflict (source_id) do update
-  set phrase          = excluded.phrase,
-      correct_pattern = excluded.correct_pattern,
-      wrong_pattern   = excluded.wrong_pattern,
-      difficulty      = excluded.difficulty,
-      explanation     = excluded.explanation,
-      is_published    = excluded.is_published;`,
+  (uuid(), 1001, 'عبارت نمونهٔ یک', 'U - - ', 'U U - ', 2, 'توضیح کوتاه', true, 0),
+  (uuid(), 1002, 'عبارت نمونهٔ دو', '- U - ', '- - U ', 3, null,          true, 1)
+as new
+on duplicate key update
+  phrase          = new.phrase,
+  correct_pattern = new.correct_pattern,
+  wrong_pattern   = new.wrong_pattern,
+  difficulty      = new.difficulty,
+  explanation     = new.explanation,
+  is_published    = new.is_published;`,
       },
       {
         title: "جفت‌های ادبی — افزودن انبوه",
         description:
           "grade: dahom | yazdahom | davazdahom — term: dey (دی) | khordad (خرداد). «اثر» در هر دسته یکتاست، پس on conflict می‌گذارد دوباره اجرا کنید بی‌آنکه تکراری بسازد.",
-        sql: `insert into memory_pairs (grade, term, work, author, sort_index)
+        sql: `insert into memory_pairs (id, grade, term, work, author, sort_index)
 values
-  ('dahom', 'dey', 'نام اثر یک', 'نام پدیدآورنده', 0),
-  ('dahom', 'dey', 'نام اثر دو', 'نام پدیدآورنده', 1)
-on conflict (grade, term, work) do update
-  set author = excluded.author,
-      sort_index = excluded.sort_index;`,
+  (uuid(), 'dahom', 'dey', 'نام اثر یک', 'نام پدیدآورنده', 0),
+  (uuid(), 'dahom', 'dey', 'نام اثر دو', 'نام پدیدآورنده', 1)
+as new
+on duplicate key update
+  author     = new.author,
+  sort_index = new.sort_index;`,
       },
       {
         title: "نینجای دستور — نقش تازه با کلماتش",
-        description: "نقش و کلماتش با هم، بدون کپی کردنِ دستیِ شناسه.",
-        sql: `with c as (
-  insert into ninja_categories (label, hint, enabled, sort_index)
-  values ('نهاد', 'کننده یا پذیرندهٔ کار', true, 0)
-  returning id
-)
-insert into ninja_words (category_id, word, sort_index)
-select c.id, w.word, w.i
-  from c, (values ('کلمهٔ یک', 0), ('کلمهٔ دو', 1), ('کلمهٔ سه', 2)) as w(word, i)
-on conflict (category_id, word) do nothing;`,
+        description: "نقش و کلماتش با هم، بدون کپی کردنِ دستیِ شناسه. " + CTE_NOTE,
+        sql: `set @cid = uuid();
+
+insert into ninja_categories (id, label, hint, enabled, sort_index)
+values (@cid, 'نهاد', 'کننده یا پذیرندهٔ کار', true, 0);
+
+-- «word = word» یعنی هیچ کاری نکن: معادلِ do nothing، ولی بر خلاف
+-- INSERT IGNORE فقط نقضِ کلید یکتا را می‌بلعد و بقیهٔ خطاها را بالا می‌دهد.
+insert into ninja_words (id, category_id, word, sort_index)
+values (uuid(), @cid, 'کلمهٔ یک', 0),
+       (uuid(), @cid, 'کلمهٔ دو', 1),
+       (uuid(), @cid, 'کلمهٔ سه', 2)
+on duplicate key update word = word;`,
       },
       {
         title: "جاسوسِ نقش‌ها — یک پرونده با مظنون‌هایش",
         description:
           "دقیقاً یکی از مظنون‌ها باید is_spy باشد. category: «دستوری» یا «آرایه» — content_type: «poem» یا «prose».",
-        sql: `with l as (
-  insert into jasoos_levels
-    (id, title, category, content_type, verse_line_1, verse_line_2, is_published, sort_index)
-  values (101, 'عنوان پرونده', 'دستوری', 'poem',
-          'مصراع اول', 'مصراع دوم', true, 0)
-  returning id
-)
-insert into jasoos_suspects (level_id, role, is_spy, evidence, word_in_verse, sort_index)
-select l.id, s.role, s.is_spy, s.evidence, s.word, s.i
-  from l, (values
-    ('نهاد',  false, 'دلیل بی‌گناهی', 'واژه', 0),
-    ('مفعول', true , 'دلیلِ مجرم بودن', 'واژه', 1),
-    ('قید',   false, 'دلیل بی‌گناهی', 'واژه', 2)
-  ) as s(role, is_spy, evidence, word, i);`,
+        sql: `-- ⚠️ jasoos_levels تنها جدولی است که شناسه‌اش عددی و AUTO_INCREMENT
+-- است. اینجا id نوشته نمی‌شود تا خودِ دیتابیس بدهد، و بعد با
+-- LAST_INSERT_ID خوانده می‌شود. هر دو دستور را با هم اجرا کنید — آن تابع
+-- مقدارش را برای هر اتصال جدا نگه می‌دارد.
+insert into jasoos_levels
+  (title, category, content_type, verse_line_1, verse_line_2, is_published, sort_index)
+values ('عنوان پرونده', 'دستوری', 'poem',
+        'مصراع اول', 'مصراع دوم', true, 0);
+
+insert into jasoos_suspects
+  (id, level_id, role, is_spy, evidence, word_in_verse, sort_index)
+values (uuid(), last_insert_id(), 'نهاد',  false, 'دلیل بی‌گناهی',   'واژه', 0),
+       (uuid(), last_insert_id(), 'مفعول', true , 'دلیلِ مجرم بودن', 'واژه', 1),
+       (uuid(), last_insert_id(), 'قید',   false, 'دلیل بی‌گناهی',   'واژه', 2);`,
       },
       {
         title: "مدار دستور — چه چیزی داریم؟",
@@ -391,8 +404,8 @@ select l.id, s.role, s.is_spy, s.evidence, s.word, s.i
           "اول این را بزنید. شمارِ پرسشِ منتشرشده و منتشرنشده به تفکیکِ پایه و درس — تا بدانید کجا کم دارید و کجا چیزی منتظرِ انتشار مانده.",
         sql: `select grade, lesson,
        count(*)                                as همه,
-       count(*) filter (where is_published)    as منتشرشده,
-       count(*) filter (where not is_published) as پیش‌نویس
+       count(case when is_published then 1 end)    as منتشرشده,
+       count(case when not is_published then 1 end) as پیش‌نویس
   from grammar_circuit_questions
  group by grade, lesson
  order by grade, lesson;`,
@@ -402,8 +415,12 @@ select l.id, s.role, s.is_spy, s.evidence, s.word, s.i
         description:
           "متنِ جمله از داخلِ payload بیرون کشیده می‌شود، پس لازم نیست jsonb را با چشم بخوانید. برای پیدا کردنِ پرسشی که می‌خواهید عوضش کنید.",
         sql: `select source_id, grade, lesson, question_type, difficulty, is_published,
-       (select string_agg(t->>'text', ' ' order by ord)
-          from jsonb_array_elements(payload->'tokens') with ordinality as x(t, ord))
+       -- معادلِ jsonb_array_elements + string_agg: JSON_TABLE آرایه را به
+       -- ردیف باز می‌کند و GROUP_CONCAT دوباره جمعشان می‌کند. «for ordinality»
+       -- و «order by» اختیاری نیستند — بدونشان ترتیبِ واژه‌ها تضمین ندارد.
+       (select group_concat(x.txt order by x.ord separator ' ')
+          from json_table(payload, '$.tokens[*]'
+               columns (ord for ordinality, txt text path '$.text')) x)
          as جمله
   from grammar_circuit_questions
  where grade = 'yazdahom'      -- dahom | yazdahom | davazdahom
@@ -482,19 +499,16 @@ select grade, lesson, count(*) from grammar_circuit_questions
     snippets: [
       {
         title: "ساخت امتحان و بخش اولش",
-        description: "اسکلتِ خالی، تا بعد سؤال‌هایش را از پنل بنویسید.",
-        sql: `with e as (
-  insert into exams (subject, grade, title, exam_session, total_score)
-  values ('فارسی', 12, 'فارسی ۳ — خرداد ۱۴۰۴', 'خرداد ۱۴۰۴', 20)
-  returning id
-)
-insert into exam_sections (exam_id, title, order_index, section_score)
-select e.id, s.title, s.i, s.score
-  from e, (values
-    ('قلمرو زبانی', 0, 7.0),
-    ('قلمرو ادبی',  1, 6.0),
-    ('قلمرو فکری',  2, 7.0)
-  ) as s(title, i, score);`,
+        description: "اسکلتِ خالی، تا بعد سؤال‌هایش را از پنل بنویسید. " + CTE_NOTE,
+        sql: `set @eid = uuid();
+
+insert into exams (id, subject, grade, title, exam_session, total_score)
+values (@eid, 'فارسی', 12, 'فارسی ۳ — خرداد ۱۴۰۴', 'خرداد ۱۴۰۴', 20);
+
+insert into exam_sections (id, exam_id, title, order_index, section_score)
+values (uuid(), @eid, 'قلمرو زبانی', 0, 7.0),
+       (uuid(), @eid, 'قلمرو ادبی',  1, 6.0),
+       (uuid(), @eid, 'قلمرو فکری',  2, 7.0);`,
       },
       {
         title: "نمرهٔ کاربران یک امتحان",
@@ -529,8 +543,8 @@ select e.id, s.title, s.i, s.score
         description: "همهٔ سروده‌های در انتظار را یکجا تأیید می‌کند.",
         sql: `update club_posts
    set status = 'approved',
-       published_at = coalesce(published_at, now()),
-       reviewed_at = now()
+       published_at = coalesce(published_at, now(6)),
+       reviewed_at = now(6)
  where status = 'pending';`,
       },
       {
@@ -562,8 +576,8 @@ values (
   'warning',
   null, null,
   true, true, 10,
-  now() + interval '6 hours',
-  now() + interval '30 hours'
+  now(6) + interval 6 hour,
+  now(6) + interval 30 hour
 );`,
       },
       {
@@ -595,22 +609,27 @@ values
         description: "اول با پیش‌نمایش ببینید چند ردیف است؛ لاگ ممیزی هرگز پاک نمی‌شود.",
         sql: `delete from app_error_log
  where resolved_at is not null
-   and last_seen_at < now() - interval '90 days';`,
+   and last_seen_at < now(6) - interval 90 day;`,
       },
       {
         title: "پاک کردن سشن‌های منقضی",
         description:
           "ردیف‌هایی که دیگر هیچ کاری نمی‌کنند و فقط جا می‌گیرند. حلقه‌های سوختهٔ چرخش هم همین‌جا می‌روند: هر تازه‌سازی یک ردیف تازه می‌سازد، پس یک کاربرِ همیشه‌آنلاین در ماه چند هزار ردیف به جا می‌گذارد. نگه داشتنشان تا انقضای خانواده عمدی است — همان‌هاست که استفادهٔ مجدد را قابل تشخیص می‌کند.",
         sql: `delete from sessions
- where expires_at < now() - interval '30 days';`,
+ where expires_at < now(6) - interval 30 day;`,
       },
       {
         title: "بزرگ‌ترین جدول‌ها",
-        description: "وقتی می‌خواهید بدانید فضای دیسک کجا رفته.",
-        sql: `select relname as جدول,
-       pg_size_pretty(pg_total_relation_size(relid)) as حجم
-  from pg_catalog.pg_statio_user_tables
- order by pg_total_relation_size(relid) desc
+        description:
+          "وقتی می‌خواهید بدانید فضای دیسک کجا رفته. داده و index جدا آمده‌اند، چون " +
+          "گاهی index از خودِ جدول بزرگ‌تر است.",
+        sql: `select table_name as جدول,
+       round((data_length + index_length) / 1024 / 1024, 1) as کل_مگابایت,
+       round(data_length  / 1024 / 1024, 1)                 as داده,
+       round(index_length / 1024 / 1024, 1)                 as ایندکس
+  from information_schema.tables
+ where table_schema = database() and table_type = 'BASE TABLE'
+ order by data_length + index_length desc
  limit 15;`,
       },
     ],

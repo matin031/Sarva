@@ -167,13 +167,35 @@ function safeName(originalName: string, extension: string): string {
   return label ? `${stem}-${label}.${extension}` : `${stem}.${extension}`;
 }
 
+/**
+ * ریشهٔ انبار فایل‌های آپلودی.
+ *
+ * ⚠️ عمداً از `resolve()` روی یک مسیرِ نسبیِ ثابت استفاده نمی‌شود.
+ *
+ * `resolve("./uploads")` برای تحلیلگرِ ایستای Next یعنی «این کد به فایل‌سیستم
+ * دست می‌زند و من نمی‌دانم کجا» — و واکنشش این است که برای احتیاط *کلِ پروژه*
+ * را در خروجی standalone بگذارد. نتیجه‌اش خروجی‌ای بود که tests/ و docs/ و کلِ
+ * سورس را هم با خودش می‌برد (۱٫۲ گیگابایت به‌جای ۱۲۴ مگابایت — و سورسِ سایت
+ * روی یک هاست عمومی).
+ *
+ * با جدا کردنِ دو حالت، مسیرِ پیش‌فرض یک join سادهٔ زمانِ اجراست و مسیرِ دلخواه
+ * هم فقط وقتی resolve می‌شود که واقعاً مقداری داده شده باشد.
+ *
+ * export شده چون مسیرِ سروِ فایل‌ها (app/uploads) هم باید *دقیقاً* همین ریشه را
+ * ببیند. دو تعریفِ جدا یعنی روزی یکی عوض شود و آن یکی نه.
+ */
+export function uploadsRoot(): string {
+  const configured = process.env.UPLOADS_DIR;
+  return configured ? resolve(configured) : join(process.cwd(), "uploads");
+}
+
 // ------------------------------------------------------------ دیسک محلی --
 
 class LocalDiskAdapter implements StorageAdapter {
   readonly name = "local";
 
   private root(): string {
-    return resolve(process.env.UPLOADS_DIR ?? "./uploads");
+    return uploadsRoot();
   }
 
   private publicBase(): string {

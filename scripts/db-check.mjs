@@ -64,6 +64,16 @@ function bad(label, detail) {
   failures += 1;
   console.log(`  ✗ ${label}\n      ${detail}`);
 }
+/**
+ * چیزی که *بررسی نشد* — نه چیزی که خراب است.
+ *
+ * ⚠️ عمداً روی failures اثر ندارد. اگر db-check با حسابِ کم‌امتیازِ اپ اجرا
+ * شود، بخشی از بررسی‌ها ممکن نیست؛ آن‌ها را «شکست» خواندن یعنی خروجیِ قرمز
+ * برای دیتابیسِ سالم، و خروجیِ قرمزِ همیشگی خیلی زود نادیده گرفته می‌شود.
+ */
+function warn(label, detail) {
+  console.log(`  ! ${label}\n      ${detail}`);
+}
 function section(title) {
   console.log(`\n${title}`);
 }
@@ -124,6 +134,57 @@ function typeCast(field, next) {
 }
 
 // ---------------------------------------------------------------------------
+
+
+/**
+ * دو مقدارِ TINYINT(1) — یکی ۰ و یکی ۱ — همان‌طور که lib/db تحویلشان می‌دهد.
+ *
+ * راهِ اول جدولِ موقتی است چون همیشه جواب می‌دهد و به دادهٔ موجود وابسته
+ * نیست. راهِ دوم برای وقتی است که امتیازش نباشد: یک ستونِ boolean واقعی که
+ * هر دو مقدار را داشته باشد.
+ *
+ * ⚠️ چرا با `select false` نمی‌شود: MySQL آن را LONGLONG می‌دهد نه
+ * TINYINT(1)، پس تست همیشه شکست می‌خورد حتی وقتی همه‌چیز درست است. باید یک
+ * *ستونِ* واقعی خوانده شود.
+ *
+ * @returns {Promise<[unknown, unknown] | null>} null یعنی بررسی ممکن نشد.
+ */
+async function probeBoolean(conn) {
+  try {
+    await conn.query("create temporary table __bool_probe (flag tinyint(1) not null)");
+    await conn.query("insert into __bool_probe values (0), (1)");
+    const [rows] = await conn.query("select flag from __bool_probe order by flag");
+    await conn.query("drop temporary table __bool_probe");
+    return [rows[0].flag, rows[1].flag];
+  } catch (e) {
+    if (!/denied/i.test(e.message)) throw e;
+  }
+
+  // ستون‌هایی که در یک نصبِ واقعی معمولاً هر دو مقدار را دارند.
+  for (const [table, column] of [
+    ["users", "is_banned"],
+    ["club_posts", "featured"],
+    ["club_posts", "is_anonymous"],
+    ["question_options", "is_correct"],
+    ["jasoos_suspects", "is_spy"],
+    ["aruz_bridge_questions", "is_published"],
+  ]) {
+    try {
+      const [rows] = await conn.query(
+        `select \`${column}\` as flag from \`${table}\` where \`${column}\` = ? limit 1`,
+        [0],
+      );
+      const [ones] = await conn.query(
+        `select \`${column}\` as flag from \`${table}\` where \`${column}\` = ? limit 1`,
+        [1],
+      );
+      if (rows.length && ones.length) return [rows[0].flag, ones[0].flag];
+    } catch {
+      // این جدول در دسترس نیست؛ بعدی.
+    }
+  }
+  return null;
+}
 
 async function main() {
   const url = requireEnv("DATABASE_URL");
@@ -211,8 +272,26 @@ async function main() {
   );
   const triggers = trigRows.map((r) => r.t);
   const missingTriggers = EXPECTED_TRIGGERS.filter((t) => !triggers.includes(t));
-  if (!missingTriggers.length) ok(`هر ${EXPECTED_TRIGGERS.length} تریگر هست`);
-  else bad(`${missingTriggers.length} تریگر نیست`, missingTriggers.join("، "));
+  if (!missingTriggers.length) {
+    ok(`هر ${EXPECTED_TRIGGERS.length} تریگر هست`);
+  } else if (triggers.length === 0) {
+    // ⚠️ «هیچ تریگری نیست» و «هیچ تریگری دیده نمی‌شود» دو چیزند و MySQL
+    // فرقشان را نمی‌گذارد.
+    //
+    // information_schema.triggers فقط سطرهایی را نشان می‌دهد که کاربر روی
+    // جدولشان امتیاز TRIGGER دارد. کاربرِ کم‌امتیازِ اپ آن را ندارد و نباید
+    // هم داشته باشد — ولی تریگرها کماکان کار می‌کنند.
+    //
+    // بدون این تفکیک، db-check با کاربرِ درستِ اپ می‌گفت «۱۳ تریگر نیست»
+    // و اپراتور یا می‌ترسید یا (بدتر) یاد می‌گرفت این پیام را نادیده بگیرد.
+    warn(
+      "هیچ تریگری دیده نمی‌شود — احتمالاً این کاربر امتیاز TRIGGER ندارد",
+      "این *نبودنِ* تریگر نیست؛ نادیدنی بودنشان است. برای بررسی واقعی، " +
+        "db:check را با حساب migration اجرا کن.",
+    );
+  } else {
+    bad(`${missingTriggers.length} تریگر نیست`, missingTriggers.join("، "));
+  }
 
   const [routineRows] = await conn.query(
     "select routine_name as r from information_schema.routines where routine_schema = ?",
@@ -308,18 +387,26 @@ async function main() {
   // ⚠️ با یک عبارتِ ثابت (`select false`) نمی‌شود سنجید: MySQL آن را LONGLONG
   // می‌دهد و نه TINYINT(1)، پس تست همیشه شکست می‌خورد حتی وقتی همه‌چیز درست
   // است. باید یک *ستونِ* واقعیِ TINYINT(1) خوانده شود.
-  await conn.query("create temporary table __bool_probe (flag tinyint(1) not null)");
-  await conn.query("insert into __bool_probe values (0), (1)");
-  const [boolRows] = await conn.query("select flag from __bool_probe order by flag");
-  await conn.query("drop temporary table __bool_probe");
-  if (boolRows[0].flag === false && boolRows[1].flag === true)
+  //
+  // ⚠️ و جدولِ موقتی امتیاز CREATE TEMPORARY TABLES می‌خواهد، که کاربرِ
+  // اجرای سایت ندارد و نباید داشته باشد. پس اگر نشد، به‌جای مردن با یک
+  // «Access denied» خام، همان بررسی روی یک ستونِ واقعی انجام می‌شود.
+  const boolRows = await probeBoolean(conn);
+  if (boolRows === null) {
+    warn(
+      "تبدیل TINYINT(1) بررسی نشد",
+      "نه جدولِ موقتی ساخته شد (امتیاز CREATE TEMPORARY TABLES نیست) و نه " +
+        "ستونی با هر دو مقدار ۰ و ۱ پیدا شد. با حساب migration دوباره اجرا کن.",
+    );
+  } else if (boolRows[0] === false && boolRows[1] === true) {
     ok("TINYINT(1) → boolean واقعی");
-  else
+  } else {
     bad(
       "TINYINT(1) boolean نشد",
-      `${typeof boolRows[0].flag} — عدد ۰ در JS truthy نیست ولی رشتهٔ "0" هست، ` +
+      `${typeof boolRows[0]} — عدد ۰ در JS truthy نیست ولی رشتهٔ "0" هست، ` +
         "و JSON.stringify هم عدد به کلاینت می‌فرستد.",
     );
+  }
 
   // --- یونیکد ----------------------------------------------------------------
   section("یونیکد");

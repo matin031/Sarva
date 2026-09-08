@@ -17,7 +17,8 @@ git clone <repo> sarva && cd sarva
 
 cp .env.example .env
 # .env را باز کنید و دست‌کم این‌ها را پر کنید:
-#   POSTGRES_PASSWORD    رمز دیتابیس
+#   MYSQL_PASSWORD       رمز کاربر دیتابیس
+#   MYSQL_ROOT_PASSWORD  رمز root دیتابیس (فقط برای نگه‌داری)
 #   AUTH_JWT_SECRET      openssl rand -base64 48
 #   OTP_PEPPER           openssl rand -base64 48
 #   ADMIN_EMAIL / ADMIN_PASSWORD   اولین حساب مدیر
@@ -79,7 +80,7 @@ npm run db:seed-grammar-circuit
 
 ```
 ┌─────────┐   :80/:443   ┌─────────┐   :3000   ┌──────────┐
-│ Caddy   │ ───────────▶ │  Next   │ ────────▶ │ Postgres │
+│ Caddy   │ ───────────▶ │  Next   │ ────────▶ │  MySQL   │
 │ (proxy) │              │  (app)  │           │   (db)   │
 └─────────┘              └─────────┘           └──────────┘
      │
@@ -92,7 +93,7 @@ Caddy فایل‌های آپلودی را خودش سرو می‌کند و نه 
 ### لایه‌بندی کد
 
 ```
-lib/db/          اتصال به Postgres (Pool، query، transaction)
+lib/db/          اتصال به MySQL (Pool، query، transaction) — mysql2، بدون ORM
 lib/auth/        JWT، هش رمز، سشن، requireUser/requireAdmin
 lib/api/         پاسخ‌های استاندارد HTTP، محدودیت نرخ، کلاینت مرورگر
 lib/storage/     آداپتر ذخیرهٔ فایل  (STORAGE_DRIVER)
@@ -223,19 +224,39 @@ lib/reports/     گزارشِ ایرادِ محتوا از سمتِ کاربر (
 |---|---|
 | `requireAdmin()` | مثل هر اکشن مدیریتی |
 | سقف نرخ | ۶۰ اجرا در ۵ دقیقه به ازای هر مدیر |
-| پیش‌نمایش | پیش‌فرض است و همیشه rollback می‌کند |
-| `statement_timeout` | ۱۵ ثانیه — یک کوئری اشتباه دیتابیس را قفل نمی‌کند |
+| پیش‌نمایش | پیش‌فرض است و rollback می‌کند — **ولی فقط برای DML** (پایین) |
+| مهلت اجرا | ۱۵ ثانیه، با `max_execution_time` **و** یک نگهبانِ `KILL QUERY` |
 | جدول‌های فقط‌خواندنی | `admin_audit_log` و `schema_migrations` |
-| دستورهای ممنوع | `drop database`، `copy … from program`، `pg_read_file`، `grant`، … |
+| دستورهای ممنوع | `drop database`، `load_file()`، `into outfile`، `load data`، `prepare`/`execute`، `set global`، `grant`، جدول‌های `mysql.*`، … |
 | لاگ ممیزی | **هر** اجرا — پیش‌نمایش، ثبت، و حتی تلاشِ رد‌شده — با متن کامل کوئری |
+
+⚠️ **پیش‌نمایشِ DDL در MySQL ممکن نیست، و کنسول وانمود نمی‌کند که هست.**
+
+در نسخهٔ PostgreSQL، پیش‌نمایش یعنی «داخل تراکنش اجرا کن و rollback بزن» و
+این برای *هر* دستوری کار می‌کرد، `create table` هم شامل. MySQL این را ندارد:
+هر DDL یک **commit ضمنی** دارد که تراکنشِ باز را همان‌جا می‌بندد. یعنی
+rollback بعدش کاری نمی‌کند و پیام «پیش‌نمایش بود، چیزی تغییر نکرد» یک دروغ
+تمام‌عیار می‌شد — بدترین شکلِ ممکن، چون مدیر با اتکا به همان پیام دستور را
+تأیید می‌کند.
+
+پس کنسول این دستورها را در حالت پیش‌نمایش **رد می‌کند** و می‌گوید چرا.
+فهرستشان در `IMPLICIT_COMMIT` (در `lib/admin/sql-guard.ts`) است: `CREATE`،
+`ALTER`، `DROP`، `RENAME`، `TRUNCATE`، `LOCK TABLES`، `FLUSH`، دستورهای
+نگه‌داریِ جدول، و کنترل تراکنشِ دستی. `SELECT`/`INSERT`/`UPDATE`/`DELETE`
+مثل قبل پیش‌نمایش می‌شوند.
+
+⚠️ و مهلتِ اجرا دو لایه دارد، چون یکی کافی نیست: `max_execution_time` در
+MySQL **فقط روی SELECT های فقط‌خواندنی** اثر می‌کند. یک `UPDATE` که به قفل
+خورده باشد را متوقف نمی‌کند. پس یک نگهبان روی اتصالِ دوم می‌نشیند و بعد از
+همان ۱۵ ثانیه `KILL QUERY` می‌فرستد.
 
 آنچه محافظت **نمی‌کند**: یک `select password_hash from users` کاملاً مجاز است.
 این ذاتیِ SQL خام است. تنها دفاع همان همیشگی است — نقش مدیر را فقط به کسی
 بدهید که به او اعتماد دارید — به‌علاوهٔ لاگ ممیزی که می‌گوید چه کسی چه پرسید.
 
 > ⚠️ `alter table` را اینجا نزنید. تغییرِ ماندگارِ ساختار باید یک فایل تازه در
-> `migrations/` باشد، وگرنه سرورِ بعدی آن تغییر را ندارد. خودِ کنسول هم همین
-> را هشدار می‌دهد.
+> `mysql-migrations/` باشد، وگرنه سرورِ بعدی آن تغییر را ندارد. خودِ کنسول هم
+> جلویش را می‌گیرد (بالا).
 
 ### اعلان سایت (`/admin/announcements`)
 
@@ -435,14 +456,14 @@ echo "APP_RELEASE=$(git rev-parse --short HEAD)" >> .env
 
   ```bash
   # چند ردیف حذف خواهد شد؟ (فقط می‌شمارد، چیزی پاک نمی‌کند)
-  docker compose exec db psql -U sarva -d sarva -c \
+  docker compose exec db mysql -u root -p sarva -e \
     "select count(*) from app_error_log
-      where resolved_at is not null and last_seen_at < now() - interval '90 days';"
+      where resolved_at is not null and last_seen_at < now() - interval 90 day;"
 
   # اگر عدد منطقی بود، حذف:
-  docker compose exec db psql -U sarva -d sarva -c \
+  docker compose exec db mysql -u root -p sarva -e \
     "delete from app_error_log
-      where resolved_at is not null and last_seen_at < now() - interval '90 days';"
+      where resolved_at is not null and last_seen_at < now() - interval 90 day;"
   ```
 
   خطای رسیدگی‌نشده هرگز پاک نمی‌شود — همان چیزی است که هنوز کسی ندیده.
@@ -473,11 +494,15 @@ addSink((record) => {
 ```bash
 npm install
 
-# یک Postgres لازم دارید. ساده‌ترین راه:
+# یک MySQL 8 لازم دارید. ساده‌ترین راه:
 docker compose up -d db
 
 # DATABASE_URL را در .env.local بگذارید:
-#   DATABASE_URL=postgres://sarva:<رمز>@127.0.0.1:5433/sarva
+#   DATABASE_URL=mysql://sarva:<رمز>@127.0.0.1:3306/sarva
+#
+# ⚠️ اگر رمز نویسهٔ ویژه دارد (@ : / ? # فاصله) باید URL-encoded باشد،
+#    وگرنه اتصال یا می‌شکند یا به جای دیگری وصل می‌شود. .env.example
+#    جدولش را دارد.
 npm run db:migrate
 npm run db:seed-admin
 npm run dev
@@ -491,15 +516,37 @@ npm run dev
 | `npm test` | تست‌های واحد (`node --test`) |
 | `npm run db:migrate` | اجرای migration های اعمال‌نشده |
 | `npm run db:check` | بررسی سلامت اتصال و اسکیما |
+| `npm run db:check-sql` | هر کوئریِ کد را با `PREPARE` به MySQL می‌دهد |
+| `npm run db:check-snippets` | همان کار برای الگوهای آمادهٔ کنسول مدیر |
+| `npm run db:check-tz` | آیا MySQL نام `Asia/Tehran` را می‌شناسد |
 | `npm run db:seed-admin` | ساخت/ارتقای حساب مدیر |
 | `npm run db:seed-exams` | وارد کردن آزمون‌های ایستا |
+| `npm run etl -- preflight` | سنجشِ پیش از انتقال داده از PostgreSQL |
+| `npm run etl -- migrate` | انتقال داده (با امکان ادامه) |
+| `npm run etl -- verify` | اثباتِ برابریِ مبدأ و مقصد |
 
 ### افزودن migration
 
-یک فایل تازه در `migrations/` با شمارهٔ بعدی بسازید (`002_...sql`). اجراکننده
-فایل‌ها را به ترتیب نام اجرا می‌کند، هرکدام را در تراکنش خودش، و در جدول
-`schema_migrations` ثبت می‌کند. فایل‌های اعمال‌شده هرگز دوباره اجرا نمی‌شوند —
-پس یک migration منتشرشده را ویرایش نکنید، فایل تازه بسازید.
+یک فایل تازه در `mysql-migrations/` با شمارهٔ بعدی بسازید (`003_...sql`).
+اجراکننده فایل‌ها را به ترتیب نام اجرا می‌کند و در `schema_migrations` ثبت
+می‌کند. فایل‌های اعمال‌شده هرگز دوباره اجرا نمی‌شوند — پس یک migration
+منتشرشده را ویرایش نکنید (checksum اش سنجیده می‌شود و اجراکننده اعتراض
+می‌کند)، فایل تازه بسازید.
+
+> ⚠️ **migration در MySQL اتمیک نیست و اجراکننده وانمود نمی‌کند که هست.**
+>
+> در PostgreSQL هر فایل داخل یک تراکنش می‌رفت و `CREATE TABLE` هم rollback
+> می‌شد. در MySQL هر DDL یک commit ضمنی دارد: اگر فایلی پنج جدول بسازد و روی
+> ششمی بشکند، آن پنج‌تا می‌مانند و هیچ‌چیز برشان نمی‌گرداند.
+>
+> پس اجراکننده به‌جای وعدهٔ دروغینِ اتمیک بودن، «شروع شد» و «تمام شد» را جدا
+> ثبت می‌کند و اگر اجرای بعدی یک migration را نیمه‌کاره ببیند، **جلوی خودش را
+> می‌گیرد** و می‌گوید کجا مانده — به‌جای اینکه از اول اجرا کند و با
+> «table already exists» بمیرد. یعنی migration ها را باید دوباره‌اجرا‌پذیر
+> بنویسید (`create table if not exists` و مانندش).
+
+`migrations/` (پستگرس) دست‌نخورده مانده تا مسیرِ بازگشت باز بماند. به آن
+چیزی اضافه نکنید.
 
 ---
 
@@ -507,14 +554,30 @@ npm run dev
 
 ```bash
 # روی سرور قدیم
-docker compose exec db pg_dump -U sarva sarva > backup.sql
+#
+# ⚠️ سه گزینه‌ای که حذفشان بی‌صدا داده را خراب می‌کند:
+#   --single-transaction  بکاپِ سازگار بدون قفل کردن سایت (فقط InnoDB)
+#   --routines --triggers تریگرها و رویه‌ها *جزو* بکاپ پیش‌فرض نیستند.
+#                         بدون این‌ها، سایت بالا می‌آید و شمارنده‌های کلاب
+#                         و updated_at دیگر کار نمی‌کنند، بی‌هیچ خطایی.
+#   --hex-blob            متن فارسی و ایموجی سالم می‌مانند حتی اگر
+#                         مجموعه‌نویسهٔ کلاینت جای دیگری فرق کند.
+docker compose exec db mysqldump -u root -p \
+  --single-transaction --routines --triggers --hex-blob \
+  --default-character-set=utf8mb4 sarva > backup.sql
 docker compose cp app:/app/uploads ./uploads-backup
 
 # روی سرور جدید
 docker compose up -d db
-docker compose exec -T db psql -U sarva sarva < backup.sql
+docker compose exec -T db mysql -u root -p --default-character-set=utf8mb4 sarva < backup.sql
 docker compose cp ./uploads-backup app:/app/uploads
 docker compose up -d
+
+# و بعد اثبات اینکه واقعاً رسیده:
+npm run db:check
 ```
+
+جزئیات کامل — از جمله انتقالِ یک‌بارهٔ داده از PostgreSQL، و مسیرِ بازگشت اگر
+چیزی خراب شد — در `docs/DEPLOY_MYSQL.md`.
 
 هیچ مقداری در کد هاردکد نیست؛ همه‌چیز از `.env` می‌آید.

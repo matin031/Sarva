@@ -9,7 +9,7 @@ name: sarva
 # چرخش لاگ — یک بار تعریف، سه بار استفاده.
 #
 # ⚠️ چرا لازم است: درایور پیش‌فرض داکر `json-file` **بدون سقف** است. یعنی
-# لاگِ یک سرویسِ پرحرف تا وقتی دیسک پر شود بزرگ می‌شود، و آن‌وقت پستگرس هم
+# لاگِ یک سرویسِ پرحرف تا وقتی دیسک پر شود بزرگ می‌شود، و آن‌وقت دیتابیس هم
 # دیگر جایی برای نوشتن ندارد. این اتفاق ماه‌ها بعد از راه‌اندازی می‌افتد،
 # درست وقتی کسی به آن فکر نمی‌کند.
 #
@@ -26,30 +26,87 @@ x-logging: &default-logging
 
 services:
   db:
-    image: postgres:17-bookworm
+    # ⚠️ mysql و نه mariadb. این دو سازگارِ کامل نیستند و اسکیمای ما دست‌کم
+    # سه چیز دارد که روی MariaDB یا نیست یا فرق می‌کند: نمایهٔ چندمقداریِ
+    # `CAST(tags AS CHAR(64) ARRAY)`، ستون JSON واقعی (در MariaDB یک
+    # LONGTEXT با قید است)، و collation های utf8mb4_0900_*.
+    #
+    # ⚠️ 8.4 و نه 8.0: پشتیبانی 8.0 در آوریل ۲۰۲۶ تمام شده و امروز از آن
+    # گذشته‌ایم. 8.4 نسخهٔ LTS است.
+    #
+    # صادقانه: آزمون‌های این مهاجرت روی MySQL 8.0.46 اجرا شده‌اند، چون در
+    # محیط توسعه دسترسی به مخزن اوراکل نبود. تفاوت‌های 8.0 → 8.4 که به این
+    # پروژه می‌خورند بررسی شده‌اند و هیچ‌کدام مانع نیستند (جزئیات و فهرست
+    # چیزهایی که پس از ارتقا باید دوباره اجرا شوند در docs/DEPLOY_MYSQL.md).
+    image: mysql:8.4
     restart: unless-stopped
-    # پستگرس عمداً پرحرف‌تر نمی‌شود؛ فقط سقفِ همان لاگِ پیش‌فرض گذاشته شده.
     logging: *default-logging
+    command:
+      # ⚠️ این‌ها پیش‌فرضِ MySQL 8 هم هستند، ولی صریح نوشته شده‌اند چون
+      # پیش‌فرض چیزی است که می‌تواند در نسخهٔ بعد عوض شود، و هر سه اگر عوض
+      # شوند داده را *بی‌صدا* خراب می‌کنند نه با خطا.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      # بدون STRICT_TRANS_TABLES، رشتهٔ بلندتر از ستون بریده می‌شود و تاریخِ
+      # نامعتبر صفر می‌شود — هر دو فقط با یک warning که کسی نمی‌بیند.
+      - --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+      # زمانِ ذخیره‌شده همیشه UTC است؛ تبدیل به وقت تهران در کوئری انجام
+      # می‌شود. اگر منطقهٔ سرور چیز دیگری باشد، NOW() جابه‌جا می‌شود.
+      - --default-time-zone=+00:00
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER لازم است}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD لازم است}
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB لازم است}
-      # وگرنه initdb با لوکیل سیستم بالا می‌آید و مرتب‌سازیِ متن فارسی بین
-      # ماشین‌ها فرق می‌کند — یعنی همان کوئری روی سرور و لپ‌تاپ ترتیب متفاوت
-      # می‌دهد. با C.UTF-8 رفتار همه‌جا یکی است.
-      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE لازم است}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER لازم است}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD لازم است}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD لازم است}
+      # ⚠️ MYSQL_INITDB_SKIP_TZINFO عمداً تنظیم *نشده* است.
+      #
+      # ایمیج رسمی هنگام مقداردهیِ اولیه جدول‌های mysql.time_zone را پر
+      # می‌کند، مگر این متغیر ست باشد. پنل مدیریت برای گروه‌بندی روزانه از
+      # CONVERT_TZ(…, '+00:00', 'Asia/Tehran') استفاده می‌کند و آن تابع اگر
+      # نام منطقه را نشناسد **خطا نمی‌دهد؛ NULL برمی‌گرداند**. یعنی همهٔ
+      # نمودارهای روزانه بی‌صدا خالی می‌شوند.
+      #
+      # این تنها جایی است که آن جدول‌ها پر می‌شوند، و فقط یک بار — در
+      # مقداردهیِ اولیهٔ volume. اگر بعداً لازم شد، دستورش در
+      # docs/DEPLOY_MYSQL.md هست.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # ⚠️ نامِ تازه و نه استفادهٔ دوباره از pgdata.
+      #
+      # اگر همان volume می‌ماند، MySQL روی دایرکتوریِ دادهٔ پستگرس بالا
+      # می‌آمد و یا می‌مرد یا (بدتر) کنارش می‌نشست. حجمِ قدیمی دست‌نخورده
+      # می‌ماند تا اگر لازم شد بشود به پستگرس برگشت.
+      - mysqldata:/var/lib/mysql
     # فقط روی لوپ‌بک، و فقط برای وصل شدن با یک کلاینت گرافیکی. روی سرورِ
     # عمومی این خط را از .env خالی بگذارید تا اصلاً منتشر نشود.
     ports:
-      - "${POSTGRES_EXPOSE:-127.0.0.1:5433}:5432"
+      - "${MYSQL_EXPOSE:-127.0.0.1:3306}:3306"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      # ⚠️ mysqladmin ping روی TCP و نه سوکت.
+      #
+      # هنگام مقداردهیِ اولیه، ایمیج یک سرورِ موقت روی سوکتِ یونیکس بالا
+      # می‌آورد که هنوز کاربر و دیتابیس ندارد. ping روی سوکت به آن جواب
+      # می‌دهد و compose خیال می‌کند دیتابیس آماده است — بعد کانتینر اپ
+      # migration می‌زند و وسطِ کار سرورِ موقت خاموش می‌شود. آن سرورِ موقت
+      # با --skip-networking بالا می‌آید، پس ۱۲۷.۰.۰.۱ همان چیزی است که
+      # فرقشان را می‌گذارد.
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "-p$$MYSQL_ROOT_PASSWORD",
+          "--silent",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 10s
+      retries: 24
+      # InnoDB در اولین بالا آمدن فایل‌های redo و undo را می‌سازد و این روی
+      # دیسکِ کند بیشتر از ۱۰ ثانیه طول می‌کشد.
+      start_period: 30s
 
   app:
     build:
@@ -61,15 +118,18 @@ services:
     logging: *default-logging
     depends_on:
       db:
-        # نه فقط «شروع شده» — پستگرس چند ثانیه بعد از start تازه آمادهٔ اتصال
-        # می‌شود، و migration ای که زودتر بزند با ECONNREFUSED می‌میرد.
+        # نه فقط «شروع شده» — MySQL چند ده ثانیه بعد از start تازه آمادهٔ
+        # اتصال می‌شود، و migration ای که زودتر بزند با ECONNREFUSED می‌میرد.
         condition: service_healthy
     env_file:
       - .env
     environment:
       # داخل شبکهٔ compose، هاستِ دیتابیس نام سرویس است. این تنها جایی است که
       # DATABASE_URL ساخته می‌شود تا در .env تکرار نشود و از هم نیفتند.
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      #
+      # ⚠️ گذرواژه باید در .env به شکل URL-encoded باشد اگر نویسهٔ ویژه دارد
+      # (@ : / ? # و فاصله). .env.example توضیحش داده.
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
       UPLOADS_DIR: /app/uploads
       # خروجی لاگ در کانتینر همیشه JSON است، حتی اگر NODE_ENV جور دیگری تنظیم
       # شود — یک خط JSON با grep و jq قابل کار است، متنِ رنگی نه.
@@ -104,7 +164,13 @@ services:
       - caddy_config:/config
 
 volumes:
+  # ⚠️ pgdata عمداً حذف *نشده*.
+  #
+  # تا وقتی مهاجرت روی سرور واقعی انجام و راستی‌آزمایی نشده، آن حجم تنها
+  # نسخهٔ زندهٔ داده است. `docker compose down -v` هر دو را می‌برد؛ برای
+  # پاک کردنِ آگاهانه‌اش دستورش در runbook هست.
   pgdata:
+  mysqldata:
   uploads:
   caddy_data:
   caddy_config:

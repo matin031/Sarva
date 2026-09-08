@@ -8,16 +8,23 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Backend: self-hosted Postgres, not Supabase
+# Backend: self-hosted MySQL, not Supabase and no longer Postgres
 
-This project **used to** run on Supabase and was migrated off it. If you see
-anything referring to `supabase`, RLS policies, `service_role`, or
-`@supabase/*`, it is stale — say so rather than following it.
+This project ran on Supabase, was migrated to self-hosted PostgreSQL, and is
+now on **MySQL 8.4** (`mysql2/promise`, no ORM). Two kinds of stale reference
+exist, and they are stale in different ways:
 
-Two consequences that matter every time you touch data code:
+- `supabase`, RLS policies, `service_role`, `@supabase/*` — gone entirely. Say
+  so rather than following it.
+- `$1` placeholders, `pg`, `jsonb`, `citext`, `RETURNING`, `ON CONFLICT`,
+  `to_char`, `make_interval` — these are Postgres. Most surviving mentions are
+  deliberate comparison comments explaining *why* the MySQL form differs; those
+  are worth reading. But any that look like live instructions are stale.
+
+Three consequences that matter every time you touch data code:
 
 1. **There is no RLS.** Every access rule lives in application code. A query
-   that forgets `where user_id = $1`, or a club query that forgets
+   that forgets `where user_id = ?`, or a club query that forgets
    `status = 'approved'`, leaks data — the database will not catch it for you.
    `lib/club/queries.ts` explains this at the top; read it before touching any
    query that serves public content.
@@ -26,30 +33,47 @@ Two consequences that matter every time you touch data code:
    Node runtime, so it can reach the database. It refreshes expired access
    tokens; it does not make authorization decisions.
 
+3. **Placeholders are `?`, positional and repeated.** Postgres let you write
+   `$1` twice and pass one parameter. MySQL cannot: each `?` consumes the next
+   parameter, so a repeated value must be passed twice. `lib/db` does not
+   paper over this, because papering over it would hide a real class of bug.
+
 Reference: `API_DOCS.md` for endpoints, `README.md` for architecture,
-`migrations/001_init.sql` for the schema.
+`mysql-migrations/001_init.sql` for the schema, `docs/DEPLOY_MYSQL.md` for
+deployment and rollback, `docs/mysql-schema-manifest.md` for the exact type
+mapping. `migrations/` (Postgres) is kept only for rollback — never add to it.
 
 ## Verifying database work without a database
 
-`tsc` cannot check SQL inside template literals. Two tools exist for that:
+`tsc` cannot check SQL inside template literals. These tools exist for that:
 
 - `npm run db:check` — runs against a live database (connection, every table,
-  view, enum, trigger, and the type-parser behaviour in `lib/db`).
+  view, generated column, trigger, procedure, the timezone tables, and the
+  type-parser behaviour in `lib/db`).
 - `npm run db:check-sql` — pulls every SQL template literal out of `lib/`,
-  `app/` and `proxy.ts` and hands each one to Postgres as a `PREPARE` inside a
-  transaction that is rolled back. `PREPARE` does not run the query but does
-  fully analyse it: table names, column names, **function signatures** and type
-  compatibility. Run it after touching any query.
-- When no database is available, parse the SQL with `libpg-query` (the real
-  Postgres parser). Doing this caught a `FILTER` clause attached to the wrong
-  expression in `lib/auth/otp.ts` that typechecked cleanly and would have
-  failed at runtime.
+  `app/` and `proxy.ts` and hands each one to MySQL as a `PREPARE`. `PREPARE`
+  does not run the query but does fully analyse it: table names, column names,
+  function signatures and syntax. Run it after touching any query. It also
+  runs a static pass that checks every `INSERT` names the columns a `NOT NULL`
+  table needs — that pass found seven missing-`id`/`family_id` bugs that
+  `PREPARE` alone cannot see, because `PREPARE` does not know what your code
+  will bind.
+- `npm run db:check-snippets` — the admin console's ready-made snippets, which
+  `db:check-sql` deliberately skips (console SQL is user-written, but the
+  snippets are ours).
+- `npm run db:check-tz` — whether MySQL knows `Asia/Tehran`.
 
-Parsing alone is not enough, and the reason is worth remembering.
+Two lessons from this codebase worth keeping:
+
 `make_interval(mins => $1::double precision)` sat in `lib/auth/otp.ts` and
-`app/api/v1/auth/forgot-password/route.ts` from the day of the Postgres
-migration. It parses perfectly — it is only wrong once Postgres looks for an
-overload, because `mins` is `integer` and only `secs` is `double precision`.
-So email verification and password reset both returned 500 for every user,
-for months, with nothing in `tsc` or a parser to show for it. `db:check-sql`
-exists because of those two, and it is the check that finds that class of bug.
+`app/api/v1/auth/forgot-password/route.ts` for months. It parses perfectly —
+it is only wrong once Postgres looks for an overload. Email verification and
+password reset returned 500 for every user, with nothing in `tsc` or a parser
+to show for it. Parsing is not analysis; `db:check-sql` exists because of that.
+
+And MySQL adds a second class the first one cannot catch: **queries that are
+valid but silently wrong.** `CONVERT_TZ` with an unknown zone name returns
+`NULL` instead of erroring, so every daily-grouped report quietly empties. A
+non-strict `sql_mode` truncates overlong strings instead of rejecting them.
+Neither shows up in `PREPARE`. `db:check` and the ETL's `preflight` check for
+these specifically.

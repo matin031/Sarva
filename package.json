@@ -20,6 +20,7 @@
     "db:check-rotation": "tsx --conditions=react-server scripts/check-refresh-rotation.ts",
     "db:check-otp": "tsx --conditions=react-server scripts/check-otp-attempts.ts",
     "db:check-sql": "tsx --conditions=react-server scripts/check-sql.ts",
+    "db:check-tz": "node scripts/check-timezone.mjs",
     "db:check-snippets": "tsx --conditions=react-server scripts/mysql/check-snippets.ts",
     "etl": "node scripts/mysql/etl/index.mjs",
     "etl:preflight": "node scripts/mysql/etl/index.mjs preflight",

@@ -301,7 +301,7 @@ export async function createClubComment(
 
   const todayCount = await queryOne<{ n: number }>(
     `select count(*) as n from club_comments
-      where user_id = ? and created_at > now(6) - interval '24 hours'`,
+      where user_id = ? and created_at > now(6) - interval 24 hour`,
     [viewer.id],
   );
   if ((todayCount?.n ?? 0) >= DAILY_COMMENT_LIMIT) {

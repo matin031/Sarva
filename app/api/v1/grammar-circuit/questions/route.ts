@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { query } from "@/lib/db";
+import { query, placeholders } from "@/lib/db";
 import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { GRAMMAR_CIRCUIT_CONFIG } from "@/lib/grammar-circuit/config";
@@ -90,11 +90,11 @@ export const GET = withRoute("/api/v1/grammar-circuit/questions", async (request
               difficulty, explanation, attribution
          from grammar_circuit_questions
         where is_published
-          and grade = $1
-          and lesson = any($2::smallint[])
+          and grade = ?
+          and lesson in (${placeholders(lessons.length)})
         order by lesson, sort_index, source_id
-        limit $3`,
-      [grade, lessons, take],
+        limit ?`,
+      [grade, ...lessons, take],
     );
 
     const { questions, rejected } = rowsToQuestions(rows);

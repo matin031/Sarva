@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { boundedRecord } from "@/lib/api/bounded-record";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction, placeholders } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
@@ -94,11 +95,12 @@ export const GET = withRoute("/api/v1/bookmarks", async (request: NextRequest) =
         return fail(`حداکثر ${MAX_REF_IDS} شناسه در هر درخواست.`, 400);
       }
       const rows = await query<{ ref_id: string }>(
-        // = any($3) و نه IN با رشته‌سازی: یک پارامتر، بدونِ ساختنِ SQL از
-        // ورودیِ کاربر.
+        // ⚠️ فهرستِ جای‌نگهدار و نه رشته‌سازیِ مقدارها: تعدادِ ? از طولِ
+        // آرایه می‌آید ولی خودِ مقدارها همچنان پارامترند و هرگز وارد متنِ
+        // SQL نمی‌شوند. (طول بالادست به MAX_REF_IDS محدود شده.)
         `select ref_id from user_bookmarks
-          where user_id = $1 and area = $2 and ref_id = any($3::text[])`,
-        [user.id, area, refIds],
+          where user_id = ? and area = ? and ref_id in (${placeholders(refIds.length)})`,
+        [user.id, area, ...refIds],
       );
       return ok({ marked: rows.map((r) => r.ref_id) });
     }
@@ -124,9 +126,9 @@ export const GET = withRoute("/api/v1/bookmarks", async (request: NextRequest) =
     }>(
       `select id, area, ref_id, title, subtitle, payload, note, created_at
          from user_bookmarks
-        where user_id = $1 and ($2::text is null or area = $2)
+        where user_id = ? and (? is null or area = ?)
         order by created_at desc`,
-      [user.id, area],
+      [user.id, area, area],
     );
 
     return ok({
@@ -161,18 +163,43 @@ export const POST = withRoute("/api/v1/bookmarks", async (request: Request) => {
 
     const b = body.data;
 
-    const row = await queryOne<{ id: string }>(
-      `insert into user_bookmarks (user_id, area, ref_id, title, subtitle, payload)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (user_id, area, ref_id) do update
-         set title = excluded.title,
-             subtitle = excluded.subtitle,
-             payload = excluded.payload
-       returning id`,
-      [user.id, b.area, b.refId, b.title, b.subtitle ?? null, JSON.stringify(b.payload ?? {})],
-    );
+    // ⚠️ upsert ای که شناسه را هم برمی‌گرداند، در MySQL یک دستور نمی‌شود:
+    // ON DUPLICATE KEY UPDATE شناسهٔ ردیفِ موجود را نمی‌دهد و RETURNING هم
+    // نداریم.
+    //
+    // شناسه‌ای که در INSERT می‌سازیم فقط وقتی معتبر است که واقعاً درج شده
+    // باشد؛ اگر ردیف از قبل بوده، شناسهٔ *قدیمی* باید برگردد وگرنه کلاینت
+    // شناسه‌ای می‌گیرد که در دیتابیس نیست و دکمهٔ حذفش کار نمی‌کند.
+    //
+    // پس upsert و خواندن در یک تراکنش. قفلی که upsert روی ردیف می‌گیرد تا
+    // commit نگه داشته می‌شود، پس خواندنِ بعدی همان ردیف را می‌بیند.
+    const id = await transaction(async (tx) => {
+      await tx.execute(
+        `insert into user_bookmarks (id, user_id, area, ref_id, title, subtitle, payload)
+         values (?, ?, ?, ?, ?, ?, ?) as new
+         on duplicate key update
+           title    = new.title,
+           subtitle = new.subtitle,
+           payload  = new.payload`,
+        [
+          randomUUID(),
+          user.id,
+          b.area,
+          b.refId,
+          b.title,
+          b.subtitle ?? null,
+          JSON.stringify(b.payload ?? {}),
+        ],
+      );
+      const found = await tx.queryOne<{ id: string }>(
+        `select id from user_bookmarks where user_id = ? and area = ? and ref_id = ?`,
+        [user.id, b.area, b.refId],
+      );
+      if (!found) throw new Error("نشان‌شده ثبت شد ولی خوانده نشد.");
+      return found.id;
+    });
 
-    return ok({ id: row!.id, bookmarked: true }, 201);
+    return ok({ id, bookmarked: true }, 201);
   } catch (err) {
     return handleError(err);
   }

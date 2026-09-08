@@ -68,10 +68,11 @@ export const GET = withRoute("/api/v1/aruz-bridge/questions", async (request: Ne
       `select id, phrase, correct_pattern, wrong_pattern, difficulty, explanation, audio_url
          from aruz_bridge_questions
         where is_published
-          and ($1::smallint is null or difficulty = $1)
+          and (? is null or difficulty = ?)
         order by sort_index, source_id
-        limit $2`,
-      [difficulty, take],
+        limit ?`,
+      // $1 دو بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر ? یک جاست.
+      [difficulty, difficulty, take],
     );
 
     return ok({

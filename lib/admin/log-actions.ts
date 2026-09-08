@@ -103,7 +103,7 @@ export async function adminListAudit(
     total_count: number;
   }>(
     `select id, actor_id, actor_email, action, target_type, target_id,
-            summary, metadata, host(ip) as ip, request_id, created_at,
+            summary, metadata, ip, request_id, created_at,
             count(*) over () as total_count
        from admin_audit_log
        ${where}
@@ -221,7 +221,7 @@ export async function adminListErrors(
   }>(
     `select id, source, message, context, detail, occurrences,
             first_seen_at, last_seen_at, resolved_at,
-            error_name, error_code, digest, environment, release,
+            error_name, error_code, digest, environment, \`release\`,
             first_request_id, last_request_id, metadata,
             count(*) over () as total_count
        from app_error_log
@@ -328,15 +328,15 @@ export async function adminRecentActivity(): Promise<RecentActivity> {
   }>(
     `select
        (select count(*) from users
-         where created_at > date_trunc('day', now(6)))              as users_today,
+         where created_at > date(now(6)))              as users_today,
        (select count(*) from users
-         where created_at > now(6) - interval '7 days')             as users_week,
+         where created_at > now(6) - interval 7 day)             as users_week,
        (select count(*) from quiz_attempts
-         where created_at > now(6) - interval '7 days')             as quiz_week,
+         where created_at > now(6) - interval 7 day)             as quiz_week,
        (select count(*) from exam_attempts
-         where created_at > now(6) - interval '7 days')             as exam_week,
+         where created_at > now(6) - interval 7 day)             as exam_week,
        (select count(*) from club_posts
-         where created_at > now(6) - interval '7 days')             as club_week,
+         where created_at > now(6) - interval 7 day)             as club_week,
        (select count(*) from app_error_log
          where resolved_at is null)                                as open_errors`,
   );

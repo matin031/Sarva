@@ -466,7 +466,7 @@ export async function recordError(
     await execute(
       `insert into app_error_log
          (id, source, message, context, detail, fingerprint,
-          error_name, error_code, digest, environment, release,
+          error_name, error_code, digest, environment, \`release\`,
           first_request_id, last_request_id, metadata)
        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) as new
        on duplicate key update
@@ -476,7 +476,7 @@ export async function recordError(
                      metadata         = new.metadata,
                      error_code       = coalesce(new.error_code, app_error_log.error_code),
                      digest           = coalesce(new.digest, app_error_log.digest),
-                     release          = new.release,
+                     \`release\`        = new.\`release\`,
                      detail           = coalesce(app_error_log.detail, new.detail)`,
       [
         randomUUID(),

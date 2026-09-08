@@ -347,9 +347,10 @@ export async function createClubComment(
   try {
     await execute(
       `insert into club_comments
-         (post_id, user_id, author_name, parent_id, reply_to_id, body, status)
-       values (?, ?, ?, ?, ?, ?, 'pending')`,
+         (id, post_id, user_id, author_name, parent_id, reply_to_id, body, status)
+       values (?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
+        randomUUID(),
         postId,
         viewer.id,
         // «نظرشون با اسمی که برای اکانتشون گذاشتن باید باشه» — دیدگاه همیشه با

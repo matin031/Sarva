@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { formatCorrectAnswer } from "@/lib/exam/format-answer";
 import { MAX_ANSWER_KEYS, MAX_ANSWER_TEXT, regradeAttempt } from "@/lib/exam/regrade";
 import { gradePart } from "@/lib/exam/grading";
@@ -120,9 +121,10 @@ export async function submitExamAttempt(
 
   try {
     await execute(
-      `insert into exam_attempts (user_id, exam_id, total_score, max_score, question_results, answers)
-       values (?, ?, ?, ?, ?, ?)`,
+      `insert into exam_attempts (id, user_id, exam_id, total_score, max_score, question_results, answers)
+       values (?, ?, ?, ?, ?, ?, ?)`,
       [
+        randomUUID(),
         user.id,
         exam.id,
         totalScore,

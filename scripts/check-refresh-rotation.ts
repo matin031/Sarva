@@ -13,6 +13,7 @@
  */
 process.loadEnvFile(".env.local");
 
+import { randomUUID } from "node:crypto";
 import { query, execute, getPool } from "@/lib/db";
 import {
   createSession,
@@ -37,11 +38,16 @@ function check(name: string, ok: boolean, detail = "") {
 }
 
 async function makeUser(email: string) {
+  // upsert بدون RETURNING: درج/به‌روزرسانی، بعد خواندن با همان کلیدِ یکتا.
+  await execute(
+    `insert into users (id, email, password_hash, full_name, role)
+     values (?, ?, 'x', 'کاربر آزمایشی', 'student') as new
+     on duplicate key update full_name = new.full_name`,
+    [randomUUID(), email],
+  );
   const rows = await query<UserRow>(
-    `insert into users (email, password_hash, full_name, role)
-     values ($1, 'x', 'کاربر آزمایشی', 'student')
-     on conflict (email) do update set full_name = excluded.full_name
-     returning id, email, full_name, role, email_verified_at, is_banned, created_at`,
+    `select id, email, full_name, role, email_verified_at, is_banned, created_at
+       from users where email = ?`,
     [email],
   );
   return toAuthUser(rows[0]);
@@ -57,7 +63,7 @@ async function sessionRow(token: string) {
     expires_at: string;
   }>(
     `select id, family_id, rotated_to, revoked_at, created_at, expires_at
-       from sessions where refresh_token_hash = $1`,
+       from sessions where refresh_token_hash = ?`,
     [hashRefreshToken(token)],
   );
   return rows[0] ?? null;
@@ -95,7 +101,7 @@ async function main() {
   );
 
   const meta = await query<{ user_agent: string; ip: string }>(
-    `select user_agent, host(ip) as ip from sessions where id = $1`,
+    `select user_agent, ip from sessions where id = ?`,
     [new1!.id],
   );
   check(
@@ -121,8 +127,8 @@ async function main() {
   // پنجرهٔ ۳۰ ثانیه‌ای را با عقب بردنِ revoked_at رد می‌کنیم — همان کاری که
   // گذشتِ زمان می‌کند، بدون sleep.
   await execute(
-    `update sessions set revoked_at = now() - interval '10 minutes'
-      where refresh_token_hash = $1`,
+    `update sessions set revoked_at = now(6) - interval 10 minute
+      where refresh_token_hash = ?`,
     [hashRefreshToken(s2.refreshToken)],
   );
 
@@ -201,15 +207,15 @@ async function main() {
   const u5 = await makeUser("rot-5@test.local");
   const s5 = await createSession(u5);
   await execute(
-    `update sessions set expires_at = now() - interval '1 day'
-      where refresh_token_hash = $1`,
+    `update sessions set expires_at = now(6) - interval 1 day
+      where refresh_token_hash = ?`,
     [hashRefreshToken(s5.refreshToken)],
   );
   check("توکنِ منقضی رد شد", (await refreshSession(s5.refreshToken)) === null);
 
   const u6 = await makeUser("rot-6@test.local");
   const s6 = await createSession(u6);
-  await execute("update users set is_banned = true where id = $1", [u6.id]);
+  await execute("update users set is_banned = true where id = ?", [u6.id]);
   check("کاربرِ مسدود رد شد", (await refreshSession(s6.refreshToken)) === null);
   const s6row = await sessionRow(s6.refreshToken);
   check("و سشنش نچرخید", s6row?.rotated_to === null);

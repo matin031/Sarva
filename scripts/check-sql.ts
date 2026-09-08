@@ -217,6 +217,78 @@ function scanLeftovers(sql: string): string[] {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// ستون‌های اجباری که در INSERT جا افتاده‌اند
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ این بررسی به‌خاطر یک باگ واقعی اضافه شد.
+ *
+ * در PostgreSQL ستون‌های UUID مقدار `default gen_random_uuid()` داشتند. در
+ * MySQL چنین پیش‌فرضی وجود ندارد (تابع UUID() نسخهٔ ۱ است و قابل حدس)، پس
+ * همه‌شان بدون DEFAULT ماندند و *برنامه* باید مقدار بدهد.
+ *
+ * `sessions.family_id` از قلم افتاد. نه tsc دیدش، نه PREPARE — چون هیچ‌کدام
+ * «کدام ستون‌ها اجباری‌اند» را نمی‌سنجند. فقط در زمان اجرا با
+ * «Field 'family_id' doesn't have a default value» بیرون زد، و آن هم چون
+ * یکی از اسکریپت‌های بررسی اجرا شد.
+ *
+ * پس اینجا از خودِ کاتالوگ پرسیده می‌شود کدام ستون‌ها NOT NULL بدون DEFAULT
+ * اند، و هر INSERT که یکی‌شان را ننویسد گزارش می‌شود.
+ */
+async function checkRequiredColumns(
+  conn: mysql.Connection,
+  statements: { file: string; line: number; sql: string }[],
+): Promise<{ file: string; line: number; sql: string; error: string }[] > {
+  const [rows] = await conn.query<mysql.RowDataPacket[]>(
+    `select table_name as t, column_name as c
+       from information_schema.columns
+      where table_schema = database()
+        and is_nullable = 'NO'
+        and column_default is null
+        and extra not like '%auto_increment%'
+        and extra not like '%GENERATED%'`,
+  );
+  const required = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = required.get(r.t) ?? [];
+    list.push(r.c);
+    required.set(r.t, list);
+  }
+
+  const out: { file: string; line: number; sql: string; error: string }[] = [];
+  for (const q of statements) {
+    const body = stripSqlComments(q.sql);
+    // فقط شکلِ `insert into <table> (col, col, …)` — یعنی همان حالتی که
+    // ستون‌ها صریح نوشته شده‌اند. `insert … select` و `insert … set` شکل
+    // دیگری دارند و اینجا رد می‌شوند.
+    const m = /insert\s+into\s+`?([a-z_]+)`?\s*\(([^)]*)\)/i.exec(body);
+    if (!m) continue;
+
+    const table = m[1].toLowerCase();
+    const need = required.get(table);
+    if (!need) continue;
+
+    const written = new Set(
+      m[2]
+        .split(",")
+        .map((c) => c.trim().replace(/^`|`$/g, "").toLowerCase())
+        .filter(Boolean),
+    );
+    const missing = need.filter((c) => !written.has(c.toLowerCase()));
+    if (missing.length) {
+      out.push({
+        ...q,
+        error:
+          `ستون‌های اجباریِ ${table} که نوشته نشده‌اند: ${missing.join("، ")} — ` +
+          "NOT NULL اند و DEFAULT ندارند، پس در زمان اجرا رد می‌شوند.",
+      });
+    }
+  }
+  return out;
+}
+
+
 async function main() {
   const files = [...walkTs("lib"), ...walkTs("app"), "proxy.ts"].filter(
     (f) => !SKIP.some((re) => re.test(f)),
@@ -290,6 +362,10 @@ async function main() {
       });
     }
   }
+
+  // ستون‌های اجباریِ جامانده — روی همان دستورهای کامل.
+  const requiredMisses = await checkRequiredColumns(conn, found);
+  failures.push(...requiredMisses);
 
   await conn.end();
 

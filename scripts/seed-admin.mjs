@@ -10,7 +10,8 @@
 // اجرای دستی:  docker compose exec app node scripts/seed-admin.mjs
 
 import { hash } from "@node-rs/argon2";
-import pg from "pg";
+import { randomUUID } from "node:crypto";
+import { connect } from "./mysql/script-db.mjs";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -37,17 +38,22 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new pg.Client({ connectionString: requireEnv("DATABASE_URL") });
-  await client.connect();
+  const conn = await connect(requireEnv("DATABASE_URL"));
 
   try {
-    const existing = await client.query("select id, role from users where email = $1", [email]);
+    const [existing] = await conn.execute("select id, role from users where email = ?", [email]);
 
-    if (existing.rowCount) {
-      if (existing.rows[0].role === "admin") {
+    if (existing.length) {
+      // ⚠️ رمز و نقشِ کاربرِ موجود عمداً دست‌نخورده می‌ماند (جز ارتقا به مدیر).
+      //
+      // این اسکریپت در docker-entrypoint هر بار بالا آمدن اجرا می‌شود. اگر
+      // رمز را بازنویسی می‌کرد، هر ری‌استارت رمزِ مدیر را به مقدارِ env
+      // برمی‌گرداند — و در جریان مهاجرت، کاربرِ منتقل‌شده رمزِ واقعی‌اش را
+      // از دست می‌داد.
+      if (existing[0].role === "admin") {
         console.log(`[seed-admin] ${email} از قبل مدیر است.`);
       } else {
-        await client.query("update users set role = 'admin' where id = $1", [existing.rows[0].id]);
+        await conn.execute("update users set role = 'admin' where id = ?", [existing[0].id]);
         console.log(`[seed-admin] ${email} به مدیر ارتقا یافت.`);
       }
       return;
@@ -61,15 +67,15 @@ async function main() {
       parallelism: 1,
     });
 
-    await client.query(
-      `insert into users (email, password_hash, full_name, role, email_verified_at)
-       values ($1, $2, $3, 'admin', now())`,
-      [email, passwordHash, process.env.ADMIN_NAME?.trim() || "مدیر سروا"],
+    await conn.execute(
+      `insert into users (id, email, password_hash, full_name, role, email_verified_at)
+       values (?, ?, ?, ?, 'admin', now(6))`,
+      [randomUUID(), email, passwordHash, process.env.ADMIN_NAME?.trim() || "مدیر سروا"],
     );
 
     console.log(`[seed-admin] حساب مدیر ساخته شد: ${email}`);
   } finally {
-    await client.end();
+    await conn.end();
   }
 }
 

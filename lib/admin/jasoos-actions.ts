@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { InvalidInputError } from "@/lib/api/action-input";
@@ -257,9 +258,10 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
       for (const [index, s] of input.suspects.entries()) {
         await tx.execute(
           `insert into jasoos_suspects
-             (level_id, role, is_spy, evidence, word_in_verse, sort_index)
-           values (?, ?, ?, ?, ?, ?)`,
+             (id, level_id, role, is_spy, evidence, word_in_verse, sort_index)
+           values (?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             id,
             s.role.trim(),
             s.isSpy,

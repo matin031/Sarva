@@ -76,9 +76,22 @@ export async function createSession(user: AuthUser, meta: RequestMeta = {}): Pro
   // ضعیف‌تر نیست: crypto.randomUUID همان نسخهٔ ۴ است که pgcrypto می‌ساخت.
   const sessionId = randomUUID();
 
+  // ⚠️ family_id هم باید صریح داده شود، نه فقط id.
+  //
+  // در PostgreSQL هر دو `default gen_random_uuid()` داشتند. با رفتنِ آن
+  // پیش‌فرض‌ها، *هر* ستون UUID ای که NOT NULL است باید از برنامه بیاید — و
+  // این یکی به‌سادگی از قلم می‌افتد چون بر خلاف id، جایی در کد خوانده
+  // نمی‌شود.
+  //
+  // یک ورودِ تازه سرِ خانوادهٔ خودش است؛ چرخش‌های بعدی همین مقدار را به ارث
+  // می‌برند و ابطالِ «کل خانواده» در حملهٔ استفادهٔ مجدد به همین ستون تکیه
+  // دارد.
+  const familyId = randomUUID();
+
   await execute(
-    `insert into sessions (id, user_id, refresh_token_hash, user_agent, ip, expires_at)
-     values (?, ?, ?, ?, ?, now(6) + interval ? second)`,
+    `insert into sessions
+       (id, user_id, refresh_token_hash, user_agent, ip, expires_at, family_id)
+     values (?, ?, ?, ?, ?, now(6) + interval ? second, ?)`,
     [
       sessionId,
       user.id,
@@ -88,6 +101,7 @@ export async function createSession(user: AuthUser, meta: RequestMeta = {}): Pro
       // بشکند؛ ستون nullable است و null کاملاً قابل قبول است.
       meta.ip ?? null,
       refreshTtlSeconds(),
+      familyId,
     ],
   );
 

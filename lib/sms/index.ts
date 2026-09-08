@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import "server-only";
 import { execute } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -117,9 +118,9 @@ export async function sendSms(message: SmsMessage): Promise<void> {
       duration_ms: Math.round(performance.now() - startedAt),
     });
     await execute(
-      `insert into sms_log (to_number, body, provider, status, provider_message_id)
-       values (?, ?, ?, 'sent', ?)`,
-      [message.to, message.body, adapter.name, result.providerMessageId],
+      `insert into sms_log (id, to_number, body, provider, status, provider_message_id)
+       values (?, ?, ?, ?, 'sent', ?)`,
+      [randomUUID(), message.to, message.body, adapter.name, result.providerMessageId],
     );
   } catch (err) {
     logger.error("ارسال پیامک ناموفق بود", {
@@ -130,9 +131,9 @@ export async function sendSms(message: SmsMessage): Promise<void> {
     });
 
     await execute(
-      `insert into sms_log (to_number, body, provider, status, error)
-       values (?, ?, ?, 'failed', ?)`,
-      [message.to, message.body, adapter.name, (err as Error).message.slice(0, 500)],
+      `insert into sms_log (id, to_number, body, provider, status, error)
+       values (?, ?, ?, ?, 'failed', ?)`,
+      [randomUUID(), message.to, message.body, adapter.name, (err as Error).message.slice(0, 500)],
     ).catch(() => {});
 
     // تا در /admin/activity دیده شود — sms_log فقط تاریخچه است، این هشدار است.

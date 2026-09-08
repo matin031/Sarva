@@ -437,6 +437,62 @@ export function triggerAssertionMessage(err: unknown): string | null {
 // اجرا
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// آماده‌سازیِ پارامترها برای نوشتن
+// ---------------------------------------------------------------------------
+
+/**
+ * دقیقاً همان شکلی که datetimeToIso بالا تولید می‌کند.
+ * مثال: 2026-10-08T07:54:24.447506Z
+ */
+const ISO_UTC = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})\.(\d{3,6})Z$/;
+
+/**
+ * رشتهٔ ISO را به شکلی درمی‌آورد که MySQL در ستون DATETIME می‌پذیرد.
+ *
+ * ⚠️ چرا این لازم است، و چرا در PostgreSQL نبود:
+ *
+ * این ماژول موقع *خواندن* هر DATETIME را به رشتهٔ ISO تبدیل می‌کند
+ * (`2026-10-08T07:54:24.447506Z`). PostgreSQL همان رشته را موقع *نوشتن* هم
+ * قبول می‌کرد، پس خواندن و بازنوشتنِ یک زمان بی‌دردسر بود.
+ *
+ * MySQL قبول نمی‌کند: نه `T` را می‌پذیرد نه `Z` را، و با
+ *
+ *     Incorrect datetime value: '2026-10-08T07:54:24.447506Z'
+ *
+ * رد می‌کند. یعنی لایه‌ای که فرمتی بیرون می‌دهد که خودش پس نمی‌گیرد — و این
+ * در چرخشِ سشن دیده شد، جایی که expires_at و created_at از ردیفِ قبلی خوانده
+ * و در ردیفِ تازه نوشته می‌شوند.
+ *
+ * پس همین‌جا و برای همه حل می‌شود، نه در تک‌تک فراخوان‌ها: یک لایه باید
+ * چیزی را که می‌دهد پس هم بگیرد.
+ *
+ * ⚠️ الگو عمداً تنگ است — تاریخ و زمانِ کامل، با سه تا شش رقم اعشار و `Z`
+ * پایانی. متنی که کاربر می‌نویسد عملاً هرگز دقیقاً این شکل نیست، و اگر هم
+ * باشد یک زمانِ معتبر است و معنایش عوض نمی‌شود.
+ */
+function toMysqlValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    const m = ISO_UTC.exec(value);
+    return m ? `${m[1]} ${m[2]}.${m[3]}` : value;
+  }
+
+  // شیء Date: به UTC نوشته می‌شود. (mysql2 با timezone:'Z' خودش هم همین کار
+  // را می‌کند؛ صریح بودنش یعنی رفتار به تنظیمات اتصال گره نخورده.)
+  if (value instanceof Date) {
+    return value.toISOString().replace("T", " ").replace("Z", "");
+  }
+
+  return value;
+}
+
+/** همان، برای کل آرایهٔ پارامترها. */
+function prepareParams(params: unknown[] | undefined): unknown[] {
+  if (!params || params.length === 0) return [];
+  return params.map(toMysqlValue);
+}
+
 type Runner = Pool | PoolConnection;
 
 /**
@@ -464,7 +520,7 @@ async function runQuery(
     // (query در mysql2 مقدارها را سمتِ کلاینت escape و داخل متن درج می‌کند.
     //  امن هست، ولی «امن به‌شرط درست بودنِ escape» با «اصلاً وارد متن نشدن»
     //  یکی نیست.)
-    const result = await on.execute(text, (params ?? []) as never);
+    const result = await on.execute(text, prepareParams(params) as never);
     const ms = performance.now() - startedAt;
 
     if (ms > slowQueryMs()) {

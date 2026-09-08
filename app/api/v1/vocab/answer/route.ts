@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
@@ -45,9 +46,9 @@ export const POST = withRoute("/api/v1/vocab/answer", async (request: Request) =
     const b = body.data;
 
     await execute(
-      `insert into vocab_answers (user_id, grade, lesson, word, meaning, image, is_correct)
-       values (?, ?, ?, ?, ?, ?, ?)`,
-      [user.id, b.grade, b.lesson, b.word, b.meaning, b.image, b.isCorrect],
+      `insert into vocab_answers (id, user_id, grade, lesson, word, meaning, image, is_correct)
+       values (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [randomUUID(), user.id, b.grade, b.lesson, b.word, b.meaning, b.image, b.isCorrect],
     );
 
     return ok({ saved: true }, 201);

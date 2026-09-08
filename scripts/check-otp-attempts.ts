@@ -30,7 +30,7 @@ function check(name: string, ok: boolean, detail = "") {
 }
 
 async function fresh() {
-  await execute("delete from email_otps where email = $1", [EMAIL]);
+  await execute("delete from email_otps where email = ?", [EMAIL]);
   const issued = await issueOtp(EMAIL, "signup_verify", null);
   if (!issued.ok) throw new Error("صدور کد ناموفق بود: " + issued.error);
   return issued.code;
@@ -39,7 +39,7 @@ async function fresh() {
 async function attemptsOf() {
   const rows = await query<{ attempts: number; consumed_at: string | null }>(
     `select attempts, consumed_at from email_otps
-      where email = $1 order by created_at desc limit 1`,
+      where email = ? order by created_at desc limit 1`,
     [EMAIL],
   );
   return rows[0];
@@ -110,7 +110,7 @@ async function main() {
     (await checkOtp(EMAIL, "signup_verify", code4)).ok,
   );
 
-  await execute("delete from email_otps where email = $1", [EMAIL]);
+  await execute("delete from email_otps where email = ?", [EMAIL]);
   console.log(`\n${pass} قبول، ${fail} رد`);
   await getPool().end();
   process.exit(fail === 0 ? 0 : 1);

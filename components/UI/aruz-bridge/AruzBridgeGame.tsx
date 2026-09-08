@@ -29,10 +29,12 @@ import {
 } from "./Screens";
 import { useAruzBridgeGame } from "./useAruzBridgeGame";
 import { useGameControls } from "./useGameControls";
-import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
+import { useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 import { AccessibleOptions } from "./AccessibleOptions";
+import { CameraViewControl } from "./CameraViewControl";
+import type { CameraView } from "@/lib/aruz-bridge/types";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -90,9 +92,9 @@ function SceneLoading() {
 }
 
 export default function AruzBridgeGame() {
+  const [cameraView, setCameraView] = useState<CameraView>("third");
   const game = useAruzBridgeGame();
   const reducedMotion = useReducedMotion();
-  const assets = useOptionalAssets();
   const debugHitTargets = useHitDebug();
 
   /* WebGL و پلهٔ کیفیت فقط در مرورگر معلوم می‌شوند. عکسِ سمتِ سرور `null`
@@ -217,7 +219,7 @@ export default function AruzBridgeGame() {
     return (
       <div
         dir="rtl"
-        className="fixed inset-0 z-40 flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-background"
+        className="dark fixed inset-0 z-40 flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-background"
         style={{
           paddingTop: "env(safe-area-inset-top)",
           paddingBottom: "env(safe-area-inset-bottom)",
@@ -249,11 +251,11 @@ export default function AruzBridgeGame() {
             </div>
           ) : (
             <GameCanvas
+              cameraView={cameraView}
               machine={machine}
               config={game.config}
               quality={quality}
               reducedMotion={reducedMotion}
-              usePlayerModel={assets.playerModel}
               inputLocked={game.inputLocked}
               onChoose={game.choose}
               debugHitTargets={debugHitTargets}
@@ -261,6 +263,7 @@ export default function AruzBridgeGame() {
             />
           )}
 
+          <div className="absolute inset-x-0 top-2 z-20 flex justify-center pointer-events-none"><CameraViewControl value={cameraView} onChange={setCameraView} /></div>
           {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
           <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
           {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
@@ -291,6 +294,9 @@ export default function AruzBridgeGame() {
       )}
 
       {inSetup && (
+        <div className="mb-3 flex justify-center"><CameraViewControl value={cameraView} onChange={setCameraView} /></div>
+      )}
+      {inSetup && (
         <SessionSetup
           session={game.session}
           onChange={game.setSession}
@@ -318,7 +324,7 @@ export default function AruzBridgeGame() {
            کند. حالا HUD و بوم *یک* جزء‌اند: یک حاشیه، یک شعاع، یک مرز. */
         <div
           ref={shellRef}
-          className="mx-auto overflow-hidden rounded-2xl border border-border bg-card"
+          className="dark mx-auto overflow-hidden rounded-2xl border border-[#294750] bg-[#0d2028] shadow-[0_20px_80px_#08232b26]"
           style={{ width: viewport.width }}
         >
           <div ref={hudRef}>
@@ -349,11 +355,11 @@ export default function AruzBridgeGame() {
               </div>
             ) : (
               <GameCanvas
+                cameraView={cameraView}
                 machine={machine}
                 config={game.config}
                 quality={quality}
                 reducedMotion={reducedMotion}
-                usePlayerModel={assets.playerModel}
                 inputLocked={game.inputLocked}
                 onChoose={game.choose}
                 debugHitTargets={debugHitTargets}
@@ -361,6 +367,7 @@ export default function AruzBridgeGame() {
               />
             )}
 
+            <div className="absolute inset-x-0 top-2 z-20 flex justify-center pointer-events-none"><CameraViewControl value={cameraView} onChange={setCameraView} /></div>
             {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
             <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
 

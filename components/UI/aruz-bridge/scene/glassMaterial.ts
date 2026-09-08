@@ -47,7 +47,7 @@ export function getGlassMaterial(
 
   const useTransmission = quality.useTransmission;
   const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#cfe9ec"),
+    color: new THREE.Color("#b4e3de"),
     metalness: 0,
     roughness: 0.075,
     ior: 1.49,
@@ -56,7 +56,7 @@ export function getGlassMaterial(
     clearcoatRoughness: 0.055,
     envMapIntensity: useTransmission ? 1.5 : 2.1,
 
-    transmission: useTransmission ? 0.94 : 0,
+    transmission: useTransmission ? 0.82 : 0,
     thickness,
     // رنگ‌گیریِ حجمی: هرچه نور مسیرِ بلندتری در شیشه برود، سبزآبی‌تر می‌شود —
     // همان چیزی که لبهٔ شیشهٔ ضخیم را سبز نشان می‌دهد.
@@ -65,7 +65,7 @@ export function getGlassMaterial(
 
     // بدونِ transmission، شفافیت باید دستی بیاید وگرنه کاشی یک جعبهٔ ماتِ آبی است.
     transparent: !useTransmission,
-    opacity: useTransmission ? 1 : 0.34,
+    opacity: useTransmission ? 1 : 0.48,
     side: THREE.FrontSide,
     depthWrite: useTransmission,
   });
@@ -78,7 +78,7 @@ export function getGlassMaterial(
 const EDGE_MATERIAL = new THREE.LineBasicMaterial({
   color: new THREE.Color("#8fe9ec"),
   transparent: true,
-  opacity: 0.45,
+  opacity: 0.7,
   depthWrite: false,
 });
 

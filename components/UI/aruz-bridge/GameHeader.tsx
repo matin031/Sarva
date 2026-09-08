@@ -152,7 +152,7 @@ export function GameHeader({
         {/* روی گوشیِ افقی سطرِ راهنما حذف می‌شود: با ۳۹۰ پیکسل ارتفاع، هر
             سطرِ HUD مستقیماً از ارتفاعِ پل کم می‌کند. */}
         <p className="text-center text-[0.6rem] leading-none text-muted-foreground [@media(max-height:560px)]:hidden">
-          وزنِ این واژه کدام است؟
+          روی شیشهٔ وزنِ درست بپر
         </p>
         <p
           aria-live="polite"
@@ -229,7 +229,7 @@ export function GameHeader({
             مصراعِ بلند هم کادرِ بازی را پایین نمی‌راند. */}
         <div className="min-w-0 justify-self-center text-center">
           <p className="text-[0.65rem] leading-none text-muted-foreground sm:text-xs">
-            وزنِ این واژه کدام است؟
+            روی شیشهٔ وزنِ درست بپر
           </p>
           {/* ارتفاع *ثابت* است (h-9/h-10) و به طولِ متن وابسته نیست، پس
               عوض‌شدنِ پرسش هرگز کادرِ بازی را جابه‌جا نمی‌کند. */}

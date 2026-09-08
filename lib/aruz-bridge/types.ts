@@ -111,3 +111,4 @@ export interface RunSummary {
   accuracy: number;
   completed: boolean;
 }
+export type CameraView = "first" | "third";

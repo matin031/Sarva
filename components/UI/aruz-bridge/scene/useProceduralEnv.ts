@@ -64,7 +64,7 @@ export function useProceduralEnvironment(size = 256): THREE.Texture | null {
     // دارد — یعنی همان چیزی که MeshPhysicalMaterial می‌خواهد، نه یک بافتِ ساده.
     const pmrem = new THREE.PMREMGenerator(gl);
     pmrem.compileEquirectangularShader();
-    const map = pmrem.fromEquirectangular(source).texture;
+    const map = pmrem.fromEquirectangular(source);
     pmrem.dispose();
     source.dispose();
 
@@ -82,5 +82,5 @@ export function useProceduralEnvironment(size = 256): THREE.Texture | null {
   /* نقشه *برگردانده* می‌شود تا فراخوان آن را با `attach="environment"` به
      صحنه وصل کند. اگر همین‌جا روی `scene.environment` می‌نشست، یک حالتِ
      سراسری بود که دستی باید برگردانده می‌شد؛ این‌طوری R3F مالکش است. */
-  return built;
+  return built?.texture ?? null;
 }

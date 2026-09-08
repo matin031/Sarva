@@ -1,26 +1,27 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import SceneReady from "./scene/SceneReady";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
-import type { Side } from "@/lib/aruz-bridge/types";
+import type { Side, CameraView } from "@/lib/aruz-bridge/types";
 import { GameScene } from "./scene/GameScene";
+import { AdaptiveResolution } from "./scene/AdaptiveResolution";
 
 /* مرزِ WebGL. هرچه three را وارد می‌کند از این پایین است، پس تنها همین فایل
    (و آنچه وارد می‌کند) در chunkـِ تنبل می‌نشیند. */
 
 export interface GameCanvasProps {
+  cameraView: CameraView;
   /** یک بار، وقتی مدل‌ها حل شدند و اولین فریم کشیده شد. */
   onSceneReady?: () => void;
   machine: MachineState;
   config: AruzBridgeConfig;
   quality: QualitySettings;
   reducedMotion: boolean;
-  usePlayerModel: boolean;
   inputLocked: boolean;
   onChoose: (side: Side) => void;
   /** حالتِ توسعه: جعبه‌های برخورد را دیدنی می‌کند (‎?debugHits=1‎). */
@@ -32,6 +33,10 @@ export default function GameCanvas(props: GameCanvasProps) {
      مصرف‌کننده‌اش `SceneReady` است، نه صحنه. */
   const { onSceneReady, ...sceneProps } = props;
   const { quality } = props;
+  // Own the budget here: R3F re-applies Canvas.dpr on updates to the question/camera.
+  // Directly calling the renderer's setDpr would lose the reduction on the next step.
+  const [dprLimit, setDprLimit] = useState(quality.dpr[1]);
+  const dpr = useMemo<[number, number]>(() => [1, Math.min(quality.dpr[1], dprLimit)], [quality.dpr, dprLimit]);
 
   const glSettings = useMemo(
     () => ({
@@ -48,7 +53,7 @@ export default function GameCanvas(props: GameCanvasProps) {
     <Canvas
       // dpr سقف‌دار است: روی نمایشگرِ ۳x بدونِ سقف، نُه برابرِ پیکسلِ لازم
       // رندر می‌شد و همان‌جا نرخِ فریم نصف می‌شد.
-      dpr={quality.dpr}
+      dpr={dpr}
       gl={glSettings}
       /* «percentage» یعنی PCFShadowMap. مقدارِ بولیِ `true` در three به
          PCFSoftShadowMap نگاشته می‌شد که منسوخ شده و در کنسول هشدار می‌داد. */
@@ -56,7 +61,7 @@ export default function GameCanvas(props: GameCanvasProps) {
       camera={{ fov: 50, near: 0.1, far: 220, position: [0, 3.05, 5.2] }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.08;
+        gl.toneMappingExposure = 1.2;
         // هزینهٔ عبورِ نور اینجا کوک می‌شود — این تنظیم روی رندرر است، نه ماده.
         gl.transmissionResolutionScale = quality.tier === "high" ? 0.5 : 0.25;
 
@@ -80,6 +85,7 @@ export default function GameCanvas(props: GameCanvasProps) {
           این Suspense منتظرش بود حل شده. بیرونِ مرز، بی‌معنی می‌شد. */}
       <Suspense fallback={null}>
         <GameScene {...sceneProps} />
+        <AdaptiveResolution onDprChange={setDprLimit} />
         {onSceneReady && <SceneReady onReady={onSceneReady} />}
       </Suspense>
     </Canvas>

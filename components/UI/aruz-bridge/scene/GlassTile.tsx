@@ -3,6 +3,7 @@
 import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildFracture } from "@/lib/aruz-bridge/fracture";
 import { TILE_DEPTH, TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
@@ -17,6 +18,12 @@ import { Shards } from "./Shards";
  *  فرستاده می‌شود. همان الگوی `GalaxyScene` برای کره‌ها و حلقه‌هایش. */
 const SLAB_GEOMETRY = new THREE.BoxGeometry(TILE_WIDTH, TILE_THICKNESS, TILE_DEPTH);
 const EDGE_GEOMETRY = new THREE.EdgesGeometry(SLAB_GEOMETRY);
+const fittingParts = [-1, 1].flatMap(x => [-1, 1].map(z =>
+  new THREE.BoxGeometry(.095, .024, .095).translate(x * (TILE_WIDTH / 2 - .075), TILE_THICKNESS / 2 + .012, z * (TILE_DEPTH / 2 - .075)),
+));
+const FITTING_GEOMETRY = mergeGeometries(fittingParts)!;
+fittingParts.forEach(part => part.dispose());
+const FITTING_MATERIAL = new THREE.MeshStandardMaterial({ color: "#c6ad78", metalness: .72, roughness: .3 });
 
 /* یک کاشیِ شیشه‌ای.
  *
@@ -149,6 +156,8 @@ export function GlassTile({
         visible={!shattered && reveal > 0.02}
         raycast={NO_RAYCAST}
       >
+        {/* Identical fittings on both answers: no visual clue to correctness. */}
+        <mesh geometry={FITTING_GEOMETRY} material={FITTING_MATERIAL} dispose={null} raycast={NO_RAYCAST} />
         <lineSegments
           geometry={EDGE_GEOMETRY}
           material={edgeMaterial}

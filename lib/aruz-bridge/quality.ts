@@ -21,7 +21,7 @@ export interface QualitySettings {
 
 const TIERS: Record<QualityTier, Omit<QualitySettings, "tier" | "shardCount">> = {
   high: {
-    dpr: [1, 2],
+    dpr: [1, 1.5],
     useTransmission: true,
     transmissionSamples: 6,
     shadows: true,

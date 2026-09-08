@@ -10,7 +10,7 @@ import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type {
   CameraMode,
-  CharacterAnimation,
+  CameraView,
   GameState,
   GlassState,
   Side,
@@ -19,6 +19,7 @@ import { BridgeEnvironment } from "./BridgeEnvironment";
 import { publishInteractionDebug } from "./interactionDebug";
 import { GameCamera } from "./GameCamera";
 import { GlassTile } from "./GlassTile";
+import { FirstPersonHands } from "./FirstPersonHands";
 import { Player } from "./Player";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -54,38 +55,22 @@ const CAMERA_MODE: Record<GameState, CameraMode> = {
   waitingForAnswer: "gameplay",
   jumping: "jump",
   landing: "jump",
-  correct: "gameplay",
+  correct: "jump",
   timeout: "gameplay",
-  cracking: "gameplay",
-  shattering: "gameplay",
+  cracking: "jump",
+  shattering: "jump",
   falling: "fall",
   gameOver: "gameOver",
   finished: "gameplay",
 };
 
-const CHARACTER_ANIMATION: Record<GameState, CharacterAnimation> = {
-  intro: "idle",
-  countdown: "idle",
-  preparing: "idle",
-  showingQuestion: "idle",
-  waitingForAnswer: "idle",
-  jumping: "jump",
-  landing: "land",
-  correct: "idle",
-  timeout: "idle",
-  cracking: "idle",
-  shattering: "idle",
-  falling: "fall",
-  gameOver: "fall",
-  finished: "idle",
-};
 
 export interface GameSceneProps {
+  cameraView: CameraView;
   machine: MachineState;
   config: AruzBridgeConfig;
   quality: QualitySettings;
   reducedMotion: boolean;
-  usePlayerModel: boolean;
   onChoose: (side: Side) => void;
   inputLocked: boolean;
   /** حالتِ توسعه: جعبه‌های برخورد را دیدنی می‌کند. */
@@ -93,11 +78,11 @@ export interface GameSceneProps {
 }
 
 export function GameScene({
+  cameraView,
   machine,
   config,
   quality,
   reducedMotion,
-  usePlayerModel,
   onChoose,
   inputLocked,
   debugHitTargets = false,
@@ -229,14 +214,12 @@ export function GameScene({
         const e = easeInOutSine(p);
         playerPos.current.lerpVectors(origin, destination, e);
         playerPos.current.y = BRIDGE_Y + 4 * JUMP_PEAK * p * (1 - p);
-        facing.current = Math.atan2(destination.x - origin.x, -(destination.z - origin.z)) * 0.5;
         break;
       }
 
       case "landing":
         jumpPhase.current = 0;
         playerPos.current.copy(destination);
-        facing.current = 0;
         break;
 
       case "cracking": {
@@ -269,7 +252,6 @@ export function GameScene({
       default:
         crackProgress.current = 0;
         cameraImpulse.current = 0;
-        if (state !== "correct") jumpPhase.current = 0;
     }
   });
 
@@ -294,7 +276,7 @@ export function GameScene({
      و کمتر از این یعنی جفتِ بعدی جلوی چشمِ بازیکن ناگهان ظاهر می‌شود. */
   const visiblePairs = useMemo(() => {
     const out: number[] = [];
-    for (let i = Math.max(0, stepIndex - 1); i <= Math.min(machine.steps.length - 1, stepIndex + 3); i++) {
+    for (let i = Math.max(0, stepIndex - 1); i <= Math.min(machine.steps.length - 1, stepIndex + 7); i++) {
       out.push(i);
     }
     return out;
@@ -313,12 +295,14 @@ export function GameScene({
 
   const selectable = !inputLocked;
 
-  const revealFor = (index: number) => (index <= stepIndex + 3 ? 1 : 0);
+  const revealFor = () => 1;
 
   return (
     <>
       <GameCamera
+        cameraView={cameraView}
         targetRef={playerPos}
+        questionZ={stepZ(stepIndex)}
         mode={CAMERA_MODE[state]}
         followSpeed={config.cameraFollowSpeed}
         impulseRef={cameraImpulse}
@@ -330,6 +314,7 @@ export function GameScene({
         steps={machine.steps.length || config.questionsPerRun}
         fogNear={config.fogNear}
         fogFar={config.fogFar}
+        reducedMotion={reducedMotion}
       />
 
       {/* سکوی آغاز. همان شیشه است تا اگر زمان در مرحلهٔ اول تمام شد،
@@ -349,7 +334,7 @@ export function GameScene({
         const pair = machine.steps[index];
         if (!pair) return null;
         const isCurrent = index === stepIndex;
-        const reveal = revealFor(index);
+        const reveal = revealFor();
         const revealAnswer = isCurrent && (state === "gameOver" || state === "finished");
 
         return (
@@ -394,13 +379,10 @@ export function GameScene({
         );
       })}
 
-      <Player
-        positionRef={playerPos}
-        animation={CHARACTER_ANIMATION[state]}
-        jumpPhaseRef={jumpPhase}
-        facingRef={facing}
-        useModel={usePlayerModel}
-      />
+      {cameraView === "first" ? <FirstPersonHands state={state} reducedMotion={reducedMotion} /> : (
+        <Player positionRef={playerPos} jumpPhaseRef={jumpPhase} facingRef={facing} useModel={false}
+          animation={state === "jumping" ? "jump" : state === "landing" ? "land" : state === "falling" || state === "gameOver" ? "fall" : "idle"} />
+      )}
     </>
   );
 }

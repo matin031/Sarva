@@ -28,7 +28,22 @@
 
 process.loadEnvFile(".env.local");
 
-import pg from "pg";
+// ماژول .mjs مشترکِ اسکریپت‌ها — همان تنظیماتِ اتصالِ lib/db.
+import { connect } from "./mysql/script-db.mjs";
+import type { RowDataPacket } from "mysql2/promise";
+
+type ExistingRow = RowDataPacket & {
+  id: string;
+  type: string;
+  poem: string[] | null;
+  audio_url: string | null;
+  o_id: string | null;
+  o_poem: string[] | null;
+  o_audio_url: string | null;
+};
+
+type FxRow = RowDataPacket & { opts: number; ua: number; qaa: number; bm: number };
+type CountRow = RowDataPacket & { q: number; o: number };
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -81,37 +96,38 @@ async function main() {
     seeds.map((s) => fingerprint(s.type, s.poem ?? null, s.audioUrl ?? null, s.options)),
   );
 
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
+  const conn = await connect(url);
 
   try {
-    const { rows } = await client.query<{
-      id: string;
-      type: string;
-      poem: string[] | null;
-      audio_url: string | null;
-      options: { poem: string[] | null; audio_url: string | null }[];
-    }>(
+    // ⚠️ ردیف‌های مسطحِ مرتب و گروه‌بندی در TypeScript، نه تجمیعِ JSON:
+    // اثرانگشت به ترتیبِ گزینه‌ها حساس است و ترتیبِ JSON_ARRAYAGG در MySQL
+    // تضمین نشده. یک ترتیبِ متفاوت یعنی اثرانگشتِ متفاوت — یعنی سؤالی که
+    // باید حذف شود شناسایی نمی‌شد.
+    const [flat] = await conn.execute<ExistingRow[]>(
       `select q.id, q.type, q.poem, q.audio_url,
-              coalesce(
-                json_agg(json_build_object('poem', o.poem, 'audio_url', o.audio_url))
-                  filter (where o.id is not null),
-                '[]'
-              ) as options
+              o.id as o_id, o.poem as o_poem, o.audio_url as o_audio_url
          from questions q
          left join question_options o on o.question_id = q.id
-        group by q.id, q.type, q.poem, q.audio_url`,
+        order by q.id, o.x, o.id`,
     );
 
+    const grouped = new Map<
+      string,
+      { id: string; type: string; poem: string[] | null; audio_url: string | null;
+        options: { poem: string[] | null; audioUrl: string | null }[] }
+    >();
+    for (const r of flat) {
+      let q = grouped.get(r.id);
+      if (!q) {
+        q = { id: r.id, type: r.type, poem: r.poem, audio_url: r.audio_url, options: [] };
+        grouped.set(r.id, q);
+      }
+      if (r.o_id !== null) q.options.push({ poem: r.o_poem, audioUrl: r.o_audio_url });
+    }
+    const rows = [...grouped.values()];
+
     const doomed = rows.filter((r) =>
-      seedPrints.has(
-        fingerprint(
-          r.type,
-          r.poem,
-          r.audio_url,
-          (r.options ?? []).map((o) => ({ poem: o.poem, audioUrl: o.audio_url })),
-        ),
-      ),
+      seedPrints.has(fingerprint(r.type, r.poem, r.audio_url, r.options)),
     );
     const keep = rows.length - doomed.length;
 
@@ -127,13 +143,16 @@ async function main() {
     const ids = doomed.map((d) => d.id);
 
     // اثرِ جانبیِ حذف، پیش از انجامش
-    const { rows: fx } = await client.query<{ opts: string; ua: string; qaa: string; bm: string }>(
-      `select (select count(*) from question_options      where question_id = any($1::uuid[])) as opts,
-              (select count(*) from user_answers          where question_id = any($1::uuid[])) as ua,
-              (select count(*) from quiz_attempt_answers  where question_id = any($1::uuid[])) as qaa,
+    // `any($1::uuid[])` سه بار یک آرایه می‌گرفت؛ در MySQL هر فهرست
+    // جای‌نگهدارِ خودش را دارد، پس مقدارها چهار بار فرستاده می‌شوند.
+    const ph = ids.map(() => "?").join(", ");
+    const [fx] = await conn.execute<FxRow[]>(
+      `select (select count(*) from question_options      where question_id in (${ph})) as opts,
+              (select count(*) from user_answers          where question_id in (${ph})) as ua,
+              (select count(*) from quiz_attempt_answers  where question_id in (${ph})) as qaa,
               (select count(*) from user_bookmarks
-                where area = 'aruz' and ref_id = any($2::text[]))                              as bm`,
-      [ids, ids],
+                where area = 'aruz' and ref_id in (${ph}))                              as bm`,
+      [...ids, ...ids, ...ids, ...ids],
     );
     const { opts, ua, qaa, bm } = fx[0];
     console.log(`\nهمراهشان می‌رود (cascade):`);
@@ -148,29 +167,30 @@ async function main() {
       return;
     }
 
-    await client.query("begin");
+    await conn.beginTransaction();
     try {
       // نشان‌شده‌ها اول: کلید خارجی ندارند، پس cascade برشان نمی‌دارد و بعد از
       // حذفِ سؤال دیگر نمی‌شود پیدایشان کرد.
-      const delBm = await client.query(
-        `delete from user_bookmarks where area = 'aruz' and ref_id = any($1::text[])`,
-        [ids],
+      const [delBm] = await conn.execute(
+        `delete from user_bookmarks where area = 'aruz' and ref_id in (${ph})`,
+        ids,
       );
-      const delQ = await client.query(`delete from questions where id = any($1::uuid[])`, [ids]);
-      await client.query("commit");
-      console.log(`\n✓ ${delQ.rowCount} سؤال حذف شد و ${delBm.rowCount} نشان‌شده پاک شد.`);
+      const [delQ] = await conn.execute(`delete from questions where id in (${ph})`, ids);
+      await conn.commit();
+      const n = (r: unknown) => (r as { affectedRows: number }).affectedRows;
+      console.log(`\n✓ ${n(delQ)} سؤال حذف شد و ${n(delBm)} نشان‌شده پاک شد.`);
     } catch (err) {
-      await client.query("rollback");
+      await conn.rollback();
       throw err;
     }
 
-    const { rows: after } = await client.query<{ q: string; o: string }>(
+    const [after] = await conn.execute<CountRow[]>(
       `select (select count(*) from questions) as q,
               (select count(*) from question_options) as o`,
     );
     console.log(`  اکنون در دیتابیس: ${after[0].q} سؤال و ${after[0].o} گزینه.`);
   } finally {
-    await client.end();
+    await conn.end();
   }
 }
 

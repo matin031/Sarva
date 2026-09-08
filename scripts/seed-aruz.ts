@@ -29,7 +29,23 @@
 
 process.loadEnvFile(".env.local");
 
-import pg from "pg";
+import { randomUUID } from "node:crypto";
+
+import type { RowDataPacket } from "mysql2/promise";
+
+type ExistingRow = RowDataPacket & {
+  qid: string;
+  type: string;
+  poem: string[] | null;
+  audio_url: string | null;
+  o_id: string | null;
+  o_poem: string[] | null;
+  o_audio_url: string | null;
+};
+
+type CountRow = RowDataPacket & { q: number; o: number };
+// ماژول .mjs مشترکِ اسکریپت‌ها — همان تنظیماتِ اتصالِ lib/db.
+import { connect } from "./mysql/script-db.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -117,37 +133,41 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
+  const conn = await connect(url);
 
   try {
     // ── ۳) آنچه از قبل هست
-    const { rows: existing } = await client.query<{
-      type: string;
-      poem: string[] | null;
-      audio_url: string | null;
-      options: { poem: string[] | null; audio_url: string | null }[];
-    }>(
-      `select q.type, q.poem, q.audio_url,
-              coalesce(
-                json_agg(json_build_object('poem', o.poem, 'audio_url', o.audio_url))
-                  filter (where o.id is not null),
-                '[]'
-              ) as options
+    //
+    // ⚠️ اثرانگشتِ سؤال به ترتیبِ گزینه‌ها حساس است، پس تجمیعِ JSON اینجا
+    // خطرناک بود: JSON_ARRAYAGG در MySQL ترتیبش تضمین نشده است و یک ترتیبِ
+    // متفاوت یعنی اثرانگشتِ متفاوت — یعنی سؤالی که از قبل هست دوباره درج
+    // می‌شد.
+    //
+    // پس ردیف‌های مسطحِ مرتب خوانده و در TypeScript گروه می‌شوند.
+    const [flat] = await conn.execute<ExistingRow[]>(
+      `select q.id as qid, q.type, q.poem, q.audio_url,
+              o.id as o_id, o.poem as o_poem, o.audio_url as o_audio_url
          from questions q
          left join question_options o on o.question_id = q.id
-        group by q.id, q.type, q.poem, q.audio_url`,
+        order by q.id, o.x, o.id`,
     );
 
+    const grouped = new Map<
+      string,
+      { type: string; poem: string[] | null; audio_url: string | null;
+        options: { poem: string[] | null; audioUrl: string | null }[] }
+    >();
+    for (const r of flat) {
+      let q = grouped.get(r.qid);
+      if (!q) {
+        q = { type: r.type, poem: r.poem, audio_url: r.audio_url, options: [] };
+        grouped.set(r.qid, q);
+      }
+      if (r.o_id !== null) q.options.push({ poem: r.o_poem, audioUrl: r.o_audio_url });
+    }
+
     const seen = new Set(
-      existing.map((r) =>
-        fingerprint(
-          r.type,
-          r.poem,
-          r.audio_url,
-          (r.options ?? []).map((o) => ({ poem: o.poem, audioUrl: o.audio_url })),
-        ),
-      ),
+      [...grouped.values()].map((r) => fingerprint(r.type, r.poem, r.audio_url, r.options)),
     );
 
     const fresh = seeds.filter((s) => {
@@ -166,36 +186,45 @@ async function main() {
     }
 
     // ── ۴) درج
-    await client.query("begin");
+    await conn.beginTransaction();
     try {
       for (const s of fresh) {
-        const { rows } = await client.query<{ id: string }>(
-          `insert into questions (type, poem, audio_url, difficulty)
-           values ($1, $2, $3, $4) returning id`,
-          [s.type, s.poem ?? null, s.audioUrl ?? null, s.difficulty],
+        const id = randomUUID();
+        // ⚠️ poem آرایه است و ستون JSON؛ بدون JSON.stringify درایور آرایهٔ JS
+        // را به نمایشِ متنیِ خودش تبدیل می‌کند.
+        await conn.execute(
+          `insert into questions (id, type, poem, audio_url, difficulty)
+           values (?, ?, ?, ?, ?)`,
+          [id, s.type, s.poem ? JSON.stringify(s.poem) : null, s.audioUrl ?? null, s.difficulty],
         );
-        const id = rows[0].id;
         for (const o of s.options) {
-          await client.query(
-            `insert into question_options (question_id, poem, audio_url, is_correct, x)
-             values ($1, $2, $3, $4, $5)`,
-            [id, o.poem ?? null, o.audioUrl ?? null, o.isCorrect, o.x],
+          await conn.execute(
+            `insert into question_options (id, question_id, poem, audio_url, is_correct, x)
+             values (?, ?, ?, ?, ?, ?)`,
+            [
+              randomUUID(),
+              id,
+              o.poem ? JSON.stringify(o.poem) : null,
+              o.audioUrl ?? null,
+              o.isCorrect,
+              o.x,
+            ],
           );
         }
       }
-      await client.query("commit");
+      await conn.commit();
     } catch (err) {
-      await client.query("rollback");
+      await conn.rollback();
       throw err;
     }
 
-    const { rows: c } = await client.query<{ q: string; o: string }>(
+    const [c] = await conn.execute<CountRow[]>(
       `select (select count(*) from questions) as q,
               (select count(*) from question_options) as o`,
     );
     console.log(`✓ ${fresh.length} سؤال افزوده شد. اکنون: ${c[0].q} سؤال و ${c[0].o} گزینه.`);
   } finally {
-    await client.end();
+    await conn.end();
   }
 }
 

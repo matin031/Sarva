@@ -41,8 +41,8 @@ async function makeUser(email: string) {
   // upsert بدون RETURNING: درج/به‌روزرسانی، بعد خواندن با همان کلیدِ یکتا.
   await execute(
     `insert into users (id, email, password_hash, full_name, role)
-     values (?, ?, 'x', 'کاربر آزمایشی', 'student') as new
-     on duplicate key update full_name = new.full_name`,
+     values (?, ?, 'x', 'کاربر آزمایشی', 'student')
+     on duplicate key update full_name = values(full_name)`,
     [randomUUID(), email],
   );
   const rows = await query<UserRow>(

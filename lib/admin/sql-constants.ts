@@ -107,7 +107,7 @@ export const SQL_SNIPPETS: SqlSnippetGroup[] = [
        left(coalesce((select group_concat(jt.v order by jt.ord separator ' / ')
                 -- ⚠️ coalesce داخلِ json_table لازم است: poem می‌تواند NULL
                 -- باشد (سؤالِ صوتی) و JSON_TABLE با NULL خطای ۱۲۱۰ می‌دهد.
-                from json_table(coalesce(q.poem, cast('[]' as json)), '$[*]'
+                from json_table(coalesce(q.poem, '[]'), '$[*]'
                      columns (ord for ordinality, v text path '$')) jt), ''), 60) as بیت,
        count(o.id)                              as گزینه,
        count(case when o.is_correct then 1 end)     as پاسخ_درست
@@ -341,14 +341,13 @@ values
 values
   (uuid(), 1001, 'عبارت نمونهٔ یک', 'U - - ', 'U U - ', 2, 'توضیح کوتاه', true, 0),
   (uuid(), 1002, 'عبارت نمونهٔ دو', '- U - ', '- - U ', 3, null,          true, 1)
-as new
 on duplicate key update
-  phrase          = new.phrase,
-  correct_pattern = new.correct_pattern,
-  wrong_pattern   = new.wrong_pattern,
-  difficulty      = new.difficulty,
-  explanation     = new.explanation,
-  is_published    = new.is_published;`,
+  phrase          = values(phrase),
+  correct_pattern = values(correct_pattern),
+  wrong_pattern   = values(wrong_pattern),
+  difficulty      = values(difficulty),
+  explanation     = values(explanation),
+  is_published    = values(is_published);`,
       },
       {
         title: "جفت‌های ادبی — افزودن انبوه",
@@ -358,10 +357,9 @@ on duplicate key update
 values
   (uuid(), 'dahom', 'dey', 'نام اثر یک', 'نام پدیدآورنده', 0),
   (uuid(), 'dahom', 'dey', 'نام اثر دو', 'نام پدیدآورنده', 1)
-as new
 on duplicate key update
-  author     = new.author,
-  sort_index = new.sort_index;`,
+  author     = values(author),
+  sort_index = values(sort_index);`,
       },
       {
         title: "نینجای دستور — نقش تازه با کلماتش",

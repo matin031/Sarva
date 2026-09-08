@@ -115,7 +115,7 @@ async function main() {
         finished_at  datetime(6)  null,
         statements   int          not null default 0,
         primary key (name)
-      ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_as_cs
+      ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_bin
     `);
 
     const [recorded] = await conn.query(

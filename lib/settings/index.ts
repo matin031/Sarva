@@ -225,9 +225,9 @@ export async function setSetting(
   // VALUES(col) در MySQL 8 منسوخ است؛ الگوی جدید با alias است.
   await execute(
     "insert into app_settings (`key`, value, updated_by)\n" +
-      "     values (?, json_quote(?), ?) as new\n" +
+      "     values (?, json_quote(?), ?)\n" +
       "     on duplicate key update\n" +
-      "       value = new.value, updated_at = now(6), updated_by = new.updated_by",
+      "       value = values(value), updated_at = now(6), updated_by = values(updated_by)",
     [key, value, updatedBy],
   );
   cache.delete(key);

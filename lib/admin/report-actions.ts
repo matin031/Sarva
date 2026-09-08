@@ -150,9 +150,19 @@ function likePattern(param: string): string {
  * پس هر ستونِ متنیِ UNION صریحاً به یک collation آورده می‌شود.
  */
 function unionText(expr: string): string {
-  return `convert(${expr} using utf8mb4) collate utf8mb4_0900_as_cs`;
+  // ⚠️ `utf8mb4_bin` و نه `utf8mb4_0900_as_cs`: دومی فقط در MySQL 8 هست و
+  // روی MariaDB کلِ کوئریِ جست‌وجو با «Unknown collation» رد می‌شد. هر دو
+  // به بزرگی و کوچکی حساس‌اند، که تنها چیزی است که اینجا اهمیت دارد.
+  return `convert(${expr} using utf8mb4) collate utf8mb4_bin`;
 }
 
+/**
+ * عناصر یک آرایهٔ JSON را به یک رشته می‌چسباند.
+ *
+ * ⚠️ آرایهٔ تهی به‌صورت رشتهٔ `'[]'` نوشته می‌شود و نه `cast('[]' as json)`.
+ * MariaDB اصلاً CAST به نوع JSON ندارد و همان‌جا خطای نحوی می‌دهد. هر دو
+ * موتور رشته را در JSON_TABLE می‌پذیرند، پس شکلِ ساده‌تر هم پرتابل‌تر است.
+ */
 function jsonArrayJoin(expr: string, sep: string): string {
   return (
     `coalesce((select group_concat(jt__.v order by jt__.ord separator '${sep}') ` +
@@ -637,7 +647,7 @@ export async function adminFindContent(term: string): Promise<ContentHit[]> {
            ${unionText("cast(null as char)")} as category_id,
            ${unionText("cast(null as char)")} as exam_id
       from questions q
-     where ${like(jsonArrayJoin("coalesce(q.poem, cast('[]' as json))", " "))}
+     where ${like(jsonArrayJoin("coalesce(q.poem, '[]')", " "))}
     union all
     select 'quiz', ${unionText("o.question_id")},
            coalesce(o.label, nullif(${jsonArrayJoin("o.poem", " / ")}, ''), '(گزینهٔ صوتی)'),
@@ -645,7 +655,7 @@ export async function adminFindContent(term: string): Promise<ContentHit[]> {
            null, null, null, null, null
       from question_options o
      where ${like("coalesce(o.label, '')")}
-        or ${like(jsonArrayJoin("coalesce(o.poem, cast('[]' as json))", " "))}
+        or ${like(jsonArrayJoin("coalesce(o.poem, '[]')", " "))}
     union all
     select 'vocab', ${unionText("v.id")}, v.word, concat(v.grade, ' — درس ', v.lesson),
            v.grade, v.lesson, null, null, null

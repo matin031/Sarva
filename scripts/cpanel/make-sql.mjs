@@ -51,13 +51,18 @@ SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,N
 SET SESSION time_zone = '+00:00';
 `);
 
-// --- نگهبانِ نسخه ------------------------------------------------------------
+// --- نگهبانِ سازگاری ------------------------------------------------------
 //
-// ⚠️ اگر این فایل روی موتوری وارد شود که collation های utf8mb4_0900_* را
-// ندارد، دستورهای اول یکی‌یکی خطا می‌دهند و phpMyAdmin ممکن است ادامه بدهد —
-// نتیجه‌اش نیمی از جدول‌ها و یک سایتِ خراب است.
+// ⚠️ نسخهٔ اول این بلوک وجودِ `utf8mb4_bin` را می‌سنجید و روی MariaDB
+// با پیام «MySQL 8 نیست» متوقف می‌شد. آن بررسی *خودش* اشتباه بود: هاست
+// این پروژه MariaDB است و اسکیما حالا طوری نوشته شده که روی هر دو کار کند.
 //
-// این بلوک همان‌جا با یک پیام روشن متوقفش می‌کند، پیش از آنکه چیزی ساخته شود.
+// چیزی که واقعاً باید سنجیده شود، وجودِ همان دو collation ای است که اسکیما
+// به آن‌ها تکیه دارد — و هر دو در MySQL 5.5+ و MariaDB 5.5+ هستند. اگر
+// روزی روی موتوری وارد شود که ندارد، دستورهای اول یکی‌یکی خطا می‌دهند و
+// phpMyAdmin ممکن است ادامه بدهد؛ نتیجه‌اش نیمی از جدول‌ها و سایتی است که
+// به‌شکل‌های عجیب می‌شکند. این بلوک همان‌جا و پیش از ساختِ هر چیزی
+// متوقفش می‌کند.
 parts.push(`-- --------------------------------------------------------------------------
 -- بررسی سازگاری، پیش از ساختِ هر چیزی
 -- --------------------------------------------------------------------------
@@ -67,10 +72,19 @@ CREATE PROCEDURE \`sarva_precheck\`()
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.collations
-     WHERE collation_name = 'utf8mb4_0900_as_cs'
+     WHERE collation_name IN ('utf8mb4_bin', 'utf8mb4_unicode_ci')
+     GROUP BY NULL HAVING COUNT(DISTINCT collation_name) = 2
   ) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
-      'این دیتابیس MySQL 8 نیست. به پشتیبانی هاست بگویید دیتابیس MySQL 8 بدهند.';
+      'این دیتابیس utf8mb4 کامل ندارد. به پشتیبانی هاست بگویید MySQL 8 یا MariaDB 10.4 به بالا بدهند.';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.engines
+     WHERE engine = 'InnoDB' AND support IN ('YES', 'DEFAULT')
+  ) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
+      'موتور InnoDB در دسترس نیست. بدون آن نه کلید خارجی هست نه تراکنش.';
   END IF;
 END$$
 DELIMITER ;
@@ -117,7 +131,7 @@ CREATE TABLE IF NOT EXISTS \`schema_migrations\` (
   \`finished_at\` DATETIME(6)  NULL,
   \`statements\`  INT          NOT NULL DEFAULT 0,
   PRIMARY KEY (\`name\`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 INSERT INTO \`schema_migrations\` (\`name\`, \`checksum\`, \`finished_at\`, \`statements\`) VALUES
 ${rows.join(",\n")}

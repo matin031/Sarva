@@ -55,15 +55,19 @@ export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) =>
     // چیزی است که ایندکس یکتای (user_id, question_id) تضمین می‌کند. نسخهٔ
     // قبلی این را با «اول select بعد update یا insert» شبیه‌سازی می‌کرد و
     // دو کلیک سریع می‌توانست به خطای کلید تکراری بخورد.
-    // `excluded.` در MySQL نیست؛ جانشینش alias بعد از VALUES است.
+    // `excluded.` در PostgreSQL بود؛ اینجا VALUES(col).
+    //
+    // ⚠️ نسخهٔ اول نامِ ردیف (`values (…) as new` و بعد `new.col`) را
+    // به کار می‌برد، که خواناتر است ولی فقط از MySQL 8.0.19 هست و در
+    // MariaDB خطای نحوی می‌دهد. VALUES(col) در هر دو موتور کار می‌کند.
     await execute(
       `insert into user_answers
          (id, user_id, question_id, selected_option_id, is_correct, answered_at)
-       values (?, ?, ?, ?, ?, now(6)) as new
+       values (?, ?, ?, ?, ?, now(6))
        on duplicate key update
-         selected_option_id = new.selected_option_id,
-         is_correct         = new.is_correct,
-         answered_at        = new.answered_at`,
+         selected_option_id = values(selected_option_id),
+         is_correct         = values(is_correct),
+         answered_at        = values(answered_at)`,
       [randomUUID(), user.id, questionId, selectedOptionId, isCorrect],
     );
 

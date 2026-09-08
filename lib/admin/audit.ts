@@ -468,16 +468,16 @@ export async function recordError(
          (id, source, message, context, detail, fingerprint,
           error_name, error_code, digest, environment, \`release\`,
           first_request_id, last_request_id, metadata)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) as new
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        on duplicate key update
                      occurrences      = app_error_log.occurrences + 1,
                      last_seen_at     = now(6),
-                     last_request_id  = new.last_request_id,
-                     metadata         = new.metadata,
-                     error_code       = coalesce(new.error_code, app_error_log.error_code),
-                     digest           = coalesce(new.digest, app_error_log.digest),
-                     \`release\`        = new.\`release\`,
-                     detail           = coalesce(app_error_log.detail, new.detail)`,
+                     last_request_id  = values(last_request_id),
+                     metadata         = values(metadata),
+                     error_code       = coalesce(values(error_code), app_error_log.error_code),
+                     digest           = coalesce(values(digest), app_error_log.digest),
+                     \`release\`        = values(\`release\`),
+                     detail           = coalesce(app_error_log.detail, values(detail))`,
       [
         randomUUID(),
         row.source,

@@ -28,7 +28,7 @@ export const GENERATED_COLUMNS = {
       // نیست، هر دو پذیرفته می‌شوند — یعنی دقیقاً همان چیزی که باید جلویش
       // گرفته شود.
       definition:
-        "VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs " +
+        "VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin " +
         "GENERATED ALWAYS AS (IF(`resolved_at` IS NULL, `fingerprint`, NULL)) VIRTUAL",
     },
   ],

@@ -124,13 +124,13 @@ async function main() {
       const [res] = await conn.execute(
         `insert into aruz_bridge_questions
            (id, source_id, phrase, correct_pattern, wrong_pattern, difficulty, sort_index)
-         values (?, ?, ?, ?, ?, ?, ?) as new
+         values (?, ?, ?, ?, ?, ?, ?)
          on duplicate key update
-           phrase          = new.phrase,
-           correct_pattern = new.correct_pattern,
-           wrong_pattern   = new.wrong_pattern,
-           difficulty      = new.difficulty,
-           sort_index      = new.sort_index`,
+           phrase          = values(phrase),
+           correct_pattern = values(correct_pattern),
+           wrong_pattern   = values(wrong_pattern),
+           difficulty      = values(difficulty),
+           sort_index      = values(sort_index)`,
         [
           randomUUID(),
           r.id,

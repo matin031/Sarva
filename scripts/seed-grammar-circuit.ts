@@ -196,17 +196,17 @@ async function main() {
         `insert into grammar_circuit_questions
            (id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) as new
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          on duplicate key update
-           grade = new.grade,
-           lesson = new.lesson,
-           question_type = new.question_type,
-           payload = new.payload,
-           difficulty = new.difficulty,
-           explanation = new.explanation,
-           attribution = new.attribution,
-           is_published = new.is_published,
-           sort_index = new.sort_index`,
+           grade = values(grade),
+           lesson = values(lesson),
+           question_type = values(question_type),
+           payload = values(payload),
+           difficulty = values(difficulty),
+           explanation = values(explanation),
+           attribution = values(attribution),
+           is_published = values(is_published),
+           sort_index = values(sort_index)`,
         [
           randomUUID(),
           r.sourceId,

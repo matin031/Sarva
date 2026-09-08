@@ -205,19 +205,45 @@ async function main() {
   // --- نسخهٔ موتور -----------------------------------------------------------
   section("موتور");
   const major = Number(dbInfo.v.split(".")[0]);
-  if (major >= 8) ok("نسخهٔ MySQL", dbInfo.v);
-  else bad("نسخهٔ MySQL", `${dbInfo.v} — این اسکیما به قابلیت‌های MySQL 8 نیاز دارد.`);
+  // ⚠️ هر دو موتور پشتیبانی می‌شوند و این عمدی است.
+  //
+  // نسخهٔ اول این بررسی MariaDB را *رد* می‌کرد. آن موضع درست بود تا وقتی
+  // اسکیما به نحوِ مخصوص MySQL 8 تکیه داشت (collation های utf8mb4_0900_*،
+  // نمایهٔ چندمقداری، `member of`). حالا هیچ‌کدام نمانده و اسکیما و کد روی
+  // MariaDB 10.11 هم آزموده شده‌اند، پس رد کردنش فقط یک هشدارِ دروغین بود.
+  //
+  // کفِ نسخه: MariaDB 10.4 و MySQL 8. پایین‌تر از این‌ها یا CHECK constraint
+  // اجرا نمی‌شود یا ستون محاسباتی رفتار دیگری دارد.
+  const isMaria = /mariadb/i.test(dbInfo.v);
+  const minMajor = isMaria ? 10 : 8;
+  const minMinor = isMaria ? 4 : 0;
+  const [, minorRaw = "0"] = dbInfo.v.split(".");
+  const minor = Number.parseInt(minorRaw, 10) || 0;
+  const enough = major > minMajor || (major === minMajor && minor >= minMinor);
 
-  if (/mariadb/i.test(dbInfo.v)) {
+  if (enough) ok(`موتور: ${isMaria ? "MariaDB" : "MySQL"}`, dbInfo.v);
+  else {
     bad(
-      "موتور",
-      "این MariaDB است، نه MySQL. با اینکه شبیه‌اند، ستون محاسباتی و " +
-        "multi-valued index و JSON در آن رفتار دیگری دارند و این اسکیما آزموده نشده.",
+      "نسخهٔ دیتابیس کافی نیست",
+      `${dbInfo.v} — دست‌کم ${isMaria ? "MariaDB 10.4" : "MySQL 8.0"} لازم است.`,
     );
-  } else ok("موتور واقعاً MySQL است (نه MariaDB)");
+  }
 
   // --- sql_mode -------------------------------------------------------------
-  const [[modeRow]] = await conn.query("select @@sql_mode as m");
+  //
+  // ⚠️ حالتِ *نشست* سنجیده می‌شود و نه سراسری، چون اپ خودش روی هر اتصالِ
+  // تازه sql_mode را تنظیم می‌کند (lib/db). دلیلش این است که MariaDB به‌طور
+  // پیش‌فرض ONLY_FULL_GROUP_BY ندارد و روی هاست اشتراکی دستِ ما به my.cnf
+  // نمی‌رسد. پس آنچه اهمیت دارد حالتی است که کوئری‌های اپ واقعاً در آن اجرا
+  // می‌شوند.
+  //
+  // این اسکریپت از همان مسیرِ اتصالِ اپ نمی‌آید، پس اینجا هم صریح تنظیمش
+  // می‌کنیم تا همان چیزی سنجیده شود که در عمل هست.
+  await conn.query(
+    "set session sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES," +
+      "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+  );
+  const [[modeRow]] = await conn.query("select @@session.sql_mode as m");
   for (const need of ["STRICT_TRANS_TABLES", "ONLY_FULL_GROUP_BY"]) {
     if (modeRow.m.includes(need)) ok(`sql_mode شامل ${need}`);
     else
@@ -360,7 +386,10 @@ async function main() {
       "count(*) as count_val, " +
       "cast('2020-03-04 05:06:07.123456' as datetime(6)) as dt_val, " +
       "cast('2020-03-04' as date) as date_val, " +
-      "cast('{\"a\":[1,2],\"b\":null}' as json) as json_val " +
+      // ⚠️ بدون cast: MariaDB نوعِ JSON برای CAST ندارد. مقدار از یک ستونِ
+      // واقعیِ JSON خوانده می‌شود که هم پرتابل است و هم دقیقاً همان چیزی را
+      // می‌سنجد که در عمل اتفاق می‌افتد.
+      "json_extract('{\"a\":[1,2],\"b\":null}', '$') as json_val " +
       "from users",
   );
 

@@ -174,6 +174,30 @@ const LEFTOVERS: { re: RegExp; why: string }[] = [
     re: /\bon\s+conflict\b/i,
     why: "ON CONFLICT در MySQL نیست؛ ON DUPLICATE KEY UPDATE",
   },
+  // ⚠️ سه الگوی زیر در MySQL 8 کار می‌کنند ولی در MariaDB نه. هاست این
+  // پروژه MariaDB است، پس «روی MySQL درست است» دیگر کافی نیست.
+  {
+    re: /\)\s*as\s+new\b/i,
+    why:
+      "نامِ ردیف در INSERT (`values (…) as new`) از MySQL 8.0.19 است و در " +
+      "MariaDB نحو ندارد؛ به‌جایش VALUES(col)",
+  },
+  {
+    re: /\bmember\s+of\s*\(/i,
+    why: "`x member of (json)` در MariaDB نیست؛ json_contains(json, json_quote(x))",
+  },
+  {
+    re: /\bcast\s*\([^)]*\bas\s+json\s*\)/i,
+    why: "CAST به نوع JSON در MariaDB نیست؛ رشتهٔ JSON را مستقیم بدهید",
+  },
+  {
+    re: /\bas\s+char\s*\(\s*\d+\s*\)\s+array\b/i,
+    why: "نمایهٔ چندمقداری (CAST … AS … ARRAY) فقط در MySQL 8 است",
+  },
+  {
+    re: /utf8mb4_0900_/i,
+    why: "collation های utf8mb4_0900_* فقط در MySQL 8 اند؛ utf8mb4_bin یا utf8mb4_unicode_ci",
+  },
   {
     re: /\bnulls\s+(first|last)\b/i,
     why: "NULLS FIRST/LAST در MySQL نحو ندارد",
@@ -325,6 +349,14 @@ const SOURCE_SMELLS: { re: RegExp; why: string }[] = [
   {
     re: /=\s*any\s*\(/i,
     why: "`= any(array)` نحوِ PostgreSQL است؛ در MySQL `in (?, ?, …)`",
+  },
+  {
+    re: /utf8mb4_0900_/i,
+    why: "collation های utf8mb4_0900_* فقط در MySQL 8 اند و روی MariaDB اتصال یا کوئری رد می‌شود",
+  },
+  {
+    re: /\)\s*as\s+new\b/i,
+    why: "نامِ ردیف در INSERT از MySQL 8.0.19 است و در MariaDB نحو ندارد؛ VALUES(col)",
   },
 ];
 

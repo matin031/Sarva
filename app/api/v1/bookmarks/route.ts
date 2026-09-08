@@ -176,11 +176,11 @@ export const POST = withRoute("/api/v1/bookmarks", async (request: Request) => {
     const id = await transaction(async (tx) => {
       await tx.execute(
         `insert into user_bookmarks (id, user_id, area, ref_id, title, subtitle, payload)
-         values (?, ?, ?, ?, ?, ?, ?) as new
+         values (?, ?, ?, ?, ?, ?, ?)
          on duplicate key update
-           title    = new.title,
-           subtitle = new.subtitle,
-           payload  = new.payload`,
+           title    = values(title),
+           subtitle = values(subtitle),
+           payload  = values(payload)`,
         [
           randomUUID(),
           user.id,

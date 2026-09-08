@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -225,19 +226,28 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
         );
         await tx.execute(`delete from question_options where question_id = ?`, [id]);
       } else {
-        const created = await tx.queryOne<{ id: string }>(
-          `insert into questions (type, poem, audio_url, difficulty)
-           values ($1, $2, $3, $4) returning id`,
-          [input.type, input.poem ?? null, input.audioUrl ?? null, input.difficulty ?? "medium"],
+        id = randomUUID();
+        // ⚠️ poem آرایه است و ستون JSON؛ بدون JSON.stringify درایور آرایهٔ JS
+        // را به رشتهٔ خودش تبدیل می‌کند و ستون مقدارِ بی‌معنی می‌گیرد.
+        await tx.execute(
+          `insert into questions (id, type, poem, audio_url, difficulty)
+           values (?, ?, ?, ?, ?)`,
+          [
+            id,
+            input.type,
+            input.poem ? JSON.stringify(input.poem) : null,
+            input.audioUrl ?? null,
+            input.difficulty ?? "medium",
+          ],
         );
-        id = created!.id;
       }
 
       for (const [i, o] of input.options.entries()) {
         await tx.execute(
-          `insert into question_options (question_id, label, poem, audio_url, is_correct, x)
-           values (?, ?, ?, ?, ?, ?)`,
+          `insert into question_options (id, question_id, label, poem, audio_url, is_correct, x)
+           values (?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             id,
             o.label ?? null,
             o.poem ?? null,

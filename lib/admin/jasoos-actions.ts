@@ -233,16 +233,25 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
         // در عوض راه‌های تازه‌ای برای رسیدن به حالتِ ناسازگار باز می‌کند.
         await tx.execute("delete from jasoos_suspects where level_id = ?", [id]);
       } else {
-        const row = await tx.queryOne<{ id: number }>(
+        // ⚠️ jasoos_levels تنها جدولی است که شناسه‌اش عددی و AUTO_INCREMENT
+        // است (با شروع از ۱۰۰۰). پس اینجا بر خلاف بقیه، شناسه را دیتابیس
+        // می‌سازد و با LAST_INSERT_ID خوانده می‌شود.
+        //
+        // ⚠️ حتماً روی همان اتصال: LAST_INSERT_ID در MySQL برای هر اتصال جدا
+        // نگه داشته می‌شود، پس اگر درج روی یک اتصال از pool می‌رفت و خواندن
+        // روی اتصال دیگری، شناسهٔ کسِ دیگری برمی‌گشت. `tx.insertId` همین را
+        // تضمین می‌کند.
+        //
+        // و جدولِ مشتق، چون MySQL اجازه نمی‌دهد زیرکوئریِ یک INSERT از جدولِ
+        // مقصد بخواند (خطای ۱۰۹۳).
+        id = await tx.insertId(
           `insert into jasoos_levels
              (title, category, content_type, verse_line_1, verse_line_2, is_published, sort_index)
-           values ($1, $2, $3, $4, $5, $6,
-                   coalesce((select max(sort_index) from jasoos_levels), 0) + 1)
-           returning id`,
+           select ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+             from (select max(sort_index) as m from jasoos_levels) t`,
           [title, input.category, input.contentType, line1, line2, input.isPublished],
         );
-        if (!row) throw new Error("درج پرونده ناموفق بود.");
-        id = row.id;
+        if (!id) throw new Error("درج پرونده ناموفق بود.");
       }
 
       for (const [index, s] of input.suspects.entries()) {

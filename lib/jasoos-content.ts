@@ -52,23 +52,85 @@ type RawSuspect = {
  * شناسهٔ مرحله و نقشِ انتخابی را می‌فرستد. تفاوت فقط در این است که به‌جای
  * صد ردیف، یک ردیف خوانده می‌شود.
  */
+
+/**
+ * ⚠️ مظنون‌ها با JOIN خوانده می‌شوند و در TypeScript گروه می‌شوند، نه با یک
+ * تابع تجمعیِ JSON.
+ *
+ * در PostgreSQL این کار با `jsonb_agg(… order by s.sort_index, s.id)` انجام
+ * می‌شد و ترتیب تضمین‌شده بود. معادلِ MySQL یعنی JSON_ARRAYAGG ترتیبش
+ * **تضمین نشده** است — امروز ترتیبِ زیرکوئری را نگه می‌دارد (آزموده شد) ولی
+ * مستندات چیزی قول نمی‌دهند.
+ *
+ * و ترتیبِ مظنون‌ها اینجا تزئینی نیست: بازی چهار نقش را به همان ترتیب نشان
+ * می‌دهد و toLevel هم روی تعداد و یکتا بودنِ جاسوس شرط می‌گذارد. یک ترتیبِ
+ * به‌هم‌ریخته یعنی صورتِ سؤال عوض می‌شود بی‌آنکه چیزی خطا بدهد.
+ */
+type SuspectJoinRow = {
+  id: number;
+  title: string;
+  category: string;
+  content_type: string;
+  verse_line_1: string;
+  verse_line_2: string;
+  s_role: string | null;
+  s_is_spy: boolean | null;
+  s_evidence: string | null;
+  s_word_in_verse: string | null;
+};
+
+const LEVEL_SELECT = `
+  select l.id, l.title, l.category, l.content_type,
+         l.verse_line_1, l.verse_line_2,
+         s.role          as s_role,
+         s.is_spy        as s_is_spy,
+         s.evidence      as s_evidence,
+         s.word_in_verse as s_word_in_verse
+    from jasoos_levels l
+    left join jasoos_suspects s on s.level_id = l.id`;
+
+/** ردیف‌های JOIN شده را به همان شکلِ LevelRow قبلی برمی‌گرداند. */
+function groupLevels(rows: SuspectJoinRow[]): LevelRow[] {
+  const out = new Map<number, LevelRow>();
+  for (const r of rows) {
+    let level = out.get(r.id);
+    if (!level) {
+      level = {
+        id: r.id,
+        title: r.title,
+        category: r.category,
+        content_type: r.content_type,
+        verse_line_1: r.verse_line_1,
+        verse_line_2: r.verse_line_2,
+        suspects: [],
+      };
+      out.set(r.id, level);
+    }
+    // مرحلهٔ بدون مظنون از LEFT JOIN یک ردیفِ تهی می‌دهد؛ نباید به یک
+    // مظنونِ ساختگی تبدیل شود. (toLevel هم روی طولِ چهار شرط دارد و چنین
+    // مرحله‌ای را کنار می‌گذارد — همان رفتار قبلی.)
+    if (r.s_role !== null) {
+      level.suspects!.push({
+        role: r.s_role,
+        is_spy: r.s_is_spy!,
+        evidence: r.s_evidence!,
+        word_in_verse: r.s_word_in_verse!,
+      });
+    }
+  }
+  return [...out.values()];
+}
+
 export async function loadJasoosLevel(levelId: number): Promise<JasoosLevel | null> {
   let rows: LevelRow[];
   try {
-    rows = await query<LevelRow>(
-      `select l.id, l.title, l.category, l.content_type,
-              l.verse_line_1, l.verse_line_2,
-              (select jsonb_agg(jsonb_build_object(
-                        'role', s.role,
-                        'is_spy', s.is_spy,
-                        'evidence', s.evidence,
-                        'word_in_verse', s.word_in_verse)
-                      order by s.sort_index, s.id)
-                 from jasoos_suspects s
-                where s.level_id = l.id) as suspects
-         from jasoos_levels l
-        where l.is_published and l.id = $1`,
-      [levelId],
+    rows = groupLevels(
+      await query<SuspectJoinRow>(
+        `${LEVEL_SELECT}
+          where l.is_published and l.id = ?
+          order by s.sort_index, s.id`,
+        [levelId],
+      ),
     );
   } catch {
     rows = [];
@@ -87,22 +149,12 @@ export async function loadJasoosLevel(levelId: number): Promise<JasoosLevel | nu
 export async function loadJasoosLevels(): Promise<JasoosLevelData> {
   let rows: LevelRow[];
   try {
-    rows = await query<LevelRow>(
-      // مظنون‌ها به‌صورت jsonb برمی‌گردند تا یک کوئری کافی باشد؛ با join معمولی
-      // باید هشت ردیف را در کد دوباره گروه‌بندی می‌کردیم.
-      `select l.id, l.title, l.category, l.content_type,
-              l.verse_line_1, l.verse_line_2,
-              (select jsonb_agg(jsonb_build_object(
-                        'role', s.role,
-                        'is_spy', s.is_spy,
-                        'evidence', s.evidence,
-                        'word_in_verse', s.word_in_verse)
-                      order by s.sort_index, s.id)
-                 from jasoos_suspects s
-                where s.level_id = l.id) as suspects
-         from jasoos_levels l
-        where l.is_published
-        order by l.sort_index, l.id`,
+    rows = groupLevels(
+      await query<SuspectJoinRow>(
+        `${LEVEL_SELECT}
+          where l.is_published
+          order by l.sort_index, l.id, s.sort_index, s.id`,
+      ),
     );
   } catch (err) {
     await recordError("db", err, "loadJasoosLevels");

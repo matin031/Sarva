@@ -108,6 +108,8 @@ function extract(file: string) {
             if (/\b(where|and|or|on|not|having)$/.test(tail)) return ["true"];
             // فهرستِ جای‌نگهدارِ IN — placeholders() این را می‌سازد.
             if (/\bin\s*\($/.test(tail)) return ["?"];
+            // فهرستِ سطرهای یک INSERT چندردیفی که در زمان اجرا ساخته می‌شود.
+            if (/\bvalues$/.test(tail)) return ["(?, ?, ?, ?, ?)", "(?)"];
             return ["", "where true"];
           };
 
@@ -192,9 +194,24 @@ const LEFTOVERS: { re: RegExp; why: string }[] = [
   },
 ];
 
+/**
+ * کامنت‌های SQL قبل از بررسی حذف می‌شوند.
+ *
+ * ⚠️ بدون این، توضیحی که *دربارهٔ* یک الگوی PostgreSQL نوشته شده — مثلاً
+ * «شرطِ اصلی $3::boolean بود» — خودش به‌عنوان الگوی باقی‌مانده گزارش
+ * می‌شد. یعنی هرچه کد بهتر مستند می‌شد، ابزار بیشتر شکایت می‌کرد.
+ */
+function stripSqlComments(sql: string): string {
+  return sql
+    .replace(/--[^\n]*/g, " ")
+    .replace(/#[^\n]*/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ");
+}
+
 function scanLeftovers(sql: string): string[] {
+  const body = stripSqlComments(sql);
   const out: string[] = [];
-  for (const { re, why } of LEFTOVERS) if (re.test(sql)) out.push(why);
+  for (const { re, why } of LEFTOVERS) if (re.test(body)) out.push(why);
   return out;
 }
 

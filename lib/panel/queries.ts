@@ -1,5 +1,5 @@
 import "server-only";
-import { query, queryOne } from "@/lib/db";
+import { query, queryOne, placeholders } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type {
   AruzAttempt,
@@ -81,23 +81,45 @@ export async function getAruzAttempts(
     q_type: string | null;
     q_poem: string[] | null;
     q_audio_url: string | null;
-    options: { id: string; label: string | null; poem: string[] | null; audio_url: string | null; is_correct: boolean }[] | null;
   }>(
     `select ans.attempt_id, ans.id, ans.is_correct, ans.selected_option_id,
-            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url,
-            (select coalesce(
-                      json_agg(json_build_object(
-                        'id', o.id, 'label', o.label, 'poem', o.poem,
-                        'audio_url', o.audio_url, 'is_correct', o.is_correct
-                      ) order by o.x, o.id),
-                      '[]'::json)
-               from question_options o where o.question_id = q.id) as options
+            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url
        from quiz_attempt_answers ans
        left join questions q on q.id = ans.question_id
-      where ans.attempt_id = any($1::uuid[])
+      where ans.attempt_id in (${placeholders(attemptIds.length)})
       order by ans.created_at, ans.id`,
-    [attemptIds],
+    attemptIds,
   );
+
+  // ⚠️ گزینه‌ها جدا خوانده می‌شوند و نه با تجمیعِ JSON داخلِ همان کوئری.
+  //
+  // نسخهٔ PostgreSQL از `json_agg(… order by o.x, o.id)` استفاده می‌کرد.
+  // معادلِ MySQL یعنی JSON_ARRAYAGG ترتیبش تضمین نشده است، و ترتیبِ
+  // گزینه‌ها همان چیزی است که کاربر در کارنامه‌اش می‌بیند.
+  const questionIds = [...new Set(answerRows.map((r) => r.question_id).filter((id): id is string => id !== null))];
+  const optionRows = questionIds.length
+    ? await query<{
+        question_id: string;
+        id: string;
+        label: string | null;
+        poem: string[] | null;
+        audio_url: string | null;
+        is_correct: boolean;
+      }>(
+        `select question_id, id, label, poem, audio_url, is_correct
+           from question_options
+          where question_id in (${placeholders(questionIds.length)})
+          order by x, id`,
+        questionIds,
+      )
+    : [];
+
+  const optionsByQuestion = new Map<string, typeof optionRows>();
+  for (const o of optionRows) {
+    const list = optionsByQuestion.get(o.question_id);
+    if (list) list.push(o);
+    else optionsByQuestion.set(o.question_id, [o]);
+  }
 
   const byAttempt = new Map<string, AruzAttempt["answers"]>();
   for (const r of answerRows) {
@@ -110,7 +132,7 @@ export async function getAruzAttempts(
       type: (r.q_type ?? null) as AruzQuestionType | null,
       poem: r.q_poem,
       audioUrl: r.q_audio_url,
-      options: (r.options ?? []).map((o) => ({
+      options: (r.question_id ? (optionsByQuestion.get(r.question_id) ?? []) : []).map((o) => ({
         id: o.id,
         label: o.label,
         poem: o.poem,

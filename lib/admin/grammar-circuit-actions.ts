@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { randomBytes } from "node:crypto";
 import { invalidateAvailability } from "@/lib/grammar-circuit/availability-cache";
 import { query, queryOne, execute, isUniqueViolation } from "@/lib/db";
@@ -163,10 +164,10 @@ export async function gcAdminLessonCounts(
 
   const rows = await query<{ lesson: number; total: number; published: number }>(
     `select lesson,
-            count(*)::int as total,
-            count(*) filter (where is_published)::int as published
+            count(*)                                     as total,
+            count(case when is_published then 1 end)     as published
        from grammar_circuit_questions
-      where grade = $1
+      where grade = ?
       group by lesson`,
     [grade],
   );
@@ -180,8 +181,8 @@ export async function gcAdminLessonCounts(
 export async function gcAdminTotals(): Promise<{ total: number; published: number }> {
   await requireAdmin();
   const row = await queryOne<{ total: number; published: number }>(
-    `select count(*)::int as total,
-            count(*) filter (where is_published)::int as published
+    `select count(*)                                 as total,
+            count(case when is_published then 1 end) as published
        from grammar_circuit_questions`,
   );
   return row ?? { total: 0, published: 0 };
@@ -335,15 +336,18 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
     }
 
     // سؤالِ تازه به انتهای همان درس می‌رود.
-    const row = await queryOne<{ id: string }>(
+    // جدولِ مشتق (خطای ۱۰۹۳) و پارامترهای تکراری: $2 و $3 هرکدام دو بار
+    // می‌آمدند و در MySQL هر ? یک جای مستقل است.
+    const newId = randomUUID();
+    await execute(
       `insert into grammar_circuit_questions
-         (source_id, grade, lesson, question_type, payload, difficulty,
+         (id, source_id, grade, lesson, question_type, payload, difficulty,
           explanation, attribution, is_published, sort_index)
-       values ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9,
-               coalesce((select max(sort_index) from grammar_circuit_questions
-                          where grade = $2 and lesson = $3), 0) + 1)
-       returning id`,
+       select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+         from (select max(sort_index) as m from grammar_circuit_questions
+                where grade = ? and lesson = ?) t`,
       [
+        newId,
         newSourceId(input.grade, input.lesson),
         input.grade,
         input.lesson,
@@ -353,20 +357,22 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
         explanation,
         attribution,
         input.isPublished,
+        // دو بارِ آخر برای زیرکوئریِ max(sort_index)
+        input.grade,
+        input.lesson,
       ],
     );
-    if (!row) return { ok: false, error: "ذخیرهٔ پرسش ناموفق بود." };
 
     await recordAudit({
       actor: admin,
       action: "grammar_circuit.question_save",
       targetType: "grammar_circuit_question",
-      targetId: row.id,
+      targetId: newId,
       summary: `پرسشِ «${sentence.slice(0, 60)}» ساخته شد`,
       metadata: { grade: input.grade, lesson: input.lesson, published: input.isPublished },
     });
 
-    return { ok: true, id: row.id };
+    return { ok: true, id: newId };
   } catch (err) {
     if (isUniqueViolation(err)) {
       return { ok: false, error: "شناسهٔ محتوایی تکراری است؛ دوباره تلاش کنید." };

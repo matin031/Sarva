@@ -254,18 +254,35 @@ export async function getExamQuestion(
   examKey: string,
   questionNumber: number,
 ): Promise<SeedQuestion | null> {
-  // یک کوئری، نه سه.
+  // ⚠️ سه کوئریِ مرتب، و نه یک کوئری با تجمیعِ تودرتوی JSON.
   //
-  // ⚠️ گزینه‌ها داخلِ همان ردیفِ جزء با jsonb برمی‌گردند و جزءها داخلِ ردیفِ
-  // سؤال. با سه کوئریِ جدا سه رفت‌وبرگشت داشتیم و باید در کد دوباره
-  // گروه‌بندی می‌کردیم؛ همان الگویی که lib/jasoos-content.ts هم استفاده
-  // می‌کند.
+  // نسخهٔ PostgreSQL دو `jsonb_agg(… order by …)` تودرتو داشت: جزءها به
+  // ترتیب part_index و گزینه‌ها به ترتیب order_index. در MySQL معادلش
+  // JSON_ARRAYAGG است که **ترتیبش تضمین نشده** — و اینجا ترتیب همان چیزی
+  // است که دانش‌آموز روی برگه می‌بیند. یک جابه‌جاییِ بی‌صدا در ترتیبِ
+  // گزینه‌ها یعنی «گزینهٔ ۲» دیگر همان گزینهٔ ۲ نیست.
+  //
+  // پس همان الگویی که getExamByKey بالا استفاده می‌کند: ردیف‌های مسطحِ مرتب
+  // و گروه‌بندی در TypeScript.
   const row = await queryOne<{
+    id: string;
     number: number;
     page_ref: number | null;
     instruction: string | null;
     layout_pattern: string | null;
-    parts: {
+  }>(
+    `select q.id, q.number, q.page_ref, q.instruction, q.layout_pattern
+       from exam_questions q
+       join exam_sections s on s.id = q.exam_section_id
+       join exams e on e.id = s.exam_id
+      where e.exam_session = ? and q.number = ?`,
+    [examKey, questionNumber],
+  );
+  if (!row) return null;
+
+  const [parts, options] = await Promise.all([
+    query<{
+      id: string;
       label: string | null;
       type: string;
       score: number;
@@ -274,44 +291,42 @@ export async function getExamQuestion(
       accepted_answers: string[] | null;
       grading_mode: string;
       ai_grading_hint: string | null;
-      options: { option_key: string | null; text: string; is_correct: boolean }[] | null;
-    }[] | null;
-  }>(
-    `select q.number, q.page_ref, q.instruction, q.layout_pattern,
-            (select jsonb_agg(jsonb_build_object(
-                      'label', p.label,
-                      'type', p.type,
-                      'score', p.score,
-                      'content', p.content,
-                      'correct_answer', p.correct_answer,
-                      'accepted_answers', p.accepted_answers,
-                      'grading_mode', p.grading_mode,
-                      'ai_grading_hint', p.ai_grading_hint,
-                      'options', (
-                        select jsonb_agg(jsonb_build_object(
-                                 'option_key', o.option_key,
-                                 'text', o.text,
-                                 'is_correct', o.is_correct)
-                               order by o.order_index)
-                          from exam_question_options o
-                         where o.question_part_id = p.id))
-                    order by p.part_index)
-               from exam_question_parts p
-              where p.question_id = q.id) as parts
-       from exam_questions q
-       join exam_sections s on s.id = q.exam_section_id
-       join exams e on e.id = s.exam_id
-      where e.exam_session = $1 and q.number = $2`,
-    [examKey, questionNumber],
-  );
-  if (!row) return null;
+    }>(
+      `select id, label, type, score, content, correct_answer, accepted_answers,
+              grading_mode, ai_grading_hint
+         from exam_question_parts
+        where question_id = ?
+        order by part_index`,
+      [row.id],
+    ),
+    query<{
+      question_part_id: string;
+      option_key: string | null;
+      text: string;
+      is_correct: boolean;
+    }>(
+      `select o.question_part_id, o.option_key, o.text, o.is_correct
+         from exam_question_options o
+         join exam_question_parts p on p.id = o.question_part_id
+        where p.question_id = ?
+        order by p.part_index, o.order_index`,
+      [row.id],
+    ),
+  ]);
+
+  const optionsByPart = new Map<string, typeof options>();
+  for (const o of options) {
+    const list = optionsByPart.get(o.question_part_id);
+    if (list) list.push(o);
+    else optionsByPart.set(o.question_part_id, [o]);
+  }
 
   return {
     number: row.number,
     pageRef: row.page_ref ?? undefined,
     layoutPattern: (row.layout_pattern as SeedQuestion["layoutPattern"]) ?? undefined,
     instruction: row.instruction ?? undefined,
-    parts: (row.parts ?? []).map((p) => ({
+    parts: parts.map((p) => ({
       label: p.label ?? undefined,
       type: p.type as QuestionPartType,
       score: p.score,
@@ -320,10 +335,11 @@ export async function getExamQuestion(
       acceptedAnswers: p.accepted_answers ?? undefined,
       gradingMode: p.grading_mode as SeedPart["gradingMode"],
       aiGradingHint: p.ai_grading_hint ?? undefined,
-      // ⚠️ jsonb_agg روی مجموعهٔ خالی null می‌دهد نه []. جزئی که گزینه ندارد
-      // باید undefined بگیرد تا با خروجیِ getExamByKey یکی بماند.
-      options: p.options
-        ? p.options.map((o) => ({
+      // ⚠️ جزئی که گزینه ندارد باید undefined بگیرد و نه آرایهٔ خالی، تا با
+      // خروجیِ getExamByKey یکی بماند. (در نسخهٔ قبلی jsonb_agg روی مجموعهٔ
+      // خالی null می‌داد و همین اثر را داشت.)
+      options: optionsByPart.has(p.id)
+        ? optionsByPart.get(p.id)!.map((o) => ({
             optionKey: o.option_key ?? undefined,
             text: o.text,
             isCorrect: o.is_correct,

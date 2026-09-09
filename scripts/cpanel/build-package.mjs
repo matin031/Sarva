@@ -173,7 +173,7 @@ if (sqlBuild.status !== 0) {
 await cp(join(ROOT, "deploy", "sarva-database.sql"), join(OUT, "sarva-database.sql"));
 
 step("نمونهٔ تنظیمات و راهنما");
-await cp(join(ROOT, "docs", "cpanel", "env-example.txt"), join(OUT, ".env.example"));
+await cp(join(ROOT, ".env.example"), join(OUT, ".env.example"));
 await cp(join(ROOT, "docs", "cpanel", "README-HOST.md"), join(OUT, "README-HOST.md"));
 
 // --- package.json مخصوص هاست ------------------------------------------------
@@ -201,7 +201,7 @@ async function dirSize(dir) {
 }
 
 const bytes = await dirSize(OUT);
-const mb = (bytes / 1024 / 1024).toFixed(0);
+say(`  محتوای بسته: ${(bytes / 1024 / 1024).toFixed(0)} مگابایت پیش از فشرده‌سازی`);
 
 step("ساخت فایل zip");
 
@@ -226,13 +226,29 @@ if (zipped) {
   say("  (zip نصب نیست — پوشهٔ deploy/sarva را دستی فشرده کنید)");
 }
 
+// ⚠️ پوشهٔ میانی بعد از فشرده شدن پاک می‌شود.
+//
+// ماندنش یک سردرگمیِ واقعی ساخت: کاربر داخل پروژه‌اش یک پوشهٔ deploy
+// می‌دید که *دوباره کلِ پروژه* در آن بود، و نمی‌دانست کدام‌یک اصل است.
+//
+// چیزی که واقعاً لازم دارد یک فایل است: همان zip که آپلود می‌کند. پس فقط
+// همان می‌ماند. (اگر zip روی سیستم نبود، پوشه می‌ماند چون آن‌وقت تنها
+// خروجی همان است.)
+if (zipped) {
+  await rm(OUT, { recursive: true, force: true });
+  await rm(join(ROOT, "deploy", "sarva-database.sql"), { force: true });
+}
+
 say(`
 ────────────────────────────────────────────────────────────
-  بسته آماده است — ${mb} مگابایت
+  بسته آماده است
 
-  پوشه:  ${relative(ROOT, OUT)}
-  ${zipped ? `فشرده: ${relative(ROOT, join(ROOT, "deploy", "sarva.zip"))}` : ""}
-
-  راهنمای گام‌به‌گام داخل همین پوشه: README-HOST.md
+  ${
+    zipped
+      ? "این یک فایل را روی هاست آپلود کنید:\n\n" +
+        "      deploy/sarva.zip\n\n" +
+        "  فایل SQL و راهنمای فارسی هر دو داخل همین zip هستند."
+      : `پوشهٔ ${relative(ROOT, OUT)} را دستی فشرده کنید (zip روی سیستم نیست).`
+  }
 ────────────────────────────────────────────────────────────
 `);

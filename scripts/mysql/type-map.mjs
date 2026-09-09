@@ -1,7 +1,9 @@
 /**
  * قواعد نگاشت نوع PostgreSQL → MySQL 8 برای سروا.
  *
- * این فایل «تصمیم‌ها» را نگه می‌دارد و gen-schema.mjs فقط اجرایشان می‌کند. هر
+ * این فایل «تصمیم‌ها» را نگه می‌دارد. مولدِ اسکیما که از کاتالوگ زندهٔ
+ * PostgreSQL می‌خواند حذف شده (پروژه دیگر PostgreSQL ندارد)، پس این فایل
+ * حالا خودش سندِ نگاشت است و اسکیمای تولیدشده در mysql-migrations/ نتیجهٔ آن. هر
  * تصمیمی که اینجا نوشته شده یک دلیل دارد و دلیلش کنارش آمده، چون نیمی از
  * باگ‌های یک مهاجرت از جایی می‌آید که کسی بعداً نمی‌داند چرا ستونی این شکلی شد.
  *
@@ -123,7 +125,7 @@ export const INET_TYPE = "VARCHAR(49) CHARACTER SET ascii COLLATE ascii_general_
  * دو جور خراب می‌کند: برای email کوتاه است و برای area بیهوده بلند.
  *
  * سقف: با row_format=DYNAMIC هر ستونِ index شده حداکثر ۳۰۷۲ بایت، و مجموع یک
- * index مرکب هم ۳۰۷۲ بایت. gen-schema این را حساب می‌کند و اگر رد شود خطا
+ * index مرکب هم ۳۰۷۲ بایت. هنگام تولیدِ اسکیما این محاسبه شد و اگر رد می‌شد خطا
  * می‌دهد — نه اینکه بی‌صدا کوتاه کند.
  */
 export const TEXT_LENGTHS = {
@@ -407,7 +409,7 @@ export function mysqlDefault(table, column, pgDefault, mysqlTypeStr) {
   // ترتیبی/مبتنی بر MAC، نه تصادفی). به‌جای ساختن یک default نادرست، UUID را
   // اپ می‌سازد — crypto.randomUUID() که همان نسخهٔ ۴ است.
   //
-  // این یعنی هر INSERT باید id بدهد. gen-schema این ستون‌ها را در manifest
+  // این یعنی هر INSERT باید id بدهد. db:check-sql این ستون‌ها را
   // علامت می‌زند تا هیچ‌کدام از قلم نیفتند.
   if (/gen_random_uuid\(\)/.test(pgDefault)) return null;
 

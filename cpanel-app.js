@@ -103,16 +103,50 @@ const envCount = loadEnvFile(path.join(ROOT, ".env"));
 // ۲) مسیر پایدارِ فایل‌های آپلودی
 // ---------------------------------------------------------------------------
 
-if (!process.env.UPLOADS_DIR) {
-  // یک پله بالاتر از پوشهٔ برنامه. اگر برنامه در /home/user/sarva باشد،
-  // آپلودها در /home/user/sarva-uploads می‌نشینند و با جایگزین کردنِ
-  // پوشهٔ برنامه از بین نمی‌روند.
-  process.env.UPLOADS_DIR = path.join(path.dirname(ROOT), path.basename(ROOT) + "-uploads");
+// یک پله بالاتر از پوشهٔ برنامه. اگر برنامه در /home/user/sarva باشد،
+// آپلودها در /home/user/sarva-uploads می‌نشینند و با جایگزین کردنِ پوشهٔ
+// برنامه از بین نمی‌روند.
+const DEFAULT_UPLOADS = path.join(path.dirname(ROOT), path.basename(ROOT) + "-uploads");
+
+/** آیا می‌شود در این مسیر نوشت؟ */
+function usableDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
-try {
-  fs.mkdirSync(process.env.UPLOADS_DIR, { recursive: true });
-} catch (err) {
-  console.error(`[سروا] پوشهٔ آپلود ساخته نشد: ${process.env.UPLOADS_DIR}\n${err.message}`);
+
+// ⚠️ اگر مقدارِ داده‌شده قابل نوشتن نبود، به مسیرِ پیش‌فرض برمی‌گردیم.
+//
+// این به‌خاطر یک شکستِ واقعی روی هاست اضافه شد: مقدار UPLOADS_DIR روی
+// `/app/uploads` مانده بود (مسیرِ داخلِ کانتینرِ داکر) و روی هاست اشتراکی
+// چنین مسیری نه هست و نه ساخته می‌شود.
+//
+// نسخهٔ قبلی فقط یک خط هشدار می‌داد و ادامه می‌داد. نتیجه‌اش این بود که سایت
+// بالا می‌آمد ولی هر آپلودی در پنل با خطا برمی‌گشت — و علتش در لاگی بود که
+// صدها بار تکرار شده بود و کسی وسطش را نمی‌خواند.
+//
+// حالا به مسیری برمی‌گردد که واقعاً کار می‌کند، و یک بار بلند می‌گوید چرا.
+if (process.env.UPLOADS_DIR && !usableDir(process.env.UPLOADS_DIR)) {
+  console.error(
+    `[سروا] ⚠️ مسیر آپلود «${process.env.UPLOADS_DIR}» قابل نوشتن نیست.\n` +
+      `        به‌جایش از «${DEFAULT_UPLOADS}» استفاده می‌شود.\n` +
+      "        اگر این مقدار را خودتان نگذاشته‌اید، خطِ UPLOADS_DIR را از فایل\n" +
+      "        ‎.env و از Environment variables در cPanel پاک کنید.",
+  );
+  delete process.env.UPLOADS_DIR;
+}
+
+if (!process.env.UPLOADS_DIR) process.env.UPLOADS_DIR = DEFAULT_UPLOADS;
+
+if (!usableDir(process.env.UPLOADS_DIR)) {
+  console.error(
+    `[سروا] پوشهٔ آپلود ساخته نشد: ${process.env.UPLOADS_DIR}\n` +
+      "        سایت بالا می‌آید ولی آپلود فایل صوتی در پنل کار نمی‌کند.",
+  );
 }
 
 // ---------------------------------------------------------------------------

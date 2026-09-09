@@ -41,9 +41,12 @@ Three consequences that matter every time you touch data code:
    paper over this, because papering over it would hide a real class of bug.
 
 Reference: `API_DOCS.md` for endpoints, `README.md` for architecture,
-`mysql-migrations/001_init.sql` for the schema, `docs/DEPLOY_MYSQL.md` for
-deployment and rollback, `docs/mysql-schema-manifest.md` for the exact type
-mapping. `migrations/` (Postgres) is kept only for rollback — never add to it.
+`mysql-migrations/001_init.sql` for the schema, and
+`docs/cpanel/README-HOST.md` for deployment to the shared host.
+
+PostgreSQL is gone: the `migrations/` folder, the ETL tool and the `pg`
+dependency were all removed. Surviving mentions are comments explaining why a
+query is shaped the way it is — they are history, not instructions.
 
 ## Verifying database work without a database
 

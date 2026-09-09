@@ -4,7 +4,8 @@
 نقش‌ها، سروا کلاب، پنل کاربر و پنل مدیریت.
 
 - مستندات API: [`API_DOCS.md`](./API_DOCS.md)
-- اسکیمای دیتابیس: [`migrations/001_init.sql`](./migrations/001_init.sql)
+- اسکیمای دیتابیس: [`mysql-migrations/001_init.sql`](./mysql-migrations/001_init.sql)
+- راه‌اندازی روی هاست: [`docs/cpanel/README-HOST.md`](./docs/cpanel/README-HOST.md)
 
 ---
 
@@ -232,7 +233,7 @@ lib/reports/     گزارشِ ایرادِ محتوا از سمتِ کاربر (
 
 ⚠️ **پیش‌نمایشِ DDL در MySQL ممکن نیست، و کنسول وانمود نمی‌کند که هست.**
 
-در نسخهٔ PostgreSQL، پیش‌نمایش یعنی «داخل تراکنش اجرا کن و rollback بزن» و
+در دیتابیس‌های دیگر، پیش‌نمایش یعنی «داخل تراکنش اجرا کن و rollback بزن» و
 این برای *هر* دستوری کار می‌کرد، `create table` هم شامل. MySQL این را ندارد:
 هر DDL یک **commit ضمنی** دارد که تراکنشِ باز را همان‌جا می‌بندد. یعنی
 rollback بعدش کاری نمی‌کند و پیام «پیش‌نمایش بود، چیزی تغییر نکرد» یک دروغ
@@ -521,9 +522,8 @@ npm run dev
 | `npm run db:check-tz` | آیا MySQL نام `Asia/Tehran` را می‌شناسد |
 | `npm run db:seed-admin` | ساخت/ارتقای حساب مدیر |
 | `npm run db:seed-exams` | وارد کردن آزمون‌های ایستا |
-| `npm run etl -- preflight` | سنجشِ پیش از انتقال داده از PostgreSQL |
-| `npm run etl -- migrate` | انتقال داده (با امکان ادامه) |
-| `npm run etl -- verify` | اثباتِ برابریِ مبدأ و مقصد |
+| `npm run host:build` | ساختِ بستهٔ آمادهٔ آپلود روی هاست |
+| `npm run host:sql` | فقط فایل SQL دیتابیس |
 
 ### افزودن migration
 
@@ -535,7 +535,7 @@ npm run dev
 
 > ⚠️ **migration در MySQL اتمیک نیست و اجراکننده وانمود نمی‌کند که هست.**
 >
-> در PostgreSQL هر فایل داخل یک تراکنش می‌رفت و `CREATE TABLE` هم rollback
+> در بعضی دیتابیس‌ها هر فایل داخل یک تراکنش می‌رود و `CREATE TABLE` هم rollback
 > می‌شد. در MySQL هر DDL یک commit ضمنی دارد: اگر فایلی پنج جدول بسازد و روی
 > ششمی بشکند، آن پنج‌تا می‌مانند و هیچ‌چیز برشان نمی‌گرداند.
 >
@@ -545,8 +545,8 @@ npm run dev
 > «table already exists» بمیرد. یعنی migration ها را باید دوباره‌اجرا‌پذیر
 > بنویسید (`create table if not exists` و مانندش).
 
-`migrations/` (پستگرس) دست‌نخورده مانده تا مسیرِ بازگشت باز بماند. به آن
-چیزی اضافه نکنید.
+پوشهٔ `migrations/` (پستگرس) و ابزار انتقالِ داده حذف شده‌اند: این پروژه
+دیگر هیچ ارتباطی با PostgreSQL ندارد.
 
 ---
 
@@ -577,7 +577,7 @@ docker compose up -d
 npm run db:check
 ```
 
-جزئیات کامل — از جمله انتقالِ یک‌بارهٔ داده از PostgreSQL، و مسیرِ بازگشت اگر
-چیزی خراب شد — در `docs/DEPLOY_MYSQL.md`.
+برای راه‌اندازی روی هاست اشتراکی cPanel، راهنمای گام‌به‌گام فارسی در
+`docs/cpanel/README-HOST.md` است.
 
 هیچ مقداری در کد هاردکد نیست؛ همه‌چیز از `.env` می‌آید.

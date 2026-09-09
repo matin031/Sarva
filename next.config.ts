@@ -163,7 +163,6 @@ const nextConfig: NextConfig = {
       "./tests/**/*",
       "./docs/**/*",
       "./reports/**/*",
-      "./migrations/**/*",
       "./mysql-migrations/**/*",
       // ⚠️ بستهٔ ساخته‌شده خودش نباید داخل بستهٔ بعدی برود.
       //

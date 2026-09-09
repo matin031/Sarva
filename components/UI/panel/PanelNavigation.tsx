@@ -195,6 +195,60 @@ function PanelNavigation() {
         </svg>
       ),
     },
+    {
+      id: 8,
+      title: "برنامهٔ من",
+      src: "analysis",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className=" size-full"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 20.25h18" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 20.25V12M12 20.25V6.75M17.25 20.25v-5.25" />
+        </svg>
+      ),
+    },
+    {
+      id: 9,
+      title: "اشتراک",
+      src: "subscription",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className=" size-full"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z" />
+        </svg>
+      ),
+    },
+    {
+      id: 10,
+      title: "پشتیبانی",
+      src: "support",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className=" size-full"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a8 8 0 0 0-8 8v4.5A2.5 2.5 0 0 0 6.5 18H8v-6H5.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a8 8 0 0 1 8 8v4.5A2.5 2.5 0 0 1 17.5 18H16v-6h2.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 18a3.5 3.5 0 0 1-3.5 3h-1" />
+        </svg>
+      ),
+    },
   ];
 
   const pathName = usePathname();
@@ -217,8 +271,13 @@ function PanelNavigation() {
   return (
     <div className=" w-full sticky top-20 z-999">
       <div
-        className="relative w-full md:w-2/4 mx-auto glass rounded-xl
-     flex justify-between p-4 sm:px-6 items-center"
+        /* ⚠️ با اضافه شدنِ سه بخشِ تازه (برنامهٔ من، اشتراک، پشتیبانی) این
+           نوار ده آیکن دارد. در عرض ۳۶۰ پیکسل، ده آیکنِ کنارِ هم یا از صفحه
+           بیرون می‌زند یا آن‌قدر کوچک می‌شود که قابلِ لمس نیست. پس در
+           موبایل خودِ نوار اسکرول می‌شود — نه کلِ صفحه. */
+        className="relative w-full md:w-3/4 mx-auto glass rounded-xl
+     flex justify-between gap-x-3 overflow-x-auto p-4 sm:px-6 items-center
+     [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {PanelNavigationItems.map((l, i) => (
           <div
@@ -226,7 +285,7 @@ function PanelNavigation() {
               itemRefs.current[i] = el;
             }}
             key={l.id}
-            className={`${pathName == `/panel/${l.src}` && "text-primary size-9"} group size-7 rounded-xl  relative`}
+            className={`${pathName == `/panel/${l.src}` && "text-primary size-9"} group size-7 shrink-0 rounded-xl  relative`}
           >
             <Link href={`/panel/${l.src}`}>{l.icon}</Link>
             <div

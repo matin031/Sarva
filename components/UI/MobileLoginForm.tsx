@@ -33,11 +33,14 @@ export default function LoginForm({
   googleEnabled,
   onSuccess,
   setIsLogin,
+  /** مقصدِ بعد از ورود. سرور آن را از allowlist رد کرده (lib/auth/return-to). */
+  returnTo = "/panel/home",
 }: {
   onSuccess: (identifier: string) => void;
   setIsLogin: (value: boolean) => void;
   /** فقط وقتی GOOGLE_CLIENT_ID تنظیم شده باشد — از سرور می‌آید. */
   googleEnabled: boolean;
+  returnTo?: string;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"email" | "mobile">("mobile");
@@ -168,7 +171,9 @@ export default function LoginForm({
     onSuccess(data.email);
     // مستقیم به مقصد، نه به `/panel` که خودش دوباره ریدایرکت می‌کند — آن پرشِ
     // اضافه یک رفت‌وبرگشتِ سرور بود که کاربر به‌صورت یک لحظه مکث می‌دیدش.
-    router.push("/panel/home");
+    /* ⚠️ اگر کاربر وسطِ خرید برای ورود آمده، باید به همان‌جا برگردد و نه به
+       صفحهٔ اول پنل — وگرنه انتخابش را از دست می‌دهد و باید از نو شروع کند. */
+    router.push(returnTo);
     router.refresh();
   };
   const [showPassword, setShowPassword] = useState(false);

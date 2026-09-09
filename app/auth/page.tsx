@@ -1,5 +1,6 @@
 import Auth from "@/components/UI/Auth";
 import { googleConfig } from "@/lib/auth/oauth/google";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -28,10 +29,15 @@ const AUTH_ERRORS: Record<string, string> = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; returnTo?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, returnTo } = await searchParams;
   const message = error ? AUTH_ERRORS[error] : undefined;
+
+  /* ⚠️ مقصدِ بازگشت *روی سرور* پاک‌سازی می‌شود و نه در مرورگر. اگر بررسی به
+     کلاینت می‌رفت، دور زدنش یک خطِ کد در کنسول بود. جزئیاتِ خطر (Open
+     Redirect) بالای lib/auth/return-to.ts نوشته شده. */
+  const destination = safeReturnTo(returnTo);
 
   // پیکربندیِ گوگل فقط روی سرور خوانده می‌شود؛ به کلاینت یک بولین می‌رسد و
   // نه کلید و نه آدرسی.
@@ -48,7 +54,7 @@ export default async function Page({
           {message}
         </p>
       )}
-      <Auth googleEnabled={googleEnabled} />
+      <Auth googleEnabled={googleEnabled} returnTo={destination} />
     </main>
   );
 }

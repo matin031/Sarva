@@ -39,6 +39,13 @@ const EXPECTED_TABLES = [
   "site_announcements", "site_supporters",
   // گزارش محتوا (۰۰۹)
   "content_reports",
+  // هویت با گوگل (۰۱۲) و محدودسازی نرخ (۰۱۳)
+  "user_identities", "rate_limits",
+  // سروا پلاس (۰۱۵)
+  "plus_plans", "plus_plan_versions", "plus_orders", "plus_payment_attempts",
+  "plus_entitlements", "plus_notifications", "plus_tickets", "plus_ticket_messages",
+  // سیگنال‌های تمرین (۰۱۶) — ورودیِ تحلیل سروا پلاس
+  "aruz_bridge_answers", "grammar_circuit_answers",
 ];
 
 const EXPECTED_TRIGGERS = [
@@ -48,6 +55,10 @@ const EXPECTED_TRIGGERS = [
   "aruz_bridge_questions_touch", "grammar_circuit_questions_touch",
   // ۰۰۸ / ۰۰۹
   "site_announcements_touch", "site_supporters_touch", "content_reports_touch",
+  // ۰۱۵ — سروا پلاس. `plus_plan_versions_immutable_trg` تزئینی نیست: تنها
+  // چیزی است که جلوی بازنویسیِ قیمتِ یک نسخهٔ فروخته‌شده را می‌گیرد.
+  "plus_plans_touch", "plus_plan_versions_immutable_trg", "plus_orders_touch",
+  "plus_payment_attempts_touch", "plus_entitlements_touch", "plus_tickets_touch",
 ];
 
 let failures = 0;

@@ -4,7 +4,8 @@ import MainLogo from "../svgs/mainLogo";
 import Link from "next/link";
 import DarkModeButton from "./DarkModeButton";
 import { useEffect, useRef, useState } from "react";
-import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
+import PlusBadge from "./PlusBadge";
 
 import { useRouter } from "next/navigation";
 
@@ -22,6 +23,9 @@ function Header({ compact = false }: { compact?: boolean }) {
   // نزنند. جای onAuthStateChange را refreshCurrentUser/clearCurrentUser
   // گرفته‌اند که فرم‌های ورود و خروج صدایشان می‌زنند.
   const { user } = useCurrentUser();
+  /* وضعیت پلاس از همان پاسخِ /me می‌آید که نامِ کاربر از آن خوانده می‌شود —
+     بدونِ درخواستِ دوم و بدونِ پرشِ چیدمان. */
+  const { plus } = usePlusSummary();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const [openMenuMobile, setOpenMenuMobile] = useState(false);
@@ -162,6 +166,27 @@ function Header({ compact = false }: { compact?: boolean }) {
       ),
     },
     {
+      id: 7,
+      title: "سروا پلاس",
+      src: "/plus",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="size-6"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z"
+          />
+        </svg>
+      ),
+    },
+    {
       id: 5,
       title: "وزن‌یاب",
       src: "/vazn-yab",
@@ -184,9 +209,28 @@ function Header({ compact = false }: { compact?: boolean }) {
     },
   ];
 
+  /* ⚠️ متنِ این لینک با وضعیتِ کاربر عوض می‌شود و یک عبارتِ ثابتِ «خرید
+     اشتراک» نیست: کسی که اشتراک دارد نباید دکمهٔ خرید ببیند، و کسی که
+     اشتراکش تمام شده باید «تمدید» ببیند نه «آشنایی». وقتی کلِ پلاس خاموش
+     است، لینک اصلاً وجود ندارد. */
+  const plusLink =
+    plus.state === "off"
+      ? null
+      : plus.state === "active"
+        ? { id: 7, title: "سروا پلاس", src: "/panel/subscription" }
+        : plus.state === "expired" || plus.state === "revoked"
+          ? { id: 7, title: "تمدید پلاس", src: "/plus" }
+          : { id: 7, title: "سروا پلاس", src: "/plus" };
+
+  /* ⚠️ در ۳۶۰ پیکسل، دو لینکِ متنی کنارِ «فهرست» و نامِ کاربر، ردیفِ هدر را
+     به دو خط می‌شکست. پس لینکِ متنیِ پلاس فقط از `sm` به بالا دیده می‌شود و
+     در موبایل جایش داخلِ همان «فهرست» است (پایین). کاربرِ پلاس هم که نشانش
+     را کنارِ لوگو دارد. */
+
   const menUItemsPc = [
     // { id: 3, title: "بازی", src: "/game" },
     // { id: 4, title: "عروض", src: "/aruz" },
+    ...(plusLink ? [plusLink] : []),
     { id: 6, title: "راهنما", src: "/guide" },
   ];
 
@@ -205,29 +249,42 @@ function Header({ compact = false }: { compact?: boolean }) {
         transition={{ duration: 0.6 }}
         className={compact ? "rounded-2xl" : " sm:px-3 sm:py-1 rounded-2xl"}
       >
-        <Link
-          className="hover:brightness-90 gap-x-2 items-center size-full flex"
-          href={"/"}
-        >
-          <h3
-            className={`hidden sm:block font-bold text-primary ${
-              compact ? "text-xl" : "text-3xl"
-            }`}
+        {/* ⚠️ نشانِ پلاس *کنارِ* لینکِ لوگو می‌نشیند و نه داخلش: لینک درونِ
+            لینک HTML نامعتبر است و ناوبری با صفحه‌کلید را هم خراب می‌کند.
+            خودِ لوگوی سروا اصلاً دست نمی‌خورد. */}
+        <div className="flex items-center gap-x-2">
+          <Link
+            className="hover:brightness-90 gap-x-2 items-center flex"
+            href={"/"}
           >
-            ســـروا
-          </h3>
-          <div
-            className="bg-linear-to-br transition-all flex
-           items-center justify-center "
-          >
-            <div
-              id="site-logo"
-              className={`text-primary-foreground ${compact ? "size-9" : "size-13"}`}
+            <h3
+              className={`hidden sm:block font-bold text-primary ${
+                compact ? "text-xl" : "text-3xl"
+              }`}
             >
-              <MainLogo />
+              ســـروا
+            </h3>
+            <div
+              className="bg-linear-to-br transition-all flex
+           items-center justify-center "
+            >
+              <div
+                id="site-logo"
+                className={`text-primary-foreground ${compact ? "size-9" : "size-13"}`}
+              >
+                <MainLogo />
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+
+          {/* در موبایل فشرده («+») تا هدر در ۳۶۰ پیکسل نشکند. */}
+          <span className="hidden sm:inline-flex">
+            <PlusBadge />
+          </span>
+          <span className="inline-flex sm:hidden">
+            <PlusBadge compact />
+          </span>
+        </div>
       </motion.div>
 
       <motion.div
@@ -323,7 +380,10 @@ function Header({ compact = false }: { compact?: boolean }) {
              border-border border py-5 px-4 rounded-lg gap-x-6 flex 
               items-center -left-30 justify-between gap-y-6 w-50 sm:w-62.5 flex-wrap`}
             >
-              {menuItemsMobile.map((l) => (
+              {menuItemsMobile
+                /* وقتی کلِ پلاس خاموش است، هیچ‌جای سایت به آن اشاره نمی‌کند. */
+                .filter((l) => l.id !== 7 || plus.state !== "off")
+                .map((l) => (
                 <Link
                   key={l.id}
                   onClick={() => {
@@ -341,7 +401,9 @@ function Header({ compact = false }: { compact?: boolean }) {
           {menUItemsPc.map((l) => (
             <Link
               key={l.id}
-              className=" hover:text-primary transition-all"
+              className={`hover:text-primary transition-all ${
+                l.id === 7 ? "hidden sm:inline" : ""
+              }`}
               href={l.src}
             >
               {l.title}

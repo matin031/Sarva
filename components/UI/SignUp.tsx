@@ -29,11 +29,14 @@ export default function SignUp({
   googleEnabled,
   onSuccess,
   setIsLogin,
+  /** مقصدِ بعد از ثبت‌نام. سرور آن را از allowlist رد کرده (lib/auth/return-to). */
+  returnTo = "/panel/home",
 }: {
   onSuccess: (identifier: string) => void;
   setIsLogin: (value: boolean) => void;
   /** فقط وقتی GOOGLE_CLIENT_ID تنظیم شده باشد — از سرور می‌آید. */
   googleEnabled: boolean;
+  returnTo?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +146,8 @@ export default function SignUp({
     // موفق: دکمه تا وقتی جابه‌جایی به /panel واقعاً انجام شود در حالت بارگذاری
     // می‌ماند
     onSuccess(pendingEmail);
-    router.push("/panel/home");
+    /* اگر ثبت‌نام وسطِ خرید بوده، بازگشت به همان قصدِ خرید — نه صفحهٔ پنل. */
+    router.push(returnTo);
     router.refresh();
   };
 

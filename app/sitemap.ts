@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl, isNoindexEnvironment } from "@/lib/seo/site";
 import { GRADES, readyLessonParams } from "@/lib/doroos";
+import { isPlusEnabled } from "@/lib/plus/config";
 
 /**
  * sitemap.xml
@@ -31,7 +32,20 @@ import { GRADES, readyLessonParams } from "@/lib/doroos";
  *     تک‌تکشان یعنی sitemap پر از آدرسِ ۴۰۴ شود هر بار که سروده‌ای برداشته
  *     یا رد شود.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+/**
+ * ⚠️ ساعتی یک بار از نو ساخته می‌شود.
+ *
+ * دلیلش تنها ورودیِ متغیرِ این فایل است: روشن/خاموش بودنِ سروا پلاس، که در
+ * دیتابیس می‌نشیند و مرحلهٔ build اصلاً به دیتابیس دسترسی ندارد. بدونِ این،
+ * نسخهٔ ساخته‌شده در زمانِ build تا دیپلویِ بعدی می‌ماند و اگر مالک پلاس را
+ * روشن کند، `/plus` هیچ‌وقت اعلام نمی‌شد.
+ *
+ * ساعتی — نه هر درخواست: sitemap را خزنده می‌خواند و نه کاربر؛ یک کوئریِ
+ * تنظیمات به‌ازای هر بازدیدِ خزنده هزینهٔ بی‌دلیلی است.
+ */
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // پیش‌نمایش و staging هیچ آدرسی اعلام نمی‌کنند.
   if (isNoindexEnvironment()) return [];
 
@@ -46,6 +60,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: absoluteUrl("/guide"), changeFrequency: "monthly", priority: 0.7 },
     { url: absoluteUrl("/about"), changeFrequency: "yearly", priority: 0.5 },
   ];
+
+  /* ⚠️ `/plus` فقط وقتی اعلام می‌شود که واقعاً وجود داشته باشد.
+     وقتی مالک سروا پلاس را خاموش کرده، آن صفحه ۴۰۴ می‌دهد — و آدرسِ ۴۰۴ در
+     sitemap دقیقاً همان چیزی است که بالای همین فایل دربارهٔ تک‌سروده‌های کلاب
+     گفته شده. اگر خواندنِ تنظیمات شکست بخورد، نیامدنِ یک آدرس از اعلامِ یک
+     آدرسِ شکسته بهتر است. */
+  try {
+    if (await isPlusEnabled()) {
+      entries.push({ url: absoluteUrl("/plus"), changeFrequency: "monthly", priority: 0.7 });
+    }
+  } catch {
+    /* تنظیمات خوانده نشد؛ آدرس اعلام نمی‌شود. */
+  }
 
   // صفحهٔ هر پایه.
   for (const grade of GRADES) {

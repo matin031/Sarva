@@ -73,6 +73,15 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/plus",
+    label: "سروا پلاس",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/users",
     label: "کاربران",
     icon: (

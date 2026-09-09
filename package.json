@@ -13,17 +13,18 @@
     "db:check": "node scripts/db-check.mjs",
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "db:seed-aruz-bridge": "node scripts/seed-aruz-bridge.mjs",
-    "db:seed-exams": "tsx scripts/seed-exams.ts",
-    "db:seed-grammar-circuit": "tsx scripts/seed-grammar-circuit.ts",
-    "db:seed-aruz": "tsx scripts/seed-aruz.ts",
+    "db:seed-exams": "tsx --conditions=react-server scripts/seed-exams.ts",
+    "db:seed-grammar-circuit": "tsx --conditions=react-server scripts/seed-grammar-circuit.ts",
+    "db:seed-aruz": "tsx --conditions=react-server scripts/seed-aruz.ts",
     "db:check-audio": "node scripts/check-audio.mjs",
-    "db:check-rotation": "tsx scripts/check-refresh-rotation.ts",
-    "db:check-otp": "tsx scripts/check-otp-attempts.ts",
-    "db:check-sql": "tsx scripts/check-sql.ts",
+    "db:check-rotation": "tsx --conditions=react-server scripts/check-refresh-rotation.ts",
+    "db:check-otp": "tsx --conditions=react-server scripts/check-otp-attempts.ts",
+    "db:check-sql": "tsx --conditions=react-server scripts/check-sql.ts",
+    "db:check-plus": "tsx --conditions=react-server scripts/check-plus.ts",
     "seo:check": "node scripts/check-seo.mjs",
     "seo:render": "node scripts/check-render.mjs",
     "seo:perf": "node scripts/check-perf.mjs",
-    "db:unseed-aruz": "tsx scripts/unseed-aruz.ts"
+    "db:unseed-aruz": "tsx --conditions=react-server scripts/unseed-aruz.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -62,6 +63,7 @@
     "@types/three": "^0.185.1",
     "eslint": "^9",
     "eslint-config-next": "^16.3.4",
+    "server-only": "^0.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.11",
     "typescript": "^5"

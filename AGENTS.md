@@ -11,7 +11,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Backend: self-hosted MySQL, not Supabase and no longer Postgres
 
 This project ran on Supabase, was migrated to self-hosted PostgreSQL, and is
-now on **MySQL 8.4** (`mysql2/promise`, no ORM). Two kinds of stale reference
+now on **MySQL 8 or MariaDB 10.4+** (`mysql2/promise`, no ORM). Both are
+supported and both are tested; the production host runs MariaDB, so
+"works on MySQL" is not sufficient evidence for a query. Two kinds of stale reference
 exist, and they are stale in different ways:
 
 - `supabase`, RLS policies, `service_role`, `@supabase/*` — gone entirely. Say
@@ -70,6 +72,14 @@ Two lessons from this codebase worth keeping:
 it is only wrong once Postgres looks for an overload. Email verification and
 password reset returned 500 for every user, with nothing in `tsc` or a parser
 to show for it. Parsing is not analysis; `db:check-sql` exists because of that.
+
+A third source of the same class: **MariaDB is not MySQL.** The production
+host runs MariaDB, and several constructs that MySQL 8 accepts are syntax
+errors there — the `values (…) as new` row alias, `x member of (json)`,
+`CAST(… AS JSON)`, multi-valued indexes, and every `utf8mb4_0900_*`
+collation (which would reject the *connection*, not just a query).
+`db:check-sql` now scans for all of them, but the reliable check is running
+against MariaDB.
 
 And MySQL adds a second class the first one cannot catch: **queries that are
 valid but silently wrong.** `CONVERT_TZ` with an unknown zone name returns

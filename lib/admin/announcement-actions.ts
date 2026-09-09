@@ -1,8 +1,9 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, boolArg, InvalidInputError } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -163,34 +164,43 @@ export async function announcementAdminSave(
 
   const title = data.title?.trim() || null;
 
-  const row = data.id
-    ? await queryOne<{ id: string }>(
-        `update site_announcements
-            set title = $1, body = $2, tone = $3, link_url = $4, link_label = $5,
-                is_active = $6, dismissible = $7, priority = $8,
-                starts_at = $9, ends_at = $10
-          where id = $11
-        returning id`,
-        [title, data.body, data.tone, linkUrl, linkLabel, data.isActive, data.dismissible,
-         data.priority, startsAt, endsAt, uuidArg(data.id)],
-      )
-    : await queryOne<{ id: string }>(
-        `insert into site_announcements
-           (title, body, tone, link_url, link_label, is_active, dismissible,
-            priority, starts_at, ends_at, created_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       returning id`,
-        [title, data.body, data.tone, linkUrl, linkLabel, data.isActive, data.dismissible,
-         data.priority, startsAt, endsAt, admin.id],
-      );
-
-  if (!row) return { ok: false, errors: ["این اعلان پیدا نشد."] };
+  // ⚠️ RETURNING نداریم. برای update، شناسه از قبل معلوم است و آنچه لازم
+  // بود بدانیم «ردیفی عوض شد یا نه» است — که همان عددِ ردیف‌های تحت‌تأثیر
+  // است. برای insert هم شناسه را خودمان می‌سازیم.
+  let announcementId: string;
+  if (data.id) {
+    announcementId = uuidArg(data.id);
+    const changed = await execute(
+      `update site_announcements
+          set title = ?, body = ?, tone = ?, link_url = ?, link_label = ?,
+              is_active = ?, dismissible = ?, priority = ?,
+              starts_at = ?, ends_at = ?
+        where id = ?`,
+      [title, data.body, data.tone, linkUrl, linkLabel, data.isActive, data.dismissible,
+       data.priority, startsAt, endsAt, announcementId],
+    );
+    // ⚠️ صفر یعنی «ردیفی با این شناسه نبود» — ولی در MySQL یک UPDATE که
+    // مقدارِ تازه‌اش با قدیمی یکی باشد هم affectedRows می‌دهد (بر خلاف
+    // changedRows که صفر می‌دهد). پس این مقایسه امن است و «ذخیرهٔ بدون
+    // تغییر» را به اشتباه «پیدا نشد» گزارش نمی‌کند.
+    if (changed === 0) return { ok: false, errors: ["این اعلان پیدا نشد."] };
+  } else {
+    announcementId = randomUUID();
+    await execute(
+      `insert into site_announcements
+         (id, title, body, tone, link_url, link_label, is_active, dismissible,
+          priority, starts_at, ends_at, created_by)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [announcementId, title, data.body, data.tone, linkUrl, linkLabel, data.isActive,
+       data.dismissible, data.priority, startsAt, endsAt, admin.id],
+    );
+  }
 
   await recordAudit({
     actor: admin,
     action: data.id ? "announcement.update" : "announcement.create",
     targetType: "announcement",
-    targetId: row.id,
+    targetId: announcementId,
     summary: `${data.id ? "ویرایش" : "ساخت"} اعلان «${(title ?? data.body).slice(0, 60)}»`,
     metadata: {
       tone: data.tone,
@@ -203,7 +213,7 @@ export async function announcementAdminSave(
   });
 
   revalidatePath("/admin/announcements");
-  return { ok: true, data: { id: row.id } };
+  return { ok: true, data: { id: announcementId } };
 }
 
 /** روشن/خاموش سریع، بدون باز کردن فرم — چیزی که در یک اختلال واقعاً لازم
@@ -213,10 +223,21 @@ export async function announcementAdminToggle(id: string, active: boolean): Prom
   const announcementId = uuidArg(id, "شناسهٔ اعلان نامعتبر است.");
   const isActive = boolArg(active);
 
-  const row = await queryOne<{ body: string }>(
-    `update site_announcements set is_active = $1 where id = $2 returning body`,
-    [isActive, announcementId],
-  );
+  // body فقط برای متنِ audit لازم است و این update عوضش نمی‌کند، پس
+  // خواندنش قبل از update همان مقدار را می‌دهد. هر دو در یک تراکنش‌اند تا
+  // «پیدا نشد» یک جواب بدهد.
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ body: string }>(
+      "select body from site_announcements where id = ? for update",
+      [announcementId],
+    );
+    if (!found) return null;
+    await tx.execute("update site_announcements set is_active = ? where id = ?", [
+      isActive,
+      announcementId,
+    ]);
+    return found;
+  });
   if (!row) return { ok: false, errors: ["این اعلان پیدا نشد."] };
 
   await recordAudit({
@@ -238,12 +259,12 @@ export async function announcementAdminDelete(id: string): Promise<ActionResult>
 
   // متن را *قبل* از حذف می‌خوانیم، وگرنه در لاگ فقط یک uuid می‌ماند.
   const existing = await queryOne<{ body: string }>(
-    "select body from site_announcements where id = $1",
+    "select body from site_announcements where id = ?",
     [announcementId],
   );
   if (!existing) return { ok: false, errors: ["این اعلان پیدا نشد."] };
 
-  await execute("delete from site_announcements where id = $1", [announcementId]);
+  await execute("delete from site_announcements where id = ?", [announcementId]);
 
   await recordAudit({
     actor: admin,

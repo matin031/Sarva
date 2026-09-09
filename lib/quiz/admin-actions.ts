@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -102,13 +103,16 @@ export async function quizAdminList(params: QuizListParams = {}): Promise<{ item
   const conditions: string[] = [];
   const values: unknown[] = [];
 
+  // ⚠️ جای‌نگهدارها `?` اند و نه `$n`: در MySQL شماره‌گذاری وجود ندارد و هر
+  // `?` به‌ترتیب یک مقدار از آرایه برمی‌دارد. پس ترتیبِ push کردن *همان*
+  // ترتیبِ ظاهر شدنِ `?` در متنِ کوئری است.
   if (params.type) {
     values.push(params.type);
-    conditions.push(`q.type = $${values.length}`);
+    conditions.push("q.type = ?");
   }
   if (params.difficulty) {
     values.push(params.difficulty);
-    conditions.push(`q.difficulty = $${values.length}`);
+    conditions.push("q.difficulty = ?");
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
@@ -116,9 +120,8 @@ export async function quizAdminList(params: QuizListParams = {}): Promise<{ item
   let limitClause = "";
   if (params.limit !== undefined) {
     values.push(params.limit);
-    limitClause += ` limit $${values.length}`;
     values.push(params.offset ?? 0);
-    limitClause += ` offset $${values.length}`;
+    limitClause = " limit ? offset ?";
   }
 
   const rows = await query<{
@@ -167,7 +170,7 @@ export async function quizAdminGet(questionId: string): Promise<QuizQuestionDeta
       poem: string[] | null;
       audio_url: string | null;
       difficulty: string | null;
-    }>(`select id, type, poem, audio_url, difficulty from questions where id = $1`, [questionId]),
+    }>(`select id, type, poem, audio_url, difficulty from questions where id = ?`, [questionId]),
     query<{
       id: string;
       label: string | null;
@@ -176,7 +179,7 @@ export async function quizAdminGet(questionId: string): Promise<QuizQuestionDeta
       is_correct: boolean;
     }>(
       `select id, label, poem, audio_url, is_correct
-         from question_options where question_id = $1 order by x, id`,
+         from question_options where question_id = ? order by x, id`,
       [questionId],
     ),
   ]);
@@ -220,24 +223,33 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
       if (input.id) {
         id = input.id;
         await tx.execute(
-          `update questions set type = $1, poem = $2, audio_url = $3, difficulty = $4 where id = $5`,
+          `update questions set type = ?, poem = ?, audio_url = ?, difficulty = ? where id = ?`,
           [input.type, input.poem ?? null, input.audioUrl ?? null, input.difficulty ?? "medium", id],
         );
-        await tx.execute(`delete from question_options where question_id = $1`, [id]);
+        await tx.execute(`delete from question_options where question_id = ?`, [id]);
       } else {
-        const created = await tx.queryOne<{ id: string }>(
-          `insert into questions (type, poem, audio_url, difficulty)
-           values ($1, $2, $3, $4) returning id`,
-          [input.type, input.poem ?? null, input.audioUrl ?? null, input.difficulty ?? "medium"],
+        id = randomUUID();
+        // ⚠️ poem آرایه است و ستون JSON؛ بدون JSON.stringify درایور آرایهٔ JS
+        // را به رشتهٔ خودش تبدیل می‌کند و ستون مقدارِ بی‌معنی می‌گیرد.
+        await tx.execute(
+          `insert into questions (id, type, poem, audio_url, difficulty)
+           values (?, ?, ?, ?, ?)`,
+          [
+            id,
+            input.type,
+            input.poem ? JSON.stringify(input.poem) : null,
+            input.audioUrl ?? null,
+            input.difficulty ?? "medium",
+          ],
         );
-        id = created!.id;
       }
 
       for (const [i, o] of input.options.entries()) {
         await tx.execute(
-          `insert into question_options (question_id, label, poem, audio_url, is_correct, x)
-           values ($1, $2, $3, $4, $5, $6)`,
+          `insert into question_options (id, question_id, label, poem, audio_url, is_correct, x)
+           values (?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             id,
             o.label ?? null,
             o.poem ?? null,
@@ -276,11 +288,11 @@ export async function quizAdminDeleteQuestion(questionId: string): Promise<Actio
   questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
 
   const target = await queryOne<{ type: string; poem: string[] | null }>(
-    "select type, poem from questions where id = $1",
+    "select type, poem from questions where id = ?",
     [questionId],
   );
 
-  const deleted = await execute("delete from questions where id = $1", [questionId]);
+  const deleted = await execute("delete from questions where id = ?", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
 
   await recordAudit({

@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { queryOne } from "@/lib/db";
+import { queryOne, execute, isUniqueViolation } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession, toAuthUser } from "@/lib/auth/session";
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
@@ -64,9 +65,36 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
 
     const passwordHash = await hashPassword(password);
 
-    // insert ... on conflict do nothing و نه «اول select بعد insert»: آن روش
+    // insert و بعد گرفتنِ خطای تکراری، و نه «اول select بعد insert»: آن روش
     // یک مسابقه دارد که دو درخواست همزمان می‌توانند هر دو از چکِ تکراری رد
-    // شوند. اینجا خودِ unique index داور است.
+    // شوند. اینجا هم مثل قبل خودِ unique index داور است.
+    //
+    // ⚠️ عمداً INSERT IGNORE نیست. آن دستور *هر* خطایی را به هشدار تبدیل
+    // می‌کند — نقض CHECK، دادهٔ بریده‌شده، ستونِ بدون مقدار — و همه را شبیه
+    // «ایمیل تکراری» نشان می‌داد. اینجا فقط ۱۰۶۲ تکراری حساب می‌شود و هر
+    // خطای دیگری بالا می‌رود، همان‌طور که on conflict (email) هم فقط روی
+    // همان یک قید کار می‌کرد.
+    const userId = randomUUID();
+    try {
+      await execute(
+        `insert into users (id, email, password_hash, full_name)
+         values (?, ?, ?, ?)`,
+        [userId, email, passwordHash, name],
+      );
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      // ردیفی ساخته نشد یعنی ایمیل از قبل هست.
+      //
+      // بله، این وجودِ حساب را فاش می‌کند. عمدی است: جایگزینش («کد تأیید
+      // فرستادیم») کاربری را که ایمیلش را فراموش کرده در حلقهٔ بی‌پایان
+      // می‌اندازد. صفحهٔ ورود هم همین اطلاعات را از راه «رمز را فراموش
+      // کرده‌اید» می‌دهد، پس پنهان‌کاری اینجا چیزی اضافه نمی‌کرد.
+      logger.info("ثبت‌نام تکراری", { event: "auth.register.duplicate" });
+      return fail("این ایمیل قبلاً ثبت شده است. وارد شوید یا رمز را بازیابی کنید.", 409);
+    }
+
+    // ستون‌های role و created_at و … از DEFAULT می‌آیند، پس ردیف باید خوانده
+    // شود؛ ساختنش از روی مقادیرِ ورودی یعنی تکرارِ پیش‌فرض‌ها در دو جا.
     const row = await queryOne<{
       id: string;
       email: string;
@@ -76,22 +104,16 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
       is_banned: boolean;
       created_at: string;
     }>(
-      `insert into users (email, password_hash, full_name)
-       values ($1, $2, $3)
-       on conflict (email) do nothing
-       returning id, email, full_name, role, email_verified_at, is_banned, created_at`,
-      [email, passwordHash, name],
+      `select id, email, full_name, role, email_verified_at, is_banned, created_at
+         from users where id = ?`,
+      [userId],
     );
 
     if (!row) {
-      // ردیفی برنگشت یعنی ایمیل از قبل هست.
-      //
-      // بله، این وجودِ حساب را فاش می‌کند. عمدی است: جایگزینش («کد تأیید
-      // فرستادیم») کاربری را که ایمیلش را فراموش کرده در حلقهٔ بی‌پایان
-      // می‌اندازد. صفحهٔ ورود هم همین اطلاعات را از راه «رمز را فراموش
-      // کرده‌اید» می‌دهد، پس پنهان‌کاری اینجا چیزی اضافه نمی‌کرد.
-      logger.info("ثبت‌نام تکراری", { event: "auth.register.duplicate" });
-      return fail("این ایمیل قبلاً ثبت شده است. وارد شوید یا رمز را بازیابی کنید.", 409);
+      // insert موفق بود ولی ردیف پیدا نشد — یعنی چیزی در همین فاصله حذفش
+      // کرده. حالتِ «ایمیل تکراری» نیست (آن بالا و با خطای ۱۰۶۲ گرفته شد)،
+      // پس نباید ۴۰۹ بدهد.
+      throw new Error("حساب ساخته شد ولی خوانده نشد.");
     }
 
     const user = toAuthUser(row);

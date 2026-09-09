@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
@@ -151,9 +152,12 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
   // دو سقف جدا: یکی برای انفجار ناگهانی، یکی برای صف. دومی مهم‌تر است — مدیر
   // نباید پنل را باز کند و چهل شعر از یک حساب ببیند و هیچ از بقیه.
   const limits = await queryOne<{ today_count: number; pending_count: number }>(
-    `select count(*) filter (where created_at > now() - interval '24 hours') as today_count,
-            count(*) filter (where status = 'pending')                       as pending_count
-       from club_posts where user_id = $1`,
+    // FILTER (WHERE …) در MySQL نیست. COUNT(CASE …) معادلش است و روی
+    // مجموعهٔ خالی هم ۰ می‌دهد — بر خلاف SUM(شرط) که NULL می‌داد و هر دو
+    // سقف را بی‌اثر می‌کرد.
+    `select count(case when created_at > now(6) - interval 24 hour then 1 end) as today_count,
+            count(case when status = 'pending' then 1 end)                     as pending_count
+       from club_posts where user_id = ?`,
     [viewer.id],
   );
 
@@ -173,25 +177,35 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
   try {
     // status/featured/published_at/reviewed_* صریحاً مقدار امن می‌گیرند و از
     // ورودی نمی‌آیند — همان چیزی که سیاست insert در RLS تضمین می‌کرد.
-    const row = await queryOne<{ id: string }>(
+    // شناسه در برنامه ساخته می‌شود: MySQL نه DEFAULT تصادفیِ نسخهٔ ۴ دارد و
+    // نه RETURNING.
+    const postId = randomUUID();
+
+    // ⚠️ tags حتماً باید نوشته شود و نمی‌شود به DEFAULT سپرد. ستون در مقصد
+    // عمداً DEFAULT ندارد، چون MySQL 8 اجازه نمی‌دهد یک ستون JSON هم
+    // DEFAULT داشته باشد و هم multi-valued index (خطای ۳۹۰۳) — و آن index
+    // همان چیزی است که فیلترِ برچسبِ فید را سرپا نگه می‌دارد.
+    // JSON.stringify لازم است چون آرایهٔ JS را درایور به رشتهٔ JSON تبدیل
+    // نمی‌کند مگر صریح بگوییم.
+    await execute(
       `insert into club_posts
-         (user_id, author_name, is_anonymous, title, body, form, tags, meter, status, featured)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', false)
-       returning id`,
+         (id, user_id, author_name, is_anonymous, title, body, form, tags, meter, status, featured)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', false)`,
       [
+        postId,
         viewer.id,
         valid.author_name,
         valid.is_anonymous,
         valid.title,
         valid.body,
         valid.form,
-        valid.tags,
+        JSON.stringify(valid.tags ?? []),
         valid.meter,
       ],
     );
 
     revalidateClub();
-    return { ok: true, data: { id: row!.id } };
+    return { ok: true, data: { id: postId } };
   } catch (err) {
     logger.error("ثبت سروده ناموفق بود", { event: "club.post.create_failed", err });
     return { ok: false, error: "ثبت سروده ممکن نشد." };
@@ -214,14 +228,14 @@ export async function updateClubPost(id: string, input: PostInput): Promise<Acti
 
   const updated = await execute(
     `update club_posts
-        set title = $1, body = $2, form = $3, tags = $4, meter = $5,
-            is_anonymous = $6, author_name = $7,
+        set title = ?, body = ?, form = ?, tags = ?, meter = ?,
+            is_anonymous = ?, author_name = ?,
             status = 'pending', review_note = null, featured = false,
             -- متن عوض شده، پس بررسیِ قبلی دیگر دربارهٔ این متن نیست. بدون
             -- پاک کردنشان، ردیفی که در صف نشسته هنوز می‌گفت چه کسی و کِی
             -- تأییدش کرده.
             reviewed_at = null, reviewed_by = null
-      where id = $8 and user_id = $9`,
+      where id = ? and user_id = ?`,
     [
       valid.title,
       valid.body,
@@ -250,7 +264,7 @@ export async function deleteClubPost(id: string): Promise<ActionResult<null>> {
   const bad = badId(id, "سروده");
   if (bad) return bad;
 
-  const deleted = await execute("delete from club_posts where id = $1 and user_id = $2", [
+  const deleted = await execute("delete from club_posts where id = ? and user_id = ?", [
     id,
     viewer.id,
   ]);
@@ -287,7 +301,7 @@ export async function createClubComment(
 
   const todayCount = await queryOne<{ n: number }>(
     `select count(*) as n from club_comments
-      where user_id = $1 and created_at > now() - interval '24 hours'`,
+      where user_id = ? and created_at > now(6) - interval 24 hour`,
     [viewer.id],
   );
   if ((todayCount?.n ?? 0) >= DAILY_COMMENT_LIMIT) {
@@ -297,7 +311,7 @@ export async function createClubComment(
   // این چک قبلاً در `with check` سیاست insert بود: دیدگاه فقط روی سروده‌ای که
   // واقعاً منتشر شده. بدون آن، کسی می‌توانست روی شعرِ در صف یا ردشده نظر بگذارد.
   const post = await queryOne<{ id: string }>(
-    "select id from club_posts where id = $1 and status = 'approved'",
+    "select id from club_posts where id = ? and status = 'approved'",
     [postId],
   );
   if (!post) {
@@ -313,7 +327,7 @@ export async function createClubComment(
   if (parentId) {
     const target = await queryOne<{ id: string; parent_id: string | null }>(
       `select id, parent_id from club_comments
-        where id = $1 and post_id = $2 and status = 'approved'`,
+        where id = ? and post_id = ? and status = 'approved'`,
       [parentId, postId],
     );
 
@@ -333,9 +347,10 @@ export async function createClubComment(
   try {
     await execute(
       `insert into club_comments
-         (post_id, user_id, author_name, parent_id, reply_to_id, body, status)
-       values ($1, $2, $3, $4, $5, $6, 'pending')`,
+         (id, post_id, user_id, author_name, parent_id, reply_to_id, body, status)
+       values (?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
+        randomUUID(),
         postId,
         viewer.id,
         // «نظرشون با اسمی که برای اکانتشون گذاشتن باید باشه» — دیدگاه همیشه با
@@ -363,7 +378,7 @@ export async function deleteClubComment(id: string, postId: string): Promise<Act
   const bad = badId(id, "دیدگاه");
   if (bad) return bad;
 
-  const deleted = await execute("delete from club_comments where id = $1 and user_id = $2", [
+  const deleted = await execute("delete from club_comments where id = ? and user_id = ?", [
     id,
     viewer.id,
   ]);
@@ -397,22 +412,24 @@ export async function toggleClubLike(
 
   try {
     const result = await transaction(async (tx) => {
-      // delete ... returning هم حذف می‌کند هم می‌گوید چیزی برای حذف بود یا نه —
-      // یعنی «اول بخوان بعد تصمیم بگیر» حذف شد و با آن، مسابقهٔ دو کلیک سریع.
-      const removed = await tx.queryOne<{ post_id: string }>(
-        `delete from club_likes where post_id = $1 and user_id = $2 returning post_id`,
+      // MySQL هم RETURNING ندارد، ولی اینجا لازمش هم نیست: تعداد ردیف‌های
+      // حذف‌شده دقیقاً همان چیزی است که می‌خواستیم بدانیم — «چیزی برای حذف
+      // بود یا نه». پس همچنان یک دستور است و «اول بخوان بعد تصمیم بگیر»
+      // برنگشته، یعنی مسابقهٔ دو کلیک سریع هم برنگشته.
+      const removed = await tx.execute(
+        `delete from club_likes where post_id = ? and user_id = ?`,
         [postId, viewer.id],
       );
 
-      if (!removed) {
+      if (removed === 0) {
         // این شرط قبلاً در سیاست insert بود: لایک فقط روی سرودهٔ منتشرشده.
         const post = await tx.queryOne<{ id: string }>(
-          "select id from club_posts where id = $1 and status = 'approved'",
+          "select id from club_posts where id = ? and status = 'approved'",
           [postId],
         );
         if (!post) return null;
 
-        await tx.execute("insert into club_likes (post_id, user_id) values ($1, $2)", [
+        await tx.execute("insert into club_likes (post_id, user_id) values (?, ?)", [
           postId,
           viewer.id,
         ]);
@@ -420,7 +437,7 @@ export async function toggleClubLike(
 
       // شمارنده را تریگر club_likes_count در همین تراکنش به‌روز کرده
       const post = await tx.queryOne<{ like_count: number }>(
-        "select like_count from club_posts where id = $1",
+        "select like_count from club_posts where id = ?",
         [postId],
       );
 
@@ -475,10 +492,10 @@ export async function reportClubContent(
   // گزارش‌دهنده حق دیدنش را دارد: محتوای منتشرشده.
   const target = await queryOne<{ id: string }>(
     targetType === "post"
-      ? "select id from club_posts where id = $1 and status = 'approved'"
+      ? "select id from club_posts where id = ? and status = 'approved'"
       : `select c.id from club_comments c
            join club_posts p on p.id = c.post_id
-          where c.id = $1 and c.status = 'approved' and p.status = 'approved'`,
+          where c.id = ? and c.status = 'approved' and p.status = 'approved'`,
     [targetId],
   );
   if (!target) {
@@ -489,13 +506,22 @@ export async function reportClubContent(
   }
 
   try {
-    // گزارش دوبارهٔ یک چیز، از دید گزارش‌دهنده موفقیت است نه خطا — پس به‌جای
-    // گرفتن خطای کلید تکراری و بررسی متنش، خودِ دیتابیس بی‌صدا ردش می‌کند.
+    // گزارش دوبارهٔ یک چیز، از دید گزارش‌دهنده موفقیت است نه خطا.
+    //
+    // ⚠️ INSERT IGNORE نه: آن دستور *هر* خطایی را به هشدار تبدیل می‌کند، پس
+    // یک reason خارج از CHECK یا یک note بیش از حد بلند هم بی‌صدا رد
+    // می‌شد و گزارش هرگز ثبت نمی‌شد بی‌آنکه کسی بفهمد.
+    //
+    // ON DUPLICATE KEY UPDATE فقط روی نقضِ کلیدِ یکتا اثر می‌کند و بقیهٔ
+    // خطاها را بالا می‌فرستد — همان محدودیتی که
+    // `on conflict (reporter_id, target_type, target_id)` داشت.
+    // به‌روزرسانیِ یک ستون با مقدارِ خودش، همان «هیچ کاری نکن» است.
     await execute(
-      `insert into club_reports (reporter_id, target_type, target_id, reason, note, status)
-       values ($1, $2, $3, $4, $5, 'open')
-       on conflict (reporter_id, target_type, target_id) do nothing`,
+      `insert into club_reports (id, reporter_id, target_type, target_id, reason, note, status)
+       values (?, ?, ?, ?, ?, ?, 'open')
+       on duplicate key update status = status`,
       [
+        randomUUID(),
         viewer.id,
         targetType,
         targetId,

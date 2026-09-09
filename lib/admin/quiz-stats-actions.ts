@@ -61,7 +61,7 @@ export async function adminQuizAttemptsForUser(userId: string): Promise<QuizAtte
        from quiz_attempts a
        left join quiz_attempt_answers ans on ans.attempt_id = a.id
        left join questions q on q.id = ans.question_id
-      where a.user_id = $1
+      where a.user_id = ?
       order by a.created_at desc, ans.created_at`,
     [userId],
   );

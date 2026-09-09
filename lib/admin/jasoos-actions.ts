@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { InvalidInputError } from "@/lib/api/action-input";
@@ -77,8 +78,8 @@ export async function jasoosAdminList(): Promise<AdminJasoosSummary[]> {
     spy_count: number;
   }>(
     `select l.id, l.title, l.category, l.content_type, l.verse_line_1, l.is_published,
-            (select count(*)::int from jasoos_suspects s where s.level_id = l.id) as suspect_count,
-            (select count(*)::int from jasoos_suspects s where s.level_id = l.id and s.is_spy) as spy_count
+            (select count(*) from jasoos_suspects s where s.level_id = l.id) as suspect_count,
+            (select count(*) from jasoos_suspects s where s.level_id = l.id and s.is_spy) as spy_count
        from jasoos_levels l
       order by l.sort_index, l.id`,
   );
@@ -111,7 +112,7 @@ export async function jasoosAdminGet(id: number): Promise<AdminJasoosLevel | nul
   }>(
     `select id, title, category, content_type, verse_line_1, verse_line_2,
             is_published, sort_index
-       from jasoos_levels where id = $1`,
+       from jasoos_levels where id = ?`,
     [levelId],
   );
   if (!level) return null;
@@ -123,7 +124,7 @@ export async function jasoosAdminGet(id: number): Promise<AdminJasoosLevel | nul
     word_in_verse: string;
   }>(
     `select role, is_spy, evidence, word_in_verse
-       from jasoos_suspects where level_id = $1 order by sort_index, id`,
+       from jasoos_suspects where level_id = ? order by sort_index, id`,
     [levelId],
   );
 
@@ -221,9 +222,9 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
         id = levelIdArg(input.id);
         const updated = await tx.execute(
           `update jasoos_levels
-              set title = $1, category = $2, content_type = $3,
-                  verse_line_1 = $4, verse_line_2 = $5, is_published = $6
-            where id = $7`,
+              set title = ?, category = ?, content_type = ?,
+                  verse_line_1 = ?, verse_line_2 = ?, is_published = ?
+            where id = ?`,
           [title, input.category, input.contentType, line1, line2, input.isPublished, id],
         );
         if (!updated) throw new InvalidInputError("این پرونده پیدا نشد.");
@@ -231,26 +232,36 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
         // هر چهار مظنون با هم جایگزین می‌شوند. تطبیق ردیف‌به‌ردیف اینجا هیچ
         // چیزی نمی‌خرد (مظنون‌ها شناسه‌ای ندارند که جایی به آن ارجاع بدهد) و
         // در عوض راه‌های تازه‌ای برای رسیدن به حالتِ ناسازگار باز می‌کند.
-        await tx.execute("delete from jasoos_suspects where level_id = $1", [id]);
+        await tx.execute("delete from jasoos_suspects where level_id = ?", [id]);
       } else {
-        const row = await tx.queryOne<{ id: number }>(
+        // ⚠️ jasoos_levels تنها جدولی است که شناسه‌اش عددی و AUTO_INCREMENT
+        // است (با شروع از ۱۰۰۰). پس اینجا بر خلاف بقیه، شناسه را دیتابیس
+        // می‌سازد و با LAST_INSERT_ID خوانده می‌شود.
+        //
+        // ⚠️ حتماً روی همان اتصال: LAST_INSERT_ID در MySQL برای هر اتصال جدا
+        // نگه داشته می‌شود، پس اگر درج روی یک اتصال از pool می‌رفت و خواندن
+        // روی اتصال دیگری، شناسهٔ کسِ دیگری برمی‌گشت. `tx.insertId` همین را
+        // تضمین می‌کند.
+        //
+        // و جدولِ مشتق، چون MySQL اجازه نمی‌دهد زیرکوئریِ یک INSERT از جدولِ
+        // مقصد بخواند (خطای ۱۰۹۳).
+        id = await tx.insertId(
           `insert into jasoos_levels
              (title, category, content_type, verse_line_1, verse_line_2, is_published, sort_index)
-           values ($1, $2, $3, $4, $5, $6,
-                   coalesce((select max(sort_index) from jasoos_levels), 0) + 1)
-           returning id`,
+           select ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+             from (select max(sort_index) as m from jasoos_levels) t`,
           [title, input.category, input.contentType, line1, line2, input.isPublished],
         );
-        if (!row) throw new Error("درج پرونده ناموفق بود.");
-        id = row.id;
+        if (!id) throw new Error("درج پرونده ناموفق بود.");
       }
 
       for (const [index, s] of input.suspects.entries()) {
         await tx.execute(
           `insert into jasoos_suspects
-             (level_id, role, is_spy, evidence, word_in_verse, sort_index)
-           values ($1, $2, $3, $4, $5, $6)`,
+             (id, level_id, role, is_spy, evidence, word_in_verse, sort_index)
+           values (?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             id,
             s.role.trim(),
             s.isSpy,
@@ -296,9 +307,9 @@ export async function jasoosAdminSetPublished(
 
   const target = await queryOne<{ title: string; suspects: number; spies: number }>(
     `select l.title,
-            (select count(*)::int from jasoos_suspects s where s.level_id = l.id) as suspects,
-            (select count(*)::int from jasoos_suspects s where s.level_id = l.id and s.is_spy) as spies
-       from jasoos_levels l where l.id = $1`,
+            (select count(*) from jasoos_suspects s where s.level_id = l.id) as suspects,
+            (select count(*) from jasoos_suspects s where s.level_id = l.id and s.is_spy) as spies
+       from jasoos_levels l where l.id = ?`,
     [levelId],
   );
   if (!target) return { ok: false, error: "این پرونده پیدا نشد." };
@@ -312,7 +323,7 @@ export async function jasoosAdminSetPublished(
     };
   }
 
-  await execute("update jasoos_levels set is_published = $1 where id = $2", [
+  await execute("update jasoos_levels set is_published = ? where id = ?", [
     published,
     levelId,
   ]);
@@ -335,11 +346,11 @@ export async function jasoosAdminDelete(id: number): Promise<ActionResult> {
   const levelId = levelIdArg(id);
 
   const target = await queryOne<{ title: string }>(
-    "select title from jasoos_levels where id = $1",
+    "select title from jasoos_levels where id = ?",
     [levelId],
   );
 
-  const deleted = await execute("delete from jasoos_levels where id = $1", [levelId]);
+  const deleted = await execute("delete from jasoos_levels where id = ?", [levelId]);
   if (!deleted) return { ok: false, error: "این پرونده پیدا نشد." };
 
   await recordAudit({

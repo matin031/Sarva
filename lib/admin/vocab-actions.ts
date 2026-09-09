@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
@@ -30,7 +31,7 @@ export async function vocabAdminList(grade: string, lesson: number): Promise<Adm
   const rows = await query<WordRow>(
     `select id, word, meaning, image, sort_index
        from vocab_words
-      where grade = $1 and lesson = $2
+      where grade = ? and lesson = ?
       order by sort_index`,
     [grade, lesson],
   );
@@ -74,8 +75,8 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
     if (input.id) {
       const updated = await execute(
         `update vocab_words
-            set grade = $1, lesson = $2, word = $3, meaning = $4, image = $5
-          where id = $6`,
+            set grade = ?, lesson = ?, word = ?, meaning = ?, image = ?
+          where id = ?`,
         [input.grade, input.lesson, word, meaning, image, input.id],
       );
       if (!updated) return { ok: false, error: "واژه پیدا نشد." };
@@ -98,11 +99,14 @@ export async function vocabAdminUpsert(input: VocabWordInput): Promise<ActionRes
     // بودند و دو افزودنِ همزمان می‌توانستند هر دو یک شماره بگیرند.
     await transaction(async (tx) => {
       await tx.execute(
-        `insert into vocab_words (grade, lesson, word, meaning, image, sort_index)
-         values ($1, $2, $3, $4, $5,
-                 coalesce((select max(sort_index) from vocab_words
-                            where grade = $1 and lesson = $2), 0) + 1)`,
-        [input.grade, input.lesson, word, meaning, image],
+        // جدولِ مشتق، به همان دلیلِ خطای ۱۰۹۳ که در ninja و pairs توضیح
+        // داده شده.
+        `insert into vocab_words (id, grade, lesson, word, meaning, image, sort_index)
+         select ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+           from (select max(sort_index) as m from vocab_words
+                  where grade = ? and lesson = ?) t`,
+        [randomUUID(), input.grade, input.lesson, word, meaning, image,
+         input.grade, input.lesson],
       );
     });
 
@@ -128,11 +132,11 @@ export async function vocabAdminDelete(id: string): Promise<ActionResult> {
 
   // قبل از حذف خوانده می‌شود، وگرنه لاگ فقط یک uuid خواهد داشت.
   const target = await queryOne<{ word: string; grade: string; lesson: number }>(
-    "select word, grade, lesson from vocab_words where id = $1",
+    "select word, grade, lesson from vocab_words where id = ?",
     [id],
   );
 
-  const deleted = await execute("delete from vocab_words where id = $1", [id]);
+  const deleted = await execute("delete from vocab_words where id = ?", [id]);
   if (!deleted) return { ok: false, error: "واژه پیدا نشد." };
 
   await recordAudit({

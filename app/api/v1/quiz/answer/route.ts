@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { queryOne, execute } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
@@ -42,7 +43,7 @@ export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) =>
     // گزینه باید واقعاً مالِ همین سؤال باشد، وگرنه می‌شد گزینهٔ درستِ سؤال
     // دیگری را فرستاد و امتیاز گرفت.
     const option = await queryOne<{ is_correct: boolean }>(
-      `select is_correct from question_options where id = $1 and question_id = $2`,
+      `select is_correct from question_options where id = ? and question_id = ?`,
       [selectedOptionId, questionId],
     );
 
@@ -54,14 +55,20 @@ export const POST = withRoute("/api/v1/quiz/answer", async (request: Request) =>
     // چیزی است که ایندکس یکتای (user_id, question_id) تضمین می‌کند. نسخهٔ
     // قبلی این را با «اول select بعد update یا insert» شبیه‌سازی می‌کرد و
     // دو کلیک سریع می‌توانست به خطای کلید تکراری بخورد.
+    // `excluded.` در PostgreSQL بود؛ اینجا VALUES(col).
+    //
+    // ⚠️ نسخهٔ اول نامِ ردیف (`values (…) as new` و بعد `new.col`) را
+    // به کار می‌برد، که خواناتر است ولی فقط از MySQL 8.0.19 هست و در
+    // MariaDB خطای نحوی می‌دهد. VALUES(col) در هر دو موتور کار می‌کند.
     await execute(
-      `insert into user_answers (user_id, question_id, selected_option_id, is_correct, answered_at)
-       values ($1, $2, $3, $4, now())
-       on conflict (user_id, question_id) do update
-         set selected_option_id = excluded.selected_option_id,
-             is_correct         = excluded.is_correct,
-             answered_at        = excluded.answered_at`,
-      [user.id, questionId, selectedOptionId, isCorrect],
+      `insert into user_answers
+         (id, user_id, question_id, selected_option_id, is_correct, answered_at)
+       values (?, ?, ?, ?, ?, now(6))
+       on duplicate key update
+         selected_option_id = values(selected_option_id),
+         is_correct         = values(is_correct),
+         answered_at        = values(answered_at)`,
+      [randomUUID(), user.id, questionId, selectedOptionId, isCorrect],
     );
 
     return ok({ isCorrect });

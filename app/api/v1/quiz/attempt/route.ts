@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { transaction } from "@/lib/db";
+import { transaction, placeholders } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
@@ -76,8 +77,9 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
 
       const rows = selectedIds.length
         ? await tx.query<{ id: string; question_id: string; is_correct: boolean }>(
-            `select id, question_id, is_correct from question_options where id = any($1::uuid[])`,
-            [selectedIds],
+            `select id, question_id, is_correct from question_options
+              where id in (${placeholders(selectedIds.length)})`,
+            selectedIds,
           )
         : [];
 
@@ -89,8 +91,8 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
       const known = new Set(
         (
           await tx.query<{ id: string }>(
-            `select id from questions where id = any($1::uuid[])`,
-            [answers.map((a) => a.questionId)],
+            `select id from questions where id in (${placeholders(answers.length)})`,
+            answers.map((a) => a.questionId),
           )
         ).map((r) => r.id),
       );
@@ -110,25 +112,46 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
 
       const correct = graded.filter((g) => g.isCorrect).length;
 
-      const attempt = await tx.queryOne<{ id: string }>(
-        `insert into quiz_attempts (user_id, total, correct) values ($1, $2, $3) returning id`,
-        [user.id, graded.length, correct],
-      );
-
-      // یک درجِ دسته‌ای به‌جای N رفت‌وبرگشت. با ۲۰۰ پاسخ، این ۲۰۰ کوئری بود.
+      const attemptId = randomUUID();
       await tx.execute(
-        `insert into quiz_attempt_answers (attempt_id, question_id, selected_option_id, is_correct)
-         select $1, qid, oid, flag
-           from unnest($2::uuid[], $3::uuid[], $4::boolean[]) as t(qid, oid, flag)`,
-        [
-          attempt!.id,
-          graded.map((g) => g.questionId),
-          graded.map((g) => g.selectedOptionId),
-          graded.map((g) => g.isCorrect),
-        ],
+        `insert into quiz_attempts (id, user_id, total, correct) values (?, ?, ?, ?)`,
+        [attemptId, user.id, graded.length, correct],
       );
 
-      return { attemptId: attempt!.id, total: graded.length, correct };
+      // ⚠️ `unnest($2::uuid[], $3::uuid[], $4::boolean[])` سه آرایهٔ موازی را
+      // به ردیف باز می‌کرد. MySQL نه unnest دارد و نه آرایه به‌عنوان
+      // پارامتر.
+      //
+      // معادلش یک INSERT چندردیفی است که سطرهایش را همین‌جا می‌سازیم — که
+      // همان خاصیتِ اصلی را نگه می‌دارد: *یک* رفت‌وبرگشت به‌جای N. (با ۲۰۰
+      // پاسخ، ۲۰۰ کوئری بود.)
+      //
+      // ⚠️ آرایهٔ خالی: اگر graded خالی باشد، `values` بدون سطر خطای نحوی
+      // است. در PostgreSQL همان unnest صفر ردیف می‌داد و بی‌صدا رد می‌شد،
+      // پس اینجا هم صریحاً رد می‌شویم.
+      //
+      // ⚠️ سقفِ بستهٔ شبکه (max_allowed_packet) و سقفِ تعداد جای‌نگهدارِ
+      // prepared statement (۶۵۵۳۵) دو مرزِ واقعی‌اند. اینجا هر پاسخ ۴
+      // جای‌نگهدار می‌گیرد، و تعداد پاسخ‌ها بالادست محدود شده، پس فاصله
+      // زیاد است — ولی اگر روزی آن سقف برداشته شود، باید دسته‌دسته شود.
+      if (graded.length) {
+        const rowsSql = graded.map(() => "(?, ?, ?, ?, ?)").join(", ");
+        const params = graded.flatMap((g) => [
+          randomUUID(),
+          attemptId,
+          g.questionId,
+          g.selectedOptionId,
+          g.isCorrect,
+        ]);
+        await tx.execute(
+          `insert into quiz_attempt_answers
+             (id, attempt_id, question_id, selected_option_id, is_correct)
+           values ${rowsSql}`,
+          params,
+        );
+      }
+
+      return { attemptId, total: graded.length, correct };
     });
 
     if ("badRequest" in result) return fail("یکی از سؤال‌ها وجود ندارد.", 400);

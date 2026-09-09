@@ -1,5 +1,5 @@
 import "server-only";
-import { query, queryOne } from "@/lib/db";
+import { query, queryOne, placeholders } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type {
   AruzAttempt,
@@ -56,9 +56,9 @@ export async function getAruzAttempts(
   }>(
     `select id, total, correct, created_at
        from quiz_attempts
-      where user_id = $1
+      where user_id = ?
       order by created_at desc
-      limit $2 offset $3`,
+      limit ? offset ?`,
     [userId, limit + 1, offset],
   );
 
@@ -81,23 +81,45 @@ export async function getAruzAttempts(
     q_type: string | null;
     q_poem: string[] | null;
     q_audio_url: string | null;
-    options: { id: string; label: string | null; poem: string[] | null; audio_url: string | null; is_correct: boolean }[] | null;
   }>(
     `select ans.attempt_id, ans.id, ans.is_correct, ans.selected_option_id,
-            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url,
-            (select coalesce(
-                      json_agg(json_build_object(
-                        'id', o.id, 'label', o.label, 'poem', o.poem,
-                        'audio_url', o.audio_url, 'is_correct', o.is_correct
-                      ) order by o.x, o.id),
-                      '[]'::json)
-               from question_options o where o.question_id = q.id) as options
+            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url
        from quiz_attempt_answers ans
        left join questions q on q.id = ans.question_id
-      where ans.attempt_id = any($1::uuid[])
+      where ans.attempt_id in (${placeholders(attemptIds.length)})
       order by ans.created_at, ans.id`,
-    [attemptIds],
+    attemptIds,
   );
+
+  // ⚠️ گزینه‌ها جدا خوانده می‌شوند و نه با تجمیعِ JSON داخلِ همان کوئری.
+  //
+  // نسخهٔ PostgreSQL از `json_agg(… order by o.x, o.id)` استفاده می‌کرد.
+  // معادلِ MySQL یعنی JSON_ARRAYAGG ترتیبش تضمین نشده است، و ترتیبِ
+  // گزینه‌ها همان چیزی است که کاربر در کارنامه‌اش می‌بیند.
+  const questionIds = [...new Set(answerRows.map((r) => r.question_id).filter((id): id is string => id !== null))];
+  const optionRows = questionIds.length
+    ? await query<{
+        question_id: string;
+        id: string;
+        label: string | null;
+        poem: string[] | null;
+        audio_url: string | null;
+        is_correct: boolean;
+      }>(
+        `select question_id, id, label, poem, audio_url, is_correct
+           from question_options
+          where question_id in (${placeholders(questionIds.length)})
+          order by x, id`,
+        questionIds,
+      )
+    : [];
+
+  const optionsByQuestion = new Map<string, typeof optionRows>();
+  for (const o of optionRows) {
+    const list = optionsByQuestion.get(o.question_id);
+    if (list) list.push(o);
+    else optionsByQuestion.set(o.question_id, [o]);
+  }
 
   const byAttempt = new Map<string, AruzAttempt["answers"]>();
   for (const r of answerRows) {
@@ -110,7 +132,7 @@ export async function getAruzAttempts(
       type: (r.q_type ?? null) as AruzQuestionType | null,
       poem: r.q_poem,
       audioUrl: r.q_audio_url,
-      options: (r.options ?? []).map((o) => ({
+      options: (r.question_id ? (optionsByQuestion.get(r.question_id) ?? []) : []).map((o) => ({
         id: o.id,
         label: o.label,
         poem: o.poem,
@@ -152,12 +174,12 @@ export async function getAruzSummary(userId: string): Promise<{
   }>(
     `select count(*)                                   as attempts,
             max(case when total > 0
-                     then round(correct::numeric * 100 / total)
+                     then round(correct * 100 / total)
                      else 0 end)                       as best,
             coalesce(sum(total), 0)                    as questions,
             coalesce(sum(correct), 0)                  as correct
        from quiz_attempts
-      where user_id = $1`,
+      where user_id = ?`,
     [userId],
   );
 
@@ -174,7 +196,7 @@ export async function getAruzActivity(userId: string): Promise<{ at: string; ok:
   const rows = await query<{ is_correct: boolean; answered_at: string }>(
     `select is_correct, answered_at
        from user_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
       limit 2000`,
     [userId],
@@ -204,7 +226,7 @@ export async function getAruzWeightStats(
               where o.question_id = q.id and o.is_correct limit 1) as correct_label
        from user_answers ua
        join questions q on q.id = ua.question_id
-      where ua.user_id = $1
+      where ua.user_id = ?
       limit 3000`,
     [userId],
   );
@@ -248,9 +270,9 @@ export async function getVocabAnswers(
   }>(
     `select id, grade, lesson, word, meaning, image, is_correct, answered_at
        from vocab_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
-      limit $2 offset $3`,
+      limit ? offset ?`,
     [userId, limit + 1, offset],
   );
 
@@ -277,7 +299,7 @@ export async function getVocabSummary(
   const rows = await query<{ grade: string; is_correct: boolean; answered_at: string }>(
     `select grade, is_correct, answered_at
        from vocab_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
       limit 5000`,
     [userId],
@@ -300,7 +322,7 @@ export async function getJasoosAnswers(userId: string): Promise<JasoosAnswer[]> 
   }>(
     `select id, level_id, category, chosen_role, correct_role, is_correct, answered_at
        from jasoos_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
       limit 2000`,
     [userId],
@@ -338,14 +360,14 @@ export async function getExamStats(
   userId: string,
 ): Promise<{ attempts: number; best: number; average: number }> {
   const row = await queryOne<{ attempts: number; best: number | null; score: number; max: number }>(
-    `select count(*)::int                                    as attempts,
+    `select count(*)                                    as attempts,
             max(case when max_score > 0
                      then round(total_score * 100 / max_score)
                      else 0 end)                             as best,
             coalesce(sum(total_score), 0)                    as score,
             coalesce(sum(max_score), 0)                      as max
        from exam_attempts
-      where user_id = $1`,
+      where user_id = ?`,
     [userId],
   );
   const max = Number(row?.max ?? 0);
@@ -373,7 +395,7 @@ export async function getExamAttemptDetail(
   }>(
     `select question_results, answers
        from exam_attempts
-      where id = $1 and user_id = $2`,
+      where id = ? and user_id = ?`,
     [attemptId, userId],
   );
   if (!row) return null;
@@ -408,9 +430,9 @@ export async function getExamAttempts(
             e.title as exam_title, e.exam_session
        from exam_attempts a
        left join exams e on e.id = a.exam_id
-      where a.user_id = $1
+      where a.user_id = ?
       order by a.created_at desc, a.id
-      limit $2`,
+      limit ?`,
     [userId, limit],
   );
 
@@ -449,26 +471,44 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
     // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
     // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
     query<{ area: BookmarkArea; day: string; total: number; correct: number }>(
+      // ⚠️ گروه‌بندی روزِ تهران، سه تفاوت با نسخهٔ PostgreSQL:
+      //
+      //   ۱) `at time zone 'Asia/Tehran'` → CONVERT_TZ(x, '+00:00', 'Asia/Tehran').
+      //      مبدأ صریحاً '+00:00' است و نه 'UTC': اولی همیشه کار می‌کند،
+      //      دومی به جدول‌های منطقهٔ زمانی نیاز دارد.
+      //
+      //   ⚠️⚠️ مقصد ولی *باید* نامِ منطقه باشد و نه یک offset ثابت، و این
+      //      یعنی جدول‌های mysql.time_zone باید بارگذاری شده باشند. اگر
+      //      نباشند CONVERT_TZ مقدار NULL می‌دهد و کلِ نمودار خالی می‌شود
+      //      بی‌آنکه خطایی بدهد. (scripts/db-check.mjs همین را می‌سنجد.)
+      //
+      //      و offset ثابتِ +03:30 جایگزین نیست: ایران تا ۲۰۲۲ ساعت
+      //      تابستانی داشت، پس تاریخ‌های قدیمی‌تر یک ساعت جابه‌جا می‌شدند
+      //      و پاسخ‌های نزدیک نیمه‌شب به روزِ اشتباه می‌افتادند. آزموده شد:
+      //      ۲۰۲۰-۰۶-۰۱ در تهران +۰۴:۳۰ است و ۲۰۲۰-۱۲-۰۱ برابر +۰۳:۳۰.
+      //
+      //   ۲) `to_char(…, 'YYYY-MM-DD')` → DATE_FORMAT(…, '%Y-%m-%d').
+      //   ۳) `count(*) filter (where ok)` → count(case when ok then 1 end).
       `select area,
-              to_char((at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
-              count(*)::int                           as total,
-              count(*) filter (where ok)::int         as correct
+              date_format(convert_tz(at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
+              count(*)                             as total,
+              count(case when ok then 1 end)       as correct
          from (
-           select 'aruz'::text as area, is_correct as ok, answered_at as at
-             from user_answers where user_id = $1
+           select 'aruz' as area, is_correct as ok, answered_at as at
+             from user_answers where user_id = ?
            union all
-           select 'vocab'::text, is_correct, answered_at
-             from vocab_answers where user_id = $1
+           select 'vocab', is_correct, answered_at
+             from vocab_answers where user_id = ?
            union all
-           select 'jasoos'::text, is_correct, answered_at
-             from jasoos_answers where user_id = $1
+           select 'jasoos', is_correct, answered_at
+             from jasoos_answers where user_id = ?
          ) t
         where at is not null
         group by area, 2
         order by 2`,
-      [userId],
+      [userId, userId, userId],
     ),
-    queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = $1`, [userId]),
+    queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = ?`, [userId]),
     // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
     // جزئیاتِ تک‌تکِ سؤال‌هایش خوانده می‌شد تا سه عدد ساخته شود.
     getExamStats(userId),
@@ -516,13 +556,14 @@ export async function getBookmarks(
     note: string | null;
     created_at: string;
   }>(
+    // $2 دو بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر ? یک جاست.
     `select id, area, ref_id, title, subtitle, payload, note, created_at
        from user_bookmarks
-      where user_id = $1
-        and ($2::text is null or area = $2)
+      where user_id = ?
+        and (? is null or area = ?)
       order by created_at desc, id
-      limit $3`,
-    [userId, area ?? null, limit],
+      limit ?`,
+    [userId, area ?? null, area ?? null, limit],
   );
 
   return rows.map((r) => ({
@@ -560,12 +601,16 @@ export async function getAruzDayCounts(
   days = 400,
 ): Promise<{ day: string; total: number; correct: number }[]> {
   const rows = await query<{ day: string; total: number; correct: number }>(
-    `select to_char((answered_at at time zone 'Asia/Tehran')::date, 'YYYY-MM-DD') as day,
-            count(*)::int                                as total,
-            count(*) filter (where is_correct)::int      as correct
+    // `($2 || ' days')::interval` یعنی ساختنِ بازه از یک عدد. در MySQL
+    // بازه نحوِ خودش را دارد و پارامتر هم می‌پذیرد: `interval ? day`.
+    // (اینجا `||` هم بود که در MySQL یعنی OR — بی‌صدا یک عبارتِ بولی
+    //  می‌ساخت به‌جای رشته.)
+    `select date_format(convert_tz(answered_at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
+            count(*)                                  as total,
+            count(case when is_correct then 1 end)    as correct
        from user_answers
-      where user_id = $1
-        and answered_at >= now() - ($2 || ' days')::interval
+      where user_id = ?
+        and answered_at >= now(6) - interval ? day
       group by 1
       order by 1`,
     [userId, days],
@@ -576,7 +621,7 @@ export async function getAruzDayCounts(
 /** آخرین پاسخ — یک مقدار، نه یک فهرست. */
 export async function getAruzLastAnsweredAt(userId: string): Promise<string | null> {
   const row = await queryOne<{ at: string | null }>(
-    `select max(answered_at) as at from user_answers where user_id = $1`,
+    `select max(answered_at) as at from user_answers where user_id = ?`,
     [userId],
   );
   return row?.at ?? null;

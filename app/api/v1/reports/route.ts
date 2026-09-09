@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { boundedRecord } from "@/lib/api/bounded-record";
-import { queryOne } from "@/lib/db";
+import { execute } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
 import { withRoute } from "@/lib/api/route";
@@ -84,13 +85,14 @@ export const POST = withRoute("/api/v1/reports", async (request: Request) => {
     // کاربر اگر وارد باشد ثبت می‌شود، ولی نبودنش گزارش را رد نمی‌کند.
     const user = await getCurrentUser().catch(() => null);
 
-    const row = await queryOne<{ id: string }>(
+    const reportId = randomUUID();
+    await execute(
       `insert into content_reports
-         (area, target_id, target_ref, snapshot, reason, note,
+         (id, area, target_id, target_ref, snapshot, reason, note,
           user_id, ip, user_agent, request_id)
-       values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8::inet, $9, $10)
-     returning id`,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        reportId,
         area,
         targetId || null,
         // ⚠️ از فیلترِ بازگشتی رد می‌شود: مکان‌یاب را خودِ کلاینت می‌فرستد و
@@ -115,7 +117,7 @@ export const POST = withRoute("/api/v1/reports", async (request: Request) => {
       signed_in: Boolean(user),
     });
 
-    return ok({ recorded: true, id: row?.id ?? null }, 201);
+    return ok({ recorded: true, id: reportId }, 201);
   } catch (err) {
     return handleError(err, "POST /api/v1/reports");
   }

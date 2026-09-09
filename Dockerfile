@@ -27,20 +27,24 @@ RUN npm run build
 
 
 # ------------------------------------------------------- ابزارهای زمان اجرا --
-# migrate.mjs و seed-admin.mjs بیرون از اپ اجرا می‌شوند، پس pg و argon2 را از
-# node_modules خودشان می‌گیرند نه از اپ.
+# migrate.mjs و seed-admin.mjs بیرون از اپ اجرا می‌شوند، پس درایور دیتابیس و
+# argon2 را از node_modules خودشان می‌گیرند نه از اپ.
 #
 # چرا جدا: خروجی standalone فقط چیزهایی را دارد که ردیابیِ importهای Next به آن
 # رسیده. اسکریپت‌هایی که Next اصلاً نمی‌بیندشان، سهمی از آن ندارند. این نصبِ
 # کوچک و مستقل یعنی مهاجرت دیتابیس مستقل از اینکه اپ امروز چه چیزی import می‌کند
 # کار می‌کند — و دقیقاً وقتی به آن نیاز داریم که اپ هنوز بالا نیامده.
 #
+# ⚠️ mysql2 جای pg را گرفت. اینجا فقط درایورِ *مقصد* لازم است: ابزار انتقال
+# داده (که به pg نیاز دارد) عمداً داخل ایمیج نمی‌آید — یک بار روی ماشینِ
+# اپراتور اجرا می‌شود، نه در هر بالا آمدنِ کانتینر.
+#
 # نسخه‌ها پین شده‌اند تا با package.json یکی بمانند.
 FROM base AS tools
 WORKDIR /tools
 RUN npm init -y > /dev/null \
  && npm install --omit=dev --no-audit --no-fund \
-      pg@8.22.0 \
+      mysql2@3.24.4 \
       @node-rs/argon2@2.0.2
 
 
@@ -62,8 +66,15 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/scripts/migrate.mjs /app/scripts/seed-admin.mjs ./scripts/
+# ⚠️ mysql-migrations و نه migrations.
+#
+# پوشهٔ migrations/ (پستگرس) عمداً در مخزن مانده تا اگر لازم شد بشود به
+# پستگرس برگشت، ولی داخل ایمیج نمی‌آید: اگر می‌آمد، اجراکنندهٔ MySQL آن
+# فایل‌ها را هم می‌دید و اولین دستورِ پستگرسی کانتینر را می‌کشت.
+COPY --from=builder /app/mysql-migrations ./mysql-migrations
+COPY --from=builder /app/scripts/migrate.mjs /app/scripts/seed-admin.mjs \
+     /app/scripts/check-timezone.mjs ./scripts/
+COPY --from=builder /app/scripts/mysql/split-sql.mjs /app/scripts/mysql/script-db.mjs ./scripts/mysql/
 COPY --from=tools /tools/node_modules ./scripts/node_modules
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

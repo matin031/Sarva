@@ -1,5 +1,5 @@
 import "server-only";
-import { query, queryOne } from "@/lib/db";
+import { query, queryOne, placeholders } from "@/lib/db";
 import { isUuid } from "@/lib/api/action-input";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { ClubComment, ClubFeedSort, ClubPost, ClubPostForm, ClubStatus } from "@/lib/club/types";
@@ -94,9 +94,16 @@ function toPost(row: PostRow, viewerId: string | null, liked: Set<string>): Club
 async function likedSet(postIds: string[], viewerId: string | null): Promise<Set<string>> {
   if (!viewerId || postIds.length === 0) return new Set();
 
+  // ⚠️ MySQL آرایه به‌عنوان پارامتر ندارد، پس `= any($2::uuid[])` معادلِ
+  // مستقیم ندارد. به‌جایش یک ? به ازای هر عضو ساخته می‌شود.
+  //
+  // آرایهٔ خالی بالا زودتر برگشت خورده (postIds.length === 0)، وگرنه
+  // `in ()` در MySQL خطای نحوی است — بر خلاف `any(array[])` که در
+  // PostgreSQL مجاز بود و صفر ردیف می‌داد.
   const rows = await query<{ post_id: string }>(
-    `select post_id from club_likes where user_id = $1 and post_id = any($2::uuid[])`,
-    [viewerId, postIds],
+    `select post_id from club_likes
+      where user_id = ? and post_id in (${placeholders(postIds.length)})`,
+    [viewerId, ...postIds],
   );
 
   return new Set(rows.map((r) => r.post_id));
@@ -121,11 +128,26 @@ export async function getClubFeed(
 
   if (form) {
     values.push(form);
-    conditions.push(`form = $${values.length}`);
+    conditions.push("form = ?");
   }
   if (tag) {
-    values.push([tag]);
-    conditions.push(`tags @> $${values.length}::text[]`);
+    // `tags @> array[tag]` یعنی «آرایه این عضو را دارد».
+    //
+    // ⚠️ نسخهٔ قبلی `? member of (tags)` بود که هم خواناتر است و هم
+    // multi-valued index را به کار می‌انداخت — ولی **در MariaDB وجود ندارد**
+    // و کلِ فید کلاب با خطای نحوی رد می‌شد. آن نمایه هم به همین دلیل از
+    // اسکیما برداشته شد (نحوِ CAST(... AS ... ARRAY) در MariaDB نیست).
+    //
+    // JSON_CONTAINS در هر دو موتور هست. تلهٔ همیشگی‌اش این است که مقدارِ
+    // جست‌وجو باید *متنِ JSON* باشد و نه رشتهٔ خام: با 'غزل' هیچ‌وقت چیزی
+    // پیدا نمی‌شود و هیچ خطایی هم نمی‌دهد. JSON_QUOTE همان جا را می‌بندد —
+    // برچسبی که خودش گیومه یا بک‌اسلش دارد هم درست گریز داده می‌شود.
+    //
+    // بهایش: این شرط از نمایه استفاده نمی‌کند و روی سروده‌های تأییدشده
+    // پویش می‌شود. برای این اندازه (هزاران سروده، با فیلترِ status پیش از
+    // آن) بی‌مسئله است.
+    values.push(tag);
+    conditions.push("json_contains(tags, json_quote(?))");
   }
 
   // برگزیده‌ها بالای هر مرتب‌سازی می‌نشینند — معنیِ برگزیده بودن همین است.
@@ -133,9 +155,7 @@ export async function getClubFeed(
     sort === "popular" ? "like_count desc," : sort === "discussed" ? "comment_count desc," : "";
 
   values.push(FEED_PAGE_SIZE + 1);
-  const limitParam = `$${values.length}`;
   values.push(offset);
-  const offsetParam = `$${values.length}`;
 
   // `, id` آخرِ ترتیب اختیاری نیست. وقتی مدیر چند سروده را پشت سر هم تأیید
   // می‌کند، published_at همه‌شان عملاً یکی می‌شود و بقیهٔ کلیدها (featured،
@@ -144,12 +164,20 @@ export async function getClubFeed(
   // صفحه‌بندی با offset کار می‌کند، یک سروده در صفحهٔ ۲ تکرار می‌شود و یکی
   // دیگر اصلاً دیده نمی‌شود. با ۶۰ سرودهٔ هم‌زمان همین اتفاق در آزمون دیده شد:
   // ۵۹ یکتا از ۶۰، در هر سه مرتب‌سازی.
+  //
+  // ⚠️ `nulls last` در MySQL نحو ندارد. جایش `published_at is null` به‌عنوان
+  // یک کلیدِ مرتب‌سازیِ صفر/یک آمده که پیش از خودِ ستون می‌نشیند — یعنی
+  // ردیف‌های NULL آخر می‌افتند، همان رفتار قبلی.
+  //
+  // این دقیقاً همان ستونی است که در اسکیما هم به‌عنوان
+  // published_at_is_null ساخته شده و در club_posts_feed_idx نشسته، پس
+  // optimizer می‌تواند همین ترتیب را از index بخواند و مرتب‌سازی نکند.
   const rows = await query<PostRow>(
     `select ${POST_COLUMNS}
        from club_posts
       where ${conditions.join(" and ")}
-      order by featured desc, ${sortColumn} published_at desc nulls last, id
-      limit ${limitParam} offset ${offsetParam}`,
+      order by featured desc, ${sortColumn} published_at is null, published_at desc, id
+      limit ? offset ?`,
     values,
   );
 
@@ -181,9 +209,11 @@ export async function getClubPost(id: string, viewer: ClubViewer): Promise<ClubP
   const row = await queryOne<PostRow>(
     `select ${POST_COLUMNS}
        from club_posts
-      where id = $1
-        and (status = 'approved' or ($2::uuid is not null and user_id = $2))`,
-    [id, viewer?.id ?? null],
+      where id = ?
+        and (status = 'approved' or (? is not null and user_id = ?))`,
+    // در PostgreSQL شمارهٔ $2 دو بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر
+    // ? یک جاست، پس همان مقدار دو بار فرستاده می‌شود.
+    [id, viewer?.id ?? null, viewer?.id ?? null],
   );
 
   if (!row) return null;
@@ -232,10 +262,10 @@ export async function getClubComments(postId: string, viewer: ClubViewer): Promi
   const rows = await query<CommentRow>(
     `select ${COMMENT_COLUMNS}
        from club_comments
-      where post_id = $1
-        and (status = 'approved' or ($2::uuid is not null and user_id = $2))
+      where post_id = ?
+        and (status = 'approved' or (? is not null and user_id = ?))
       order by created_at, id`,
-    [postId, viewer?.id ?? null],
+    [postId, viewer?.id ?? null, viewer?.id ?? null],
   );
 
   return rows.map((r) => toComment(r, viewer?.id ?? null));
@@ -247,7 +277,7 @@ export async function getMyPosts(viewer: ClubViewer): Promise<ClubPost[]> {
   if (!viewer) return [];
 
   const rows = await query<PostRow>(
-    `select ${POST_COLUMNS} from club_posts where user_id = $1 order by created_at desc, id`,
+    `select ${POST_COLUMNS} from club_posts where user_id = ? order by created_at desc, id`,
     [viewer.id],
   );
 
@@ -270,7 +300,7 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
             p.title as post_title, p.body as post_body
        from club_comments c
        left join club_posts p on p.id = c.post_id
-      where c.user_id = $1
+      where c.user_id = ?
       order by c.created_at desc, c.id
       limit 200`,
     [viewer.id],
@@ -315,7 +345,7 @@ export async function getMyLikedPosts(viewer: ClubViewer): Promise<ClubPost[]> {
     `select ${POST_COLUMNS_P}
        from club_likes l
        join club_posts p on p.id = l.post_id
-      where l.user_id = $1
+      where l.user_id = ?
         and p.status = 'approved'
       order by l.created_at desc, p.id
       limit 100`,

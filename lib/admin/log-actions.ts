@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, placeholders } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, enumArg } from "@/lib/api/action-input";
 import {
@@ -65,7 +65,7 @@ export async function adminListAudit(
 
   if (filter.actorId) {
     values.push(uuidArg(filter.actorId, "شناسهٔ مدیر نامعتبر است."));
-    conditions.push(`actor_id = $${values.length}`);
+    conditions.push("actor_id = ?");
   }
   if (filter.action) {
     // فهرست بسته است، پس هر رشتهٔ ناشناخته‌ای رد می‌شود.
@@ -73,20 +73,26 @@ export async function adminListAudit(
       return { rows: [], total: 0 };
     }
     values.push(filter.action);
-    conditions.push(`action = $${values.length}`);
+    conditions.push("action = ?");
   }
   if (filter.destructiveOnly) {
-    values.push([...DESTRUCTIVE_ACTIONS]);
-    conditions.push(`action = any($${values.length}::text[])`);
+    // ⚠️ `= any($n::text[])` نحوِ آرایهٔ PostgreSQL است و در MySQL وجود
+    // ندارد. معادلش `in (?, ?, …)` است با یک جای‌نگهدار به ازای هر عضو —
+    // و همان تعداد مقدار، چون در MySQL هر `?` یکی مصرف می‌کند.
+    //
+    // فهرست از یک ثابتِ کد می‌آید و نه از کاربر، ولی باز هم پارامتری
+    // فرستاده می‌شود: چسباندنِ مقدارها به متنِ کوئری عادتی است که روزی
+    // روی یک مقدارِ کاربری تکرار می‌شود.
+    const actions = [...DESTRUCTIVE_ACTIONS];
+    values.push(...actions);
+    conditions.push(`action in (${placeholders(actions.length)})`);
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
 
   const limit = Math.min(Math.max(filter.limit ?? AUDIT_PAGE_SIZE, 1), 200);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(filter.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
@@ -103,12 +109,12 @@ export async function adminListAudit(
     total_count: number;
   }>(
     `select id, actor_id, actor_email, action, target_type, target_id,
-            summary, metadata, host(ip) as ip, request_id, created_at,
+            summary, metadata, ip, request_id, created_at,
             count(*) over () as total_count
        from admin_audit_log
        ${where}
       order by created_at desc, id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -221,13 +227,13 @@ export async function adminListErrors(
   }>(
     `select id, source, message, context, detail, occurrences,
             first_seen_at, last_seen_at, resolved_at,
-            error_name, error_code, digest, environment, release,
+            error_name, error_code, digest, environment, \`release\`,
             first_request_id, last_request_id, metadata,
             count(*) over () as total_count
        from app_error_log
        ${where}
       order by last_seen_at desc, id
-      limit $1 offset $2`,
+      limit ? offset ?`,
     [limit, offset],
   );
 
@@ -271,8 +277,8 @@ export async function adminResolveError(id: string): Promise<ActionResult> {
   const errorId = uuidArg(id, "شناسهٔ خطا نامعتبر است.");
 
   const updated = await execute(
-    `update app_error_log set resolved_at = now(), resolved_by = $1
-      where id = $2 and resolved_at is null`,
+    `update app_error_log set resolved_at = now(6), resolved_by = ?
+      where id = ? and resolved_at is null`,
     [admin.id, errorId],
   );
 
@@ -286,7 +292,7 @@ export async function adminResolveError(id: string): Promise<ActionResult> {
 export async function adminResolveAllErrors(): Promise<ActionResult<{ count: number }>> {
   const admin = await requireAdmin();
   const count = await execute(
-    "update app_error_log set resolved_at = now(), resolved_by = $1 where resolved_at is null",
+    "update app_error_log set resolved_at = now(6), resolved_by = ? where resolved_at is null",
     [admin.id],
   );
   revalidatePath("/admin/activity");
@@ -328,15 +334,15 @@ export async function adminRecentActivity(): Promise<RecentActivity> {
   }>(
     `select
        (select count(*) from users
-         where created_at > date_trunc('day', now()))              as users_today,
+         where created_at > date(now(6)))              as users_today,
        (select count(*) from users
-         where created_at > now() - interval '7 days')             as users_week,
+         where created_at > now(6) - interval 7 day)             as users_week,
        (select count(*) from quiz_attempts
-         where created_at > now() - interval '7 days')             as quiz_week,
+         where created_at > now(6) - interval 7 day)             as quiz_week,
        (select count(*) from exam_attempts
-         where created_at > now() - interval '7 days')             as exam_week,
+         where created_at > now(6) - interval 7 day)             as exam_week,
        (select count(*) from club_posts
-         where created_at > now() - interval '7 days')             as club_week,
+         where created_at > now(6) - interval 7 day)             as club_week,
        (select count(*) from app_error_log
          where resolved_at is null)                                as open_errors`,
   );

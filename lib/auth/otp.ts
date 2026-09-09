@@ -1,6 +1,6 @@
 import "server-only";
-import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
-import { queryOne, execute } from "@/lib/db";
+import { createHmac, randomInt, timingSafeEqual, randomUUID } from "node:crypto";
+import { queryOne, execute, transaction } from "@/lib/db";
 
 /**
  * کدهای یک‌بارمصرف ایمیل.
@@ -89,21 +89,36 @@ export async function issueOtp(
     email_count: number;
     ip_count: number;
   }>(
+    // ⚠️ FILTER (WHERE …) در MySQL وجود ندارد. معادلش conditional aggregate
+    // است: مقدارِ داخلِ تابع تجمعی وقتی شرط برقرار نیست NULL می‌شود و توابع
+    // تجمعی NULL را نادیده می‌گیرند.
+    //
+    // COUNT(CASE WHEN … THEN 1 END) و نه SUM(شرط): روی مجموعهٔ خالی، COUNT
+    // مقدار ۰ می‌دهد ولی SUM مقدار NULL — و NULL از سقف رد می‌شد و
+    // محدودیت را بی‌اثر می‌کرد.
+    //
+    // extract(epoch from …) هم معادل ندارد. TIMESTAMPDIFF با واحد
+    // MICROSECOND گرفته شده و نه SECOND، چون SECOND عددِ صحیحِ بریده می‌دهد
+    // و cooldown اینجا با کسر ثانیه مقایسه می‌شود.
+    //
+    // پارامترها: در PostgreSQL شماره‌ها تکرار می‌شدند ($1 و $2 و $3 هرکدام
+    // دو بار). در MySQL هر ? یک جاست، پس همان مقدار چند بار در آرایه می‌آید.
     `select
-       -- filter باید مستقیماً به خودِ تابع تجمعی بچسبد، نه به عبارتی که آن را
-       -- در بر گرفته: «extract(...) filter (...)» خطای نحوی است.
-       extract(epoch from (now() - max(created_at)
-                                     filter (where email = $1 and purpose = $2)))
-                                                                as seconds_since_last,
-       count(*) filter (
-         where email = $1 and purpose = $2 and created_at > now() - interval '15 minutes'
-       )                                                        as email_count,
-       count(*) filter (
-         where $3::inet is not null and requested_ip = $3::inet
-           and created_at > now() - interval '1 hour'
-       )                                                        as ip_count
+       timestampdiff(
+         microsecond,
+         max(case when email = ? and purpose = ? then created_at end),
+         now(6)
+       ) / 1000000                                              as seconds_since_last,
+       count(case
+               when email = ? and purpose = ?
+                and created_at > now(6) - interval 15 minute
+               then 1 end)                                      as email_count,
+       count(case
+               when ? is not null and requested_ip = ?
+                and created_at > now(6) - interval 1 hour
+               then 1 end)                                      as ip_count
      from email_otps`,
-    [email, purpose, ip],
+    [email, purpose, email, purpose, ip, ip],
   );
 
   const sinceLast = limits?.seconds_since_last ?? null;
@@ -132,24 +147,24 @@ export async function issueOtp(
   // کدهای قبلیِ همین ایمیل باطل می‌شوند: اگر کاربر «ارسال دوباره» زد، کد قدیمی
   // نباید همچنان کار کند — وگرنه هر درخواست یک حدسِ معتبرِ بیشتر می‌سازد.
   await execute(
-    `update email_otps set consumed_at = now()
-      where email = $1 and purpose = $2 and consumed_at is null`,
+    `update email_otps set consumed_at = now(6)
+      where email = ? and purpose = ? and consumed_at is null`,
     [email, purpose],
   );
 
-  // ⚠️ `secs` و نه `mins`: در make_interval فقط پارامترِ secs از نوع
-  // double precision است و بقیه integer اند، پس `mins => $4::double precision`
-  // با هیچ overload ای جور درنمی‌آمد و پستگرس خطای
-  // «function make_interval(mins => double precision) does not exist» می‌داد.
+  // این همان insert ای است که در دوران PostgreSQL ماه‌ها شکسته بود:
+  // `make_interval(mins => $4::double precision)` با هیچ overload ای جور
+  // درنمی‌آمد (فقط secs از نوع double precision است) و هر «ارسال کد تأیید»
+  // را با ۵۰۰ برمی‌گرداند. tsc نمی‌دیدش چون SQL برایش فقط یک رشته است.
   //
-  // یعنی این insert از زمان مهاجرت به پستگرس هرگز اجرا نشده و هر درخواستِ
-  // «ارسال کد تأیید» با ۵۰۰ برمی‌گشت. tsc چنین چیزی را نمی‌بیند چون SQL برای
-  // او فقط یک رشته است — همان دلیلی که AGENTS.md برایش libpg-query را
-  // پیشنهاد می‌کند.
+  // در MySQL کلاً تابعی لازم نیست: بازهٔ زمانی نحوِ خودش را دارد و پارامتر هم
+  // می‌پذیرد. `npm run db:check-sql` همین را با PREPARE می‌سنجد، و
+  // آزموده شد که «تابع وجود ندارد» را هم می‌گیرد — یعنی اگر دوباره چنین
+  // اشتباهی بیفتد، این بار قبل از استقرار دیده می‌شود.
   await execute(
-    `insert into email_otps (email, code_hash, purpose, expires_at, requested_ip)
-     values ($1, $2, $3, now() + make_interval(secs => $4::double precision), $5::inet)`,
-    [email, hashCode(email, purpose, code), purpose, cfg.ttlMinutes * 60, ip],
+    `insert into email_otps (id, email, code_hash, purpose, expires_at, requested_ip)
+     values (?, ?, ?, ?, now(6) + interval ? second, ?)`,
+    [randomUUID(), email, hashCode(email, purpose, code), purpose, cfg.ttlMinutes * 60, ip],
   );
 
   return { ok: true, code, expiresInMinutes: cfg.ttlMinutes };
@@ -183,21 +198,45 @@ export async function checkOtp(
   //
   // شمارش هنوز *قبل* از مقایسه است: اگر بعدش بود، کسی می‌توانست با قطع کردن
   // اتصال بعد از ارسال، بی‌نهایت حدس بزند بدون اینکه شمارنده بالا برود.
-  const row = await queryOne<{ id: string; code_hash: string; attempts: number }>(
-    `update email_otps
-        set attempts = attempts + 1
-      where id = (
-              select id from email_otps
-               where email = $1 and purpose = $2
-                 and consumed_at is null
-                 and expires_at > now()
-               order by created_at desc
-               limit 1
-            )
-        and consumed_at is null
-    returning id, code_hash, attempts`,
-    [email, purpose],
-  );
+  // ⚠️ MySQL نه RETURNING دارد و نه می‌شود در یک UPDATE هم شمرد و هم خواند.
+  //
+  // ترجمهٔ ساده‌لوحانه — «select کن، بعد update کن» — دقیقاً همان باگی را
+  // برمی‌گرداند که کامنت بالا می‌گوید حذف شده: صد درخواستِ همزمان همگی
+  // attempts=0 را می‌خوانند و همگی ۱ می‌نویسند.
+  //
+  // پس select و update داخل *یک* تراکنش و روی *یک* اتصال، با
+  // `for update` روی select. قفلِ ردیفِ InnoDB درخواست‌های همزمان را پشت سر
+  // هم می‌کند، پس هر کدام عددِ یکتای خودش را می‌گیرد.
+  //
+  // ⚠️ تراکنش عمداً همین‌جا تمام می‌شود و مقایسهٔ هش *بیرونِ* آن انجام
+  // می‌شود. اگر مقایسه داخل تراکنش بود، هر خطایی در آن مسیر با rollback
+  // شمارشِ تلاشِ ناموفق را هم پاک می‌کرد — یعنی حدس زدن رایگان می‌شد.
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ id: string; code_hash: string; attempts: number }>(
+      `select id, code_hash, attempts
+         from email_otps
+        where email = ? and purpose = ?
+          and consumed_at is null
+          and expires_at > now(6)
+        order by created_at desc
+        limit 1
+        for update`,
+      [email, purpose],
+    );
+    if (!found) return null;
+
+    // شرطِ دومِ consumed_at عمدی است: بین گرفتن قفل و رسیدن به اینجا،
+    // درخواستِ دیگری ممکن است همین کد را سوزانده باشد.
+    const bumped = await tx.execute(
+      `update email_otps set attempts = attempts + 1
+        where id = ? and consumed_at is null`,
+      [found.id],
+    );
+    if (bumped === 0) return null;
+
+    // شمارهٔ همین تلاش، نه تلاشِ قبلی — مثل RETURNING قبلی.
+    return { ...found, attempts: found.attempts + 1 };
+  });
 
   // پیام یکسان برای «کدی صادر نشده»، «منقضی شده» و «اشتباه است»: تفکیکشان فقط
   // به کسی که دارد حدس می‌زند اطلاعات می‌دهد.
@@ -209,18 +248,18 @@ export async function checkOtp(
   const attempts = row.attempts;
 
   if (attempts > cfg.maxAttempts) {
-    await execute("update email_otps set consumed_at = now() where id = $1", [row.id]);
+    await execute("update email_otps set consumed_at = now(6) where id = ?", [row.id]);
     return { ok: false, error: "تعداد تلاش‌ها زیاد بود. کد تازه‌ای درخواست کنید." };
   }
 
   if (!hashesMatch(row.code_hash, hashCode(email, purpose, code))) {
     // رسیدن به سقف با همین تلاش → کد همین‌جا می‌سوزد
     if (attempts >= cfg.maxAttempts) {
-      await execute("update email_otps set consumed_at = now() where id = $1", [row.id]);
+      await execute("update email_otps set consumed_at = now(6) where id = ?", [row.id]);
     }
     return invalid;
   }
 
-  await execute("update email_otps set consumed_at = now() where id = $1", [row.id]);
+  await execute("update email_otps set consumed_at = now(6) where id = ?", [row.id]);
   return { ok: true };
 }

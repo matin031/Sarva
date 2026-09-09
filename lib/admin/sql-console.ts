@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { FieldDef, QueryResult } from "pg";
-import { getPool } from "@/lib/db";
+import {
+  SCHEMA_COLUMNS_SQL,
+  SCHEMA_CONSTRAINTS_SQL,
+} from "@/lib/admin/sql-introspection";
+import mysql, { type Connection, type FieldPacket, type ResultSetHeader } from "mysql2/promise";
+import { splitSqlStatements, hasImplicitCommit, commandOf } from "@/lib/admin/sql-split";
 import { requireAdmin } from "@/lib/require-admin";
 import { enumArg } from "@/lib/api/action-input";
 import { rateLimit } from "@/lib/api/rate-limit";
@@ -37,12 +41,29 @@ import { inspectSql } from "@/lib/admin/sql-guard";
  *   ۳) **حالت پیش‌نمایش پیش‌فرض است**: کوئری داخل تراکنش اجرا و بعد rollback
  *      می‌شود. یعنی می‌بینید چه اتفاقی *می‌افتاد*، بدون اینکه بیفتد. ثبتِ
  *      واقعی یک دکمهٔ جداست.
- *   ۴) `statement_timeout` — یک کوئریِ اشتباه نباید دیتابیس را قفل کند.
+ *
+ *      ⚠️ و همین‌جاست که MySQL با PostgreSQL فرق می‌کند: آنجا این تضمین
+ *      برای *همه‌چیز* برقرار بود، حتی DDL. در MySQL هر
+ *      CREATE/ALTER/DROP/TRUNCATE یک commit ضمنی دارد و تراکنش را پیش از
+ *      خودش می‌بندد — یعنی «پیش‌نمایشِ» یک drop table جدول را واقعاً
+ *      می‌انداخت و بعد می‌گفت «چیزی نوشته نشد».
+ *
+ *      پس آن دستورها اصلاً وارد کنسول نمی‌شوند (lib/admin/sql-guard.ts) و
+ *      تغییر اسکیما جایش در migration هاست. کنسول ابزارِ SELECT و DML است.
+ *
+ *   ۴) **مهلتِ اجرا** — یک کوئریِ اشتباه نباید دیتابیس را قفل کند.
+ *
+ *      ⚠️ در MySQL معادلِ یک‌خطیِ `statement_timeout` وجود ندارد.
+ *      `max_execution_time` فقط روی SELECT های فقط‌خواندنی کار می‌کند و
+ *      یک UPDATE بی‌انتها را متوقف نمی‌کند. پس علاوه بر آن، یک نگهبان روی
+ *      اتصالِ دوم می‌نشیند و در صورت گذشتنِ مهلت، `KILL QUERY` می‌فرستد.
+ *      مهلتِ سمت کلاینت به‌تنهایی کافی نیست: درخواست برمی‌گردد ولی کوئری
+ *      روی سرور همچنان اجرا می‌شود.
  *   ۵) جدول‌های محافظت‌شده: `admin_audit_log` و `schema_migrations` فقط
  *      خواندنی‌اند. اولی چون لاگی که بشود پاکش کرد لاگ نیست، دومی چون دست
  *      بردن در آن یعنی migration ها دیگر درست اجرا نمی‌شوند.
- *   ۶) الگوهای واقعاً ویرانگر (`drop database`, `copy … from program`,
- *      `pg_read_file`, …) اصلاً اجرا نمی‌شوند.
+ *   ۶) الگوهای واقعاً ویرانگر (`drop database`, `load_file`, `into outfile`,
+ *      `load data`, `prepare`, `set global`, …) اصلاً اجرا نمی‌شوند.
  *   ۷) **هر اجرا در لاگ ممیزی ثبت می‌شود** — چه پیش‌نمایش و چه ثبتِ واقعی،
  *      با متن کوئری. این تنها راهی است که بعداً بشود فهمید چه شد.
  *
@@ -58,7 +79,8 @@ import { inspectSql } from "@/lib/admin/sql-guard";
 export type SqlColumn = { name: string; dataType: string };
 
 export type SqlStatementResult = {
-  /** SELECT / INSERT / UPDATE / … — همان چیزی که خودِ پستگرس برمی‌گرداند. */
+  /** SELECT / INSERT / UPDATE / … — از خودِ متنِ دستور خوانده می‌شود، چون
+   *  MySQL بر خلاف PostgreSQL نامِ دستور را در نتیجه برنمی‌گرداند. */
   command: string;
   /** تعداد ردیفِ برگشتی یا تحت‌تأثیر. */
   rowCount: number;
@@ -112,7 +134,13 @@ function cellToString(value: unknown): string | null {
   }
 }
 
-type PgError = { message?: string; code?: string; position?: string; hint?: string; detail?: string };
+type MysqlError = {
+  message?: string;
+  sqlMessage?: string;
+  code?: string;
+  errno?: number;
+  sqlState?: string;
+};
 
 export async function adminRunSql(sql: string, mode: string): Promise<SqlRunResult> {
   const admin = await requireAdmin();
@@ -170,77 +198,100 @@ export async function adminRunSql(sql: string, mode: string): Promise<SqlRunResu
   const warnings = inspection.warnings;
   const startedAt = performance.now();
 
-  // اتصالِ اختصاصی: هم برای تراکنش لازم است و هم تا `statement_timeout` روی
-  // بقیهٔ اپ اثر نگذارد.
-  const client = await getPool().connect();
+  // دستورها همین‌جا و با آگاهی از نحوِ MySQL جدا می‌شوند، و یکی‌یکی
+  // فرستاده می‌شوند.
+  //
+  // ⚠️ عمداً از multipleStatements استفاده نمی‌شود. اگر روشن بود، سرور کلِ
+  // دسته را یک‌جا می‌گرفت و دیگر معلوم نبود کدام دستور شکسته — و مهم‌تر،
+  // هر جای دیگری از اپ که روزی به این اتصال می‌رسید هم چنددستوری می‌شد.
+  const statementsSql = splitSqlStatements(sql);
+  if (statementsSql.length === 0) {
+    return { ok: false, error: "کوئری خالی است.", code: null, position: null, hint: null, warnings };
+  }
+
+  // ⚠️ خطِ دفاع دوم. inspectSql روی کلِ متن کار می‌کند؛ این روی تک‌تکِ
+  // دستورهای جداشده. یک دستورِ DDL که لابه‌لای چند دستورِ دیگر پنهان شده
+  // باشد اینجا هم گرفته می‌شود.
+  const ddl = statementsSql.find((st) => hasImplicitCommit(st));
+  if (ddl) {
+    await audit(admin, sql, runMode, false, [], 0, "blocked:implicit-commit");
+    return {
+      ok: false,
+      error:
+        "یکی از دستورها در MySQL «commit ضمنی» دارد، پس پیش‌نمایشش واقعاً اجرا " +
+        `می‌شد:\n\n    ${ddl.replace(/\s+/g, " ").slice(0, 120)}\n\n` +
+        "تغییر اسکیما جایش در یک فایل migration است.",
+      code: null,
+      position: null,
+      hint: null,
+      warnings,
+    };
+  }
+
+  // ⚠️ اتصالِ اختصاصی و *بیرون از pool اپ*.
+  //
+  // سه دلیل: تنظیماتِ نشست (مهلت اجرا) نباید روی بقیهٔ اپ اثر بگذارد،
+  // تراکنش اتصالِ خودش را می‌خواهد، و نگهبانِ مهلت باید شناسهٔ همین اتصال
+  // را بداند تا بتواند کوئری‌اش را بکشد.
+  const conn = await openConsoleConnection();
   let committed = false;
 
   try {
-    await client.query("begin");
-    // `set local` یعنی با پایانِ تراکنش خودش برمی‌گردد.
-    await client.query(`set local statement_timeout = ${SQL_STATEMENT_TIMEOUT_MS}`);
+    const [[idRow]] = await conn.query<mysql.RowDataPacket[]>("select connection_id() as id");
+    const connectionId = Number(idRow.id);
 
-    // pg وقتی هیچ پارامتری ندهیم از پروتکل سادهٔ کوئری استفاده می‌کند، پس
-    // چند دستور با ; هم اجرا می‌شوند و آرایه‌ای از نتیجه‌ها برمی‌گردد —
-    // دقیقاً همان چیزی که «۵۰۰ سؤال را یکجا وارد کن» لازم دارد.
-    const raw = (await client.query(sql)) as unknown;
-    const results = (Array.isArray(raw) ? raw : [raw]) as QueryResult<Record<string, unknown>>[];
+    // مهلتِ سمتِ سرور برای SELECT ها. روی DML اثر ندارد — آن را نگهبانِ
+    // پایین‌تر پوشش می‌دهد.
+    await conn.query(`set session max_execution_time = ${SQL_STATEMENT_TIMEOUT_MS}`);
 
-    const statements: SqlStatementResult[] = results.map((result) => {
-      const rows = (result.rows ?? []) as Record<string, unknown>[];
-      const capped = rows.slice(0, MAX_RESULT_ROWS);
+    await conn.beginTransaction();
 
-      return {
-        command: result.command ?? "",
-        rowCount: result.rowCount ?? rows.length,
-        columns: (result.fields ?? []).map((f: FieldDef) => ({
-          name: f.name,
-          dataType: String(f.dataTypeID),
-        })),
-        rows: capped.map((row) =>
-          (result.fields ?? []).map((f: FieldDef) => cellToString(row[f.name])),
-        ),
-        truncated: rows.length > MAX_RESULT_ROWS,
-      };
-    });
+    const statements: SqlStatementResult[] = [];
+    for (const statementSql of statementsSql) {
+      statements.push(await runOneStatement(conn, connectionId, statementSql));
+    }
 
     if (runMode === "commit") {
-      await client.query("commit");
+      await conn.commit();
       committed = true;
     } else {
       // ⚠️ قلبِ ایمنیِ این ابزار: در پیش‌نمایش، هرچه نوشته شده برمی‌گردد.
-      await client.query("rollback");
+      //
+      // و این ادعا فقط به این دلیل راست است که دستورهای دارای commit ضمنی
+      // بالاتر مسدود شده‌اند. بدون آن گارد، این خط یک دروغ بود.
+      await conn.rollback();
     }
 
     const durationMs = Math.round(performance.now() - startedAt);
-
     await audit(admin, sql, runMode, committed, statements, durationMs, null);
 
     return { ok: true, mode: runMode, committed, durationMs, statements, warnings };
   } catch (err) {
-    await client.query("rollback").catch(() => {});
+    await conn.rollback().catch(() => {});
 
-    const pgErr = err as PgError;
+    const myErr = err as MysqlError;
     const durationMs = Math.round(performance.now() - startedAt);
 
-    await audit(admin, sql, runMode, false, [], durationMs, pgErr.code ?? "unknown");
+    await audit(admin, sql, runMode, false, [], durationMs, String(myErr.errno ?? "unknown"));
 
     // خطای خودِ کوئری، خرابیِ سرور نیست — پس در app_error_log نمی‌نشیند.
     // فقط وقتی ثبت می‌شود که اتصال یا خودِ دیتابیس مشکل داشته باشد.
-    if (!pgErr.code) {
+    if (!myErr.errno) {
       await recordError("db", err, "کنسول SQL");
     }
 
     return {
       ok: false,
-      error: pgErr.message ?? "اجرای کوئری ناموفق بود.",
-      code: pgErr.code ?? null,
-      position: pgErr.position ? Number(pgErr.position) : null,
-      hint: pgErr.hint ?? pgErr.detail ?? null,
+      // ⚠️ sqlMessage و نه message: mysql2 در message کلِ متنِ کوئری را هم
+      // می‌چسباند، و آن متن می‌تواند مقدارِ حساس داشته باشد.
+      error: myErr.sqlMessage ?? myErr.message ?? "اجرای کوئری ناموفق بود.",
+      code: myErr.code ?? (myErr.errno ? String(myErr.errno) : null),
+      position: null,
+      hint: myErr.sqlState ?? null,
       warnings,
     };
   } finally {
-    client.release();
+    await conn.end().catch(() => {});
     if (committed) {
       // یک insert در جدولِ محتوا باید بلافاصله در صفحه‌های ادمین دیده شود.
       revalidatePath("/admin", "layout");
@@ -248,7 +299,120 @@ export async function adminRunSql(sql: string, mode: string): Promise<SqlRunResu
   }
 }
 
-/** ثبت در لاگ ممیزی — بدون استثنا، حتی برای پیش‌نمایش. */
+/**
+ * اتصالِ کنسول.
+ *
+ * ⚠️ عمداً از pool اپ نمی‌آید و typeCast هم ندارد: اینجا هدف *نمایشِ خام*
+ * است، نه شکل دادن به داده برای منطق برنامه. اگر typeCast اپ اعمال می‌شد،
+ * مدیر مقدارِ تبدیل‌شده را می‌دید نه آنچه واقعاً در ستون است — و کنسولی که
+ * واقعیت را نشان ندهد به چه درد می‌خورد.
+ */
+async function openConsoleConnection(): Promise<Connection> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL تنظیم نشده است.");
+  return mysql.createConnection({
+    uri: url,
+    multipleStatements: false,
+    dateStrings: true,
+    supportBigNumbers: true,
+    bigNumberStrings: true,
+  });
+}
+
+/**
+ * یک دستور، با نگهبانِ مهلت.
+ *
+ * ⚠️ چرا نگهبان لازم است و `max_execution_time` کافی نیست:
+ *
+ * آن تنظیم فقط روی SELECT های فقط‌خواندنی اثر دارد. یک
+ * `update … where <شرطی که هیچ index ای ندارد>` روی جدولِ بزرگ می‌تواند
+ * دقیقه‌ها قفل نگه دارد و آن تنظیم اصلاً نمی‌بیندش.
+ *
+ * و مهلتِ سمتِ کلاینت (رها کردنِ انتظار) هم کافی نیست: درخواستِ وب برمی‌گردد
+ * ولی کوئری روی سرور همچنان اجرا می‌شود و قفل‌هایش را نگه می‌دارد.
+ *
+ * پس نگهبان از اتصالِ *دوم* یک `KILL QUERY` می‌فرستد. این فقط همان دستور را
+ * می‌کشد و نه کلِ اتصال را، پس تراکنش زنده می‌ماند و rollbackِ بعدی کارش را
+ * می‌کند.
+ */
+async function runOneStatement(
+  conn: Connection,
+  connectionId: number,
+  statementSql: string,
+): Promise<SqlStatementResult> {
+  let killer: NodeJS.Timeout | undefined;
+  let killed = false;
+
+  const armed = new Promise<void>((resolve) => {
+    killer = setTimeout(() => {
+      killed = true;
+      // اتصالِ جدا، چون اتصالِ اصلی همین حالا مشغولِ همان کوئری است.
+      openConsoleConnection()
+        .then(async (k) => {
+          await k.query(`kill query ${connectionId}`).catch(() => {});
+          await k.end().catch(() => {});
+        })
+        .catch(() => {})
+        .finally(resolve);
+    }, SQL_STATEMENT_TIMEOUT_MS);
+  });
+  void armed;
+
+  try {
+    const [result, fields] = await conn.query(statementSql);
+
+    // ⚠️ کشته شدن همیشه خطا نمی‌دهد.
+    //
+    // بیشتر کوئری‌ها با KILL QUERY خطای ۱۳۱۷ می‌دهند، ولی نه همه: مثلاً
+    // `select sleep(10)` فقط زودتر برمی‌گردد و مقدار ۱ می‌دهد. اگر فقط به
+    // شاخهٔ catch تکیه می‌کردیم، چنین کوئری‌ای «موفق» گزارش می‌شد در حالی
+    // که نصفه‌کاره رها شده بود.
+    if (killed) {
+      throw new Error(
+        `این دستور از مهلتِ ${Math.round(SQL_STATEMENT_TIMEOUT_MS / 1000)} ثانیه گذشت و متوقف شد. ` +
+          "شرطِ where را محدودتر کنید یا با limit کارش را بشکنید.",
+      );
+    }
+
+    if (Array.isArray(result)) {
+      const rows = result as Record<string, unknown>[];
+      const capped = rows.slice(0, MAX_RESULT_ROWS);
+      const cols = (fields ?? []) as FieldPacket[];
+      return {
+        command: commandOf(statementSql),
+        rowCount: rows.length,
+        columns: cols.map((f) => ({ name: f.name, dataType: String(f.type ?? "") })),
+        rows: capped.map((row) => cols.map((f) => cellToString(row[f.name]))),
+        truncated: rows.length > MAX_RESULT_ROWS,
+      };
+    }
+
+    const header = result as ResultSetHeader;
+    return {
+      command: commandOf(statementSql),
+      rowCount: header.affectedRows ?? 0,
+      columns: [],
+      rows: [],
+      truncated: false,
+    };
+  } catch (err) {
+    if (killed) {
+      throw new Error(
+        `این دستور از مهلتِ ${Math.round(SQL_STATEMENT_TIMEOUT_MS / 1000)} ثانیه گذشت و متوقف شد. ` +
+          "شرطِ where را محدودتر کنید یا با limit کارش را بشکنید.",
+      );
+    }
+    throw err;
+  } finally {
+    if (killer) clearTimeout(killer);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// لاگ ممیزی
+// ---------------------------------------------------------------------------
+
 async function audit(
   admin: { id: string; email: string; fullName: string | null; role: "student" | "admin"; emailVerified: boolean; isBanned: boolean; createdAt: string },
   sql: string,
@@ -337,65 +501,45 @@ export type SchemaTable = {
 export async function adminSchemaOverview(): Promise<SchemaTable[]> {
   await requireAdmin();
 
-  const client = await getPool().connect();
+  const conn = await openConsoleConnection();
   try {
-    const { rows } = await client.query<{
-      table_name: string;
-      approx_rows: string;
-      column_name: string;
-      data_type: string;
-      is_nullable: boolean;
-      column_default: string | null;
-      is_pk: boolean;
-      referenced: string | null;
-    }>(`
-      select
-        c.relname                                        as table_name,
-        greatest(c.reltuples, 0)::bigint::text           as approx_rows,
-        a.attname                                        as column_name,
-        format_type(a.atttypid, a.atttypmod)             as data_type,
-        not a.attnotnull                                 as is_nullable,
-        pg_get_expr(d.adbin, d.adrelid)                  as column_default,
-        coalesce(pk.is_pk, false)                        as is_pk,
-        fk.referenced                                    as referenced
-      from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
-      join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
-      left join pg_attrdef d on d.adrelid = c.oid and d.adnum = a.attnum
-      left join lateral (
-        select true as is_pk
-          from pg_constraint pc
-         where pc.conrelid = c.oid and pc.contype = 'p' and a.attnum = any (pc.conkey)
-         limit 1
-      ) pk on true
-      left join lateral (
-        select cl.relname || '.' || fa.attname as referenced
-          from pg_constraint fc
-          join pg_class cl on cl.oid = fc.confrelid
-          join pg_attribute fa on fa.attrelid = fc.confrelid and fa.attnum = fc.confkey[1]
-         where fc.conrelid = c.oid and fc.contype = 'f' and a.attnum = fc.conkey[1]
-         limit 1
-      ) fk on true
-      where c.relkind = 'r'
-      order by c.relname, a.attnum
-    `);
+    // ⚠️ کلِ این بخش از pg_catalog به information_schema رفت.
+    //
+    // چند چیز در MySQL جای دیگری است یا اصلاً نیست:
+    //
+    //   • تخمین تعداد ردیف: به‌جای reltuples، ستون table_rows در
+    //     information_schema.tables. برای InnoDB این هم تخمین است و نه
+    //     شمارشِ دقیق — همان‌طور که reltuples بود. برای «این جدول خالی است
+    //     یا نه» کافی است و ارزان.
+    //
+    //   • تعریفِ CHECK: در MySQL 8 جدولِ check_constraints دارد، ولی بر
+    //     خلاف pg_get_constraintdef، مقدارهای مجاز را به شکلی می‌نویسد که
+    //     خواندنش سخت‌تر است. همان متن نمایش داده می‌شود؛ مهم این است که
+    //     مدیر بداند ستون grade فقط سه مقدار می‌پذیرد.
+    //
+    //   • ENUM: در PostgreSQL یک نوعِ جدا بود و اینجا داخلِ خودِ
+    //     column_type می‌آید. پس column_type خوانده می‌شود و نه data_type —
+    //     اولی `enum('a','b')` و `varchar(191)` می‌دهد، دومی فقط `enum` و
+    //     `varchar` که برای مدیر بی‌فایده است.
+    const [rows] = await conn.query<mysql.RowDataPacket[]>(
+      SCHEMA_COLUMNS_SQL,
+    );
 
     // محدودیت‌ها جدا خوانده می‌شوند: چسباندنشان به کوئری بالا هر ستون را به
     // تعداد محدودیت‌های جدول تکرار می‌کرد.
-    const { rows: constraintRows } = await client.query<{
-      table_name: string;
-      name: string;
-      definition: string;
-    }>(`
-      select c.relname                as table_name,
-             con.conname              as name,
-             pg_get_constraintdef(con.oid) as definition
-        from pg_constraint con
-        join pg_class c on c.oid = con.conrelid
-        join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
-       where con.contype in ('c', 'u')
-       order by c.relname, con.conname
-    `);
+    const [constraintRows] = await conn.query<mysql.RowDataPacket[]>(
+      // ⚠️ information_schema.check_constraints ستون table_name **ندارد**.
+      //
+      // ستون‌هایش فقط این چهارتاست: CONSTRAINT_CATALOG، CONSTRAINT_SCHEMA،
+      // CONSTRAINT_NAME و CHECK_CLAUSE. یعنی خودش نمی‌داند قید مالِ کدام
+      // جدول است؛ آن را باید از table_constraints گرفت.
+      //
+      // این باگ از هیچ‌کدام از بررسی‌های خودکار رد نمی‌شد: db:check-sql
+      // عمداً کنسول را رد می‌کند (کوئریِ کنسول را کاربر می‌نویسد) و
+      // db:check-snippets فقط الگوهای آماده را می‌سنجد، نه کوئریِ
+      // درون‌نگریِ خودِ کنسول. فقط با باز کردن صفحهٔ /admin/sql پیدا شد.
+      SCHEMA_CONSTRAINTS_SQL,
+    );
 
     const tables = new Map<string, SchemaTable>();
     for (const row of rows) {
@@ -412,9 +556,11 @@ export async function adminSchemaOverview(): Promise<SchemaTable[]> {
       table.columns.push({
         name: row.column_name,
         type: row.data_type,
-        nullable: row.is_nullable,
+        // ⚠️ مقایسه در SQL انجام شده و نتیجه‌اش ۰/۱ است، نه boolean —
+        // اتصالِ کنسول عمداً typeCast ندارد. پس اینجا صریح تبدیل می‌شود.
+        nullable: Number(row.is_nullable) === 1,
         default: row.column_default,
-        isPrimaryKey: row.is_pk,
+        isPrimaryKey: Number(row.is_pk) === 1,
         references: row.referenced,
       });
     }
@@ -428,6 +574,6 @@ export async function adminSchemaOverview(): Promise<SchemaTable[]> {
 
     return [...tables.values()];
   } finally {
-    client.release();
+    await conn.end().catch(() => {});
   }
 }

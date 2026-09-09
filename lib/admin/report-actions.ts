@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction, placeholders } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, enumArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -53,19 +53,122 @@ import {
  * پاک می‌شوند. برای همین این عبارت‌ها به `escape` نیازی ندارند — دیگر
  * الگویی برای فرار کردن نمانده.
  */
+/**
+ * نگاشتِ حرف‌های هم‌معنا. کلید → مقدار.
+ *
+ * در PostgreSQL این یک `translate(x, 'يكئؤإأۀةٱآ', 'یکیوااههاا')` بود.
+ * MySQL تابع translate ندارد، پس به REPLACE های تودرتو باز می‌شود — که
+ * دقیقاً همان کار را می‌کند، فقط پرحرف‌تر.
+ */
+const LETTER_FOLD: [string, string][] = [
+  ["ي", "ی"],
+  ["ك", "ک"],
+  ["ئ", "ی"],
+  ["ؤ", "و"],
+  ["إ", "ا"],
+  ["أ", "ا"],
+  ["ۀ", "ه"],
+  ["ة", "ه"],
+  ["ٱ", "ا"],
+  ["آ", "ا"],
+];
+
+/**
+ * نویسه‌هایی که باید حذف شوند: اعراب، الفِ کوتاه، کشیده و نیم‌فاصله.
+ *
+ * ⚠️ این فهرست لازم است و با regexp_replace پایین جمع نمی‌شود.
+ *
+ * انتظار می‌رفت `[^[:alnum:]]` خودش اعراب را هم ببرد — ولی با آزمون معلوم شد
+ * که نمی‌برد: در MySQL نویسه‌های ترکیبیِ عربی جزء alnum حساب می‌شوند و
+ * «سَلام» دست‌نخورده رد می‌شود. (نیم‌فاصله برعکس، حذف می‌شود.)
+ *
+ * پس اگر به regex تکیه می‌کردیم، جست‌وجوی «صورت» دیگر «صُورت» را پیدا
+ * نمی‌کرد — بی‌آنکه خطایی بدهد.
+ */
+const STRIP_CHARS = [
+  "\u064B", "\u064C", "\u064D", "\u064E", "\u064F", "\u0650",
+  "\u0651", "\u0652", "\u0670", "\u0640", "\u200C",
+];
+
 function normalized(expr: string): string {
-  // دو `translate` جدا: اولی جایگزین می‌کند، دومی حذف. یکی‌کردنشان یعنی
-  // نگاشتِ موقعیتی به هم می‌ریزد و حرف‌ها به هم تبدیل می‌شوند.
-  return (
-    `regexp_replace(` +
-    `translate(translate(lower(${expr}), 'يكئؤإأۀةٱآ', 'یکیوااههاا'), E'\u064B\u064C\u064D\u064E\u064F\u0650\u0651\u0652\u0670\u0640\u200C', ''),` +
-    ` '[^[:alnum:]]', '', 'g')`
-  );
+  // ترتیب مهم است و همان ترتیبِ دو translate قبلی را نگه می‌دارد: اول
+  // جایگزینی، بعد حذف. اگر قاطی می‌شدند، نگاشت به هم می‌ریخت.
+  let out = `lower(${expr})`;
+  for (const [from, to] of LETTER_FOLD) out = `replace(${out}, '${from}', '${to}')`;
+  for (const ch of STRIP_CHARS) out = `replace(${out}, '${ch}', '')`;
+  // MySQL همهٔ تطابق‌ها را جایگزین می‌کند و پرچم 'g' ندارد (و پذیرفتنش هم
+  // نمی‌کند) — پس آرگومان چهارم PostgreSQL اینجا حذف شده، نه فراموش.
+  return `regexp_replace(${out}, '[^[:alnum:]]', '')`;
+}
+
+/**
+ * شمردنِ `?` های یک قطعه SQL.
+ *
+ * چون در MySQL هر جای‌نگهدار یک مقدار جدا می‌خواهد (بر خلاف $n که تکرارپذیر
+ * بود)، جایی که یک عبارت چند بار در متن می‌آید باید به همان تعداد فرستاده
+ * شود. شمردن از روی متنِ تولیدشده انجام می‌شود و نه با یک عددِ دستی، وگرنه
+ * اضافه شدنِ یک شاخه به کوئری، عدد را بی‌صدا غلط می‌کرد.
+ *
+ * متنِ ما رشتهٔ ادبیِ حاوی ? ندارد (الگوهای like با concat ساخته می‌شوند)،
+ * پس شمارشِ ساده اینجا درست است.
+ */
+function countPlaceholders(sql: string): number {
+  return (sql.match(/\?/g) ?? []).length;
 }
 
 /** الگوی `like` برای یک عبارتِ جست‌وجوی کاربر، یکدست‌شده در خودِ SQL. */
 function likePattern(param: string): string {
-  return `'%' || ${normalized(param)} || '%'`;
+  // ⚠️ `||` نه: در MySQL بدون حالتِ PIPES_AS_CONCAT، این عملگر یعنی OR و
+  // بی‌صدا یک عبارتِ بولی می‌سازد به‌جای رشته.
+  return `concat('%', ${normalized(param)}, '%')`;
+}
+
+/**
+ * معادلِ `array_to_string(arr, sep)` برای ستونی که حالا JSON است.
+ *
+ * MySQL تابعی برای چسباندنِ عناصر یک آرایهٔ JSON ندارد. JSON_TABLE آرایه را
+ * به ردیف باز می‌کند و GROUP_CONCAT دوباره جمعشان می‌کند.
+ *
+ * ⚠️ `for ordinality` و `order by` اختیاری نیستند: بدون آن‌ها ترتیبِ
+ * GROUP_CONCAT تضمین نشده است و مصرع دوم می‌تواند اول بیاید.
+ *
+ * ⚠️ coalesce به '' چون آرایهٔ خالی در MySQL مقدار NULL می‌دهد، ولی
+ * `array_to_string('{}', …)` در PostgreSQL رشتهٔ خالی می‌داد.
+ */
+/**
+ * یک عبارتِ متنی، آمادهٔ نشستن در ستونِ یک UNION.
+ *
+ * ⚠️ بدون این، کل کوئریِ جست‌وجو با خطای
+ * «Illegal mix of collations for operation 'UNION'» رد می‌شود.
+ *
+ * دلیلش نگاشتِ اسکیماست و نه یک اشتباه: ستون‌های شناسه CHAR(36) با
+ * ascii_general_ci اند (تا در index جا بگیرند) و ستون‌های متنی utf8mb4 با
+ * utf8mb4_0900_as_cs. در PostgreSQL هر دو text بودند و UNION مسئله‌ای
+ * نداشت؛ MySQL برای هر ستونِ UNION یک collation واحد می‌خواهد و خودش
+ * انتخاب نمی‌کند.
+ *
+ * پس هر ستونِ متنیِ UNION صریحاً به یک collation آورده می‌شود.
+ */
+function unionText(expr: string): string {
+  // ⚠️ `utf8mb4_bin` و نه `utf8mb4_0900_as_cs`: دومی فقط در MySQL 8 هست و
+  // روی MariaDB کلِ کوئریِ جست‌وجو با «Unknown collation» رد می‌شد. هر دو
+  // به بزرگی و کوچکی حساس‌اند، که تنها چیزی است که اینجا اهمیت دارد.
+  return `convert(${expr} using utf8mb4) collate utf8mb4_bin`;
+}
+
+/**
+ * عناصر یک آرایهٔ JSON را به یک رشته می‌چسباند.
+ *
+ * ⚠️ آرایهٔ تهی به‌صورت رشتهٔ `'[]'` نوشته می‌شود و نه `cast('[]' as json)`.
+ * MariaDB اصلاً CAST به نوع JSON ندارد و همان‌جا خطای نحوی می‌دهد. هر دو
+ * موتور رشته را در JSON_TABLE می‌پذیرند، پس شکلِ ساده‌تر هم پرتابل‌تر است.
+ */
+function jsonArrayJoin(expr: string, sep: string): string {
+  return (
+    `coalesce((select group_concat(jt__.v order by jt__.ord separator '${sep}') ` +
+    `from json_table(${expr}, '$[*]' ` +
+    `columns (ord for ordinality, v text path '$')) jt__), '')`
+  );
 }
 
 /**
@@ -100,16 +203,23 @@ async function resolveScopes(
       switch (area) {
         case "vocab": {
           const rows = await query<{ id: string; grade: string; lesson: number }>(
-            "select id::text, grade, lesson from vocab_words where id::text = any($1::text[])",
-            [list],
+            // `id::text = any($1::text[])` → فهرست جای‌نگهدار.
+            // ستون id در مقصد CHAR(36) است، پس cast متنی هم لازم ندارد.
+            // (list اینجا هرگز خالی نیست: byArea فقط برای شناسه‌های موجود
+            //  ساخته می‌شود؛ اگر می‌شد، placeholders خودش NULL می‌داد که
+            //  صفر ردیف برمی‌گرداند و نه خطای نحوی.)
+            `select id, grade, lesson from vocab_words
+              where id in (${placeholders(list.length)})`,
+            list,
           );
           for (const r of rows) put(area, r.id, { grade: r.grade, lesson: r.lesson });
           return;
         }
         case "grammar_circuit": {
           const rows = await query<{ source_id: string; grade: string; lesson: number }>(
-            "select source_id, grade, lesson from grammar_circuit_questions where source_id = any($1::text[])",
-            [list],
+            `select source_id, grade, lesson from grammar_circuit_questions
+              where source_id in (${placeholders(list.length)})`,
+            list,
           );
           for (const r of rows) put(area, r.source_id, { grade: r.grade, lesson: r.lesson });
           return;
@@ -124,8 +234,8 @@ async function resolveScopes(
              یادداشتِ کاربر می‌آید)، پس خودِ شناسه همان نقش است و کوئری فقط
              وجودش را تأیید می‌کند. */
           const rows = await query<{ id: string }>(
-            "select id::text from ninja_categories where id::text = any($1::text[])",
-            [list],
+            `select id from ninja_categories where id in (${placeholders(list.length)})`,
+            list,
           );
           for (const r of rows) put(area, r.id, { categoryId: r.id });
           return;
@@ -136,7 +246,7 @@ async function resolveScopes(
           for (const id of list) {
             const key = id.split("#")[0];
             const row = await queryOne<{ id: string }>(
-              "select id::text from exams where exam_session = $1",
+              "select id from exams where exam_session = ?",
               [key],
             );
             if (row) put(area, id, { examId: row.id });
@@ -238,14 +348,14 @@ export async function reportAdminList(
       return { rows: [], total: 0, openCount: 0 };
     }
     values.push(filter.area);
-    conditions.push(`r.area = $${values.length}`);
+    conditions.push("r.area = ?");
   }
   if (filter.status) {
     if (!(REPORT_STATUSES as readonly string[]).includes(filter.status)) {
       return { rows: [], total: 0, openCount: 0 };
     }
     values.push(filter.status);
-    conditions.push(`r.status = $${values.length}`);
+    conditions.push("r.status = ?");
   }
 
   const search = filter.search?.trim();
@@ -253,42 +363,56 @@ export async function reportAdminList(
     // متنِ گزارش را با همان یکدست‌سازیِ `normalized` می‌سنجیم، تا نوشتنِ یک
     // مصراع از روی صفحه — با هر اعراب و نیم‌فاصله‌ای — همان گزارش را پیدا
     // کند. `target_id` استثناست: شناسه است و یکدست‌سازی می‌شکندش.
-    values.push(search);
-    const p = `$${values.length}`;
-    const pat = likePattern(p);
-    conditions.push(
+    // ⚠️ اینجا یک تفاوتِ بنیادیِ MySQL هست که به‌راحتی از قلم می‌افتد:
+    //
+    // در PostgreSQL یک `$5` می‌توانست چهار بار در متن بیاید و همچنان *یک*
+    // مقدار در آرایه بخواهد. در MySQL هر `?` یک جای مستقل است، پس همان
+    // عبارتِ جست‌وجو باید به تعدادِ ظاهر شدنش فرستاده شود.
+    //
+    // شمردنش دستی نوشته نشده چون likePattern داخل خودش هم یک ? دارد و با
+    // تغییر آن تابع، عددِ دستی بی‌صدا غلط می‌شد. به‌جایش از روی متنِ
+    // تولیدشده شمرده می‌شود.
+    const pat = likePattern("?");
+    const clause =
       `(${normalized("coalesce(r.snapshot, '')")} like ${pat}` +
-        ` or ${normalized("coalesce(r.note, '')")} like ${pat}` +
-        ` or ${normalized("coalesce(r.admin_note, '')")} like ${pat}` +
-        ` or coalesce(r.target_id, '') = ${p})`,
-    );
+      ` or ${normalized("coalesce(r.note, '')")} like ${pat}` +
+      ` or ${normalized("coalesce(r.admin_note, '')")} like ${pat}` +
+      ` or coalesce(r.target_id, '') = ?)`;
+    conditions.push(clause);
+    for (let i = 0; i < countPlaceholders(clause); i++) values.push(search);
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
 
   const limit = Math.min(Math.max(filter.limit ?? REPORT_PAGE_SIZE, 1), 200);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(filter.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<Row>(
+    // `left join lateral (…) on true` به یک زیرکوئریِ اسکالرِ همبسته تبدیل
+    // شد. MySQL 8 از LATERAL پشتیبانی می‌کند، ولی اینجا چیزی به دست
+    // نمی‌داد: زیرکوئری یک ستون و یک ردیف برمی‌گرداند، که همان تعریفِ
+    // زیرکوئریِ اسکالر است — و آن شکل هم کوتاه‌تر است و هم بهینه‌ساز
+    // راحت‌تر می‌خواندش.
+    //
+    // رفتارِ «ردیفِ بدون تطابق» هم حفظ شده: در نسخهٔ قبلی join چپ NULL
+    // می‌داد و coalesce(…, 1) آن را ۱ می‌کرد؛ زیرکوئریِ count هم روی
+    // مجموعهٔ خالی ۰ می‌دهد و همان coalesce سر جایش است.
+    //
+    // count(*) over () دست‌نخورده ماند — MySQL 8 توابع پنجره‌ای دارد.
     `select r.id, r.area, r.target_id, r.target_ref, r.snapshot, r.reason, r.note,
             r.status, r.admin_note, (r.user_id is not null) as has_user,
             r.request_id, r.created_at, r.updated_at, r.resolved_at,
-            coalesce(d.n, 1) - 1 as duplicates,
+            coalesce((select count(*)
+                        from content_reports x
+                       where x.area = r.area
+                         and x.target_id is not null
+                         and x.target_id = r.target_id), 1) - 1 as duplicates,
             count(*) over () as total_count
        from content_reports r
-       left join lateral (
-         select count(*)::int as n
-           from content_reports x
-          where x.area = r.area
-            and x.target_id is not null
-            and x.target_id = r.target_id
-       ) d on true
        ${where}
       order by (r.status = 'open') desc, r.created_at desc, r.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -313,7 +437,7 @@ export async function reportAdminList(
 export async function reportAdminCounts(): Promise<Record<string, number>> {
   await requireAdmin();
   const rows = await query<{ area: string; n: number }>(
-    "select area, count(*)::int as n from content_reports where status = 'open' group by area",
+    "select area, count(*) as n from content_reports where status = 'open' group by area",
   );
   const out: Record<string, number> = {};
   for (const r of rows) out[r.area] = r.n;
@@ -349,16 +473,33 @@ export async function reportAdminSetStatus(
   const { id, status, adminNote } = parsed.data;
 
   const closing = status === "resolved" || status === "rejected";
-  const row = await queryOne<{ area: string; snapshot: string | null }>(
-    `update content_reports
-        set status = $1,
-            admin_note = coalesce($2, admin_note),
-            resolved_at = case when $3 then now() else null end,
-            resolved_by = case when $3 then $4::uuid else null end
-      where id = $5
-    returning area, snapshot`,
-    [status, adminNote ?? null, closing, admin.id, id],
-  );
+  // RETURNING نداریم. area و snapshot فقط برای متنِ audit لازم‌اند و با
+  // update عوض نمی‌شوند، پس خواندنشان *قبل* از update هم همان مقدار را
+  // می‌دهد — و یک رفت‌وبرگشت کمتر از خواندنِ بعد از update است.
+  //
+  // هر دو داخل یک تراکنش‌اند تا «پیدا نشد» و «به‌روزرسانی نشد» یک جواب
+  // بدهند؛ بدون تراکنش، گزارشی که همین لحظه حذف شده بود می‌توانست خوانده
+  // شود و بعد update صفر ردیف بدهد.
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ area: string; snapshot: string | null }>(
+      "select area, snapshot from content_reports where id = ? for update",
+      [id],
+    );
+    if (!found) return null;
+
+    // ⚠️ پارامترهای تکراری: $3 دو بار و $4 یک بار می‌آمد؛ اینجا هر ? جای
+    // خودش را دارد، پس closing دو بار فرستاده می‌شود.
+    await tx.execute(
+      `update content_reports
+          set status = ?,
+              admin_note = coalesce(?, admin_note),
+              resolved_at = case when ? then now(6) else null end,
+              resolved_by = case when ? then ? else null end
+        where id = ?`,
+      [status, adminNote ?? null, closing, closing, admin.id, id],
+    );
+    return found;
+  });
   if (!row) return { ok: false, errors: ["این گزارش پیدا نشد."] };
 
   await recordAudit({
@@ -391,8 +532,8 @@ export async function reportAdminResolveTarget(
 
   const count = await execute(
     `update content_reports
-        set status = 'resolved', resolved_at = now(), resolved_by = $1
-      where area = $2 and target_id = $3 and status <> 'resolved'`,
+        set status = 'resolved', resolved_at = now(6), resolved_by = ?
+      where area = ? and target_id = ? and status <> 'resolved'`,
     [admin.id, a, target],
   );
 
@@ -415,12 +556,12 @@ export async function reportAdminDelete(id: string): Promise<ActionResult> {
 
   // متن را *پیش* از حذف می‌خوانیم، وگرنه در لاگ فقط یک uuid می‌ماند.
   const existing = await queryOne<{ area: string; snapshot: string | null }>(
-    "select area, snapshot from content_reports where id = $1",
+    "select area, snapshot from content_reports where id = ?",
     [reportId],
   );
   if (!existing) return { ok: false, errors: ["این گزارش پیدا نشد."] };
 
-  await execute("delete from content_reports where id = $1", [reportId]);
+  await execute("delete from content_reports where id = ?", [reportId]);
 
   await recordAudit({
     actor: admin,
@@ -478,8 +619,91 @@ export async function adminFindContent(term: string): Promise<ContentHit[]> {
      مهم‌تر: بیتِ دو مصراعی در بانک دو عضوِ آرایه است. با حذفِ فاصله و `/`،
      نوشتنِ همان بیت یک‌نفس هم پیدایش می‌کند — همان کاری که مدیر واقعاً
      می‌کند. */
-  const pat = likePattern("$1");
+  const pat = likePattern("?");
   const like = (expr: string) => `${normalized(expr)} like ${pat}`;
+
+  // همان نکتهٔ بالا: این کوئری ده‌ها شاخهٔ union دارد و در هر شاخه چند
+  // like؛ همه‌شان یک عبارت را می‌خواهند ولی هرکدام ? خودشان را دارند.
+  // شمارش از روی متنِ نهایی است تا با اضافه/کم شدنِ یک شاخه هم درست بماند.
+  const sql =
+    // ⚠️ چند تفاوت با نسخهٔ PostgreSQL که هرکدام بی‌صدا خراب می‌کردند:
+    //
+    //   • `||` در MySQL یعنی OR، نه الحاق. همه به concat() رفتند.
+    //   • `'quiz'::text` و `null::text` cast های PostgreSQL اند. برای شاخهٔ
+    //     اولِ UNION نوعِ ستون‌ها را همان شاخه تعیین می‌کند، پس null های
+    //     خالی باید صریح cast شوند وگرنه ستون از نوع NULL درمی‌آید و
+    //     شاخه‌های بعدی را می‌برد.
+    //   • poem دیگر آرایهٔ PostgreSQL نیست، JSON است — jsonArrayJoin.
+    //   • payload::text و content::text → cast(x as char).
+    `
+    -- عروض سماعی: هم بیتِ صورتِ سؤال و هم متنِ گزینه‌ها
+    select ${unionText("'quiz'")} as area,
+           ${unionText("q.id")} as id,
+           ${unionText(`coalesce(nullif(${jsonArrayJoin("q.poem", " / ")}, ''), '(سؤال صوتی)')`)} as title,
+           ${unionText("concat('نوع: ', q.type)")} as subtitle,
+           ${unionText("cast(null as char)")} as grade,
+           cast(null as signed) as lesson,
+           ${unionText("cast(null as char)")} as term_key,
+           ${unionText("cast(null as char)")} as category_id,
+           ${unionText("cast(null as char)")} as exam_id
+      from questions q
+     where ${like(jsonArrayJoin("coalesce(q.poem, '[]')", " "))}
+    union all
+    select 'quiz', ${unionText("o.question_id")},
+           coalesce(o.label, nullif(${jsonArrayJoin("o.poem", " / ")}, ''), '(گزینهٔ صوتی)'),
+           concat('گزینه', case when o.is_correct then ' — پاسخِ درست' else '' end),
+           null, null, null, null, null
+      from question_options o
+     where ${like("coalesce(o.label, '')")}
+        or ${like(jsonArrayJoin("coalesce(o.poem, '[]')", " "))}
+    union all
+    select 'vocab', ${unionText("v.id")}, v.word, concat(v.grade, ' — درس ', v.lesson),
+           v.grade, v.lesson, null, null, null
+      from vocab_words v
+     where ${like("v.word")} or ${like("v.meaning")}
+    union all
+    select 'aruz_bridge', ${unionText("b.id")}, b.phrase, concat('وزنِ درست: ', b.correct_pattern),
+           null, null, null, null, null
+      from aruz_bridge_questions b
+     where ${like("b.phrase")} or ${like("b.correct_pattern")}
+    union all
+    select 'grammar_circuit', g.source_id, g.source_id,
+           concat(g.grade, ' — درس ', g.lesson),
+           g.grade, g.lesson, null, null, null
+      from grammar_circuit_questions g
+     where ${like("cast(g.payload as char)")} or ${like("g.source_id")}
+    union all
+    select 'jasoos', ${unionText("cast(j.id as char)")}, j.title,
+           concat(j.category, ' — ', left(j.verse_line_1, 50)),
+           null, null, null, null, null
+      from jasoos_levels j
+     where ${like("j.title")}
+        or ${like("j.verse_line_1")}
+        or ${like("j.verse_line_2")}
+    union all
+    select 'pairs', ${unionText("m.id")}, m.work, concat('پدیدآورنده: ', m.author),
+           m.grade, null, m.term, null, null
+      from memory_pairs m
+     where ${like("m.work")} or ${like("m.author")}
+    union all
+    select 'ninja', ${unionText("w.id")}, w.word, concat('نقش: ', c.label),
+           null, null, null, ${unionText("w.category_id")}, null
+      from ninja_words w join ninja_categories c on c.id = w.category_id
+     where ${like("w.word")}
+    union all
+    -- شناسه عمداً همان شکلی است که گزارش‌ها ذخیره می‌کنند («کلیدِ آزمون#شماره»)،
+    -- وگرنه شمارشِ گزارش‌های باز روی این نتیجه هرگز جور در نمی‌آمد.
+    select 'exam', concat(e.exam_session, '#', eq.number),
+           left(cast(p.content as char), 90),
+           concat('سؤال ', eq.number, ' — ', e.title),
+           null, null, null, null, ${unionText("e.id")}
+      from exam_question_parts p
+      join exam_questions eq on eq.id = p.question_id
+      join exam_sections es on es.id = eq.exam_section_id
+      join exams e on e.id = es.exam_id
+     where ${like("cast(p.content as char)")}
+    limit 60
+    `;
 
   const rows = await query<{
     area: ReportArea;
@@ -492,72 +716,8 @@ export async function adminFindContent(term: string): Promise<ContentHit[]> {
     category_id: string | null;
     exam_id: string | null;
   }>(
-    `
-    -- عروض سماعی: هم بیتِ صورتِ سؤال و هم متنِ گزینه‌ها
-    select 'quiz'::text as area, q.id::text as id,
-           coalesce(array_to_string(q.poem, ' / '), '(سؤال صوتی)') as title,
-           'نوع: ' || q.type as subtitle,
-           null::text as grade, null::int as lesson, null::text as term_key,
-           null::text as category_id, null::text as exam_id
-      from questions q
-     where ${like("array_to_string(coalesce(q.poem, '{}'), ' ')")}
-    union all
-    select 'quiz', o.question_id::text,
-           coalesce(o.label, array_to_string(o.poem, ' / '), '(گزینهٔ صوتی)'),
-           'گزینه' || case when o.is_correct then ' — پاسخِ درست' else '' end,
-           null, null, null, null, null
-      from question_options o
-     where ${like("coalesce(o.label, '')")}
-        or ${like("array_to_string(coalesce(o.poem, '{}'), ' ')")}
-    union all
-    select 'vocab', v.id::text, v.word, v.grade || ' — درس ' || v.lesson,
-           v.grade, v.lesson, null, null, null
-      from vocab_words v
-     where ${like("v.word")} or ${like("v.meaning")}
-    union all
-    select 'aruz_bridge', b.id::text, b.phrase, 'وزنِ درست: ' || b.correct_pattern,
-           null, null, null, null, null
-      from aruz_bridge_questions b
-     where ${like("b.phrase")} or ${like("b.correct_pattern")}
-    union all
-    select 'grammar_circuit', g.source_id, g.source_id,
-           g.grade || ' — درس ' || g.lesson,
-           g.grade, g.lesson, null, null, null
-      from grammar_circuit_questions g
-     where ${like("g.payload::text")} or ${like("g.source_id")}
-    union all
-    select 'jasoos', j.id::text, j.title,
-           j.category || ' — ' || left(j.verse_line_1, 50),
-           null, null, null, null, null
-      from jasoos_levels j
-     where ${like("j.title")}
-        or ${like("j.verse_line_1")}
-        or ${like("j.verse_line_2")}
-    union all
-    select 'pairs', m.id::text, m.work, 'پدیدآورنده: ' || m.author,
-           m.grade, null, m.term, null, null
-      from memory_pairs m
-     where ${like("m.work")} or ${like("m.author")}
-    union all
-    select 'ninja', w.id::text, w.word, 'نقش: ' || c.label,
-           null, null, null, w.category_id::text, null
-      from ninja_words w join ninja_categories c on c.id = w.category_id
-     where ${like("w.word")}
-    union all
-    -- شناسه عمداً همان شکلی است که گزارش‌ها ذخیره می‌کنند («کلیدِ آزمون#شماره»)،
-    -- وگرنه شمارشِ گزارش‌های باز روی این نتیجه هرگز جور در نمی‌آمد.
-    select 'exam', e.exam_session || '#' || eq.number,
-           left(p.content::text, 90),
-           'سؤال ' || eq.number || ' — ' || e.title,
-           null, null, null, null, e.id::text
-      from exam_question_parts p
-      join exam_questions eq on eq.id = p.question_id
-      join exam_sections es on es.id = eq.exam_section_id
-      join exams e on e.id = es.exam_id
-     where ${like("p.content::text")}
-    limit 60
-    `,
-    [needle],
+    sql,
+    Array.from({ length: countPlaceholders(sql) }, () => needle),
   );
 
   if (rows.length === 0) return [];
@@ -565,11 +725,11 @@ export async function adminFindContent(term: string): Promise<ContentHit[]> {
   // چند گزارشِ بازِ هر محتوا — با یک کوئریِ دوم، نه با یک join روی همهٔ
   // شاخه‌های union.
   const counts = await query<{ area: string; target_id: string; n: number }>(
-    `select area, target_id, count(*)::int as n
+    `select area, target_id, count(*) as n
        from content_reports
-      where status = 'open' and target_id = any($1::text[])
+      where status = 'open' and target_id in (${placeholders(rows.length)})
       group by area, target_id`,
-    [rows.map((r) => r.id)],
+    rows.map((r) => r.id),
   );
   const byKey = new Map(counts.map((c) => [`${c.area}:${c.target_id}`, c.n]));
 

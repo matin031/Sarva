@@ -1,6 +1,6 @@
 "use server";
 
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { revokeAllSessions } from "@/lib/auth/session";
 import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
@@ -56,15 +56,28 @@ export async function adminListUsers(
 
   const search = params.query?.trim();
   if (search) {
-    // یک پارامتر، دو ستون. % ها اینجا اضافه می‌شوند و نه در رشتهٔ کوئری، پس
-    // ورودی کاربر هرگز بخشی از خودِ SQL نمی‌شود.
-    values.push(`%${search}%`);
-    conditions.push(`(u.email ilike $${values.length} or u.full_name ilike $${values.length})`);
+    // ⚠️ در MySQL هر `?` یک پارامتر مصرف می‌کند.
+    //
+    // نسخهٔ پستگرسی `$n` را دو بار می‌نوشت و *یک* مقدار می‌فرستاد، چون آنجا
+    // شماره‌گذاری است. اینجا باید دو بار فرستاده شود، وگرنه شمارِ پارامترها
+    // با شمارِ `?` ها نمی‌خواند و کوئری رد می‌شود.
+    //
+    // ⚠️ و `like` به‌جای `ilike`: ILIKE اصلاً در MySQL وجود ندارد. لازم هم
+    // نیست — ستون‌های متنی این جدول collation حساس به بزرگی و کوچکی دارند
+    // ولی جست‌وجوی مدیر نباید حساس باشد، پس هر دو طرف با lower() یکدست
+    // می‌شوند. (utf8mb4_0900_ai_ci اینجا کار نمی‌کرد: ستون email از نوع
+    // citext-معادل است و ستون full_name نیست.)
+    //
+    // % ها اینجا اضافه می‌شوند و نه در رشتهٔ کوئری، پس ورودی کاربر هرگز
+    // بخشی از خودِ SQL نمی‌شود.
+    const pattern = `%${search.toLowerCase()}%`;
+    values.push(pattern, pattern);
+    conditions.push("(lower(u.email) like ? or lower(u.full_name) like ?)");
   }
 
   if (params.role) {
     values.push(enumArg(params.role, ["student", "admin"], "نقش نامعتبر است."));
-    conditions.push(`u.role = $${values.length}`);
+    conditions.push("u.role = ?");
   }
 
   if (params.status === "banned") conditions.push("u.is_banned");
@@ -75,9 +88,7 @@ export async function adminListUsers(
 
   const limit = Math.min(Math.max(params.limit ?? USER_PAGE_SIZE, 1), 200);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(params.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
@@ -99,7 +110,7 @@ export async function adminListUsers(
       -- id به‌عنوان شکنندهٔ تساوی: بدون آن، دو کاربر با created_at یکسان
       -- (ثبت‌نام دسته‌جمعی یک کلاس) می‌توانند در دو صفحه تکرار یا جا بیفتند.
       order by u.created_at desc, u.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -143,7 +154,7 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
             u.email_verified_at, u.is_banned,
             (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at
        from users u
-      where u.id = $1`,
+      where u.id = ?`,
     [id],
   );
 
@@ -170,10 +181,12 @@ export async function adminUserCounts(): Promise<{
 }> {
   await requireAdmin();
   const row = await queryOne<{ total: number; admins: number; banned: number; unverified: number }>(
-    `select count(*)                                          as total,
-            count(*) filter (where role = 'admin')            as admins,
-            count(*) filter (where is_banned)                 as banned,
-            count(*) filter (where email_verified_at is null) as unverified
+    // FILTER (WHERE …) → COUNT(CASE …). روی جدولِ خالی هر چهار عدد ۰
+    // می‌شوند، مثل قبل.
+    `select count(*)                                                as total,
+            count(case when role = 'admin' then 1 end)              as admins,
+            count(case when is_banned then 1 end)                   as banned,
+            count(case when email_verified_at is null then 1 end)   as unverified
        from users`,
   );
   return {
@@ -204,12 +217,12 @@ export async function adminSetUserRole(
   // ایمیل قبل از تغییر خوانده می‌شود تا خلاصهٔ لاگ نام واقعی را داشته باشد و
   // نه یک uuid که بعداً هیچ معنایی برای خواننده ندارد.
   const target = await queryOne<{ email: string; role: string }>(
-    "select email, role from users where id = $1",
+    "select email, role from users where id = ?",
     [userId],
   );
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
-  const updated = await execute("update users set role = $1 where id = $2", [role, userId]);
+  const updated = await execute("update users set role = ? where id = ?", [role, userId]);
   if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
   await recordAudit({
@@ -242,10 +255,10 @@ export async function adminSetUserBanned(
 
   if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
 
-  const target = await queryOne<{ email: string }>("select email from users where id = $1", [userId]);
+  const target = await queryOne<{ email: string }>("select email from users where id = ?", [userId]);
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
-  const updated = await execute("update users set is_banned = $1 where id = $2", [banned, userId]);
+  const updated = await execute("update users set is_banned = ? where id = ?", [banned, userId]);
   if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
 
   if (banned) await revokeAllSessions(userId);
@@ -273,7 +286,7 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
 
   // شمردن مدیرها قبل از حذف: سایتی بدون هیچ مدیری یعنی پنل برای همیشه بسته.
   const target = await queryOne<{ role: string; email: string; full_name: string | null }>(
-    "select role, email, full_name from users where id = $1",
+    "select role, email, full_name from users where id = ?",
     [userId],
   );
   if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
@@ -285,7 +298,39 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
     }
   }
 
-  await execute("delete from users where id = $1", [userId]);
+  // ⚠️⚠️ حذف کاربر در MySQL شمارنده‌های کلاب را کج می‌گذارد، و این را باید
+  // خودِ کد جبران کند.
+  //
+  // در PostgreSQL حذفِ آبشاریِ FK تریگرهای ردیفی را اجرا می‌کرد، پس با رفتنِ
+  // لایک‌ها و دیدگاه‌های این کاربر، like_count و comment_count سروده‌های
+  // *دیگران* هم خودبه‌خود درست می‌شد. MySQL این کار را نمی‌کند — cascade
+  // هیچ تریگری را صدا نمی‌زند.
+  //
+  // با آزمون روی هر دو موتور تأیید شد: کاربر «الف» سرودهٔ «ب» را لایک
+  // می‌کند، بعد حساب «الف» حذف می‌شود.
+  //
+  //     PostgreSQL → like_count سرودهٔ «ب» می‌شود ۰  (درست)
+  //     MySQL      → like_count سرودهٔ «ب» روی ۱ می‌ماند  (کج، برای همیشه)
+  //
+  // پس قبل از حذف، سروده‌های تحت‌تأثیر شناسایی می‌شوند و بعد از حذف
+  // شمارنده‌شان بازسازی می‌شود. همه در یک تراکنش، وگرنه یک خطای میانی
+  // دقیقاً همان ناسازگاری را به جا می‌گذاشت که می‌خواهیم جلویش را بگیریم.
+  await transaction(async (tx) => {
+    const affected = await tx.query<{ post_id: string }>(
+      `select post_id from club_likes where user_id = ?
+       union
+       select post_id from club_comments where user_id = ?`,
+      [userId, userId],
+    );
+
+    await tx.execute("delete from users where id = ?", [userId]);
+
+    // سروده‌های خودِ کاربر با همان cascade رفته‌اند، پس club_recount روی
+    // آن‌ها بی‌اثر و بی‌ضرر است؛ سروده‌های دیگران همین‌جا درست می‌شوند.
+    for (const { post_id } of affected) {
+      await tx.execute("call club_recount(?)", [post_id]);
+    }
+  });
 
   // بعد از حذف، خودِ ردیف کاربر دیگر وجود ندارد — پس هر چیزی که برای فهمیدن
   // «چه کسی حذف شد» لازم است باید در همین خلاصه باشد.

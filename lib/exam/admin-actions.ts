@@ -1,9 +1,10 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
-import { query, queryOne, execute, transaction } from "@/lib/db";
+import { query, queryOne, execute, transaction, isUniqueViolation } from "@/lib/db";
 import {
   correctAnswerSchemaByType,
   questionPartContentSchema,
@@ -150,7 +151,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
     title: string;
     exam_session: string | null;
     total_score: number;
-  }>(`select id, subject, grade, title, exam_session, total_score from exams where id = $1`, [examId]);
+  }>(`select id, subject, grade, title, exam_session, total_score from exams where id = ?`, [examId]);
 
   if (!exam) return null;
 
@@ -159,7 +160,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
   const [sections, questions, parts, options] = await Promise.all([
     query<{ id: string; title: string; order_index: number; section_score: number }>(
       `select id, title, order_index, section_score
-         from exam_sections where exam_id = $1 order by order_index`,
+         from exam_sections where exam_id = ? order by order_index`,
       [examId],
     ),
     query<{
@@ -173,7 +174,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
       `select q.id, q.exam_section_id, q.number, q.page_ref, q.instruction, q.layout_pattern
          from exam_questions q
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by q.order_index`,
       [examId],
     ),
@@ -194,7 +195,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
          from exam_question_parts p
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by p.part_index`,
       [examId],
     ),
@@ -204,7 +205,7 @@ export async function adminGetExamDetail(examId: string): Promise<AdminExamDetai
          join exam_question_parts p on p.id = o.question_part_id
          join exam_questions q on q.id = p.question_id
          join exam_sections s on s.id = q.exam_section_id
-        where s.exam_id = $1
+        where s.exam_id = ?
         order by o.order_index`,
       [examId],
     ),
@@ -282,26 +283,29 @@ export async function adminCreateExam(input: {
   const admin = await requireAdmin();
 
   try {
-    const row = await queryOne<{ id: string }>(
-      `insert into exams (subject, grade, title, exam_session, total_score)
-       values ($1, $2, $3, $4, $5) returning id`,
-      [input.subject, input.grade, input.title, input.examKey, input.totalScore],
+    // شناسه در برنامه ساخته می‌شود — MySQL نه DEFAULT تصادفیِ نسخهٔ ۴ دارد
+    // و نه RETURNING.
+    const examId = randomUUID();
+    await execute(
+      `insert into exams (id, subject, grade, title, exam_session, total_score)
+       values (?, ?, ?, ?, ?, ?)`,
+      [examId, input.subject, input.grade, input.title, input.examKey, input.totalScore],
     );
 
     await recordAudit({
       actor: admin,
       action: "exam.create",
       targetType: "exam",
-      targetId: row!.id,
+      targetId: examId,
       summary: `آزمون «${input.title}» ساخته شد`,
       metadata: { examKey: input.examKey, grade: input.grade, totalScore: input.totalScore },
     });
 
-    return { ok: true, data: { id: row!.id } };
+    return { ok: true, data: { id: examId } };
   } catch (err) {
     // exam_session یکتاست و این محتمل‌ترین خطای این تابع است. پیام خام پستگرس
     // («duplicate key value violates unique constraint») به درد ادمین نمی‌خورد.
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["آزمونی با این شناسه از قبل وجود دارد."] };
     }
     logger.error("ساخت آزمون ناموفق بود", { event: "exam.create_failed", err });
@@ -316,24 +320,25 @@ export async function adminCreateSection(
   const admin = await requireAdmin();
 
   try {
-    const row = await queryOne<{ id: string }>(
-      `insert into exam_sections (exam_id, title, order_index, section_score)
-       values ($1, $2, $3, $4) returning id`,
-      [examId, input.title, input.orderIndex, input.sectionScore],
+    const sectionId = randomUUID();
+    await execute(
+      `insert into exam_sections (id, exam_id, title, order_index, section_score)
+       values (?, ?, ?, ?, ?)`,
+      [sectionId, examId, input.title, input.orderIndex, input.sectionScore],
     );
 
     await recordAudit({
       actor: admin,
       action: "exam.section_create",
       targetType: "exam_section",
-      targetId: row!.id,
+      targetId: sectionId,
       summary: `بخش «${input.title}» به یک آزمون اضافه شد`,
       metadata: { examId, sectionScore: input.sectionScore },
     });
 
-    return { ok: true, data: { id: row!.id } };
+    return { ok: true, data: { id: sectionId } };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["بخشی با این ترتیب از قبل در این آزمون هست."] };
     }
     logger.error("ساخت بخش آزمون ناموفق بود", { event: "exam.section_create_failed", err });
@@ -369,39 +374,53 @@ export async function adminUpsertQuestion(
         id = input.id;
         await tx.execute(
           `update exam_questions
-              set number = $1, page_ref = $2, instruction = $3, layout_pattern = $4
-            where id = $5`,
+              set number = ?, page_ref = ?, instruction = ?, layout_pattern = ?
+            where id = ?`,
           [input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null, id],
         );
         // حذف بخش‌ها؛ گزینه‌هایشان با cascade می‌روند
-        await tx.execute(`delete from exam_question_parts where question_id = $1`, [id]);
+        await tx.execute(`delete from exam_question_parts where question_id = ?`, [id]);
       } else {
-        const created = await tx.queryOne<{ id: string }>(
+        // ⚠️ زیرکوئری از همان جدولِ مقصد می‌خواند و MySQL این را رد می‌کند
+        // (خطای ۱۰۹۳). جدولِ مشتق آن را حل می‌کند: اول مادی می‌شود، بعد
+        // INSERT اجرا می‌شود.
+        //
+        // پارامترها هم تکرار می‌شوند چون $1 دو بار می‌آمد.
+        id = randomUUID();
+        await tx.execute(
           `insert into exam_questions
-             (exam_section_id, number, page_ref, instruction, layout_pattern, order_index)
-           values ($1, $2, $3, $4, $5,
-                   (select count(*) from exam_questions where exam_section_id = $1))
-           returning id`,
-          [sectionId, input.number, input.pageRef ?? null, input.instruction ?? null, input.layoutPattern ?? null],
+             (id, exam_section_id, number, page_ref, instruction, layout_pattern, order_index)
+           select ?, ?, ?, ?, ?, ?, n
+             from (select count(*) as n from exam_questions
+                    where exam_section_id = ?) t`,
+          [
+            id,
+            sectionId,
+            input.number,
+            input.pageRef ?? null,
+            input.instruction ?? null,
+            input.layoutPattern ?? null,
+            sectionId,
+          ],
         );
-        id = created!.id;
       }
 
       for (const [partIndex, part] of input.parts.entries()) {
-        const partRow = await tx.queryOne<{ id: string }>(
+        const partId = randomUUID();
+        await tx.execute(
           `insert into exam_question_parts
-             (question_id, part_index, label, type, score, content,
+             (id, question_id, part_index, label, type, score, content,
               correct_answer, accepted_answers, grading_mode, ai_grading_hint)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           returning id`,
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
+            partId,
             id,
             partIndex,
             part.label ?? null,
             part.type,
             part.score,
-            // jsonb از رشتهٔ JSON ساخته می‌شود. اگر شیء خام را می‌دادیم، درایور
-            // آن را به نمایش متنیِ رکورد پستگرس تبدیل می‌کرد، نه JSON.
+            // JSON از رشتهٔ JSON ساخته می‌شود. اگر شیء خام را می‌دادیم، درایور
+            // آن را به نمایش متنیِ خودش تبدیل می‌کرد، نه JSON.
             JSON.stringify(part.content),
             JSON.stringify(part.correctAnswer),
             part.acceptedAnswers === undefined ? null : JSON.stringify(part.acceptedAnswers),
@@ -413,9 +432,9 @@ export async function adminUpsertQuestion(
         for (const [i, o] of (part.options ?? []).entries()) {
           await tx.execute(
             `insert into exam_question_options
-               (question_part_id, option_key, order_index, text, is_correct)
-             values ($1, $2, $3, $4, $5)`,
-            [partRow!.id, o.optionKey ?? null, i, o.text, o.isCorrect],
+               (id, question_part_id, option_key, order_index, text, is_correct)
+             values (?, ?, ?, ?, ?, ?)`,
+            [randomUUID(), partId, o.optionKey ?? null, i, o.text, o.isCorrect],
           );
         }
       }
@@ -434,7 +453,7 @@ export async function adminUpsertQuestion(
 
     return { ok: true, data: { id: questionId } };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["سؤالی با این شماره در این بخش از قبل هست."] };
     }
     logger.error("ذخیرهٔ سؤال آزمون ناموفق بود", { event: "exam.question_save_failed", err });
@@ -477,18 +496,18 @@ export async function adminUpdateExam(
   if (errors.length) return { ok: false, errors };
 
   const before = await queryOne<{ title: string; exam_session: string | null }>(
-    "select title, exam_session from exams where id = $1",
+    "select title, exam_session from exams where id = ?",
     [id],
   );
   if (!before) return { ok: false, errors: ["آزمون پیدا نشد."] };
 
   try {
     await execute(
-      `update exams set title = $1, exam_session = $2, grade = $3, total_score = $4 where id = $5`,
+      `update exams set title = ?, exam_session = ?, grade = ?, total_score = ? where id = ?`,
       [title, examKey, input.grade, input.totalScore, id],
     );
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
+    if (isUniqueViolation(err)) {
       return { ok: false, errors: ["آزمون دیگری با این شناسه وجود دارد."] };
     }
     throw err;
@@ -519,7 +538,7 @@ export async function adminExamAttemptCount(examId: string): Promise<number> {
   await requireAdmin();
   const id = uuidArg(examId, "شناسهٔ آزمون نامعتبر است.");
   const row = await queryOne<{ n: number }>(
-    "select count(*) as n from exam_attempts where exam_id = $1",
+    "select count(*) as n from exam_attempts where exam_id = ?",
     [id],
   );
   return row?.n ?? 0;
@@ -530,11 +549,11 @@ export async function adminDeleteQuestion(questionId: string): Promise<ActionRes
   questionId = uuidArg(questionId, "شناسهٔ سؤال نامعتبر است.");
 
   const target = await queryOne<{ number: number }>(
-    "select number from exam_questions where id = $1",
+    "select number from exam_questions where id = ?",
     [questionId],
   );
 
-  const deleted = await execute("delete from exam_questions where id = $1", [questionId]);
+  const deleted = await execute("delete from exam_questions where id = ?", [questionId]);
   if (!deleted) return { ok: false, errors: ["سؤال پیدا نشد."] };
 
   await recordAudit({
@@ -555,11 +574,11 @@ export async function adminDeleteSection(sectionId: string): Promise<ActionResul
   const target = await queryOne<{ title: string; n: number }>(
     `select s.title,
             (select count(*) from exam_questions q where q.exam_section_id = s.id) as n
-       from exam_sections s where s.id = $1`,
+       from exam_sections s where s.id = ?`,
     [sectionId],
   );
 
-  const deleted = await execute("delete from exam_sections where id = $1", [sectionId]);
+  const deleted = await execute("delete from exam_sections where id = ?", [sectionId]);
   if (!deleted) return { ok: false, errors: ["بخش پیدا نشد."] };
 
   await recordAudit({
@@ -582,11 +601,11 @@ export async function adminDeleteExam(examId: string): Promise<ActionResult<null
   const target = await queryOne<{ title: string; exam_session: string | null; n: number }>(
     `select e.title, e.exam_session,
             (select count(*) from exam_attempts a where a.exam_id = e.id) as n
-       from exams e where e.id = $1`,
+       from exams e where e.id = ?`,
     [examId],
   );
 
-  const deleted = await execute("delete from exams where id = $1", [examId]);
+  const deleted = await execute("delete from exams where id = ?", [examId]);
   if (!deleted) return { ok: false, errors: ["آزمون پیدا نشد."] };
 
   await recordAudit({

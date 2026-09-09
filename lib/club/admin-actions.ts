@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { boolArg, enumArg, optionalTextArg, uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -128,13 +128,13 @@ export async function clubAdminListPosts(
               as open_reports
        from club_posts p
        left join users u on u.id = p.user_id
-      where ($1::text = 'all' or p.status = $1)
+      where (? = 'all' or p.status = ?)
       -- در حالت بررسی، قدیمی‌ترین اول: صف فقط وقتی منصفانه است که صف باشد
-      order by case when $1::text = 'pending' then p.created_at end asc,
-               case when $1::text <> 'pending' then p.created_at end desc,
+      order by case when ? = 'pending' then p.created_at end asc,
+               case when ? <> 'pending' then p.created_at end desc,
                p.id
       limit 300`,
-    [status],
+    [status, status, status, status],
   );
 
   return rows.map(toAdminPost);
@@ -172,12 +172,12 @@ export async function clubAdminListComments(
        from club_comments c
        left join club_posts p on p.id = c.post_id
        left join users u on u.id = c.user_id
-      where ($1::text = 'all' or c.status = $1)
-      order by case when $1::text = 'pending' then c.created_at end asc,
-               case when $1::text <> 'pending' then c.created_at end desc,
+      where (? = 'all' or c.status = ?)
+      order by case when ? = 'pending' then c.created_at end asc,
+               case when ? <> 'pending' then c.created_at end desc,
                c.id
       limit 300`,
-    [status],
+    [status, status, status, status],
   );
 
   return rows.map((r) => ({
@@ -218,7 +218,7 @@ export async function clubAdminPostComments(postId: string): Promise<ClubComment
   }>(
     `select id, post_id, parent_id, reply_to_id, author_name, body, status,
             review_note, created_at
-       from club_comments where post_id = $1 order by created_at, id`,
+       from club_comments where post_id = ? order by created_at, id`,
     [postId],
   );
 
@@ -258,18 +258,20 @@ export async function clubAdminSetPostStatus(
   const reviewNote = optionalTextArg(note, 1000, "یادداشت بررسی خیلی بلند است.");
 
   const updated = await execute(
+    // ⚠️ $1 سه بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر ? یک جای مستقل
+    // است، پس status سه بار فرستاده می‌شود.
     `update club_posts
-        set status       = $1,
-            review_note  = $2,
-            reviewed_at  = now(),
-            reviewed_by  = $3,
-            published_at = case when $1 = 'approved'
-                                then coalesce(published_at, now())
+        set status       = ?,
+            review_note  = ?,
+            reviewed_at  = now(6),
+            reviewed_by  = ?,
+            published_at = case when ? = 'approved'
+                                then coalesce(published_at, now(6))
                                 else published_at end,
             -- شعری که از فید برداشته می‌شود نباید بالای همان فید سنجاق بماند
-            featured     = case when $1 = 'approved' then featured else false end
-      where id = $4`,
-    [status, reviewNote, admin.id, id],
+            featured     = case when ? = 'approved' then featured else false end
+      where id = ?`,
+    [status, reviewNote, admin.id, status, status, id],
   );
 
   if (!updated) return { ok: false, error: "این سروده پیدا نشد." };
@@ -297,7 +299,7 @@ export async function clubAdminSetPostFeatured(
   featured = boolArg(featured, "مقدار برگزیده نامعتبر است.");
 
   const updated = await execute(
-    `update club_posts set featured = $1 where id = $2 and status = 'approved'`,
+    `update club_posts set featured = ? where id = ? and status = 'approved'`,
     [featured, id],
   );
   if (!updated) return { ok: false, error: "فقط سرودهٔ منتشرشده می‌تواند برگزیده شود." };
@@ -320,11 +322,11 @@ export async function clubAdminDeletePost(id: string): Promise<ActionResult<null
 
   // قبل از حذف خوانده می‌شود: بعدش ردیفی نمانده که لاگ بتواند به آن اشاره کند.
   const target = await queryOne<{ author_name: string; title: string | null }>(
-    "select author_name, title from club_posts where id = $1",
+    "select author_name, title from club_posts where id = ?",
     [id],
   );
 
-  const deleted = await execute("delete from club_posts where id = $1", [id]);
+  const deleted = await execute("delete from club_posts where id = ?", [id]);
   if (!deleted) return { ok: false, error: "این سروده پیدا نشد." };
 
   await recordAudit({
@@ -352,13 +354,27 @@ export async function clubAdminSetCommentStatus(
   status = enumArg(status, ["pending", "approved", "rejected"], "وضعیت نامعتبر است.");
   const reviewNote = optionalTextArg(note, 1000, "یادداشت بررسی خیلی بلند است.");
 
-  const row = await queryOne<{ post_id: string }>(
-    `update club_comments
-        set status = $1, review_note = $2, reviewed_at = now(), reviewed_by = $3
-      where id = $4
-      returning post_id`,
-    [status, reviewNote, admin.id, id],
-  );
+  // post_id فقط برای revalidate لازم است و این update عوضش نمی‌کند، پس
+  // خواندنش قبل از update همان مقدار را می‌دهد. هر دو در یک تراکنش تا
+  // «پیدا نشد» یک جواب بدهد.
+  //
+  // ⚠️ تریگرِ شمارندهٔ دیدگاه‌ها روی همین UPDATE اجرا می‌شود (تأیید/رد کردن
+  // یک دیدگاه، comment_count را عوض می‌کند) — پس ترتیب اهمیت دارد و
+  // update باید داخل همان تراکنش بماند.
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ post_id: string }>(
+      "select post_id from club_comments where id = ? for update",
+      [id],
+    );
+    if (!found) return null;
+    await tx.execute(
+      `update club_comments
+          set status = ?, review_note = ?, reviewed_at = now(6), reviewed_by = ?
+        where id = ?`,
+      [status, reviewNote, admin.id, id],
+    );
+    return found;
+  });
 
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
 
@@ -379,10 +395,22 @@ export async function clubAdminDeleteComment(id: string): Promise<ActionResult<n
   const admin = await requireAdmin();
   id = uuidArg(id, "شناسهٔ دیدگاه نامعتبر است.");
 
-  const row = await queryOne<{ post_id: string; author_name: string }>(
-    "delete from club_comments where id = $1 returning post_id, author_name",
-    [id],
-  );
+  // ⚠️ حذف باید بعد از خواندن بیاید و هر دو در یک تراکنش: خودِ ردیف بعد از
+  // حذف دیگر خواندنی نیست، و post_id برای revalidate و author_name برای
+  // متنِ audit لازم‌اند.
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ post_id: string; author_name: string }>(
+      "select post_id, author_name from club_comments where id = ? for update",
+      [id],
+    );
+    if (!found) return null;
+    // ⚠️ حذفِ این دیدگاه، فرزندانش را هم با cascade می‌برد — و تریگرِ
+    // شمارنده روی آن فرزندان اجرا *نمی‌شود* (در MySQL cascade تریگر را صدا
+    // نمی‌زند). پس شمارنده صریحاً بازسازی می‌شود.
+    await tx.execute("delete from club_comments where id = ?", [id]);
+    await tx.execute("call club_recount(?)", [found.post_id]);
+    return found;
+  });
   if (!row) return { ok: false, error: "این دیدگاه پیدا نشد." };
 
   await recordAudit({
@@ -430,10 +458,10 @@ export async function clubAdminListReports(
        left join users u on u.id = r.reporter_id
        left join club_posts p    on r.target_type = 'post'    and p.id = r.target_id
        left join club_comments c on r.target_type = 'comment' and c.id = r.target_id
-      where ($1::text = 'all' or r.status = $1)
+      where (? = 'all' or r.status = ?)
       order by r.created_at desc, r.id
       limit 200`,
-    [status],
+    [status, status],
   );
 
   return rows.map((r) => ({
@@ -465,7 +493,7 @@ export async function clubAdminResolveReport(
   status = enumArg(status, ["resolved", "dismissed"], "وضعیت گزارش نامعتبر است.");
 
   const updated = await execute(
-    `update club_reports set status = $1, resolved_at = now(), resolved_by = $2 where id = $3`,
+    `update club_reports set status = ?, resolved_at = now(6), resolved_by = ? where id = ?`,
     [status, admin.id, id],
   );
   if (!updated) return { ok: false, error: "این گزارش پیدا نشد." };

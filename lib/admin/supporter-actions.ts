@@ -1,8 +1,9 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, boolArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -74,7 +75,7 @@ export async function supporterAdminList(): Promise<AdminSupporter[]> {
   await requireAdmin();
   const rows = await query<Row>(
     `select id, display_name, message, tier, amount_label, link_url, avatar_url,
-            is_visible, supported_at::text as supported_at, sort_index, created_at
+            is_visible, supported_at as supported_at, sort_index, created_at
        from site_supporters
       order by sort_index, created_at desc`,
   );
@@ -133,38 +134,44 @@ export async function supporterAdminSave(
     data.sortIndex,
   ];
 
-  const row = data.id
-    ? await queryOne<{ id: string }>(
-        `update site_supporters
-            set display_name = $1, message = $2, tier = $3, amount_label = $4,
-                link_url = $5, avatar_url = $6, is_visible = $7,
-                supported_at = $8::date, sort_index = $9
-          where id = $10
-        returning id`,
-        [...values, uuidArg(data.id)],
-      )
-    : await queryOne<{ id: string }>(
-        `insert into site_supporters
-           (display_name, message, tier, amount_label, link_url, avatar_url,
-            is_visible, supported_at, sort_index)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9)
-       returning id`,
-        values,
-      );
-
-  if (!row) return { ok: false, errors: ["این حامی پیدا نشد."] };
+  // ⚠️ `$8::date` حذف شد و نه فراموش: ستون supported_at از نوع DATE است و
+  // مقدارِ ورودی هم رشتهٔ 'YYYY-MM-DD'. MySQL خودش تطبیق می‌دهد و cast
+  // چیزی اضافه نمی‌کرد. مهم این است که روزش جابه‌جا نشود — و چون نه ساعتی
+  // در کار است نه منطقهٔ زمانی، نمی‌شود.
+  let supporterId: string;
+  if (data.id) {
+    supporterId = uuidArg(data.id);
+    const changed = await execute(
+      `update site_supporters
+          set display_name = ?, message = ?, tier = ?, amount_label = ?,
+              link_url = ?, avatar_url = ?, is_visible = ?,
+              supported_at = ?, sort_index = ?
+        where id = ?`,
+      [...values, supporterId],
+    );
+    if (changed === 0) return { ok: false, errors: ["این حامی پیدا نشد."] };
+  } else {
+    supporterId = randomUUID();
+    await execute(
+      `insert into site_supporters
+         (id, display_name, message, tier, amount_label, link_url, avatar_url,
+          is_visible, supported_at, sort_index)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [supporterId, ...values],
+    );
+  }
 
   await recordAudit({
     actor: admin,
     action: data.id ? "supporter.update" : "supporter.create",
     targetType: "supporter",
-    targetId: row.id,
+    targetId: supporterId,
     summary: `${data.id ? "ویرایش" : "افزودن"} حامی «${data.displayName}»`,
     metadata: { tier: data.tier, visible: data.isVisible },
   });
 
   revalidatePath("/admin/supporters");
-  return { ok: true, data: { id: row.id } };
+  return { ok: true, data: { id: supporterId } };
 }
 
 export async function supporterAdminToggle(id: string, visible: boolean): Promise<ActionResult> {
@@ -172,10 +179,18 @@ export async function supporterAdminToggle(id: string, visible: boolean): Promis
   const supporterId = uuidArg(id, "شناسهٔ حامی نامعتبر است.");
   const isVisible = boolArg(visible);
 
-  const row = await queryOne<{ display_name: string }>(
-    `update site_supporters set is_visible = $1 where id = $2 returning display_name`,
-    [isVisible, supporterId],
-  );
+  const row = await transaction(async (tx) => {
+    const found = await tx.queryOne<{ display_name: string }>(
+      "select display_name from site_supporters where id = ? for update",
+      [supporterId],
+    );
+    if (!found) return null;
+    await tx.execute("update site_supporters set is_visible = ? where id = ?", [
+      isVisible,
+      supporterId,
+    ]);
+    return found;
+  });
   if (!row) return { ok: false, errors: ["این حامی پیدا نشد."] };
 
   await recordAudit({
@@ -196,12 +211,12 @@ export async function supporterAdminDelete(id: string): Promise<ActionResult> {
   const supporterId = uuidArg(id, "شناسهٔ حامی نامعتبر است.");
 
   const existing = await queryOne<{ display_name: string }>(
-    "select display_name from site_supporters where id = $1",
+    "select display_name from site_supporters where id = ?",
     [supporterId],
   );
   if (!existing) return { ok: false, errors: ["این حامی پیدا نشد."] };
 
-  await execute("delete from site_supporters where id = $1", [supporterId]);
+  await execute("delete from site_supporters where id = ?", [supporterId]);
 
   await recordAudit({
     actor: admin,

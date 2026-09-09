@@ -14,7 +14,8 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import { randomUUID } from "node:crypto";
+import { connect, upsertKind } from "./mysql/script-db.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = join(ROOT, "lib", "aruz-bridge", "seed-data", "questions-v1.json");
@@ -101,53 +102,74 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new pg.Client({ connectionString: requireEnv("DATABASE_URL") });
-  await client.connect();
+  const conn = await connect(requireEnv("DATABASE_URL"));
 
   try {
-    await client.query("begin");
+    await conn.beginTransaction();
 
     let inserted = 0;
     let updated = 0;
+    let unchanged = 0;
     for (const [index, r] of rows.entries()) {
       const correct = r.correctOption === 1 ? r.option1 : r.option2;
       const wrong = r.correctOption === 1 ? r.option2 : r.option1;
-      const res = await client.query(
+      // ⚠️ ترفندِ `returning (xmax = 0)` مالِ PostgreSQL بود و در MySQL لازم
+      // هم نیست: خودِ affectedRows در ON DUPLICATE KEY UPDATE معنایی است —
+      // ۱ یعنی درج، ۲ یعنی به‌روزرسانی، ۰ یعنی بود و چیزی عوض نشد.
+      //
+      // نکته: شمارندهٔ «بدون تغییر» عملاً همیشه صفر می‌ماند، چون تریگرِ
+      // aruz_bridge_questions_touch روی هر UPDATE ستون updated_at را عوض
+      // می‌کند — پس ردیف واقعاً تغییر می‌کند حتی وقتی محتوایش یکی است.
+      // همین رفتار در PostgreSQL هم بود (touch_updated_at).
+      const [res] = await conn.execute(
         `insert into aruz_bridge_questions
-           (source_id, phrase, correct_pattern, wrong_pattern, difficulty, sort_index)
-         values ($1, $2, $3, $4, $5, $6)
-         on conflict (source_id) do update set
-           phrase          = excluded.phrase,
-           correct_pattern = excluded.correct_pattern,
-           wrong_pattern   = excluded.wrong_pattern,
-           difficulty      = excluded.difficulty,
-           sort_index      = excluded.sort_index
-         returning (xmax = 0) as is_insert`,
-        [r.id, r.phrase.trim(), correct.trim(), wrong.trim(), difficultyOf(correct, wrong), index],
+           (id, source_id, phrase, correct_pattern, wrong_pattern, difficulty, sort_index)
+         values (?, ?, ?, ?, ?, ?, ?)
+         on duplicate key update
+           phrase          = values(phrase),
+           correct_pattern = values(correct_pattern),
+           wrong_pattern   = values(wrong_pattern),
+           difficulty      = values(difficulty),
+           sort_index      = values(sort_index)`,
+        [
+          randomUUID(),
+          r.id,
+          r.phrase.trim(),
+          correct.trim(),
+          wrong.trim(),
+          difficultyOf(correct, wrong),
+          index,
+        ],
       );
-      if (res.rows[0].is_insert) inserted++;
-      else updated++;
+      const kind = upsertKind(res.affectedRows);
+      if (kind === "inserted") inserted++;
+      else if (kind === "updated") updated++;
+      else unchanged++;
     }
 
     let pruned = 0;
     if (prune) {
-      const res = await client.query(
-        `delete from aruz_bridge_questions where source_id <> all($1::int[])`,
-        [rows.map((r) => r.id)],
+      // `<> all($1::int[])` یعنی «هیچ‌کدام از این‌ها نباشد» → `not in (…)`.
+      const keep = rows.map((r) => r.id);
+      const [res] = await conn.execute(
+        `delete from aruz_bridge_questions
+          where source_id not in (${keep.map(() => "?").join(", ")})`,
+        keep,
       );
-      pruned = res.rowCount ?? 0;
+      pruned = res.affectedRows ?? 0;
     }
 
-    await client.query("commit");
+    await conn.commit();
     console.log(
-      `[seed-aruz-bridge] ${inserted} ردیفِ تازه، ${updated} به‌روزرسانی` +
+      `[seed-aruz-bridge] ${inserted} ردیفِ تازه، ${updated} به‌روزرسانی، ` +
+        `${unchanged} بدون تغییر` +
         (prune ? `، ${pruned} حذف` : "") + ".",
     );
   } catch (err) {
-    await client.query("rollback");
+    await conn.rollback();
     throw err;
   } finally {
-    await client.end();
+    await conn.end();
   }
 }
 

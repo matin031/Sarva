@@ -20,7 +20,7 @@
  */
 import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import pg from "pg";
+import { connect } from "./mysql/script-db.mjs";
 
 const AUDIO_DIR = join(process.cwd(), "public", "audio");
 
@@ -53,17 +53,18 @@ if (!files.length) {
   process.exit(1);
 }
 
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-await client.connect();
+const conn = await connect(process.env.DATABASE_URL);
 
-const { rows } = await client.query(`
-  select q.id::text as question_id, q.type, 'سؤال' as جا, q.audio_url as url
+// ⚠️ نام ستون‌های فارسی با backtick نقل‌قول می‌شوند؛ در PostgreSQL با
+// نقل‌قول دوتایی بود. و `::text` لازم نیست چون شناسه‌ها از قبل CHAR اند.
+const [rows] = await conn.execute(`
+  select q.id as question_id, q.type, 'سؤال' as \`جا\`, q.audio_url as url
     from questions q
-   where q.audio_url is not null and btrim(q.audio_url) <> ''
+   where q.audio_url is not null and trim(q.audio_url) <> ''
   union all
-  select o.question_id::text, q.type, 'گزینه', o.audio_url
+  select o.question_id, q.type, 'گزینه', o.audio_url
     from question_options o join questions q on q.id = o.question_id
-   where o.audio_url is not null and btrim(o.audio_url) <> ''
+   where o.audio_url is not null and trim(o.audio_url) <> ''
   order by 2, 1
 `);
 
@@ -90,22 +91,22 @@ const { rows } = await client.query(`
 const STEM_AUDIO = ["audio-to-poem", "audio-to-weight"];
 const OPTION_AUDIO = ["poem-to-audio", "pattern-to-audio", "weight-to-audio"];
 
-const missing = (
-  await client.query(
-    `select q.id::text as question_id, q.type, 'صورت سؤال' as جا, 1 as n
-       from questions q
-      where q.type = any($1) and (q.audio_url is null or btrim(q.audio_url) = '')
-     union all
-     select q.id::text, q.type, 'گزینه', count(*)::int
-       from questions q join question_options o on o.question_id = q.id
-      where q.type = any($2) and (o.audio_url is null or btrim(o.audio_url) = '')
-      group by q.id, q.type
-      order by 2, 1`,
-    [STEM_AUDIO, OPTION_AUDIO],
-  )
-).rows;
+const stemPh = STEM_AUDIO.map(() => "?").join(", ");
+const optPh = OPTION_AUDIO.map(() => "?").join(", ");
+const [missing] = await conn.execute(
+  `select q.id as question_id, q.type, 'صورت سؤال' as \`جا\`, 1 as n
+     from questions q
+    where q.type in (${stemPh}) and (q.audio_url is null or trim(q.audio_url) = '')
+   union all
+   select q.id, q.type, 'گزینه', count(*)
+     from questions q join question_options o on o.question_id = q.id
+    where q.type in (${optPh}) and (o.audio_url is null or trim(o.audio_url) = '')
+    group by q.id, q.type
+    order by 2, 1`,
+  [...STEM_AUDIO, ...OPTION_AUDIO],
+);
 
-await client.end();
+await conn.end();
 
 const broken = [];
 for (const r of rows) {

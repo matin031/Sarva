@@ -1,8 +1,9 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { randomBytes } from "node:crypto";
 import { invalidateAvailability } from "@/lib/grammar-circuit/availability-cache";
-import { query, queryOne, execute } from "@/lib/db";
+import { query, queryOne, execute, isUniqueViolation } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
@@ -67,13 +68,6 @@ export type AdminGcQuestion = {
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type SaveResult = { ok: true; id: string } | { ok: false; error: string; problems?: string[] };
-
-const UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err &&
-    (err as { code?: string }).code === UNIQUE_VIOLATION;
-}
 
 type Row = {
   id: string;
@@ -152,9 +146,9 @@ export async function gcAdminList(input: {
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
        from grammar_circuit_questions
-      where grade = $1 and lesson = $2
+      where grade = ? and lesson = ?
       order by sort_index, source_id
-      limit $3`,
+      limit ?`,
     [input.grade, input.lesson, LIST_LIMIT],
   );
 
@@ -170,10 +164,10 @@ export async function gcAdminLessonCounts(
 
   const rows = await query<{ lesson: number; total: number; published: number }>(
     `select lesson,
-            count(*)::int as total,
-            count(*) filter (where is_published)::int as published
+            count(*)                                     as total,
+            count(case when is_published then 1 end)     as published
        from grammar_circuit_questions
-      where grade = $1
+      where grade = ?
       group by lesson`,
     [grade],
   );
@@ -187,8 +181,8 @@ export async function gcAdminLessonCounts(
 export async function gcAdminTotals(): Promise<{ total: number; published: number }> {
   await requireAdmin();
   const row = await queryOne<{ total: number; published: number }>(
-    `select count(*)::int as total,
-            count(*) filter (where is_published)::int as published
+    `select count(*)                                 as total,
+            count(case when is_published then 1 end) as published
        from grammar_circuit_questions`,
   );
   return row ?? { total: 0, published: 0 };
@@ -201,7 +195,7 @@ export async function gcAdminGet(id: string): Promise<AdminGcQuestion | null> {
   const row = await queryOne<Row>(
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
-       from grammar_circuit_questions where id = $1`,
+       from grammar_circuit_questions where id = ?`,
     [questionId],
   );
   if (!row) return null;
@@ -312,9 +306,9 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
       const id = uuidArg(input.id, "شناسهٔ پرسش نامعتبر است.");
       const updated = await execute(
         `update grammar_circuit_questions
-            set grade = $1, lesson = $2, question_type = $3, payload = $4::jsonb,
-                difficulty = $5, explanation = $6, attribution = $7, is_published = $8
-          where id = $9`,
+            set grade = ?, lesson = ?, question_type = ?, payload = ?,
+                difficulty = ?, explanation = ?, attribution = ?, is_published = ?
+          where id = ?`,
         [
           input.grade,
           input.lesson,
@@ -342,15 +336,18 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
     }
 
     // سؤالِ تازه به انتهای همان درس می‌رود.
-    const row = await queryOne<{ id: string }>(
+    // جدولِ مشتق (خطای ۱۰۹۳) و پارامترهای تکراری: $2 و $3 هرکدام دو بار
+    // می‌آمدند و در MySQL هر ? یک جای مستقل است.
+    const newId = randomUUID();
+    await execute(
       `insert into grammar_circuit_questions
-         (source_id, grade, lesson, question_type, payload, difficulty,
+         (id, source_id, grade, lesson, question_type, payload, difficulty,
           explanation, attribution, is_published, sort_index)
-       values ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9,
-               coalesce((select max(sort_index) from grammar_circuit_questions
-                          where grade = $2 and lesson = $3), 0) + 1)
-       returning id`,
+       select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+         from (select max(sort_index) as m from grammar_circuit_questions
+                where grade = ? and lesson = ?) t`,
       [
+        newId,
         newSourceId(input.grade, input.lesson),
         input.grade,
         input.lesson,
@@ -360,20 +357,22 @@ export async function gcAdminSave(input: GcQuestionInput): Promise<SaveResult> {
         explanation,
         attribution,
         input.isPublished,
+        // دو بارِ آخر برای زیرکوئریِ max(sort_index)
+        input.grade,
+        input.lesson,
       ],
     );
-    if (!row) return { ok: false, error: "ذخیرهٔ پرسش ناموفق بود." };
 
     await recordAudit({
       actor: admin,
       action: "grammar_circuit.question_save",
       targetType: "grammar_circuit_question",
-      targetId: row.id,
+      targetId: newId,
       summary: `پرسشِ «${sentence.slice(0, 60)}» ساخته شد`,
       metadata: { grade: input.grade, lesson: input.lesson, published: input.isPublished },
     });
 
-    return { ok: true, id: row.id };
+    return { ok: true, id: newId };
   } catch (err) {
     if (isUniqueViolation(err)) {
       return { ok: false, error: "شناسهٔ محتوایی تکراری است؛ دوباره تلاش کنید." };
@@ -395,7 +394,7 @@ export async function gcAdminSetPublished(
   const row = await queryOne<Row>(
     `select id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index
-       from grammar_circuit_questions where id = $1`,
+       from grammar_circuit_questions where id = ?`,
     [questionId],
   );
   if (!row) return { ok: false, error: "این پرسش پیدا نشد." };
@@ -412,7 +411,7 @@ export async function gcAdminSetPublished(
     }
   }
 
-  await execute("update grammar_circuit_questions set is_published = $1 where id = $2", [
+  await execute("update grammar_circuit_questions set is_published = ? where id = ?", [
     published,
     questionId,
   ]);
@@ -439,12 +438,12 @@ export async function gcAdminDelete(id: string): Promise<ActionResult> {
   const questionId = uuidArg(id, "شناسهٔ پرسش نامعتبر است.");
 
   const target = await queryOne<{ source_id: string; grade: string; lesson: number }>(
-    "select source_id, grade, lesson from grammar_circuit_questions where id = $1",
+    "select source_id, grade, lesson from grammar_circuit_questions where id = ?",
     [questionId],
   );
 
   invalidateAvailability();
-  const deleted = await execute("delete from grammar_circuit_questions where id = $1", [
+  const deleted = await execute("delete from grammar_circuit_questions where id = ?", [
     questionId,
   ]);
   if (!deleted) return { ok: false, error: "این پرسش پیدا نشد." };

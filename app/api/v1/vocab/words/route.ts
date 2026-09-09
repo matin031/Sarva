@@ -57,12 +57,16 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
       // می‌خواهد. پس فیلتر پارامتری است، نه پیش‌فرض.
       `select id, word, meaning, image, lesson
          from vocab_words
-        where grade = $1
-          and ($2::int is null or lesson = $2)
-          and ($3::boolean is not true
-               or (image is not null and btrim(image) <> ''))
+        where grade = ?
+          and (? is null or lesson = ?)
+          -- شرطِ اصلی «$3::boolean is not true» بود، یعنی «مگر اینکه
+          -- صریحاً true باشد» — که برای NULL هم درست جواب می‌داد.
+          -- معادلش در MySQL coalesce(?, 0) = 0 است. صورتِ «? is not true»
+          -- هرچند نحوِ درستی دارد، روی پارامترِ prepared نوعش معلوم نیست.
+          and (coalesce(?, 0) = 0
+               or (image is not null and trim(image) <> ''))
         order by lesson, sort_index`,
-      [grade, lesson, pictured],
+      [grade, lesson, lesson, pictured],
     );
 
     const response = ok({

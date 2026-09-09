@@ -19,7 +19,9 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import { randomUUID } from "node:crypto";
+// ماژول .mjs مشترکِ اسکریپت‌ها — همان تنظیماتِ اتصالِ lib/db.
+import { connect, upsertKind } from "./mysql/script-db.mjs";
 
 import { isStorableLesson, isValidGradeKey } from "../lib/grammar-circuit/curriculum";
 import type { GrammarCircuitQuestion } from "../lib/grammar-circuit/types";
@@ -170,8 +172,7 @@ async function main() {
     process.exit(1);
   }
 
-  const pool = new pg.Pool({ connectionString: databaseUrl });
-  const client = await pool.connect();
+  const conn = await connect(databaseUrl);
   let inserted = 0;
   let updated = 0;
   let pruned = 0;
@@ -179,7 +180,7 @@ async function main() {
   try {
     // کلِ بسته در یک تراکنش: یا همه می‌نشیند یا هیچ‌کدام. نصفه‌نوشتن یعنی
     // مخزنی که نه نسخهٔ قبلی است نه نسخهٔ جدید.
-    await client.query("begin");
+    await conn.beginTransaction();
 
     for (const r of records) {
       const payload = {
@@ -189,23 +190,25 @@ async function main() {
         pieces: r.pieces,
         ...(r.circuitOrder ? { circuitOrder: r.circuitOrder } : {}),
       };
-      const res = await client.query<{ inserted: boolean }>(
+      // affectedRows جای ترفندِ `returning (xmax = 0)` را می‌گیرد:
+      // ۱ درج، ۲ به‌روزرسانی، ۰ بدون تغییر.
+      const [res] = await conn.execute(
         `insert into grammar_circuit_questions
-           (source_id, grade, lesson, question_type, payload, difficulty,
+           (id, source_id, grade, lesson, question_type, payload, difficulty,
             explanation, attribution, is_published, sort_index)
-         values ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)
-         on conflict (source_id) do update set
-           grade = excluded.grade,
-           lesson = excluded.lesson,
-           question_type = excluded.question_type,
-           payload = excluded.payload,
-           difficulty = excluded.difficulty,
-           explanation = excluded.explanation,
-           attribution = excluded.attribution,
-           is_published = excluded.is_published,
-           sort_index = excluded.sort_index
-         returning (xmax = 0) as inserted`,
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         on duplicate key update
+           grade = values(grade),
+           lesson = values(lesson),
+           question_type = values(question_type),
+           payload = values(payload),
+           difficulty = values(difficulty),
+           explanation = values(explanation),
+           attribution = values(attribution),
+           is_published = values(is_published),
+           sort_index = values(sort_index)`,
         [
+          randomUUID(),
           r.sourceId,
           r.grade,
           r.lesson,
@@ -218,27 +221,27 @@ async function main() {
           r.sortIndex ?? 0,
         ],
       );
-      if (res.rows[0]?.inserted) inserted++;
+      if (upsertKind((res as { affectedRows: number }).affectedRows) === "inserted") inserted++;
       else updated++;
     }
 
     if (prune) {
       const ids = records.map((r) => r.sourceId);
-      const res = await client.query(
-        `delete from grammar_circuit_questions where not (source_id = any($1::text[]))`,
-        [ids],
+      const [res] = await conn.execute(
+        `delete from grammar_circuit_questions
+          where source_id not in (${ids.map(() => "?").join(", ")})`,
+        ids,
       );
-      pruned = res.rowCount ?? 0;
+      pruned = (res as { affectedRows: number }).affectedRows ?? 0;
     }
 
-    await client.query("commit");
+    await conn.commit();
   } catch (err) {
-    await client.query("rollback");
+    await conn.rollback();
     console.error("[seed-grammar-circuit] نوشتن ناموفق بود؛ تراکنش برگشت خورد:", err);
     process.exit(1);
   } finally {
-    client.release();
-    await pool.end();
+    await conn.end();
   }
 
   console.log(

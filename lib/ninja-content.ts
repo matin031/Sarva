@@ -35,17 +35,48 @@ type RoundRow = {
 export async function loadNinjaRounds(): Promise<NinjaRoundData> {
   let rows: RoundRow[];
   try {
-    rows = await query<RoundRow>(
-      // array_agg با order داخلی، تا ترتیبی که مدیر چیده حفظ شود. فیلترِ
-      // w.id is not null لازم است وگرنه نقشِ بی‌کلمه یک آرایهٔ [null] می‌گیرد.
-      `select c.id, c.label, c.hint, c.enabled, c.sort_index,
-              array_agg(w.word order by w.sort_index, w.word)
-                filter (where w.id is not null) as words
+    // ⚠️ `array_agg(… order by …) filter (where …)` هیچ‌کدام از سه تکه‌اش در
+    // MySQL معادلِ قابل‌اتکا ندارد: نه array_agg، نه FILTER، و
+    // JSON_ARRAYAGG هم ترتیبش تضمین نشده است.
+    //
+    // و ترتیب اینجا معنا دارد: مدیر کلمه‌ها را می‌چیند و بازی به همان
+    // ترتیب نشان می‌دهد.
+    //
+    // پس ردیف‌های مرتب خوانده می‌شوند و گروه‌بندی در TypeScript انجام
+    // می‌شود — که هم ترتیب را تضمین می‌کند و هم جای فیلترِ
+    // `w.id is not null` را می‌گیرد: ردیفِ تهیِ LEFT JOIN اصلاً وارد آرایه
+    // نمی‌شود، پس نقشِ بی‌کلمه آرایهٔ خالی می‌گیرد و نه [null].
+    const flat = await query<{
+      id: string;
+      label: string;
+      hint: string;
+      enabled: boolean;
+      sort_index: number;
+      word: string | null;
+    }>(
+      `select c.id, c.label, c.hint, c.enabled, c.sort_index, w.word
          from ninja_categories c
          left join ninja_words w on w.category_id = c.id
-        group by c.id
-        order by c.sort_index, c.label`,
+        order by c.sort_index, c.label, w.sort_index, w.word`,
     );
+
+    const byId = new Map<string, RoundRow>();
+    for (const r of flat) {
+      let round = byId.get(r.id);
+      if (!round) {
+        round = {
+          id: r.id,
+          label: r.label,
+          hint: r.hint,
+          enabled: r.enabled,
+          sort_index: r.sort_index,
+          words: [],
+        };
+        byId.set(r.id, round);
+      }
+      if (r.word !== null) round.words!.push(r.word);
+    }
+    rows = [...byId.values()];
   } catch (err) {
     await recordError("db", err, "loadNinjaRounds");
     rows = [];

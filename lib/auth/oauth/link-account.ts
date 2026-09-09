@@ -1,5 +1,6 @@
 import "server-only";
-import { query, transaction } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { query, execute, transaction } from "@/lib/db";
 import { toAuthUser, type UserRow } from "@/lib/auth/session";
 import type { AuthUser } from "@/lib/auth/types";
 import { mayLinkToExistingAccount, type VerifiedGoogleUser } from "./google-claims";
@@ -29,7 +30,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
             u.is_banned, u.created_at
        from user_identities i
        join users u on u.id = i.user_id
-      where i.provider = 'google' and i.provider_account_id = $1`,
+      where i.provider = 'google' and i.provider_account_id = ?`,
     [g.sub],
   );
   if (existing.length > 0) {
@@ -40,7 +41,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
 
   // ۲) حسابی با همین ایمیل
   const byEmail = await query<UserRow>(`select id, email, full_name, role, email_verified_at, is_banned, created_at
-       from users where email = $1`, [g.email]);
+       from users where email = ?`, [g.email]);
   if (byEmail.length > 0) {
     // ⚠️ اینجا حساس‌ترین نقطهٔ کلِ این قابلیت است.
     //
@@ -54,11 +55,13 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
     const user = toAuthUser(byEmail[0]);
     if (user.isBanned) return { ok: false, reason: "banned" };
 
-    await query(
-      `insert into user_identities (user_id, provider, provider_account_id, email)
-       values ($1, 'google', $2, $3)
-       on conflict (provider, provider_account_id) do nothing`,
-      [user.id, g.sub, g.email],
+    // ON DUPLICATE KEY UPDATE با مقدارِ خودش = «هیچ کاری نکن»، و بر خلاف
+    // INSERT IGNORE فقط نقضِ کلید یکتا را می‌بلعد.
+    await execute(
+      `insert into user_identities (id, user_id, provider, provider_account_id, email)
+       values (?, ?, 'google', ?, ?)
+       on duplicate key update provider_account_id = provider_account_id`,
+      [randomUUID(), user.id, g.sub, g.email],
     );
     return { ok: true, user, created: false };
   }
@@ -69,24 +72,39 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
   // هویتش ثبت نشود، هیچ راهِ ورودی ندارد — نه رمزی دارد نه هویتی — و دفعهٔ
   // بعد به شاخهٔ ۲ می‌افتد و آنجا هم گیر می‌کند.
   const created = await transaction(async (tx) => {
-    const inserted = await tx.query<UserRow>(
-      `insert into users (email, password_hash, full_name, email_verified_at)
-       values ($1, null, $2, $3)
-       returning id, email, full_name, role, email_verified_at, is_banned, created_at`,
+    // ⚠️ password_hash عمداً null است — کاربرِ فقط-گوگل رمز ندارد. ستون از
+    // migration 012 به بعد nullable است و باید همین‌طور بماند.
+    const userId = randomUUID();
+    await tx.execute(
+      `insert into users (id, email, password_hash, full_name, email_verified_at)
+       values (?, ?, null, ?, ?)`,
       [
+        userId,
         g.email,
         g.name,
         // ایمیلی که گوگل تأیید کرده، تأییدشده است. اگر تأیید نکرده باشد،
         // حساب ساخته می‌شود ولی تأییدنشده می‌ماند.
-        g.emailVerified ? new Date() : null,
+        //
+        // ⚠️ Date به رشتهٔ UTC تبدیل می‌شود و نه به خودِ Date: درایور با
+        // timezone:'Z' آن را درست می‌نویسد، ولی صریح بودن اینجا یعنی
+        // ستونِ DATETIME(6) همان چیزی می‌گیرد که انتظار داریم.
+        g.emailVerified ? new Date().toISOString().slice(0, 23).replace("T", " ") : null,
       ],
     );
     await tx.execute(
-      `insert into user_identities (user_id, provider, provider_account_id, email)
-       values ($1, 'google', $2, $3)`,
-      [inserted[0].id, g.sub, g.email],
+      `insert into user_identities (id, user_id, provider, provider_account_id, email)
+       values (?, ?, 'google', ?, ?)`,
+      [randomUUID(), userId, g.sub, g.email],
     );
-    return inserted[0];
+    // RETURNING نداریم؛ ردیف با همان شناسه و در همان تراکنش خوانده می‌شود،
+    // پس مقدارهای DEFAULT (role و created_at) هم واقعی‌اند.
+    const row = await tx.queryOne<UserRow>(
+      `select id, email, full_name, role, email_verified_at, is_banned, created_at
+         from users where id = ?`,
+      [userId],
+    );
+    if (!row) throw new Error("حساب گوگل ساخته شد ولی خوانده نشد.");
+    return row;
   });
 
   return { ok: true, user: toAuthUser(created), created: true };

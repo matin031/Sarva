@@ -2674,3 +2674,139 @@ html[data-quality="low"] [class*="backdrop-blur"] {
     animation: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   سروا پلاس — هویتِ بصری
+   ═══════════════════════════════════════════════════════════════════════
+
+   ⚠️ قاعده‌ای که کلِ این بخش رویش ایستاده: **سروا پلاس یک سایتِ دوم نیست.**
+
+   وسوسه‌اش هست — طلایی‌کردنِ همه‌چیز، درخششِ فراوان، گرادیانِ افراطی. نتیجه‌اش
+   اما دو Design System موازی است که هر تغییرِ بعدی باید در هر دو انجام شود، و
+   کاربری که مطمئن نیست هنوز در همان سایت است.
+
+   پس فقط چهار چیز اضافه می‌شود و نه بیشتر:
+     ۱) یک نشانِ کوچک کنارِ لوگو
+     ۲) یک accent محدود (طلاییِ همان پالت، نه رنگِ تازه)
+     ۳) یک حاشیهٔ ظریف برای کارت‌های پلاس
+     ۴) یک برقِ گاه‌به‌گاه روی نشان
+
+   رنگ‌ها همان --gold و --gold-ink پالتِ سروا هستند؛ هیچ رنگِ تازه‌ای معرفی
+   نمی‌شود.
+
+   ⚠️ و نشان **فقط با متن مشخص نمی‌شود**: کلمهٔ «PLUS» همیشه در آن هست، پس
+   کسی که رنگ را تشخیص نمی‌دهد هم می‌فهمد. (معیار Accessibility: هرگز فقط
+   رنگ.) */
+
+.plus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22em;
+  padding: 0.1em 0.5em;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--gold-ink);
+  border: 1px solid color-mix(in oklch, var(--gold) 45%, transparent);
+  background: color-mix(in oklch, var(--gold) 12%, transparent);
+  /* ⚠️ برشِ برق نباید از نشان بیرون بزند. */
+  position: relative;
+  overflow: hidden;
+  /* بدونِ این، ظاهر شدنِ نشان بعد از رسیدنِ پاسخِ /me کلِ ردیفِ هدر را
+     جابه‌جا می‌کرد. جای نشان از ابتدا رزرو می‌شود. */
+  min-width: 3.1rem;
+  justify-content: center;
+}
+
+.plus-badge__spark {
+  /* ستارهٔ کوچک. تزئینی است، پس از دیدِ صفحه‌خوان پنهان می‌شود. */
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+/* برقِ گاه‌به‌گاه: یک نوارِ نور که هر ۹ ثانیه یک بار از روی نشان رد می‌شود.
+   ⚠️ عمداً کند و کم‌تکرار است. درخششِ پیوسته بعد از ده ثانیه آزاردهنده
+   می‌شود و کاربر یاد می‌گیرد نگاهش نکند — یعنی دقیقاً برعکسِ هدف. */
+.plus-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    color-mix(in oklch, var(--gold) 55%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: plusBadgeShine 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes plusBadgeShine {
+  0%,
+  78% {
+    transform: translateX(-120%);
+  }
+  88% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* نشانِ فشرده برای موبایل: «+» به‌جای «PLUS».
+   در ۳۶۰ پیکسل، نشانِ کامل کنارِ نام و دکمهٔ ورود، هدر را می‌شکست. */
+.plus-badge--compact {
+  min-width: 1.5rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+
+/* حالتِ «نزدیک پایان»: همان نشان، با لحنِ آرام‌ترِ هشدار. نه قرمز و نه
+   چشمک‌زن — اشتراک هنوز فعال است و ترساندنِ کاربر بی‌جاست. */
+.plus-badge--expiring {
+  color: var(--muted-foreground);
+  border-color: color-mix(in oklch, var(--gold) 30%, transparent);
+  background: transparent;
+}
+.plus-badge--expiring::after {
+  animation: none;
+}
+
+/* کارت/بخشِ ویژهٔ پلاس — فقط یک حاشیه و یک ته‌رنگِ بسیار ملایم. */
+.plus-surface {
+  border: 1px solid color-mix(in oklch, var(--gold) 32%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--gold) 6%, transparent),
+    transparent 60%
+  );
+}
+
+/* عنوانِ بخش‌های پلاس. */
+.plus-ink {
+  color: var(--gold-ink);
+}
+
+/* قفلِ قابلیتِ پولی: محتوای پشتِ آن دیده می‌شود ولی خوانده نمی‌شود.
+   ⚠️ این فقط برای *تجربهٔ کاربری* است. دادهٔ واقعی هرگز به مرورگر فرستاده
+   نمی‌شود؛ گاردِ سرور (`requirePlus`) قبل از رسیدن به این لایه جلویش را
+   می‌گیرد. اگر روزی کسی این کلاس را دیدِ «امنیت» بگیرد، اشتباه کرده. */
+.plus-locked-preview {
+  filter: blur(5px);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plus-badge::after {
+    animation: none;
+    opacity: 0;
+  }
+}

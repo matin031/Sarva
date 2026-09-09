@@ -45,6 +45,7 @@ import { useResponsiveConfig } from "./hooks/useResponsiveConfig";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 import { immersiveMode } from "@/lib/immersive-mode";
+import { reportCircuitAttempt } from "@/lib/grammar-circuit/report";
 
 /** ریشهٔ بازی — و تنها جایی که چرخهٔ عمرِ معنایی زندگی می‌کند.
  *
@@ -397,6 +398,25 @@ export default function GrammarCircuitGame() {
       }, t),
     );
 
+    /* ── ثبت در تاریخچهٔ آموزشی ────────────────────────────────────────
+       ⚠️ فقط تلاشِ اول (`attempts === 1`). تلاشِ دوم بعد از دیدنِ نتیجه
+       انجام می‌شود و دیگر سنجشِ دانش نیست؛ ثبتش دقتِ همه را مصنوعی بالا
+       می‌برد.
+
+       هیچ ادعایی دربارهٔ درست/غلط فرستاده نمی‌شود — سرور خودش payload
+       پرسش را می‌خواند و مقایسه می‌کند. */
+    if (state.attempts === 1) {
+      const placements = order
+        .map((tokenId) => {
+          const pieceId = state.placementsByTokenId[tokenId];
+          const piece = pieceId ? prepared.pieceById.get(pieceId) : undefined;
+          return piece ? { tokenId, roleKey: piece.roleKey } : null;
+        })
+        .filter((placement): placement is { tokenId: string; roleKey: string } => placement !== null);
+
+      void reportCircuitAttempt(prepared.question.id, placements);
+    }
+
     play("validationStart");
     return clearTimers;
   }, [
@@ -408,6 +428,7 @@ export default function GrammarCircuitGame() {
     play,
     prepared,
     reducedMotion,
+    state.attempts,
     state.epoch,
     state.phase,
     state.placementsByTokenId,

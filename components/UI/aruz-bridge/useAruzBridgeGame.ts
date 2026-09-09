@@ -27,6 +27,7 @@ import {
   type AruzBridgeSessionConfig,
 } from "@/lib/aruz-bridge/session";
 import type { AruzBridgeQuestion, GameState, Side } from "@/lib/aruz-bridge/types";
+import { reportBridgeRun, runOutcomes } from "@/lib/aruz-bridge/report";
 
 /**
  * مدتِ هر حالتِ خودکار، بر حسبِ میلی‌ثانیه.
@@ -269,6 +270,25 @@ export function useAruzBridgeGame({
      می‌شود تا دورِ تازه هم منتظر بماند. */
   const [sceneReady, setSceneReady] = useState(false);
   const markSceneReady = useCallback(() => setSceneReady(true), []);
+
+  /* ── ثبتِ نتیجهٔ دور در تاریخچهٔ آموزشی ──────────────────────────────────
+     ⚠️ یک بار در پایانِ دور، نه بعدِ هر پاسخ: یک درخواستِ شبکه وسطِ صحنهٔ
+     سه‌بعدی، لگِ محسوس می‌سازد.
+
+     `reportedEpochRef` جلوی ارسالِ تکراری را می‌گیرد: این اثر با هر رندرِ
+     دوباره‌ای که حالت را عوض نکند هم اجرا می‌شود، و بدونِ آن یک دور
+     می‌توانست چند بار در تاریخچه بنشیند و تحلیل را کج کند.
+
+     مهمان هم بازی می‌کند؛ سرور برای او چیزی ثبت نمی‌کند و ۲۰۰ برمی‌گرداند. */
+  const reportedEpochRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (machine.state !== "finished" && machine.state !== "gameOver") return;
+    if (reportedEpochRef.current === machine.epoch) return;
+    reportedEpochRef.current = machine.epoch;
+
+    void reportBridgeRun(runOutcomes(machine));
+  }, [machine]);
 
   /* ── ساعتِ بازی ────────────────────────────────────────────────────────── */
   /* یک تایمر برای هر حالت. کلیدِ اثر `[state, epoch]` است، پس هر گذارِ

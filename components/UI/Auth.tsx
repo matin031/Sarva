@@ -23,7 +23,14 @@ const itemVariants: Variants = {
   },
 };
 
-function Auth({ googleEnabled }: { googleEnabled: boolean }) {
+function Auth({
+  googleEnabled,
+  /** مقصدِ بعد از ورود؛ سرور آن را از allowlist رد کرده است. */
+  returnTo = "/panel/home",
+}: {
+  googleEnabled: boolean;
+  returnTo?: string;
+}) {
   const [isLogin, setIsLogin] = useState(true);
   const handleSuccess = (mobile: string) => {
     console.log("شماره موبایل تأیید شد:", mobile);
@@ -65,6 +72,7 @@ function Auth({ googleEnabled }: { googleEnabled: boolean }) {
               setIsLogin={setIsLogin}
               onSuccess={handleSuccess}
               googleEnabled={googleEnabled}
+              returnTo={returnTo}
             />
           </motion.div>
         </motion.div>
@@ -102,6 +110,7 @@ function Auth({ googleEnabled }: { googleEnabled: boolean }) {
               setIsLogin={setIsLogin}
               onSuccess={handleSuccess}
               googleEnabled={googleEnabled}
+              returnTo={returnTo}
             />
           </motion.div>
         </motion.div>

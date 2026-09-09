@@ -98,7 +98,20 @@ export type AuditAction =
   // گزارش محتوا
   | "report.status"
   | "report.note"
-  | "report.delete";
+  | "report.delete"
+  // سروا پلاس
+  | "plus.plan_create"
+  | "plus.plan_update"
+  | "plus.plan_version_create"
+  | "plus.plan_version_sellable"
+  | "plus.grant"
+  | "plus.extend"
+  | "plus.revoke"
+  | "plus.order_status"
+  | "plus.order_reconcile"
+  | "plus.pilot_activate"
+  | "plus.ticket_reply"
+  | "plus.ticket_status";
 
 export type AuditTargetType =
   | "user"
@@ -120,7 +133,12 @@ export type AuditTargetType =
   | "announcement"
   | "supporter"
   | "database"
-  | "report";
+  | "report"
+  | "plus_plan"
+  | "plus_plan_version"
+  | "plus_order"
+  | "plus_entitlement"
+  | "plus_ticket";
 
 /** متن فارسیِ نمایشیِ هر عمل. اینجا و نه در دیتابیس، تا عوض کردن عبارت به
  *  migration نیاز نداشته باشد. */
@@ -173,6 +191,18 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "report.status": "تغییر وضعیت گزارش",
   "report.note": "یادداشت روی گزارش",
   "report.delete": "حذف گزارش",
+  "plus.plan_create": "ساخت پلن سروا پلاس",
+  "plus.plan_update": "ویرایش پلن سروا پلاس",
+  "plus.plan_version_create": "ساخت نسخهٔ قیمتی تازه",
+  "plus.plan_version_sellable": "تغییر وضعیت فروش نسخه",
+  "plus.grant": "اعطای دسترسی سروا پلاس",
+  "plus.extend": "تمدید دستی دسترسی",
+  "plus.revoke": "لغو دسترسی سروا پلاس",
+  "plus.order_status": "تغییر وضعیت سفارش",
+  "plus.order_reconcile": "بازبینی پرداخت سفارش",
+  "plus.pilot_activate": "فعال‌سازی آزمایشی سفارش",
+  "plus.ticket_reply": "پاسخ به تیکت پشتیبانی",
+  "plus.ticket_status": "تغییر وضعیت تیکت",
 };
 
 /** عمل‌هایی که برگشت‌ناپذیرند — در پنل با رنگ متفاوت دیده می‌شوند. */
@@ -199,6 +229,10 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   // فیلترِ «فقط کارهای برگشت‌ناپذیر» در پنل باید *همهٔ* آن‌ها را نشان بدهد.
   "sql.execute",
   "report.delete",
+  // ⚠️ لغو دسترسی و تغییر دستیِ وضعیت سفارش هر دو پولِ کاربر را لمس می‌کنند
+  // و باید در فهرستِ «کارهای برگشت‌ناپذیر» دیده شوند.
+  "plus.revoke",
+  "plus.order_status",
 ]);
 
 /**

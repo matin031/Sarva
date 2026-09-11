@@ -65,7 +65,7 @@ function LogoReveal() {
               preserveAspectRatio="xMidYMid meet"
             >
               <path
-                className="lr-pen-line"
+                className="lr-pen-line logo-stroke-1"
                 d="M507 941 L507 560"
                 fill="none"
                 stroke="#0DBFC3"

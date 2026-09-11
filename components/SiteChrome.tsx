@@ -89,7 +89,7 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
       {/* پاورقیِ بزرگ نباید با بازیِ در جریان رقابت کند. */}
       {chrome === "off" && <Footer />}
       {chrome !== "fullscreen" && !isGalaxy && (
-        <GeometricPattern className="z-10 fixed text-gold h-screen" opacity={0.06} />
+        <GeometricPattern className="z-10 fixed h-screen" opacity={0.06} />
       )}
     </SiteContentProvider>
   );

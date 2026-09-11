@@ -26,6 +26,7 @@
     "host:sql": "node scripts/cpanel/make-sql.mjs",
     "host:build": "node scripts/cpanel/build-package.mjs",
     "db:check-snippets": "tsx --conditions=react-server scripts/mysql/check-snippets.ts",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "seo:check": "node scripts/check-seo.mjs",
     "seo:render": "node scripts/check-render.mjs",
     "seo:perf": "node scripts/check-perf.mjs",

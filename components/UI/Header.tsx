@@ -6,6 +6,7 @@ import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, MessageSquare, Mus
 import { useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
 import MainLogo from "../svgs/mainLogo";
 import DarkModeButton from "./DarkModeButton";
+import PaletteButton from "./PaletteButton";
 import PlusBadge from "./PlusBadge";
 import SarvaStar from "./SarvaStar";
 import styles from "./header.module.css";
@@ -67,7 +68,7 @@ export default function Header({ compact = false }: { compact?: boolean }) {
         <Link href={user ? "/panel/home" : "/auth"} className={styles.account} aria-label={user ? "پنل کاربری" : "ورود به سروا"}>
           {user ? <><UserRound size={20} aria-hidden /><span>{user.fullName || "پنل کاربری"}</span></> : "ورود"}
         </Link>
-        <div className={styles.theme}><DarkModeButton /></div>
+        <div className={styles.theme}><PaletteButton /><DarkModeButton /></div>
       </div>
     </nav>
   );

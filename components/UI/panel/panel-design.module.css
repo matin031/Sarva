@@ -3,10 +3,13 @@
   isolation: isolate;
   background: radial-gradient(ellipse at 80% 0%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 48%), radial-gradient(ellipse at 0% 65%, color-mix(in oklch, var(--gold) 7%, transparent), transparent 48%), var(--background);
 }
-.pattern { position: absolute; inset: 0; z-index: -1; overflow: hidden; color: var(--primary); pointer-events: none; }
+/* رنگِ الگو از --pattern-color می‌آید (globals.css)، نه از اینجا. */
+.pattern { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .sidebar { margin: 16px 16px 16px 0; top: 16px; height: calc(100dvh - 32px); width: 256px; border: 1px solid color-mix(in oklch, var(--primary) 17%, var(--border)); border-radius: 26px; background: color-mix(in oklch, var(--card) 90%, transparent); box-shadow: 0 12px 48px #00000009; }
 .brand { border-bottom: 1px solid var(--border); padding: 8px 8px 21px; }
-.brandMark { width: 46px; height: 46px; border-radius: 16px; background: linear-gradient(140deg, #36c7bd, #007d7f); color: #fff; box-shadow: 0 5px 18px #00868725; }
+/* مربعِ نشانِ سایدبار. گرادیانش هم مثل خودِ لوگو از --logo-1 و --primary
+   می‌آید، وگرنه تنها تکهٔ فیروزه‌ای‌مانده وسطِ پنلِ پالت‌شده بود. */
+.brandMark { width: 46px; height: 46px; border-radius: 16px; background: linear-gradient(140deg, var(--logo-1), var(--primary)); color: #fff; box-shadow: 0 5px 18px color-mix(in oklch, var(--primary) 15%, transparent); }
 .nav { display: flex; flex-direction: column; gap: 18px; }
 .navScroll { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--muted-foreground) 25%, transparent) transparent; }
 .shell :global(.text-gold) { color: var(--gold-ink); }

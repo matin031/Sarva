@@ -4,13 +4,22 @@ interface GeometricPatternProps {
   opacity?: number;
 }
 
+/* ⚠️ رنگ از `--pattern-color` می‌آید (کلاسِ `sarva-pattern` در globals.css) و
+   نه از رنگِ ارث‌رسیده از والد.
+
+   پیش از این هر کال‌سایت رنگِ خودش را روی والد می‌گذاشت — سایت `text-gold`،
+   پنل و صفحهٔ پلاس `var(--primary)` — یعنی یک الگوی واحد با سه منبعِ رنگ.
+   با اضافه شدنِ پالت‌ها این یعنی سه جا برای فراموش کردن. حالا یک توکن است و
+   با عوض شدنِ `data-palette` خودش عوض می‌شود؛ هیچ prop‌ای اینجا یا در
+   کال‌سایت‌ها لازم نیست. `opacity` همچنان prop است، چون هر زمینه‌ای غلظتِ
+   خودش را می‌خواهد. */
 export function GeometricPattern({
   className = "",
   opacity = 0.08,
 }: GeometricPatternProps) {
   return (
     <svg
-      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      className={`sarva-pattern absolute inset-0 w-full h-full pointer-events-none ${className}`}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>

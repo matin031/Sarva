@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Menu, ArrowUpLeft, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import DarkModeButton from "@/components/UI/DarkModeButton";
+import PaletteButton from "@/components/UI/PaletteButton";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/UI/kit/sheet";
 import { usePanelUi } from "@/lib/panel/ui-store";
 import { titleOf } from "./nav";
@@ -51,6 +52,7 @@ export default function PanelTopbar() {
           <span className="sr-only sm:hidden">بازگشت به سروا</span>
           <ArrowUpLeft aria-hidden className="size-4" />
         </Link>
+        <PaletteButton />
         <DarkModeButton />
       </div>
     </header>

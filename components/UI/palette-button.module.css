@@ -1,0 +1,153 @@
+.trigger {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  transition: background 160ms, color 160ms;
+}
+
+.trigger:hover,
+.trigger[data-state="open"] {
+  background: color-mix(in oklch, var(--primary) 14%, var(--secondary));
+  color: var(--primary);
+}
+
+.trigger svg {
+  transition: transform 200ms ease;
+}
+
+.trigger:hover svg,
+.trigger[data-state="open"] svg {
+  transform: rotate(-12deg);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.menu {
+  z-index: 300;
+  direction: rtl;
+  width: 268px;
+  max-width: calc(100vw - 24px);
+  padding: 14px;
+  border: 1px solid color-mix(in oklch, var(--primary) 20%, var(--border));
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 20px 65px #0003;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: paletteIn 170ms ease-out;
+}
+
+.title {
+  margin-bottom: 10px;
+  padding-inline: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 2px 7px;
+  border-radius: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.item:hover,
+.item[data-highlighted] {
+  background: color-mix(in oklch, var(--primary) 9%, transparent);
+}
+
+/* دایرهٔ نمونه: دو رنگِ هر پالت — رنگِ اصلی و رنگِ تزئینی — روی یک دایره.
+   با یک رنگ، «هلویی» و «غروب» تقریباً یکی دیده می‌شدند. */
+.swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--sw-1) 0 52%, var(--sw-2) 52% 100%);
+  box-shadow:
+    inset 0 0 0 1px #0000001a,
+    0 2px 7px #00000014;
+  transition: transform 160ms ease;
+}
+
+.item:hover .swatch,
+.item[data-highlighted] .swatch {
+  transform: scale(1.09);
+}
+
+/* ⚠️ حلقهٔ انتخاب **تنها نشانهٔ انتخاب نیست**؛ تیکِ داخلِ دایره هم هست.
+   حلقه‌ای که رنگش از خودِ پالت می‌آید، برای کسی که رنگ را تشخیص نمی‌دهد
+   هیچ اطلاعاتی ندارد. (همان قاعدهٔ `.plus-badge`: هرگز فقط رنگ.) */
+.item[data-state="checked"] .swatch {
+  box-shadow:
+    inset 0 0 0 1px #0000001a,
+    0 0 0 2px var(--card),
+    0 0 0 4px var(--primary);
+}
+
+.check {
+  color: #fff;
+  filter: drop-shadow(0 1px 2px #0006);
+}
+
+.label {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.item[data-state="checked"] .label {
+  color: var(--primary);
+}
+
+@keyframes paletteIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .trigger {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+  .trigger svg,
+  .swatch {
+    transition: none;
+  }
+}

@@ -1,6 +1,7 @@
 /* Motion changes only transforms and opacity; the decorative layers stay small. */
 .page { position: relative; overflow: clip; background: var(--background); isolation: isolate; }
-.bgPattern { position: absolute; inset: 0; color: var(--primary); pointer-events: none; opacity: .6; mask-image: linear-gradient(transparent, #000 12%, #000 85%, transparent); }
+/* رنگِ الگو از --pattern-color می‌آید (globals.css)، نه از اینجا. */
+.bgPattern { position: absolute; inset: 0; pointer-events: none; opacity: .6; mask-image: linear-gradient(transparent, #000 12%, #000 85%, transparent); }
 .chromeTop { position: relative; z-index: 40; }
 .hero { position: relative; display: grid; place-items: center; min-height: min(810px, calc(100svh - 80px)); padding: 78px 24px 40px; text-align: center; }
 .hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 62%); }

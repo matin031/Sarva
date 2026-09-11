@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
 import SiteChrome from "@/components/SiteChrome";
 import LogoReveal from "@/components/UI/LogoReveal";
+import { DEFAULT_PALETTE, PALETTE_INIT_SCRIPT } from "@/lib/theme/palette";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -136,6 +137,9 @@ export default function RootLayout({
   return (
     <html
       lang="fa"
+      /* پالتِ پیش‌فرض در HTMLِ سرور؛ اسکریپتِ اولِ <body> اگر کاربر چیزِ
+         دیگری انتخاب کرده باشد، پیش از اولین رنگ‌آمیزی عوضش می‌کند. */
+      data-palette={DEFAULT_PALETTE}
       className={`${vazirmatn.variable} ${naskh.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
@@ -144,6 +148,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="text-right  flex flex-col min-h-screen">
+        {/* ⚠️ باید اولین چیزِ داخلِ <body> بماند. یک اسکریپتِ همگامِ کوچک که
+            پیش از رنگ‌آمیزیِ بقیهٔ صفحه اجرا می‌شود و پالتِ ذخیره‌شده را روی
+            <html> می‌نشاند. اگر پایین‌تر می‌رفت — یا به یک useEffect سپرده
+            می‌شد — کاربر در هر بار باز کردنِ هر صفحه یک پرشِ رنگ می‌دید. */}
+        <script dangerouslySetInnerHTML={{ __html: PALETTE_INIT_SCRIPT }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

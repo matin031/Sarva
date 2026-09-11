@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PlusPowerSwitch from "./PlusPowerSwitch";
 import { useState, useTransition } from "react";
 import {
   adminCreatePlan,
@@ -81,18 +82,24 @@ export default function PlusAdminPanel({
           </p>
         </div>
 
-        {/* ⚠️ کلیدِ اصلیِ روشن/خاموش عمداً اینجا نیست: جایش «تنظیمات» است،
-            کنارِ بقیهٔ کلیدهای سایت. اینجا فقط وضعیتش گفته می‌شود و یک
-            میان‌بُر، تا مدیر دنبالش نگردد. */}
+        {/* میان‌بُر به بقیهٔ تنظیماتِ پلاس — مهلتِ هشدار، درگاه، شرایط خرید. */}
         <Link
           href="/admin/settings"
-          className={`rounded-xl border px-3 py-1.5 text-xs font-bold ${
-            plusEnabled ? "border-primary/50 text-primary" : "border-border text-muted-foreground"
-          }`}
+          className="rounded-xl border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          {plusEnabled ? "سروا پلاس روشن است" : "سروا پلاس خاموش است"} — تغییر در تنظیمات
+          بقیهٔ تنظیمات پلاس
         </Link>
       </header>
+
+      {/* ⚠️ کلیدِ روشن/خاموش **اینجا**ست، و این تغییرِ نظرِ عمدی است.
+          پیش از این فقط یک لینک بود به «تنظیمات» با این استدلال که کلید باید
+          کنارِ بقیهٔ کلیدهای سایت بماند. آن استدلال روی کاغذ درست بود و در
+          عمل شکست خورد: آن تنظیم یک `select` در میانِ ورودی‌های ایمیل و
+          پیامک بود و مالک بارها دنبالش گشت و پیدایش نکرد.
+
+          هر دو جا همان `plus.enabled` را می‌نویسند و از همان
+          `adminSetSetting` رد می‌شوند؛ پس دو رابط است و نه دو منبعِ حقیقت. */}
+      <PlusPowerSwitch enabled={plusEnabled} />
 
       <nav className="flex gap-2 overflow-x-auto">
         {(
@@ -181,6 +188,8 @@ function PlansTab({
   const [days, setDays] = useState("30");
 
   const [priceDraft, setPriceDraft] = useState<Record<string, string>>({});
+  /** قیمتِ پیش از تخفیف. خالی یعنی این نسخه تخفیف ندارد. */
+  const [compareDraft, setCompareDraft] = useState<Record<string, string>>({});
 
   async function createPlan() {
     const result = await adminCreatePlan({
@@ -201,10 +210,15 @@ function PlansTab({
     const result = await adminCreatePlanVersion({
       planId,
       amountTomans: Number(raw),
+      // ⚠️ رشتهٔ خام می‌رود و نه `Number(...)`. ورودیِ خالی با `Number("")`
+      // صفر می‌شود و صفر از «تخفیف نده» قابلِ تفکیک نیست؛ سرور خودش خالی
+      // بودن را تشخیص می‌دهد.
+      compareAtTomans: compareDraft[planId] ?? "",
       makeSellable: true,
     });
     if (!result.ok) return onError(result.errors.join("\n"));
     setPriceDraft((prev) => ({ ...prev, [planId]: "" }));
+    setCompareDraft((prev) => ({ ...prev, [planId]: "" }));
     onDone("نسخهٔ تازه ساخته شد و برای فروش فعال است.");
   }
 
@@ -271,6 +285,11 @@ function PlansTab({
                 >
                   <span>
                     نسخهٔ {fa(version.version)} — <b>{formatRials(version.amountRials)}</b>{" "}
+                    {version.compareAtRials !== null && (
+                      <span className="text-xs text-muted-foreground line-through">
+                        {formatRials(version.compareAtRials)}
+                      </span>
+                    )}{" "}
                     <span className="text-xs text-muted-foreground">
                       ({fa(version.durationDays)} روز • {fa(version.orderCount)} سفارش)
                     </span>
@@ -299,6 +318,12 @@ function PlansTab({
                 label="قیمت تازه (تومان)"
                 value={priceDraft[plan.id] ?? ""}
                 onChange={(value) => setPriceDraft((prev) => ({ ...prev, [plan.id]: value }))}
+                placeholder="۱۴۹۰۰۰"
+              />
+              <Input
+                label="قیمت پیش از تخفیف (اختیاری)"
+                value={compareDraft[plan.id] ?? ""}
+                onChange={(value) => setCompareDraft((prev) => ({ ...prev, [plan.id]: value }))}
                 placeholder="۱۹۹۰۰۰"
               />
               <button
@@ -313,7 +338,10 @@ function PlansTab({
             <p className="text-[11px] leading-relaxed text-muted-foreground">
               قیمتِ نسخهٔ موجود قابلِ ویرایش نیست. تغییر قیمت یعنی ساختِ نسخهٔ
               تازه؛ نسخهٔ قبلی می‌ماند تا فاکتورِ خریدهای گذشته دست‌نخورده
-              بماند.
+              بماند. «قیمت پیش از تخفیف» را خالی بگذارید تا تخفیفی نمایش داده
+              نشود؛ اگر پرش کنید همان عدد خط‌خورده کنارِ قیمت می‌آید و درصدش
+              خودکار حساب می‌شود — پس باید قیمتِ <b>واقعیِ</b> قبلی باشد، نه
+              عددی بزرگ‌تر برای ساختنِ تخفیفِ ساختگی.
             </p>
           </section>
         ))

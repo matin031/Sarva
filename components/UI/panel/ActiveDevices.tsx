@@ -1,143 +1,171 @@
 "use client";
 
 import { useState } from "react";
-import { apiDelete, apiGet } from "@/lib/api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LaptopMinimal, LogOut } from "lucide-react";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { Button } from "@/components/UI/kit/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/kit/card";
+import { apiDelete, apiGet } from "@/lib/api/client";
+import { cn } from "@/lib/cn";
+import { fa } from "@/lib/panel/format";
 import type { DeviceRow } from "@/lib/auth/devices";
 
 /**
  * دستگاه‌هایی که با این حساب وارد شده‌اند.
  *
- * انگیزه‌اش عملی است: دانش‌آموزی که روی رایانهٔ مدرسه یا گوشی دوستش لاگین
- * مانده، تا امروز هیچ راهی برای بستن آن نداشت — نه می‌توانست ببیندش و نه
- * ببنددش. تنها راه، عوض کردن رمز بود، که کارِ درستی است ولی نباید تنها راه
- * باشد.
+ * انگیزه‌اش عملی است: دانش‌آموزی که روی رایانهٔ مدرسه یا گوشیِ دوستش وارد
+ * مانده، باید بتواند ببیندش و ببنددش — بدونِ عوض کردنِ رمز.
  *
- * سمت سرور `listActiveSessions` از ابتدا وجود داشت و استفاده نمی‌شد.
+ * ⚠️ **این تنها جای پنل است که TanStack Query واقعاً کار می‌کند**، و دلیلش
+ * دقیقاً همین‌جاست: فهرست بعد از «خروج از همه» عوض می‌شود. نسخهٔ قبلی این
+ * را دستی اداره می‌کرد — یک `useState` برای فهرست، یک `reload()` دستی، و
+ * چهار state برای busy/error/message. حالا سرور منبعِ حقیقت است و
+ * `invalidateQueries` کارِ هر چهارتا را می‌کند.
  *
- * فهرست اول از سرور می‌آید (`initial`) و نه از یک fetch در useEffect — همان
- * الگویی که بقیهٔ صفحه‌های پنل دارند. یعنی داده در همان رندر اول حاضر است، بدون
- * «در حال بارگذاری…» و بدون یک رفت‌وبرگشت اضافه.
+ * ⚠️ و `initialData` یعنی همچنان **بدونِ اسپینر** شروع می‌شود: فهرستِ اول از
+ * رندرِ سرور می‌آید، نه از یک رفت‌وبرگشتِ اضافه بعد از hydration.
  */
 
 function relative(iso: string | null): string {
   if (!iso) return "—";
   const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (min < 1) return "همین الان";
-  if (min < 60) return `${min.toLocaleString("fa-IR")} دقیقه پیش`;
+  if (min < 60) return `${fa(min)} دقیقه پیش`;
   const hours = Math.floor(min / 60);
-  if (hours < 24) return `${hours.toLocaleString("fa-IR")} ساعت پیش`;
+  if (hours < 24) return `${fa(hours)} ساعت پیش`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days.toLocaleString("fa-IR")} روز پیش`;
+  if (days < 30) return `${fa(days)} روز پیش`;
   return new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
 }
 
+const DEVICES_KEY = ["panel", "devices"] as const;
+
 export default function ActiveDevices({ initial }: { initial: DeviceRow[] }) {
-  const [sessions, setSessions] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  // فقط بعد از «خروج از همه» صدا زده می‌شود — نه در زمان mount.
-  const reload = async () => {
-    const result = await apiGet<{ sessions: DeviceRow[] }>("/api/v1/auth/sessions");
-    if (result.ok) setSessions(result.data.sessions);
-  };
+  const { data: sessions } = useQuery({
+    queryKey: DEVICES_KEY,
+    queryFn: async () => {
+      const result = await apiGet<{ sessions: DeviceRow[] }>("/api/v1/auth/sessions");
+      if (!result.ok) throw new Error(result.errors.join(" "));
+      return result.data.sessions;
+    },
+    initialData: initial,
+  });
 
-  const revokeAll = async () => {
-    setConfirming(false);
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-
-    const result = await apiDelete<{ revoked: number }>("/api/v1/auth/sessions");
-    setBusy(false);
-
-    if (!result.ok) {
-      setError(result.errors.join("\n"));
-      return;
-    }
-
-    // سرور بلافاصله یک سشن تازه برای همین مرورگر ساخته، پس کاربر بیرون
-    // نمی‌افتد — ولی فهرست باید از نو خوانده شود تا ردیف‌های بسته‌شده بروند.
-    await reload();
-    const others = Math.max(0, result.data.revoked - 1);
-    setMessage(
-      others > 0
-        ? `${others.toLocaleString("fa-IR")} دستگاه دیگر خارج شد. خودت وارد مانده‌ای.`
-        : "دستگاه دیگری وارد نبود.",
-    );
-  };
+  const revokeAll = useMutation({
+    mutationFn: async () => {
+      const result = await apiDelete<{ revoked: number }>("/api/v1/auth/sessions");
+      if (!result.ok) throw new Error(result.errors.join(" "));
+      return result.data.revoked;
+    },
+    onSuccess: (revoked) => {
+      // سرور بلافاصله یک سشنِ تازه برای همین مرورگر می‌سازد، پس کاربر بیرون
+      // نمی‌افتد — ولی فهرست باید از نو خوانده شود.
+      queryClient.invalidateQueries({ queryKey: DEVICES_KEY });
+      const others = Math.max(0, revoked - 1);
+      setMessage(
+        others > 0
+          ? `${fa(others)} دستگاه دیگر خارج شد. خودت وارد مانده‌ای.`
+          : "دستگاه دیگری وارد نبود.",
+      );
+    },
+  });
 
   return (
-    <section className="glass flex flex-col gap-4 rounded-2xl p-5">
-      <div>
-        <h3 className="font-semibold">دستگاه‌های وارد شده</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          هر جایی که با حساب خودت وارد شده‌ای. اگر چیزی را نمی‌شناسی، از همه خارج شو و رمزت را
-          عوض کن.
-        </p>
-      </div>
+    <Card data-tone="mint">
+      <CardHeader>
+        <CardTitle>دستگاه‌های وارد شده</CardTitle>
+        <CardDescription>
+          اگر دستگاهی را نمی‌شناسی، از همه خارج شو و رمزت را عوض کن.
+        </CardDescription>
+      </CardHeader>
 
-      {sessions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">دستگاه فعالی پیدا نشد.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {sessions.map((s) => (
-            <li
-              key={s.id}
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
-                s.current ? "border-primary/40 bg-primary/5" : "border-border"
-              }`}
-            >
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {s.device}
-                  {s.current && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">
-                      همین دستگاه
-                    </span>
+      <CardContent className="flex flex-col gap-4">
+        {sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">دستگاه فعالی پیدا نشد.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {sessions.map((s) => (
+              <li
+                key={s.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border p-3",
+                  s.current ? "border-primary/35 bg-primary/6" : "border-border/70",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "grid size-9 shrink-0 place-items-center rounded-lg",
+                    s.current ? "bg-primary/15 text-primary" : "bg-foreground/6 text-muted-foreground",
                   )}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  آخرین فعالیت {relative(s.lastUsedAt ?? s.createdAt)}
-                  {s.ip && (
-                    <>
-                      {" · "}
-                      <span dir="ltr">{s.ip}</span>
-                    </>
-                  )}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                >
+                  <LaptopMinimal className="size-4.5" strokeWidth={1.7} />
+                </span>
 
-      {message && <p className="text-sm text-primary">{message}</p>}
-      {error && <p className="text-sm text-destructive">{error}</p>}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {s.device}
+                    {s.current && (
+                      <span className="rounded-full bg-primary/15 px-2 text-[11px] text-primary">
+                        همین دستگاه
+                      </span>
+                    )}
+                  </p>
+                  <p className="panel-num mt-0.5 text-xs text-muted-foreground">
+                    آخرین فعالیت {relative(s.lastUsedAt ?? s.createdAt)}
+                    {s.ip && (
+                      <>
+                        {" · "}
+                        <span dir="ltr">{s.ip}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {sessions.length > 1 && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setConfirming(true)}
-          className="min-h-11 self-start rounded-xl border border-destructive/40 px-5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
-        >
-          {busy ? "در حال خروج…" : "خروج از همهٔ دستگاه‌های دیگر"}
-        </button>
-      )}
+        {message && <p className="text-sm text-primary">{message}</p>}
+        {revokeAll.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {revokeAll.error.message}
+          </p>
+        )}
 
-      <ConfirmDialog
-        open={confirming}
-        title="خروج از همهٔ دستگاه‌ها"
-        body="همهٔ دستگاه‌هایی که با حساب تو وارد شده‌اند خارج می‌شوند."
-        consequence="خودت وارد می‌مانی و لازم نیست دوباره رمز بزنی."
-        confirmLabel="از همه خارج شو"
-        onConfirm={revokeAll}
-        onCancel={() => setConfirming(false)}
-      />
-    </section>
+        {sessions.length > 1 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={revokeAll.isPending}
+            onClick={() => setConfirming(true)}
+            className="self-start border-destructive/40 text-destructive hover:border-destructive hover:bg-destructive/10"
+          >
+            <LogOut aria-hidden />
+            {revokeAll.isPending ? "در حال خروج…" : "خروج از همهٔ دستگاه‌های دیگر"}
+          </Button>
+        )}
+
+        <ConfirmDialog
+          open={confirming}
+          title="خروج از همهٔ دستگاه‌ها"
+          body="همهٔ دستگاه‌هایی که با حساب تو وارد شده‌اند خارج می‌شوند."
+          consequence="خودت وارد می‌مانی و لازم نیست دوباره رمز بزنی."
+          confirmLabel="از همه خارج شو"
+          onConfirm={() => {
+            setConfirming(false);
+            setMessage(null);
+            revokeAll.mutate();
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      </CardContent>
+    </Card>
   );
 }

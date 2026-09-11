@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { execute, query, queryOne } from "@/lib/db";
 import { logger } from "@/lib/observability";
 import type { PlusNotification, PlusNotificationKind } from "./types";
@@ -42,11 +43,16 @@ export type NotifyParams = {
  */
 export async function notify(params: NotifyParams): Promise<void> {
   try {
+    // ⚠️ `insert ignore` جای `on conflict … do nothing` را می‌گیرد: اگر
+    // اعلانی با همان `dedupe_key` برای همان کاربر باشد، ردیفِ دوم ساخته
+    // نمی‌شود. بدون آن، هشدارِ «۳ روز تا پایان اشتراک» هر بار که کاربر صفحه
+    // را باز می‌کند یک ردیفِ تازه می‌ساخت.
     await execute(
-      `insert into plus_notifications (user_id, kind, title, body, href, dedupe_key)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
+      `insert ignore into plus_notifications
+         (id, user_id, kind, title, body, href, dedupe_key)
+       values (?, ?, ?, ?, ?, ?, ?)`,
       [
+        randomUUID(),
         params.userId,
         params.kind,
         params.title,
@@ -80,9 +86,9 @@ export async function listNotifications(
   }>(
     `select id, kind, title, body, href, read_at, created_at
        from plus_notifications
-      where user_id = $1
+      where user_id = ?
       order by created_at desc, id
-      limit $2`,
+      limit ?`,
     [userId, Math.min(Math.max(limit, 1), 50)],
   );
 
@@ -99,7 +105,7 @@ export async function listNotifications(
 
 export async function countUnreadNotifications(userId: string): Promise<number> {
   const row = await queryOne<{ n: number }>(
-    `select count(*) as n from plus_notifications where user_id = $1 and read_at is null`,
+    `select count(*) as n from plus_notifications where user_id = ? and read_at is null`,
     [userId],
   );
   return row?.n ?? 0;
@@ -108,8 +114,8 @@ export async function countUnreadNotifications(userId: string): Promise<number> 
 /** همه را خوانده‌شده علامت می‌زند — شرطِ مالکیت در همان دستور. */
 export async function markNotificationsRead(userId: string): Promise<number> {
   return execute(
-    `update plus_notifications set read_at = now()
-      where user_id = $1 and read_at is null`,
+    `update plus_notifications set read_at = now(6)
+      where user_id = ? and read_at is null`,
     [userId],
   );
 }
@@ -134,7 +140,7 @@ export async function getUnreadWelcome(
   const row = await queryOne<{ id: string; kind: PlusNotificationKind }>(
     `select id, kind
        from plus_notifications
-      where user_id = $1
+      where user_id = ?
         and read_at is null
         and kind in ('plus_activated', 'plus_renewed')
       order by created_at desc
@@ -147,8 +153,8 @@ export async function getUnreadWelcome(
 /** یک اعلانِ مشخص را خوانده‌شده می‌کند — با شرطِ مالکیت در همان دستور. */
 export async function markNotificationRead(userId: string, id: string): Promise<void> {
   await execute(
-    `update plus_notifications set read_at = now()
-      where id = $1 and user_id = $2 and read_at is null`,
+    `update plus_notifications set read_at = now(6)
+      where id = ? and user_id = ? and read_at is null`,
     [id, userId],
   );
 }

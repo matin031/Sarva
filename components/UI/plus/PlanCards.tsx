@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatRials } from "@/lib/plus/money";
 import { fa } from "@/lib/panel/format";
 import type { PlusPlanOffer, PlusState } from "@/lib/plus/types";
+import AnimatedPlanCard from "./AnimatedPlanCard";
 
 /**
  * کارت‌های پلن روی صفحهٔ «سروا پلاس».
@@ -47,25 +48,39 @@ export default function PlanCards({
      همان یک کارت وسط و با عرضِ محدود می‌نشیند. */
   const single = offers.length === 1;
 
+  /* ⚠️ تعدادِ ستون از تعدادِ پلن‌ها می‌آید و ثابت نیست. با `sm:grid-cols-2`
+     ثابت، سه پلن یعنی دو کارت بالا و یکی تنها در ردیفِ دوم — که شبیهِ
+     «یکی جا مانده» است و نه یک انتخابِ سه‌گانه. */
+  const columns =
+    single ? "mx-auto max-w-sm" : offers.length === 3
+      ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      : "grid gap-4 sm:grid-cols-2";
+
   return (
-    <div className={single ? "mx-auto max-w-sm" : "grid gap-4 sm:grid-cols-2"}>
+    <div className={columns}>
       {offers.map((offer, index) => {
         // «پیشنهاد ما» فقط روی پلنی که واقعاً صرفه‌جویی دارد — نه روی
         // گران‌ترین پلن به‌عنوان یک ترفندِ فروش.
         const highlighted = offer.savingPercent !== null && offer.savingPercent >= 10;
 
         return (
-          <article
+          <AnimatedPlanCard
             key={offer.planVersionId}
-            className={`relative flex flex-col gap-4 rounded-2xl p-6 transition-all ${
-              highlighted ? "plus-surface" : "glass"
-            }`}
+            index={index}
+            className="flex flex-col gap-4 rounded-2xl p-6"
           >
-            {highlighted && (
+            {/* ⚠️ نشانِ تخفیف بر نشانِ «به‌صرفه‌تر» اولویت دارد و هر دو
+                هم‌زمان نشان داده نمی‌شوند: دو برچسب روی یک کارت، هیچ‌کدام
+                خوانده نمی‌شوند. */}
+            {offer.discountPercent !== null ? (
+              <span className="absolute -top-3 right-6 rounded-full border border-gold/40 bg-background px-3 py-0.5 text-[11px] font-bold plus-ink">
+                {fa(offer.discountPercent)}٪ تخفیف
+              </span>
+            ) : highlighted ? (
               <span className="absolute -top-3 right-6 rounded-full border border-gold/40 bg-background px-3 py-0.5 text-[11px] font-bold plus-ink">
                 ✦ به‌صرفه‌تر
               </span>
-            )}
+            ) : null}
 
             <header className="space-y-1">
               <h3 className="text-lg font-bold">{offer.title}</h3>
@@ -74,10 +89,20 @@ export default function PlanCards({
               )}
             </header>
 
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               {/* ⚠️ واحد همیشه کنارِ عدد است. «۱۹۹۰۰۰» بدونِ واحد یعنی
                   کاربر باید حدس بزند ریال است یا تومان. */}
               <span className="text-2xl font-extrabold">{formatRials(offer.amountRials)}</span>
+
+              {/* ⚠️ قیمتِ خط‌خورده فقط وقتی می‌آید که مدیر عددِ *واقعیِ*
+                  قبلی را ثبت کرده باشد. اینجا هیچ عددی ساخته نمی‌شود؛ اگر
+                  ستون خالی باشد هیچ خط‌خوردگی‌ای وجود ندارد. */}
+              {offer.compareAtRials !== null && (
+                <span className="text-sm text-muted-foreground line-through decoration-muted-foreground/60">
+                  {formatRials(offer.compareAtRials)}
+                </span>
+              )}
+
               <span className="text-sm text-muted-foreground">
                 برای {fa(offer.durationDays)} روز
               </span>
@@ -113,7 +138,7 @@ export default function PlanCards({
             >
               {ctaLabel}
             </Link>
-          </article>
+          </AnimatedPlanCard>
         );
       })}
     </div>

@@ -75,8 +75,8 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
               where o.question_id = q.id and o.is_correct limit 1) as correct_label
        from user_answers ua
        join questions q on q.id = ua.question_id
-      where ua.user_id = $1
-      limit $2`,
+      where ua.user_id = ?
+      limit ?`,
     [userId, SOURCE_ROW_CAP],
   );
 
@@ -96,9 +96,9 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
   const bridgeRows = await query<{ correct_pattern: string; is_correct: boolean }>(
     `select correct_pattern, is_correct
        from aruz_bridge_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
-      limit $2`,
+      limit ?`,
     [userId, SOURCE_ROW_CAP],
   );
 
@@ -120,9 +120,9 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
   const jasoosRows = await query<{ correct_role: string; is_correct: boolean }>(
     `select correct_role, is_correct
        from jasoos_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
-      limit $2`,
+      limit ?`,
     [userId, SOURCE_ROW_CAP],
   );
 
@@ -136,9 +136,9 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
   const circuitRows = await query<{ role_key: string; is_correct: boolean }>(
     `select role_key, is_correct
        from grammar_circuit_answers
-      where user_id = $1
+      where user_id = ?
       order by answered_at desc
-      limit $2`,
+      limit ?`,
     [userId, SOURCE_ROW_CAP],
   );
 
@@ -198,41 +198,41 @@ export async function getMistakeBook(
       `select q.poem, ua.answered_at
          from user_answers ua
          join questions q on q.id = ua.question_id
-        where ua.user_id = $1 and not ua.is_correct
+        where ua.user_id = ? and ua.is_correct = 0
         order by ua.answered_at desc
-        limit $2`,
+        limit ?`,
       [userId, cap],
     ),
     query<{ phrase: string; correct_pattern: string; answered_at: string }>(
       `select phrase, correct_pattern, answered_at
          from aruz_bridge_answers
-        where user_id = $1 and not is_correct
+        where user_id = ? and is_correct = 0
         order by answered_at desc
-        limit $2`,
+        limit ?`,
       [userId, cap],
     ),
     query<{ word: string; meaning: string; answered_at: string }>(
       `select word, meaning, answered_at
          from vocab_answers
-        where user_id = $1 and not is_correct
+        where user_id = ? and is_correct = 0
         order by answered_at desc
-        limit $2`,
+        limit ?`,
       [userId, cap],
     ),
     query<{ verse_line_1: string; correct_role: string; answered_at: string }>(
       `select verse_line_1, correct_role, answered_at
          from jasoos_answers
-        where user_id = $1 and not is_correct
+        where user_id = ? and is_correct = 0
         order by answered_at desc
-        limit $2`,
+        limit ?`,
       [userId, cap],
     ),
     query<{ token_text: string; role_key: string; answered_at: string }>(
       `select token_text, role_key, answered_at
          from grammar_circuit_answers
-        where user_id = $1 and not is_correct
+        where user_id = ? and is_correct = 0
         order by answered_at desc
-        limit $2`,
+        limit ?`,
       [userId, cap],
     ),
   ]);
@@ -365,20 +365,23 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
 
 /** اشتباه‌های یک ماه اخیر در همهٔ تمرین‌ها — فقط یک عدد، بدونِ کشیدنِ ردیف‌ها. */
 async function countRecentMistakes(userId: string): Promise<number> {
+  // ⚠️ پنج زیرکوئری و پنج بار `?`: در MySQL هر `?` پارامترِ بعدی را مصرف
+  // می‌کند، پس شناسهٔ کاربر پنج بار فرستاده می‌شود. (در Postgres `$1` پنج بار
+  // نوشته می‌شد و یک بار فرستاده — `lib/db` عمداً این تفاوت را پنهان نمی‌کند.)
   const row = await queryOne<{ n: number }>(
     `select
        (select count(*) from user_answers
-         where user_id = $1 and not is_correct and answered_at > now() - interval '30 days')
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from aruz_bridge_answers
-         where user_id = $1 and not is_correct and answered_at > now() - interval '30 days')
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from vocab_answers
-         where user_id = $1 and not is_correct and answered_at > now() - interval '30 days')
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from jasoos_answers
-         where user_id = $1 and not is_correct and answered_at > now() - interval '30 days')
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from grammar_circuit_answers
-         where user_id = $1 and not is_correct and answered_at > now() - interval '30 days')
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
        as n`,
-    [userId],
+    [userId, userId, userId, userId, userId],
   );
   return row?.n ?? 0;
 }
@@ -400,27 +403,35 @@ export type ProgressPoint = { week: string; total: number; correct: number };
 export async function getProgressTrend(userId: string, weeks = 8): Promise<ProgressPoint[]> {
   const span = Math.min(Math.max(weeks, 2), 26);
 
-  const rows = await query<{ week: string; total: number; correct: number }>(
+  const rows = await query<{ week_start: string; total: number; correct: number }>(
+    // ⚠️ سه چیزِ Postgres اینجا معادلِ MySQL گرفته‌اند:
+    //   • `date_trunc('week', …)` نیست → `weekday()` شمارهٔ روز از دوشنبه
+    //     می‌دهد، پس کم‌کردنش تاریخ را به ابتدای هفته می‌برد.
+    //   • `count(*) filter (where …)` نیست → `sum(shart)` که در MySQL روی
+    //     ۰/۱ جمع می‌زند و همان عدد را می‌دهد.
+    //   • `make_interval(weeks => …)` نیست → `interval ? week`.
+    //
+    // شش بار `?` : پنج تا برای شناسهٔ کاربر در پنج جدول، یکی برای بازهٔ هفته.
     `with answers as (
-       select answered_at, is_correct from user_answers where user_id = $1
+       select answered_at, is_correct from user_answers where user_id = ?
        union all
-       select answered_at, is_correct from aruz_bridge_answers where user_id = $1
+       select answered_at, is_correct from aruz_bridge_answers where user_id = ?
        union all
-       select answered_at, is_correct from jasoos_answers where user_id = $1
+       select answered_at, is_correct from jasoos_answers where user_id = ?
        union all
-       select answered_at, is_correct from grammar_circuit_answers where user_id = $1
+       select answered_at, is_correct from grammar_circuit_answers where user_id = ?
        union all
-       select answered_at, is_correct from vocab_answers where user_id = $1
+       select answered_at, is_correct from vocab_answers where user_id = ?
      )
-     select date_trunc('week', answered_at)::text as week,
+     select date_sub(date(answered_at), interval weekday(answered_at) day) as week_start,
             count(*) as total,
-            count(*) filter (where is_correct) as correct
+            sum(is_correct = 1) as correct
        from answers
-      where answered_at > now() - make_interval(weeks => $2::int)
-      group by 1
-      order by 1`,
-    [userId, span],
+      where answered_at > now(6) - interval ? week
+      group by week_start
+      order by week_start`,
+    [userId, userId, userId, userId, userId, span],
   );
 
-  return rows.map((r) => ({ week: r.week, total: r.total, correct: r.correct }));
+  return rows.map((r) => ({ week: r.week_start, total: Number(r.total), correct: Number(r.correct) }));
 }

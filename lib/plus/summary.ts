@@ -49,12 +49,14 @@ export const getPlusSummaryFor = cache(async (userId: string): Promise<PlusSumma
       // یک رفت‌وبرگشت برای هر دو شمارنده. هر دو زیرکوئری روی ایندکسِ جزئیِ
       // خودشان می‌نشینند (`plus_notifications_unread_idx` و
       // `plus_tickets_user_idx`)، پس هیچ‌کدام جدول را اسکن نمی‌کنند.
+      // ⚠️ در MySQL هر `?` پارامترِ بعدی را مصرف می‌کند؛ `userId` دوبار در
+      // کوئری آمده پس دوبار هم فرستاده می‌شود.
       `select
          (select count(*) from plus_notifications
-           where user_id = $1 and read_at is null) as notifications,
+           where user_id = ? and read_at is null) as notifications,
          (select count(*) from plus_tickets
-           where user_id = $1 and user_unread) as tickets`,
-      [userId],
+           where user_id = ? and user_unread = 1) as tickets`,
+      [userId, userId],
     );
     unreadNotifications = row?.notifications ?? 0;
     unreadTickets = row?.tickets ?? 0;

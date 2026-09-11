@@ -1,425 +1,74 @@
 "use client";
-import { motion } from "motion/react";
-import MainLogo from "../svgs/mainLogo";
+
 import Link from "next/link";
-import DarkModeButton from "./DarkModeButton";
-import { useEffect, useRef, useState } from "react";
+import * as Menu from "@radix-ui/react-dropdown-menu";
+import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, MessageSquare, Music2, UserRound } from "lucide-react";
 import { useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
+import MainLogo from "../svgs/mainLogo";
+import DarkModeButton from "./DarkModeButton";
 import PlusBadge from "./PlusBadge";
+import SarvaStar from "./SarvaStar";
+import styles from "./header.module.css";
 
-import { useRouter } from "next/navigation";
+const learningLinks = [
+  { title: "آزمون‌ها", href: "/exam", icon: FileText },
+  { title: "درسنامه", href: "/doroos", icon: BookOpen },
+  { title: "بازی‌ها", href: "/game", icon: Gamepad2 },
+  { title: "عروض", href: "/aruz", icon: Activity },
+  { title: "کلاب", href: "/sarvaclub", icon: MessageSquare },
+];
 
-/**
- * @param compact پوستهٔ جمع‌شده برای صفحه‌هایی که تمامِ ارتفاع را لازم دارند
- *   (مثلاً بازیِ در جریان). هویتِ سروا، تمِ روشن/تیره و ورود سرِ جایشان
- *   می‌مانند؛ فقط ناوبریِ ثانویه و فاصله‌های بزرگ جمع می‌شوند.
- *   پیش‌فرض خاموش است، پس هیچ صفحهٔ موجودی تغییر نمی‌کند.
- */
-function Header({ compact = false }: { compact?: boolean }) {
-  const router = useRouter();
-  // پیش‌تر این کامپوننت خودش supabase.auth.getUser() می‌زد و به
-  // onAuthStateChange گوش می‌داد. حالا هوک مشترک این کار را می‌کند و نتیجه را
-  // بین کامپوننت‌ها کش می‌کند، تا پنج کامپوننت روی یک صفحه پنج بار /me را صدا
-  // نزنند. جای onAuthStateChange را refreshCurrentUser/clearCurrentUser
-  // گرفته‌اند که فرم‌های ورود و خروج صدایشان می‌زنند.
+export default function Header({ compact = false }: { compact?: boolean }) {
   const { user } = useCurrentUser();
-  /* وضعیت پلاس از همان پاسخِ /me می‌آید که نامِ کاربر از آن خوانده می‌شود —
-     بدونِ درخواستِ دوم و بدونِ پرشِ چیدمان. */
   const { plus } = usePlusSummary();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
-  const [openMenuMobile, setOpenMenuMobile] = useState(false);
-
-  useEffect(() => {
-    function handleOutsideClick(e: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-
-
-  const nameRef = useRef<HTMLSpanElement>(null);
-  const [isOverflow, setIsOverflow] = useState(false);
-
-  useEffect(() => {
-    if (nameRef.current) {
-      const overflow =
-        nameRef.current.scrollWidth >
-        nameRef.current.parentElement!.clientWidth;
-      setIsOverflow(overflow);
-    }
-  }, [user]);
-
-  const menuItemsMobile = [
-    {
-      id: 1,
-      title: "آزمون‌ها",
-      src: "/exam",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 2,
-      title: "درسنامه",
-      src: "/doroos",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 3,
-      title: "بازی‌ها",
-      src: "/game",
-      icon: (
-        <svg
-          width="24"
-          height="24"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.8"
-          viewBox="0 0 24 24"
-        >
-          <path d="M6 12h4M8 10v4"></path>
-          <circle cx="16" cy="11" r="0.5" fill="currentColor"></circle>
-          <circle cx="18" cy="13" r="0.5" fill="currentColor"></circle>
-          <rect width="20" height="10" x="2" y="7" rx="5"></rect>
-        </svg>
-      ),
-    },
-    {
-      id: 4,
-      title: "عروض",
-      src: "/aruz",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 12h3l2.25-7.5 4.5 15 2.25-9 1.5 4.5h4.5"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 6,
-      title: "کلاب",
-      src: "/sarvaclub",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9a2.5 2.5 0 0 1 2.5 2.5V15a2.5 2.5 0 0 1-2.5 2.5h-6L5 21v-3.5A2.5 2.5 0 0 1 4 15V5.5Z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8 8h6M8 11.5h4"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 7,
-      title: "سروا پلاس",
-      src: "/plus",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 5,
-      title: "وزن‌یاب",
-      src: "/vazn-yab",
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="size-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
-          />
-        </svg>
-      ),
-    },
-  ];
-
-  /* ⚠️ متنِ این لینک با وضعیتِ کاربر عوض می‌شود و یک عبارتِ ثابتِ «خرید
-     اشتراک» نیست: کسی که اشتراک دارد نباید دکمهٔ خرید ببیند، و کسی که
-     اشتراکش تمام شده باید «تمدید» ببیند نه «آشنایی». وقتی کلِ پلاس خاموش
-     است، لینک اصلاً وجود ندارد. */
-  const plusLink =
+  const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
+  const plusTitle = plus.state === "expired" || plus.state === "revoked" ? "تمدید پلاس" : "سروا پلاس";
+  const links = [
+    ...learningLinks,
     plus.state === "off"
-      ? null
-      : plus.state === "active"
-        ? { id: 7, title: "سروا پلاس", src: "/panel/subscription" }
-        : plus.state === "expired" || plus.state === "revoked"
-          ? { id: 7, title: "تمدید پلاس", src: "/plus" }
-          : { id: 7, title: "سروا پلاس", src: "/plus" };
-
-  /* ⚠️ در ۳۶۰ پیکسل، دو لینکِ متنی کنارِ «فهرست» و نامِ کاربر، ردیفِ هدر را
-     به دو خط می‌شکست. پس لینکِ متنیِ پلاس فقط از `sm` به بالا دیده می‌شود و
-     در موبایل جایش داخلِ همان «فهرست» است (پایین). کاربرِ پلاس هم که نشانش
-     را کنارِ لوگو دارد. */
-
-  const menUItemsPc = [
-    // { id: 3, title: "بازی", src: "/game" },
-    // { id: 4, title: "عروض", src: "/aruz" },
-    ...(plusLink ? [plusLink] : []),
-    { id: 6, title: "راهنما", src: "/guide" },
+      ? { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 }
+      : { title: plusTitle, href: plusHref, icon: SarvaStar },
   ];
 
   return (
-    <nav
-      /* حالتِ جمع‌شده را پلِ وزن روشن می‌کند (lib/immersive-mode.ts). دو سازوکار
-         کنارِ همند و با هم تداخل ندارند: یکی سربرگ را کاملاً برمی‌دارد، دیگری
-         فقط فشرده‌اش می‌کند. */
-      className={`flex justify-between items-center flex-row-reverse container ${
-        compact ? "mt-1.5" : "mt-4"
-      }`}
-    >
-      <motion.div
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className={compact ? "rounded-2xl" : " sm:px-3 sm:py-1 rounded-2xl"}
-      >
-        {/* ⚠️ نشانِ پلاس *کنارِ* لینکِ لوگو می‌نشیند و نه داخلش: لینک درونِ
-            لینک HTML نامعتبر است و ناوبری با صفحه‌کلید را هم خراب می‌کند.
-            خودِ لوگوی سروا اصلاً دست نمی‌خورد. */}
-        <div className="flex items-center gap-x-2">
-          <Link
-            className="hover:brightness-90 gap-x-2 items-center flex"
-            href={"/"}
-          >
-            <h3
-              className={`hidden sm:block font-bold text-primary ${
-                compact ? "text-xl" : "text-3xl"
-              }`}
-            >
-              ســـروا
-            </h3>
-            <div
-              className="bg-linear-to-br transition-all flex
-           items-center justify-center "
-            >
-              <div
-                id="site-logo"
-                className={`text-primary-foreground ${compact ? "size-9" : "size-13"}`}
-              >
-                <MainLogo />
-              </div>
-            </div>
-          </Link>
-
-          {/* در موبایل فشرده («+») تا هدر در ۳۶۰ پیکسل نشکند. */}
-          <span className="hidden sm:inline-flex">
-            <PlusBadge />
-          </span>
-          <span className="inline-flex sm:hidden">
-            <PlusBadge compact />
-          </span>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: -40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className={`font-semibold flex items-center ${compact ? "gap-x-2" : "gap-x-4"}`}
-      >
-        <DarkModeButton />
-        {user ? (
+    <nav dir="rtl" aria-label="ناوبری اصلی" className={`container ${styles.header}`} data-compact={compact}>
+      <div className={styles.brand}>
+        <Link href="/" aria-label="سروا؛ صفحهٔ اصلی" className={styles.logo}>
+          <span id="site-logo" className={styles.logoMark}><MainLogo /></span>
+          <span className={styles.wordmark}>ســـروا</span>
+        </Link>
+        <span className="hidden sm:inline-flex"><PlusBadge /></span>
+        <span className="inline-flex sm:hidden"><PlusBadge compact /></span>
+      </div>
+      <div className={styles.actions}>
+        {!compact && (
           <>
-            <Link
-              href={"/panel/home"}
-              className="active:scale-95 px-4 py-1 rounded-lg text-sm transition-all
-               glass hover:bg-accent/70! overflow-hidden max-w-24 hidden sm:flex"
-            >
-              <span
-                ref={nameRef}
-                className={
-                  isOverflow
-                    ? "animate-marquee whitespace-nowrap"
-                    : "whitespace-nowrap"
-                }
-              >
-                {user?.fullName ?? "پنل کاربری"}
-              </span>
-            </Link>
-            <Link
-              href={"/panel"}
-              className="active:scale-95 p-2 rounded-lg text-sm transition-all
-               glass hover:bg-accent/70! overflow-hidden  flex sm:hidden"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="size-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-                />
-              </svg>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link
-              href={"/auth"}
-              className="active:scale-95 px-4 py-1 rounded-lg
-               text-sm transition-all glass hover:bg-accent/70!"
-            >
-              ورود
-            </Link>
+            {plus.state !== "off" && <Link href={plusHref} className={styles.plusLink}>{plusTitle}</Link>}
+            <Menu.Root dir="rtl" modal={false}>
+              <Menu.Trigger className={styles.menuTrigger}>
+                فهرست <ChevronDown size={16} aria-hidden />
+              </Menu.Trigger>
+              <Menu.Portal>
+                <Menu.Content aria-label="بخش‌های سروا" className={styles.menu} align="start" sideOffset={12} collisionPadding={16} loop>
+                  {links.map(({ title, href, icon: Icon }) => (
+                    <Menu.Item key={href} asChild>
+                      <Link href={href} className={styles.menuItem}>
+                        <span className={styles.menuIcon}><Icon size={23} strokeWidth={1.6} aria-hidden /></span>
+                        <span>{title}</span>
+                      </Link>
+                    </Menu.Item>
+                  ))}
+                </Menu.Content>
+              </Menu.Portal>
+            </Menu.Root>
+            <span className={styles.divider} aria-hidden />
           </>
         )}
-        {!compact && "|"}
-        <div
-          className={`text-muted-foreground items-center gap-x-5 text-lg flex-row ${
-            compact ? "hidden" : "flex"
-          }`}
-        >
-          <div className=" block z-200 relative">
-            <button
-              className="text-muted-foreground text-sm xs:text-base flex items-center gap-x-2 flex-row-reverse"
-              onClick={() => {
-                setOpenMenuMobile((prev) => !prev);
-              }}
-            >
-              فهرست
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className={`size-4 transition-all ${!openMenuMobile && " rotate-180"}`}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
-                />
-              </svg>
-            </button>
-
-            <div
-              className={`${openMenuMobile ? " translate-y-2 visible opacity-100" : " -translate-y-7 invisible opacity-0"} 
-             transition-transform duration-150 ease-in-out absolute bg-menu-mobile 
-             border-border border py-5 px-4 rounded-lg gap-x-6 flex 
-              items-center -left-30 justify-between gap-y-6 w-50 sm:w-62.5 flex-wrap`}
-            >
-              {menuItemsMobile
-                /* وقتی کلِ پلاس خاموش است، هیچ‌جای سایت به آن اشاره نمی‌کند. */
-                .filter((l) => l.id !== 7 || plus.state !== "off")
-                .map((l) => (
-                <Link
-                  key={l.id}
-                  onClick={() => {
-                    setOpenMenuMobile(false);
-                  }}
-                  className=" text-xs text-muted-foreground hover:text-primary transition-all  sm:text-base flex items-center flex-col"
-                  href={l.src}
-                >
-                  {l.icon}
-                  {l.title}
-                </Link>
-              ))}
-            </div>
-          </div>
-          {menUItemsPc.map((l) => (
-            <Link
-              key={l.id}
-              className={`hover:text-primary transition-all ${
-                l.id === 7 ? "hidden sm:inline" : ""
-              }`}
-              href={l.src}
-            >
-              {l.title}
-            </Link>
-          ))}
-        </div>
-      </motion.div>
-      <div
-        onClick={() => {
-          setOpenMenuMobile(false);
-        }}
-        className={`${openMenuMobile ? " block" : " hidden"} fixed h-screen
-         w-screen bottom-0 right-0 z-100 backdrop-blur-xs`}
-      ></div>
+        <Link href={user ? "/panel/home" : "/auth"} className={styles.account} aria-label={user ? "پنل کاربری" : "ورود به سروا"}>
+          {user ? <><UserRound size={20} aria-hidden /><span>{user.fullName || "پنل کاربری"}</span></> : "ورود"}
+        </Link>
+        <div className={styles.theme}><DarkModeButton /></div>
+      </div>
     </nav>
   );
 }
-
-export default Header;

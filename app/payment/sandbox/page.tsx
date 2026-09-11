@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { paymentProviderName } from "@/lib/plus/config";
 import { buildSandboxToken } from "@/lib/plus/payments";
 import { formatRials } from "@/lib/plus/money";
+import { orderNumber } from "@/lib/plus/order-number";
 
 
 export const dynamic = "force-dynamic";
@@ -47,11 +48,11 @@ export default async function Page({
   if (!ref) notFound();
 
   // مالکیت: این تلاشِ پرداخت باید مالِ سفارشی از همین کاربر باشد.
-  const attempt = await queryOne<{ amount_rials: number; order_number: string }>(
-    `select a.amount_rials, o.order_number
+  const attempt = await queryOne<{ amount_rials: number; order_seq: number }>(
+    `select a.amount_rials, o.order_seq
        from plus_payment_attempts a
        join plus_orders o on o.id = a.order_id
-      where a.provider_ref = $1 and o.user_id = $2`,
+      where a.provider_ref = ? and o.user_id = ?`,
     [ref, user.id],
   );
   if (!attempt) notFound();
@@ -76,7 +77,7 @@ export default async function Page({
           درگاه آزمایشی — هیچ پولی جابه‌جا نمی‌شود
         </p>
 
-        <h1 className="mt-5 text-lg font-extrabold">پرداخت سفارش {attempt.order_number}</h1>
+        <h1 className="mt-5 text-lg font-extrabold">پرداخت سفارش {orderNumber(attempt.order_seq)}</h1>
         <p className="mt-2 text-2xl font-extrabold">{formatRials(attempt.amount_rials)}</p>
 
         <div className="mt-6 space-y-2">

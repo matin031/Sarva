@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { query, transaction } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { placeholders, query, transaction } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
@@ -74,10 +75,13 @@ export const POST = withRoute("/api/v1/aruz-bridge/answers", async (request: Req
       correct_pattern: string;
       difficulty: number;
     }>(
+      // ⚠️ MySQL معادلِ `= any($1::uuid[])` ندارد؛ فهرست باید به تعدادِ
+      // شناسه‌ها `?` بگیرد. `placeholders()` همان را می‌سازد و چون طولش از
+      // آرایه می‌آید و نه از ورودی، رشتهٔ کاربر هرگز وارد خودِ SQL نمی‌شود.
       `select id, phrase, correct_pattern, difficulty
          from aruz_bridge_questions
-        where id = any($1::uuid[]) and is_published`,
-      [ids],
+        where id in (${placeholders(ids.length)}) and is_published = 1`,
+      ids,
     );
 
     const byId = new Map(rows.map((r) => [r.id, r]));
@@ -121,10 +125,11 @@ export const POST = withRoute("/api/v1/aruz-bridge/answers", async (request: Req
       for (const v of values) {
         await tx.execute(
           `insert into aruz_bridge_answers
-             (user_id, question_id, phrase, correct_pattern, chosen_pattern,
+             (id, user_id, question_id, phrase, correct_pattern, chosen_pattern,
               outcome, is_correct, difficulty)
-           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             user.id,
             v.questionId,
             v.phrase,

@@ -10,10 +10,44 @@ import AnnouncementBar from "@/components/site/AnnouncementBar";
 
 /** /admin/* is a back-office tool, not a marketing page — it gets its own
  *  chrome (components/admin/AdminShell.tsx: sidebar + topbar) and skips
- *  the public site's Header/Footer/decorative pattern entirely. */
+ *  the public site's Header/Footer/decorative pattern entirely.
+ *
+ *  ⚠️ /panel/* حالا همین‌طور است، و دلیلش یک باگِ چیدمانی بود که با
+ *  سایدبارِ تازه دیده شد: پنل هدرِ سایت را بالای سرِ خودش داشت و نوارِ
+ *  خودش را زیرِ آن، یعنی دو نوارِ چسبانِ روی هم و دو جای متفاوت برای
+ *  ناوبری. حالا پنل — مثل ادمین — پوستهٔ خودش را دارد: سایدبار، یک نوارِ
+ *  بالا، و بس.
+ *
+ *  بازگشت به سایت از خودِ سایدبار است (نشانِ سروا در بالای آن). اگر روزی
+ *  خواستی هدرِ سایت روی پنل برگردد، فقط `isPanel` را از این شرط بردار. */
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith("/admin");
+  const isPanel = pathname?.startsWith("/panel");
+  const isDesignPreview = process.env.NODE_ENV === "development" && (pathname === "/design-preview" || pathname.startsWith("/design-preview/"));
+  /* ⚠️ پیش‌نمایشِ اسکرولِ پلاس هم پوستهٔ سایت را نمی‌گیرد، و دلیلش فنی است و
+     نه سلیقه‌ای: ScrollSmoother برای کارکردن باید *تنها* اسکرول‌کنندهٔ صفحه
+     باشد — wrapper اش به کادرِ دید `fixed` می‌شود. با هدر و پاورقیِ سایت
+     بیرونِ آن، پاورقی همیشه ته صفحه شناور می‌ماند و نقشِ هندسیِ `fixed`
+     روی توپ می‌افتد. ادغام با هدر و پاورقیِ واقعی، کارِ نسخهٔ نهایی است.
+     مثل design-preview فقط در حالتِ توسعه وجود دارد. */
+  const isPlusPreview = process.env.NODE_ENV === "development" && pathname === "/plus/preview";
+  /* ⚠️ صفحهٔ «سروا پلاس» سربرگ و پاورقی را *خودش* رندر می‌کند، و این یک
+     ترجیحِ طراحی نیست — شرطِ کارِ ScrollSmoother است.
+
+     ScrollSmoother برای اسکرولِ نرم، بستهٔ محتوا را به کادرِ دید `fixed`
+     می‌کند و درونش را با transform حرکت می‌دهد. یعنی هرچه بیرونِ آن بسته
+     بماند، اصلاً اسکرول نمی‌شود. سربرگِ سروا چسبان نیست (یک عنصرِ عادی در
+     جریانِ صفحه است) و پاورقی هم که ته صفحه است؛ هر دو بیرون از بسته یا
+     زیرِ لایهٔ ثابت پنهان می‌شدند یا برای همیشه روی صفحه می‌ماندند.
+
+     پس این مسیر مثل /admin و /panel پوستهٔ خودش را می‌گیرد، با یک تفاوت:
+     `SiteContentProvider` سرِ جایش می‌ماند تا نوارِ اعلانِ سایت — که صفحه
+     آن را داخلِ محتوای خودش می‌گذارد — کار کند.
+
+     نقشِ هندسیِ `fixed` هم عمداً حذف شده: با z-10 روی توپِ نورانیِ صفحه
+     (z-3) می‌افتاد و آن را پشتِ یک لایهٔ تمام‌صفحه می‌برد. */
+  const isPlusScroll = pathname === "/plus" || isPlusPreview;
+  const isAppShell = pathname?.startsWith("/admin") || isPanel || isDesignPreview;
   /** صفحهٔ کهکشانِ بازی‌ها پس‌زمینهٔ خودش را دارد — ستاره‌ها، هالهٔ کهکشانی و
    *  کابل. نقشِ هندسیِ ثابتِ سایت آنجا یک لایهٔ ترکیبِ تمام‌صفحهٔ *چهارم* روی
    *  همان‌ها می‌گذاشت، بی‌آنکه دیده شود. فقط در همین یک مسیر کنار می‌رود. */
@@ -23,8 +57,16 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
      `off` نگذارد، همه‌چیز عادی است. */
   const chrome = useChromeMode();
 
-  if (isAdmin) {
-    return <main className="flex-1">{children}</main>;
+  if (isAppShell) {
+    return <div className="flex-1">{children}</div>;
+  }
+
+  if (isPlusScroll) {
+    return (
+      <SiteContentProvider>
+        <div className="flex-1">{children}</div>
+      </SiteContentProvider>
+    );
   }
 
   /* ⚠️ شکلِ این درخت *نباید* با عوض‌شدنِ حالت تغییر کند.

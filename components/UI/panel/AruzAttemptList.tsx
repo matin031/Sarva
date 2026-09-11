@@ -272,7 +272,7 @@ function AttemptQuestions({ answers }: { answers: AruzAnswer[] }) {
           type="button"
           onClick={() => goTo(at - 1)}
           disabled={at === 0}
-          className={`glass transition-all whitespace-nowrap text-sm md:text-lg
+          className={`bg-surface border border-border/70 transition-all whitespace-nowrap text-sm md:text-lg
                h-9 rounded-lg md:rounded-xl px-5 md:px-6 py-3 md:py-6
               inline-flex items-center justify-between gap-x-2 font-medium ${
                 at === 0

@@ -1,260 +1,162 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "motion/react";
-import { toFa } from "@/components/UI/CircularProgress";
-import PanelSection from "@/components/UI/panel/PanelSection";
+import { Sparkles, ArrowLeft, Sprout } from "lucide-react";
+import styles from "./panel-design.module.css";
+import SarvaBuddy from "./SarvaBuddy";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/UI/kit/card";
 import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
-import StatRing from "@/components/UI/panel/StatRing";
-import { relativeDay, scoreColor } from "@/lib/panel/format";
+import AreaCards from "@/components/UI/panel/home/AreaCards";
+import BadgeRow from "@/components/UI/panel/home/BadgeRow";
+import ResumeSection from "@/components/UI/panel/home/ResumeSection";
+import StatCards from "@/components/UI/panel/home/StatCards";
+import { fa, relativeDay } from "@/lib/panel/format";
 import {
   bucketsFromDayCounts,
   correctFromDayCounts,
   streakFromDayCounts,
   totalFromDayCounts,
 } from "@/lib/panel/day-counts";
-import type { BookmarkArea, PanelOverview } from "@/lib/panel/types";
+import { answersInLastDays, badges, bestStreak, resumeItems, weekStrip } from "@/lib/panel/derive";
+import type { PanelOverview } from "@/lib/panel/types";
 
-const EASE = [0.16, 1, 0.3, 1] as const;
-
-const AREAS: {
-  area: BookmarkArea;
-  title: string;
-  href: string;
-  glyph: string;
-}[] = [
-  { area: "aruz", title: "عروض سماعی", href: "/panel/aruz", glyph: "🎵" },
-  { area: "vocab", title: "بازی واژه‌یاب", href: "/panel/vocab", glyph: "🖼️" },
-  { area: "jasoos", title: "بازی جاسوس", href: "/panel/jasoos", glyph: "🕵️" },
-  { area: "exam", title: "امتحان نهایی", href: "/panel/exam", glyph: "🏅" },
-];
-
-/** پنل کاربری، صفحهٔ نخست.
+/**
+ * صفحهٔ خانهٔ پنل.
  *
- *  Everything here is measured, not decorative: the accuracy is over every
- *  graded answer the student has ever given, the chart is the real thirty days,
- *  and each section card carries that section's own numbers and links to it — so
- *  the front page is both a summary and the way in, which is what a panel is
- *  for. */
+ * ⚠️ دیگر `"use client"` نیست. نسخهٔ قبلی کلِ صفحه را کلاینت می‌کرد تا
+ * چهار کارت با `motion` یکی‌یکی ظاهر شوند — یعنی کلِ محاسبه و کلِ درختِ
+ * صفحه به مرورگر می‌رفت، برای انیمیشنی که کاربر یک بار می‌بیند. حالا تنها
+ * جزیرهٔ کلاینتِ این صفحه نمودار است (Recharts) و حلقهٔ دقت.
+ *
+ * ترتیبِ صفحه یک ادعاست: «امروز چه کار کنم» قبل از «تا امروز چه کردم».
+ */
 export default function HomePanel({
   name,
   memberSince,
   overview,
+  todayPlan,
 }: {
   name: string;
   memberSince: string | null;
   overview: PanelOverview;
+  /** پیشنهادِ «برنامهٔ من» — فقط وقتی کاربر سروا پلاس فعال دارد. */
+  todayPlan?: { title: string; detail: string; href: string; minutes: number } | null;
 }) {
-  const { dayCounts, counts, bookmarks, exams } = overview;
+  const { dayCounts, bookmarks, exams } = overview;
 
-  /* ⚠️ همهٔ این‌ها از شمارشِ روزانه درمی‌آیند، نه از ردیف‌های خام.
-     پیش از این تا یازده هزار ردیف می‌آمد و همین‌جا یکی‌یکی شمرده می‌شد. */
   const total = totalFromDayCounts(dayCounts);
   const correct = correctFromDayCounts(dayCounts);
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
-  const days = streakFromDayCounts(dayCounts);
-  // آخرین روزِ فعالیت. دقتش «روز» است نه «لحظه» — که برای «آخرین فعالیت: ۳
-  // روز پیش» دقیقاً همان چیزی است که نشان داده می‌شود.
+  const streak = streakFromDayCounts(dayCounts);
+  const best = bestStreak(dayCounts);
+  const week = weekStrip(dayCounts);
+
+  const last7 = answersInLastDays(dayCounts, 7);
+  const last14 = answersInLastDays(dayCounts, 14);
+
   const lastAt = dayCounts.reduce<string | null>(
     (m, d) => (d.total > 0 && (!m || d.day > m) ? d.day : m),
     null,
   );
 
   return (
-    <div className=" cursor-default">
-      <span
-        className="mb-5 inline-flex items-center gap-2
-       rounded-full border border-primary/30 bg-primary/10
-        px-4 py-1 text-sm font-semibold text-primary"
-      >
-        پنل کاربری
-      </span>
-
-      <div className=" glass rounded-xl p-4 sm:p-6">
-        <h1 className=" group flex items-center gap-x-1 text-2xl sm:text-4xl lg:text-5xl">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className=" size-8 shrink-0 transition-all group-hover:rotate-45 sm:size-10 lg:size-12"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"
-              clipRule="evenodd"
-            />
-          </svg>
-          درود، {name}
-        </h1>
-        <p className=" text-muted-foreground">
+    <>
+      {/* ── خوش‌آمد ───────────────────────────────────────────────────── */}
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+        <p className={styles.eyebrow}><Sprout aria-hidden className="size-4" /> هر روز، یک قدم به دانستن نزدیک‌تر</p>
+        <h1>درود، {name}</h1>
+        <p className={styles.heroDescription}>
           {lastAt ? (
-            <>آخرین تمرینت {relativeDay(lastAt)} بود.</>
+            streak > 0 ? (
+              <>
+                آخرین تمرینت {relativeDay(lastAt)} بود و{" "}
+                <span className="font-semibold text-[#d6eac0]">{fa(streak)} روز</span> است
+                زنجیره‌ات را نبریده‌ای.
+              </>
+            ) : (
+              <>آخرین تمرینت {relativeDay(lastAt)} بود — امروز دوباره شروع کن.</>
+            )
           ) : (
-            <>خوش اومدی :) هنوز تمرینی ثبت نشده.</>
+            <>خوش آمدی. اولین تمرینت از همین‌جا شروع می‌شود.</>
           )}
           {memberSince && (
-            <span className=" opacity-70"> — عضو از {relativeDay(memberSince)}</span>
+            <span> — عضو از {relativeDay(memberSince)}</span>
           )}
         </p>
-
-        <div className=" mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-7">
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <StatRing percent={accuracy} />
-            <span className=" text-base sm:text-lg">دقت در تمامی بخش‌ها</span>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path
-                fillRule="evenodd"
-                d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">{toFa(days)}</span>{" "}
-              روز زنجیرۀ تلاش
-            </div>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path
-                strokeLinecap="round"
-                d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75Z"
-              />
-              <path
-                fillRule="evenodd"
-                d="M7.502 6h7.128A3.375 3.375 0 0 1 18 9.375v9.375a3 3 0 0 0 3-3V6.108c0-1.505-1.125-2.811-2.664-2.94a48.972 48.972 0 0 0-.673-.05A3 3 0 0 0 15 1.5h-1.5a3 3 0 0 0-2.663 1.618c-.225.015-.45.032-.673.05C8.662 3.295 7.554 4.542 7.502 6ZM13.5 3A1.5 1.5 0 0 0 12 4.5h4.5A1.5 1.5 0 0 0 15 3h-1.5Z"
-                clipRule="evenodd"
-              />
-              <path
-                fillRule="evenodd"
-                d="M3 9.375C3 8.339 3.84 7.5 4.875 7.5h9.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V9.375Zm9.586 4.594a.75.75 0 0 0-1.172-.938l-2.476 3.096-.908-.907a.75.75 0 0 0-1.06 1.06l1.5 1.5a.75.75 0 0 0 1.116-.062l3-3.75Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">{toFa(total)}</span>{" "}
-              پاسخ ثبت‌شده
-            </div>
-          </div>
-
-          {/* شمارندهٔ نشان‌شده‌ها حالا لینک است. قبلاً عددی بود که هیچ‌جا
-              نمی‌برد — و صفحه‌ای هم برای رفتن وجود نداشت. */}
-          <Link
-            href="/panel/bookmarks"
-            className=" flex items-center justify-between gap-x-4 rounded-xl bg-card p-4 shadow transition-all hover:brightness-105 active:scale-[0.99] sm:gap-x-6"
-          >
-            <div className=" flex items-center gap-x-4 sm:gap-x-6">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className=" size-9 shrink-0 text-gold sm:size-10"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div className=" text-base sm:text-lg">
-                <span className=" text-2xl text-gold sm:text-3xl">
-                  {toFa(bookmarks)}
-                </span>{" "}
-                نشان‌شده
-              </div>
-            </div>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-              className=" size-5 shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
-            </svg>
-          </Link>
+        <Link href="/game" className={styles.heroButton}>بریم سراغ یادگیری <ArrowLeft aria-hidden className="size-4" /></Link>
         </div>
+        <div className={styles.heroArt}><SarvaBuddy /></div>
+      </header>
+
+      <StatCards
+        streak={streak}
+        best={best}
+        week={week}
+        accuracy={accuracy}
+        correct={correct}
+        total={total}
+        weekTotal={last7.total}
+        prevWeekTotal={last14.total - last7.total}
+      />
+
+      <div className={styles.workspace}>
+      <div className="flex min-w-0 flex-col gap-4">
+        <ResumeSection items={resumeItems(overview)} />
+
+        {/* پیشنهادِ برنامهٔ من — یک نوارِ باریک زیرِ تمرکزِ اصلی، نه یک کارتِ
+            هم‌وزنِ کنارِ آن. اینجا فقط *یک* مورد می‌آید؛ فهرستِ کاملش در
+            «برنامهٔ من» است. */}
+        {todayPlan && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gold/25 bg-gold/10 px-4 py-3">
+            <Sparkles aria-hidden className="size-4 shrink-0 text-gold" />
+            <p className="min-w-0 flex-1 text-[13.5px]">
+              <span className="font-semibold text-gold">{todayPlan.title}</span> — {todayPlan.detail}
+            </p>
+            <Link
+              href={todayPlan.href}
+              className="panel-num shrink-0 text-[13px] font-semibold text-gold underline-offset-[6px] hover:underline"
+            >
+              شروع مرور ({fa(todayPlan.minutes)} دقیقه)
+            </Link>
+          </div>
+        )}
       </div>
 
-      <PanelSection title="فعالیت در ۳۰ روز اخیر" icon="chart">
-        <PanelTrendChart
-          buckets={bucketsFromDayCounts(dayCounts, 30)}
-          days={30}
-        />
-      </PanelSection>
+      <AreaCards overview={overview} />
+      </div>
 
-      <PanelSection
-        title="بخش‌ها"
-        icon="scale"
-        hint="روی هر بخش بزن تا کارنامه و آزمون‌های پیشینش را ببینی."
-      >
-        <div className=" mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {AREAS.map((a, i) => {
-            const c = counts[a.area];
-            const isExam = a.area === "exam";
-            const pct = isExam
-              ? exams.average
-              : c.total
-                ? Math.round((c.correct / c.total) * 100)
-                : 0;
-            const has = isExam ? exams.attempts > 0 : c.total > 0;
-            return (
-              <motion.div
-                key={a.area}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
-              >
-                <Link
-                  href={a.href}
-                  className=" flex items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow transition-all hover:brightness-105 active:scale-[0.99]"
-                >
-                  <div className=" flex min-w-0 items-center gap-3">
-                    <span className=" flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-xl">
-                      {a.glyph}
-                    </span>
-                    <div className=" min-w-0">
-                      <p className=" truncate font-bold">{a.title}</p>
-                      <p className=" text-xs text-muted-foreground">
-                        {isExam
-                          ? has
-                            ? `${toFa(exams.attempts)} کارنامه`
-                            : "هنوز آزمونی نداده‌ای"
-                          : has
-                            ? `${toFa(c.correct)} از ${toFa(c.total)} پاسخ درست`
-                            : "هنوز تمرینی نکرده‌ای"}
-                      </p>
-                    </div>
-                  </div>
-                  {has && (
-                    <span
-                      style={{ color: scoreColor(pct) }}
-                      className=" shrink-0 text-lg font-bold"
-                    >
-                      {toFa(pct)}%
-                    </span>
-                  )}
-                </Link>
-              </motion.div>
-            );
-          })}
-        </div>
-      </PanelSection>
-    </div>
+      <BadgeRow
+        badges={badges({
+          streak,
+          best,
+          total,
+          bookmarks,
+          examBest: exams.best,
+        })}
+      />
+
+      {/* ── روندِ سی روز ─────────────────────────────────────────────── */}
+      <Card className="bg-surface/60">
+        <CardHeader>
+          <CardTitle>پیشرفت تو در ۳۰ روز گذشته</CardTitle>
+          <CardDescription>
+            هر ستون یک روز است؛ بخشِ پررنگ همان‌قدر که درست بوده.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <PanelTrendChart buckets={bucketsFromDayCounts(dayCounts, 30)} days={30} />
+        </CardContent>
+      </Card>
+
+      {/* ⚠️ شمارندهٔ نشان‌شده‌ها از کارت‌های بالا برداشته شد و به سایدبار
+          رفت؛ این یک خطِ ساده است تا لینکش از خانه هم در دسترس بماند. */}
+      {bookmarks > 0 && (
+        <p className="text-center text-[13px] text-muted-foreground">
+          <Link href="/panel/bookmarks" className="text-primary underline-offset-[6px] hover:underline">
+            {fa(bookmarks)} مورد نشان‌شده
+          </Link>{" "}
+          داری — بیت‌ها و واژه‌هایی که خواسته‌ای دوباره ببینی.
+        </p>
+      )}
+    </>
   );
 }

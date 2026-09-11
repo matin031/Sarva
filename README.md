@@ -44,17 +44,16 @@ docker compose up -d --build
 docker compose exec app node scripts/db-check.mjs
 ```
 
-اتصال، migration های اعمال‌شده، هر ۴۹ جدول، ویو، enum ها، تریگرها و مبدل‌های
-نوع را بررسی می‌کند.
+اتصال، migration های اعمال‌شده، هر ۴۹ جدول، ویو، تریگرها و مبدل‌های نوع را
+بررسی می‌کند.
 
 سه بررسی دیگر هم هست که هرکدام یک لایه را جدا می‌سنجند و همه به یک دیتابیسِ
 توسعه نیاز دارند:
 
 ```bash
-npm run db:check-sql    # هر دستور SQL پروژه را به خودِ پستگرس PREPARE می‌کند
+npm run db:check-sql    # هر دستور SQL پروژه را به خودِ MySQL می‌دهد (PREPARE)
 npm run db:check-plus   # چرخهٔ سروا پلاس: idempotency، تمدید، هم‌زمانی، مالکیت
-npm run db:check-otp    # سقف‌های کد تأیید
-npm run db:check-rotation  # چرخشِ refresh token
+npm run db:check-tz     # آیا MySQL نام Asia/Tehran را می‌شناسد
 ```
 
 ### پر کردن محتوای اولیه
@@ -215,7 +214,7 @@ lib/reports/     گزارشِ ایرادِ محتوا از سمتِ کاربر (
   طول می‌کشد؛ تنظیمات یک کشِ کوتاه دارند.)
 
 - **قیمت ویرایش نمی‌شود، نسخهٔ تازه ساخته می‌شود.** یک تریگر در دیتابیس
-  (`plus_plan_versions_immutable_trg`) جلوی تغییرِ مبلغ و مدتِ یک نسخه را
+  (`plus_plan_versions_immutable_bu`) جلوی تغییرِ مبلغ و مدتِ یک نسخه را
   می‌گیرد. دلیلش این است که سفارش‌های گذشته به همان نسخه ارجاع دارند؛ ویرایش
   یعنی بازنویسیِ فاکتورِ کسی که سه ماه پیش خریده.
 
@@ -232,6 +231,21 @@ lib/reports/     گزارشِ ایرادِ محتوا از سمتِ کاربر (
 اصلی اجازهٔ کار ندارد (سازنده‌اش در production خطا می‌دهد). برای وصل کردنِ
 درگاه واقعی، فقط یک فایل تازه در `lib/plus/payments/` لازم است که رابطِ
 `PaymentProvider` را برآورده کند و یک `case` در `getPaymentProvider()`.
+
+### چیزهایی که در MySQL جور دیگری حل شده‌اند
+
+| در PostgreSQL | اینجا |
+|---|---|
+| `sequence` برای شمارهٔ سفارش | `AUTO_INCREMENT` روی `order_seq` + قالب‌بندی در `lib/plus/order-number.ts` |
+| ایندکس یکتای شرطی (`where status = 'pending'`) | ستون کمکیِ nullable + تریگرِ `BEFORE INSERT/UPDATE` (در MySQL چند NULL با هم تصادم ندارند) |
+| `on conflict do nothing` | `insert ignore` |
+| قفلِ مشورتی برای تمدیدِ هم‌زمان | `select … for update` روی ردیفِ کاربر |
+| `RETURNING` | درج با شناسهٔ ساخته‌شده در کد، سپس خواندن |
+
+مرزِ این‌ها یک جاست و نه پخش در کد: هر جا که موتور فرق می‌کند، دلیلش بالای
+همان کوئری نوشته شده.
+
+---
 
 ## سه ابزار تازهٔ پنل
 
@@ -557,6 +571,7 @@ npm run dev
 | `npm run db:migrate` | اجرای migration های اعمال‌نشده |
 | `npm run db:check` | بررسی سلامت اتصال و اسکیما |
 | `npm run db:check-sql` | هر کوئریِ کد را با `PREPARE` به MySQL می‌دهد |
+| `npm run db:check-plus` | چرخهٔ کاملِ سروا پلاس روی یک دیتابیس واقعی |
 | `npm run db:check-snippets` | همان کار برای الگوهای آمادهٔ کنسول مدیر |
 | `npm run db:check-tz` | آیا MySQL نام `Asia/Tehran` را می‌شناسد |
 | `npm run db:seed-admin` | ساخت/ارتقای حساب مدیر |
@@ -566,7 +581,7 @@ npm run dev
 
 ### افزودن migration
 
-یک فایل تازه در `mysql-migrations/` با شمارهٔ بعدی بسازید (`003_...sql`).
+یک فایل تازه در `mysql-migrations/` با شمارهٔ بعدی بسازید (`005_...sql`).
 اجراکننده فایل‌ها را به ترتیب نام اجرا می‌کند و در `schema_migrations` ثبت
 می‌کند. فایل‌های اعمال‌شده هرگز دوباره اجرا نمی‌شوند — پس یک migration
 منتشرشده را ویرایش نکنید (checksum اش سنجیده می‌شود و اجراکننده اعتراض

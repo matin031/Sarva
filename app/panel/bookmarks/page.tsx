@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBookmarks, getPanelUser } from "@/lib/panel/queries";
 import AllBookmarks from "@/components/UI/panel/AllBookmarks";
+import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,7 @@ export default async function Page() {
 
   return (
     <div className="relative z-20 flex flex-col gap-6">
-      <div>
-        <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1 text-sm font-semibold text-gold">
-          نشان‌شده‌ها
-        </span>
-        <h1 className="text-xl font-bold">هر چیزی که نشان کرده‌ای</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          سؤال‌ها و واژه‌هایی که برای مرور کنار گذاشته‌ای — از همهٔ بخش‌های سایت، یک‌جا.
-        </p>
-      </div>
+      <PanelPageHeader title="گنجینهٔ کوچک تو" description="بیت‌ها، واژه‌ها و سؤال‌هایی که برای دوباره دیدن کنار گذاشته‌ای." eyebrow="نشان‌شده‌ها" tone="gold" />
 
       <AllBookmarks initial={bookmarks} />
     </div>

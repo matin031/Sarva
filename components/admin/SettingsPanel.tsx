@@ -10,19 +10,13 @@ import {
   type AdapterStatus,
   type AdminSetting,
 } from "@/lib/admin/settings-actions";
+/* ⚠️ از `@/lib/settings/groups` و نه `@/lib/settings`.
+   دومی برای خواندنِ مقادیر به `lib/db` وصل است و `mysql2` را با خودش
+   می‌آورد؛ این فایل `"use client"` است، پس یک importِ *مقدار* از آنجا
+   یعنی درایورِ MySQL در بستهٔ مرورگر و شکستِ `next build`. یک بار همین
+   اتفاق افتاد. `SettingKey` همچنان type است و پاک می‌شود. */
+import { SETTING_GROUPS } from "@/lib/settings/groups";
 import type { SettingKey } from "@/lib/settings";
-
-const GROUP_META: Record<string, { title: string; description: string }> = {
-  mail: {
-    title: "ایمیل",
-    description: "کد تأیید حساب و لینک بازیابی رمز از این آدرس فرستاده می‌شوند.",
-  },
-  sms: {
-    title: "پیامک",
-    description:
-      "هنوز هیچ بخشی از سایت پیامک نمی‌فرستد. این تنظیمات برای وقتی است که پنل پیامک بخرید — با پر کردن آن‌ها، ورود با موبایل بدون هیچ تغییری در کد فعال می‌شود.",
-  },
-};
 
 const SOURCE_LABEL: Record<AdminSetting["source"], string> = {
   db: "تنظیم‌شده از همین پنل",
@@ -85,7 +79,19 @@ export default function SettingsPanel({
     });
   };
 
-  const groups = ["mail", "sms"] as const;
+  /* ⚠️ فهرست از `SETTING_GROUPS` می‌آید و اینجا دستی نوشته نشده.
+     ─────────────────────────────────────────────────────────────────────
+     پیش از این دو چیز جدا بود: این فایل یک `["mail", "sms"]` هاردکد داشت و
+     یک `GROUP_META` که عنوان‌ها را دوباره تعریف می‌کرد.
+
+     نتیجه‌اش یک باگِ کاملاً بی‌صدا بود: گروه‌های `plus` و `home` در
+     `lib/settings` تعریف شده بودند، سرور مقادیرشان را می‌فرستاد، ذخیره‌شان
+     هم کار می‌کرد — ولی هیچ‌وقت **رندر نمی‌شدند**. یعنی کلیدِ روشن/خاموشِ
+     کلِ «سروا پلاس» ساخته شده بود و مالک هیچ راهی برای دیدنش نداشت.
+
+     حالا هر گروهی که به `lib/settings` اضافه شود، خودبه‌خود اینجا دیده
+     می‌شود. */
+  const groups = Object.keys(SETTING_GROUPS) as (keyof typeof SETTING_GROUPS)[];
 
   return (
     <div dir="rtl" className="flex max-w-3xl flex-col gap-10 p-4 xs:p-6">
@@ -109,7 +115,7 @@ export default function SettingsPanel({
       {groups.map((group) => {
         const groupSettings = settings.filter((s) => s.group === group);
         if (groupSettings.length === 0) return null;
-        const meta = GROUP_META[group];
+        const meta = SETTING_GROUPS[group];
 
         return (
           <section key={group} className="flex flex-col gap-4">

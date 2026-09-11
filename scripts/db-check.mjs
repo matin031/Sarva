@@ -18,7 +18,7 @@
 import mysql from "mysql2/promise";
 import { TABLE_ORDER } from "./mysql/type-map.mjs";
 
-/** جدول‌هایی که اجراکننده migration می‌سازد، نه مولد اسکیما. */
+/** جدول‌هایی که اجراکنندهٔ migration می‌سازد، نه مولدِ اسکیما. */
 const RUNNER_TABLES = ["schema_migrations"];
 
 const EXPECTED_TABLES = [...TABLE_ORDER, ...RUNNER_TABLES].sort();

@@ -1,0 +1,11 @@
+.frame { --beam-a: var(--primary); --beam-b: var(--gold); position: relative; isolation: isolate; border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border)); background: var(--card); box-shadow: 0 14px 40px #0000000d; }
+.frame[data-tone="1"] { --beam-a: var(--gold); --beam-b: var(--turquoise-light); }
+.frame[data-tone="2"] { --beam-a: var(--turquoise-light); --beam-b: var(--gold-light); }
+.border { position: absolute; inset: -1px; padding: 1.5px; border-radius: inherit; overflow: hidden; pointer-events: none; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; }
+.border::before { content: ""; position: absolute; width: 250%; aspect-ratio: 1; left: -75%; top: calc(50% - 125cqw); background: conic-gradient(from 30deg, transparent 5%, var(--beam-a) 20%, transparent 36%, transparent 52%, var(--beam-b) 70%, transparent 87%); animation: borderOrbit 14s linear infinite; animation-play-state: paused; }
+.frame { container-type: inline-size; }
+.frame[data-tone="1"] .border::before { animation-delay: -5s; animation-duration: 17s; }
+.frame[data-tone="2"] .border::before { animation-delay: -9s; animation-duration: 19s; }
+.frame[data-animate="true"] .border::before { animation-play-state: running; }
+@keyframes borderOrbit { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .border::before { animation: none; } }

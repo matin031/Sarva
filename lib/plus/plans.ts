@@ -27,13 +27,14 @@ type OfferRow = {
   version_id: string;
   version: number;
   amount_rials: number;
+  compare_at_rials: number | null;
   currency: Currency;
 };
 
 /** ستون‌های مشترکِ «پلن + نسخهٔ قابلِ فروشش». */
 const OFFER_COLUMNS = `p.id as plan_id, p.code, p.subtitle,
                        v.id as version_id, v.version, v.title,
-                       v.duration_days, v.amount_rials, v.currency`;
+                       v.duration_days, v.amount_rials, v.compare_at_rials, v.currency`;
 
 function toOffer(row: OfferRow, cheapestPerDay: number | null): PlusPlanOffer {
   const perDay = row.duration_days > 0 ? row.amount_rials / row.duration_days : null;
@@ -64,6 +65,15 @@ function toOffer(row: OfferRow, cheapestPerDay: number | null): PlusPlanOffer {
       perDay === null || cheapestPerDay === null || perDay >= cheapestPerDay
         ? null
         : Math.round((1 - perDay / cheapestPerDay) * 100) || null,
+
+    // ⚠️ تخفیف *فقط* وقتی وجود دارد که مدیر قیمتِ قبلی را ثبت کرده باشد.
+    // اینجا هیچ عددی ساخته نمی‌شود؛ اگر ستون خالی باشد، رابط کاربری هیچ
+    // خط‌خوردگی و هیچ درصدی نشان نمی‌دهد.
+    compareAtRials: row.compare_at_rials,
+    discountPercent:
+      row.compare_at_rials === null || row.compare_at_rials <= row.amount_rials
+        ? null
+        : Math.round((1 - row.amount_rials / row.compare_at_rials) * 100) || null,
   };
 }
 
@@ -78,8 +88,8 @@ export async function listSellableOffers(): Promise<PlusPlanOffer[]> {
   const rows = await query<OfferRow>(
     `select ${OFFER_COLUMNS}
        from plus_plans p
-       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable
-      where p.is_active
+       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable = 1
+      where p.is_active = 1
       order by p.sort_index, v.duration_days, p.code`,
   );
 
@@ -104,8 +114,8 @@ export async function getSellableOfferByCode(code: string): Promise<PlusPlanOffe
   const row = await queryOne<OfferRow>(
     `select ${OFFER_COLUMNS}
        from plus_plans p
-       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable
-      where p.is_active and p.code = $1`,
+       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable = 1
+      where p.is_active = 1 and p.code = ?`,
     [code],
   );
   return row ? toOffer(row, null) : null;
@@ -125,7 +135,7 @@ export async function getPlanVersion(versionId: string): Promise<
     `select ${OFFER_COLUMNS}, v.is_sellable
        from plus_plan_versions v
        join plus_plans p on p.id = v.plan_id
-      where v.id = $1`,
+      where v.id = ?`,
     [versionId],
   );
   if (!row) return null;
@@ -138,8 +148,8 @@ export async function hasSellableOffers(): Promise<boolean> {
   const row = await queryOne<{ n: number }>(
     `select count(*) as n
        from plus_plans p
-       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable
-      where p.is_active`,
+       join plus_plan_versions v on v.plan_id = p.id and v.is_sellable = 1
+      where p.is_active = 1`,
   );
   return (row?.n ?? 0) > 0;
 }

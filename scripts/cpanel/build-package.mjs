@@ -33,7 +33,8 @@
  *   app.js                     فایل شروع برای cPanel
  *   scripts/                   فقط ساختِ حساب مدیر
  *   .env.example               نمونهٔ تنظیمات با توضیح فارسی
- *   sarva-database.sql         ساختِ دیتابیس، برای phpMyAdmin
+ *   sarva-database.sql         ساختِ دیتابیس از صفر، برای phpMyAdmin
+ *   sarva-database-update.sql  فقط migration های تازه، برای سایتی که بالاست
  *   README-HOST.md             راهنمای گام‌به‌گام
  */
 
@@ -172,6 +173,35 @@ if (sqlBuild.status !== 0) {
 }
 await cp(join(ROOT, "deploy", "sarva-database.sql"), join(OUT, "sarva-database.sql"));
 
+// ⚠️ و یک فایلِ دوم، برای سایتی که *از قبل* بالاست.
+//
+// فایلِ کامل فقط روی دیتابیسِ خالی وارد می‌شود؛ روی دیتابیسِ زنده روی
+// «table already exists» می‌میرد — وسطِ کار، چون phpMyAdmin تراکنش ندارد.
+//
+// مرزِ ۰۰۲ دلبخواه نیست: ۰۰۱ و ۰۰۲ همان چیزی‌اند که در اولین راه‌اندازی
+// وارد شده‌اند، پس هر هاستِ موجود آن‌ها را دارد. هرچه بعد از آن آمده، تازه
+// است. سرتیترِ خودِ فایل می‌گوید دقیقاً کدام migration ها داخلش‌اند تا با
+// `SELECT name FROM schema_migrations` قابل مقایسه باشد.
+const UPDATE_FROM = (() => {
+  const i = process.argv.indexOf("--db-from");
+  return i !== -1 ? process.argv[i + 1] : "003";
+})();
+const updateBuild = spawnSync(
+  process.execPath,
+  [join(HERE, "make-sql.mjs"), "--from", UPDATE_FROM],
+  { stdio: "inherit" },
+);
+if (updateBuild.status === 0) {
+  await cp(
+    join(ROOT, "deploy", `sarva-database-${UPDATE_FROM}.sql`),
+    join(OUT, "sarva-database-update.sql"),
+  );
+} else {
+  // هیچ migration تازه‌ای بعد از آن نقطه نیست — یعنی این نسخه چیزی به
+  // دیتابیس اضافه نکرده. نبودِ فایل خودش پیام است، نه خطا.
+  say("  (بدون به‌روزرسانیِ دیتابیس در این نسخه)");
+}
+
 step("نمونهٔ تنظیمات و راهنما");
 await cp(join(ROOT, ".env.example"), join(OUT, ".env.example"));
 await cp(join(ROOT, "docs", "cpanel", "README-HOST.md"), join(OUT, "README-HOST.md"));
@@ -237,6 +267,7 @@ if (zipped) {
 if (zipped) {
   await rm(OUT, { recursive: true, force: true });
   await rm(join(ROOT, "deploy", "sarva-database.sql"), { force: true });
+  await rm(join(ROOT, "deploy", `sarva-database-${UPDATE_FROM}.sql`), { force: true });
 }
 
 say(`

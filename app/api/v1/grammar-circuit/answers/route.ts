@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { queryOne, transaction } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
@@ -62,7 +63,7 @@ export const POST = withRoute("/api/v1/grammar-circuit/answers", async (request:
       `select id, source_id, grade, lesson, question_type, payload, difficulty,
               explanation, attribution, is_published
          from grammar_circuit_questions
-        where id = $1`,
+        where id = ?`,
       [body.data.questionId],
     );
     if (!row || !row.is_published) return fail("این پرسش پیدا نشد.", 404);
@@ -117,17 +118,20 @@ export const POST = withRoute("/api/v1/grammar-circuit/answers", async (request:
       for (const r of rows) {
         await tx.execute(
           `insert into grammar_circuit_answers
-             (user_id, question_id, grade, lesson, token_text,
+             (id, user_id, question_id, grade, lesson, token_text,
               role_key, accepted_role_keys, chosen_role_key, is_correct)
-           values ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9)`,
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
+            randomUUID(),
             user.id,
             row.id,
             row.grade,
             row.lesson,
             r.tokenText,
             r.roleKey,
-            r.accepted,
+            // ⚠️ MySQL نوعِ آرایه ندارد؛ ستون JSON است. mysql2 آرایهٔ خام را
+            // به رشته تبدیل نمی‌کند، پس صریح JSON می‌شود.
+            JSON.stringify(r.accepted),
             r.chosen,
             r.isCorrect,
           ],

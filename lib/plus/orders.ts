@@ -1,11 +1,13 @@
 import "server-only";
-import { query, queryOne, transaction } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { execute, isUniqueViolation, query, queryOne, transaction } from "@/lib/db";
 import { logger } from "@/lib/observability";
 import { AuthError } from "@/lib/auth/types";
 import { getSellableOfferByCode } from "./plans";
 import { getPaymentProvider } from "./payments";
 import { activateForOrder } from "./grants";
 import { notify } from "./notifications";
+import { orderNumber } from "./order-number";
 import type { CANONICAL_CURRENCY } from "./money";
 import type {
   OrderStatus,
@@ -30,10 +32,17 @@ import type {
  *    تکراری و retry بعد از تایم‌اوت هیچ‌کدام سفارش یا دسترسیِ دوم نمی‌سازند.
  *    محافظت در دیتابیس است (دو ایندکس یکتا) و نه در رابط کاربری.
  *
- * ۴) **مالکیت همیشه در کوئری است.** هر خواندنِ سفارش شرطِ `user_id = $1`
+ * ۴) **مالکیت همیشه در کوئری است.** هر خواندنِ سفارش شرطِ `user_id = ?`
  *    دارد. بدون RLS، همین شرط تنها چیزی است که سفارشِ کاربر الف را از کاربر
  *    ب جدا می‌کند — و «شمارهٔ سفارش را عوض کن تا مالِ یکی دیگر را ببینی»
  *    دقیقاً همان‌جایی است که این شرط فراموش می‌شود.
+ *
+ * ── تفاوت‌های MySQL که در این فایل دیده می‌شوند ─────────────────────────────
+ *   • `RETURNING` وجود ندارد: شناسه را اپ می‌سازد و بعد از INSERT همان ردیف
+ *     خوانده می‌شود.
+ *   • شمارهٔ خوانا از `order_seq` (AUTO_INCREMENT) در اپ ساخته می‌شود —
+ *     چرایش در `lib/plus/order-number.ts`.
+ *   • `make_interval(mins => …)` نیست: `interval ? minute`.
  */
 
 /** خطای قابلِ نمایش با کدِ وضعیت — همان قراردادِ AuthError. */
@@ -49,7 +58,7 @@ const PENDING_TTL_MINUTES = 60;
 
 type OrderRow = {
   id: string;
-  order_number: string;
+  order_seq: number;
   user_id: string;
   plan_code: string;
   plan_title: string;
@@ -64,15 +73,14 @@ type OrderRow = {
   pending_expires_at: string | null;
 };
 
-const ORDER_COLUMNS = `id, order_number, user_id, plan_code, plan_title, plan_version,
+const ORDER_COLUMNS = `id, order_seq, user_id, plan_code, plan_title, plan_version,
                        plan_version_id, duration_days, amount_rials, currency,
                        status, created_at, paid_at, pending_expires_at`;
 
-/** همان ستون‌ها با پیشوندِ جدول — برای کوئری‌هایی که join یا زیرکوئری دارند.
+/** همان ستون‌ها با پیشوندِ جدول — برای کوئری‌هایی که زیرکوئری دارند.
  *  عمداً دستی نوشته شده و از روی رشتهٔ بالا ساخته نمی‌شود: `db:check-sql`
- *  کوئریِ ساخته‌شده در زمان اجرا را نمی‌تواند بازسازی کند و آن کوئری از
- *  بررسیِ پستگرس جا می‌ماند. */
-const ORDER_COLUMNS_O = `o.id, o.order_number, o.user_id, o.plan_code, o.plan_title, o.plan_version,
+ *  کوئریِ ساخته‌شده در زمان اجرا را نمی‌تواند بازسازی کند. */
+const ORDER_COLUMNS_O = `o.id, o.order_seq, o.user_id, o.plan_code, o.plan_title, o.plan_version,
                          o.plan_version_id, o.duration_days, o.amount_rials, o.currency,
                          o.status, o.created_at, o.paid_at, o.pending_expires_at`;
 
@@ -91,7 +99,7 @@ const ORDER_COLUMNS_O = `o.id, o.order_number, o.user_id, o.plan_code, o.plan_ti
  * بدونِ این، کاربر در «خریدهای من» چهار سفارشِ در انتظار پرداخت می‌دید و
  * نمی‌دانست کدام را بپردازد؛ و اگر دوتا را می‌پرداخت، دوبار پول داده بود.
  *
- * ایندکس یکتای `plus_orders_one_open_idx` این را در *دیتابیس* تضمین می‌کند،
+ * ایندکس یکتای `plus_orders_one_open_key` این را در *دیتابیس* تضمین می‌کند،
  * نه در این تابع: دو درخواستِ کاملاً هم‌زمان هم فقط یک ردیف می‌سازند و
  * بازنده، سفارشِ برنده را برمی‌گرداند.
  */
@@ -115,7 +123,7 @@ export async function createOrGetPendingOrder(params: {
     // سفارشِ بازِ موجود برای همین نسخه؟
     const open = await tx.queryOne<OrderRow>(
       `select ${ORDER_COLUMNS} from plus_orders
-        where user_id = $1 and plan_version_id = $2 and status = 'pending'`,
+        where user_id = ? and plan_version_id = ? and status = 'pending'`,
       [userId, offer.planVersionId],
     );
     if (open) return open;
@@ -125,20 +133,20 @@ export async function createOrGetPendingOrder(params: {
     if (idempotencyKey) {
       const seen = await tx.queryOne<OrderRow>(
         `select ${ORDER_COLUMNS} from plus_orders
-          where user_id = $1 and idempotency_key = $2`,
+          where user_id = ? and idempotency_key = ?`,
         [userId, idempotencyKey],
       );
       if (seen) return seen;
     }
 
-    const created = await tx.queryOne<OrderRow>(
+    const id = randomUUID();
+    await tx.execute(
       `insert into plus_orders
-         (user_id, plan_id, plan_version_id, plan_code, plan_title, plan_version,
+         (id, user_id, plan_id, plan_version_id, plan_code, plan_title, plan_version,
           duration_days, amount_rials, currency, idempotency_key, pending_expires_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-               now() + make_interval(mins => $11::int))
-       returning ${ORDER_COLUMNS}`,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(6) + interval ? minute)`,
       [
+        id,
         userId,
         offer.planId,
         offer.planVersionId,
@@ -152,6 +160,13 @@ export async function createOrGetPendingOrder(params: {
         PENDING_TTL_MINUTES,
       ],
     );
+
+    // MySQL معادلِ `returning` ندارد؛ شناسه را خودمان ساخته‌ایم، پس یک
+    // خواندنِ دقیق کافی است.
+    const created = await tx.queryOne<OrderRow>(
+      `select ${ORDER_COLUMNS} from plus_orders where id = ?`,
+      [id],
+    );
     if (!created) throw new OrderError("ساخت سفارش انجام نشد.", 500);
     return created;
   }).catch(async (err: unknown) => {
@@ -161,7 +176,7 @@ export async function createOrGetPendingOrder(params: {
     if (isUniqueViolation(err)) {
       const existing = await queryOne<OrderRow>(
         `select ${ORDER_COLUMNS} from plus_orders
-          where user_id = $1 and plan_version_id = $2 and status = 'pending'`,
+          where user_id = ? and plan_version_id = ? and status = 'pending'`,
         [userId, offer.planVersionId],
       );
       if (existing) return existing;
@@ -170,10 +185,6 @@ export async function createOrGetPendingOrder(params: {
   });
 
   return toSummary(row, null);
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
 }
 
 /* ──────────────────────────── شروعِ پرداخت ──────────────────────────────── */
@@ -200,40 +211,39 @@ export async function startPayment(params: {
   // پارامترهای درگاه نتوانند مقصد را عوض کنند.
   const returnUrl = `${params.origin}/payment/return?order=${encodeURIComponent(order.id)}`;
 
-  const attempt = await queryOne<{ id: string }>(
-    `insert into plus_payment_attempts (order_id, provider, amount_rials, state)
-     values ($1, $2, $3, 'created')
-     returning id`,
-    [order.id, provider.name, order.amount_rials],
+  const attemptId = randomUUID();
+  await execute(
+    `insert into plus_payment_attempts (id, order_id, provider, amount_rials, state)
+     values (?, ?, ?, ?, 'created')`,
+    [attemptId, order.id, provider.name, order.amount_rials],
   );
-  if (!attempt) throw new OrderError("ثبت تلاش پرداخت انجام نشد.", 500);
 
   const created = await provider.createPayment({
     orderId: order.id,
-    orderNumber: order.order_number,
+    orderNumber: orderNumber(order.order_seq),
     amountRials: order.amount_rials,
     description: `سروا پلاس — ${order.plan_title}`,
     returnUrl,
   });
 
   if (!created.ok) {
-    await queryOne(
+    await execute(
       `update plus_payment_attempts
-          set state = 'failed', failed_at = now(), error_code = $2, error_message = $3
-        where id = $1 returning id`,
-      [attempt.id, created.errorCode, created.errorMessage],
+          set state = 'failed', failed_at = now(6), error_code = ?, error_message = ?
+        where id = ?`,
+      [created.errorCode, created.errorMessage, attemptId],
     );
     throw new OrderError(created.errorMessage || "ارتباط با درگاه پرداخت برقرار نشد.", 502);
   }
 
-  await queryOne(
+  await execute(
     `update plus_payment_attempts
-        set state = 'redirected', redirected_at = now(), provider_ref = $2
-      where id = $1 returning id`,
-    [attempt.id, created.providerRef],
+        set state = 'redirected', redirected_at = now(6), provider_ref = ?
+      where id = ?`,
+    [created.providerRef, attemptId],
   );
 
-  return { redirectUrl: created.redirectUrl, attemptId: attempt.id };
+  return { redirectUrl: created.redirectUrl, attemptId };
 }
 
 /* ───────────────────────── تأیید و فعال‌سازی ────────────────────────────── */
@@ -273,7 +283,7 @@ export async function settlePayment(params: {
 
   const base = {
     orderId: order.id,
-    orderNumber: order.order_number,
+    orderNumber: orderNumber(order.order_seq),
     activatedNow: false,
     isRenewal: false,
     accessEndsAt: null as string | null,
@@ -287,10 +297,10 @@ export async function settlePayment(params: {
     const access = await queryOne<{ ends_at: string | null; tracking: string | null }>(
       `select e.ends_at,
               (select a.provider_tracking_id from plus_payment_attempts a
-                where a.order_id = $1 and a.state = 'verified'
+                where a.order_id = ? and a.state = 'verified'
                 order by a.verified_at desc limit 1) as tracking
-         from plus_entitlements e where e.source_order_id = $1`,
-      [order.id],
+         from plus_entitlements e where e.source_order_id = ?`,
+      [order.id, order.id],
     );
     return {
       ...base,
@@ -304,7 +314,7 @@ export async function settlePayment(params: {
   const attempt = await queryOne<{ id: string; provider: string; provider_ref: string | null }>(
     `select id, provider, provider_ref
        from plus_payment_attempts
-      where order_id = $1 and provider_ref is not null
+      where order_id = ? and provider_ref is not null
       order by created_at desc limit 1`,
     [order.id],
   );
@@ -386,16 +396,16 @@ export async function settlePayment(params: {
   const activation = await transaction(async (tx) => {
     await tx.execute(
       `update plus_payment_attempts
-          set state = 'verified', verified_at = now(), provider_tracking_id = $2
-        where id = $1`,
-      [attempt.id, result.trackingId ?? null],
+          set state = 'verified', verified_at = now(6), provider_tracking_id = ?
+        where id = ?`,
+      [result.trackingId ?? null, attempt.id],
     );
 
     // `and status = 'pending'` یعنی اگر تراکنشِ موازیِ دیگری زودتر رسیده
     // باشد، این یکی صفر ردیف می‌گیرد و دسترسیِ دوم هم نمی‌سازد (ایندکس یکتا).
     await tx.execute(
-      `update plus_orders set status = 'paid', paid_at = now()
-        where id = $1 and status = 'pending'`,
+      `update plus_orders set status = 'paid', paid_at = now(6)
+        where id = ? and status = 'pending'`,
       [order.id],
     );
 
@@ -414,7 +424,7 @@ export async function settlePayment(params: {
       userId: order.user_id,
       kind: activation.isRenewal ? "plus_renewed" : "plus_activated",
       title: activation.isRenewal ? "سروا پلاس تمدید شد ✦" : "سروا پلاس فعال شد ✦",
-      body: `سفارش ${order.order_number} تأیید شد.`,
+      body: `سفارش ${orderNumber(order.order_seq)} تأیید شد.`,
       href: "/panel/subscription",
     }).catch(() => {});
   }
@@ -435,14 +445,17 @@ async function setAttemptState(
   state: PaymentState,
   extra: { errorCode?: string; errorMessage?: string } = {},
 ): Promise<void> {
-  await queryOne(
+  await execute(
     `update plus_payment_attempts
-        set state = $2,
-            failed_at = case when $2 in ('failed', 'cancelled') then now() else failed_at end,
-            error_code = coalesce($3, error_code),
-            error_message = coalesce($4, error_message)
-      where id = $1 returning id`,
-    [attemptId, state, extra.errorCode ?? null, extra.errorMessage ?? null],
+        set state = ?,
+            failed_at = case when ? in ('failed', 'cancelled') then now(6) else failed_at end,
+            error_code = coalesce(?, error_code),
+            error_message = coalesce(?, error_message)
+      where id = ?`,
+    // ⚠️ در MySQL هر `?` پارامترِ بعدی را مصرف می‌کند؛ `state` دوبار در کوئری
+    // آمده پس دوبار هم فرستاده می‌شود. (در Postgres `$2` دوبار نوشته می‌شد و
+    // یک بار فرستاده. `lib/db` عمداً این را پنهان نمی‌کند.)
+    [state, state, extra.errorCode ?? null, extra.errorMessage ?? null, attemptId],
   );
 }
 
@@ -456,7 +469,7 @@ async function setAttemptState(
  */
 async function requireOwnedOrder(userId: string, orderId: string): Promise<OrderRow> {
   const row = await queryOne<OrderRow>(
-    `select ${ORDER_COLUMNS} from plus_orders where id = $1 and user_id = $2`,
+    `select ${ORDER_COLUMNS} from plus_orders where id = ? and user_id = ?`,
     [orderId, userId],
   );
   if (!row) throw new OrderError("این سفارش پیدا نشد.", 404);
@@ -466,7 +479,7 @@ async function requireOwnedOrder(userId: string, orderId: string): Promise<Order
 function toSummary(row: OrderRow, latestPaymentState: PaymentState | null): PlusOrderSummary {
   return {
     id: row.id,
-    orderNumber: row.order_number,
+    orderNumber: orderNumber(row.order_seq),
     planTitle: row.plan_title,
     durationDays: row.duration_days,
     amountRials: row.amount_rials,
@@ -498,9 +511,9 @@ export async function listOrders(
               where a.order_id = o.id
               order by a.created_at desc limit 1) as latest_state
        from plus_orders o
-      where o.user_id = $1
+      where o.user_id = ?
       order by o.created_at desc, o.id
-      limit $2 offset $3`,
+      limit ? offset ?`,
     [userId, limit + 1, offset],
   );
 
@@ -532,14 +545,14 @@ export async function getOrderDetail(
   }>(
     `select id, provider, state, provider_tracking_id, error_message, created_at
        from plus_payment_attempts
-      where order_id = $1
+      where order_id = ?
       order by created_at desc, id
       limit 20`,
     [orderId],
   );
 
   const access = await queryOne<{ starts_at: string; ends_at: string | null }>(
-    `select starts_at, ends_at from plus_entitlements where source_order_id = $1`,
+    `select starts_at, ends_at from plus_entitlements where source_order_id = ?`,
     [orderId],
   );
 
@@ -568,7 +581,7 @@ export async function countUnsettledOrders(userId: string): Promise<number> {
   const row = await queryOne<{ n: number }>(
     `select count(*) as n
        from plus_orders o
-      where o.user_id = $1
+      where o.user_id = ?
         and o.status = 'pending'
         and exists (select 1 from plus_payment_attempts a
                      where a.order_id = o.id
@@ -589,10 +602,10 @@ export async function expireStaleOrders(): Promise<number> {
   return transaction(async (tx) =>
     tx.execute(
       `update plus_orders o
-          set status = 'expired'
+          set o.status = 'expired'
         where o.status = 'pending'
           and o.pending_expires_at is not null
-          and o.pending_expires_at < now()
+          and o.pending_expires_at < now(6)
           and not exists (select 1 from plus_payment_attempts a
                            where a.order_id = o.id
                              and a.state in ('redirected', 'pending', 'unknown', 'verified'))`,

@@ -284,6 +284,22 @@ export const TABLE_ORDER = [
   "site_announcements",
   "site_supporters",
   "content_reports",
+
+  // ── سروا پلاس (mysql-migrations/003, 004) ────────────────────────────────
+  // ⚠️ این‌ها از کاتالوگِ Postgres تولید نشده‌اند — دست‌نویس‌اند و مبدأیی در
+  // `migrations/` ندارند. اینجا فقط برای این‌اند که `db:check` بداند باید
+  // ببیندشان؛ اگر روزی migration اجرا نشده باشد، همان‌جا صدا می‌کند به‌جای
+  // اینکه اولین کاربر با یک صفحهٔ ۵۰۰ متوجه شود.
+  "plus_plans",
+  "plus_plan_versions",
+  "plus_orders",
+  "plus_payment_attempts",
+  "plus_entitlements",
+  "plus_notifications",
+  "plus_tickets",
+  "plus_ticket_messages",
+  "aruz_bridge_answers",
+  "grammar_circuit_answers",
 ];
 
 /**

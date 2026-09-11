@@ -176,7 +176,15 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </Link>
 
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+        {/* ⚠️ `min-h-0` و `overflow-y-auto` هر دو لازم‌اند و هیچ‌کدام به تنهایی
+            کافی نیست. `<aside>` ارتفاعِ ثابتِ `h-screen` دارد و این نوار
+            چهارده آیتم — روی لپ‌تاپِ کوتاه بلندتر از صفحه می‌شود. آیتمِ
+            `flex-1` به‌طور پیش‌فرض `min-height: auto` دارد، یعنی زیرِ ارتفاعِ
+            محتوایش کوچک نمی‌شود؛ پس بدونِ `min-h-0` نوار از پایینِ `aside`
+            بیرون می‌زد و «کنسول SQL» و «تنظیمات» اصلاً قابلِ رسیدن نبودند.
+            `overscroll-contain` هم جلوی این را می‌گیرد که رسیدن به تهِ فهرست،
+            اسکرول را به صفحهٔ پشتِ سر بدهد. */}
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain p-3">
           {NAV.map((item) => {
             const active = isActive(pathname, item.href);
             return (

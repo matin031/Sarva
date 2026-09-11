@@ -2,6 +2,9 @@
 
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
+import PanelPageHeader from "./PanelPageHeader";
+import SarvaBuddy from "./SarvaBuddy";
+import styles from "./panel-design.module.css";
 
 /** The panel's visual vocabulary, kept deliberately small.
  *
@@ -23,17 +26,7 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
-        )}
-      </div>
-      {action}
-    </div>
+    <PanelPageHeader title={title} description={subtitle} action={action} />
   );
 }
 
@@ -45,10 +38,11 @@ export function StatRow({
 }) {
   return (
     <motion.dl
+      data-panel-card=""
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: EASE }}
-      className="grid grid-cols-2 gap-y-6 rounded-2xl border border-border bg-card p-6 sm:grid-cols-4"
+      className="grid grid-cols-2 gap-y-6 rounded-2xl border border-border/70 bg-surface p-6 sm:grid-cols-4"
     >
       {items.map((s) => (
         <div key={s.label} className="min-w-0">
@@ -76,11 +70,12 @@ export function Card({
 }) {
   return (
     <motion.div
+      data-panel-card=""
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.4, delay: Math.min(index, 6) * 0.03, ease: EASE }}
-      className={`rounded-2xl border border-border bg-card ${className}`}
+      className={`rounded-2xl border border-border/70 bg-surface ${className}`}
     >
       {children}
     </motion.div>
@@ -166,7 +161,8 @@ export function EmptyState({
   cta?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+    <div className={styles.emptyState}>
+      <SarvaBuddy small />
       <h2 className="text-base font-bold text-foreground">{title}</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
         {body}

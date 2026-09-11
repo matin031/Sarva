@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 import { execute, queryOne, transaction } from "@/lib/db";
 import { requireUser } from "@/lib/auth/current-user";
 import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { isUuid } from "@/lib/api/action-input";
+import { ticketNumber } from "./order-number";
 import type { TicketCategory } from "./types";
 
 /**
@@ -99,7 +101,7 @@ export async function createTicket(input: {
   if (input.orderId) {
     if (!isUuid(input.orderId)) return { ok: false, errors: ["سفارش انتخاب‌شده معتبر نیست."] };
     const owned = await queryOne<{ id: string }>(
-      "select id from plus_orders where id = $1 and user_id = $2",
+      "select id from plus_orders where id = ? and user_id = ?",
       [input.orderId, user.id],
     );
     if (!owned) return { ok: false, errors: ["این سفارش در حساب شما پیدا نشد."] };
@@ -107,26 +109,32 @@ export async function createTicket(input: {
   }
 
   const created = await transaction(async (tx) => {
-    const ticket = await tx.queryOne<{ id: string; ticket_number: string }>(
+    const id = randomUUID();
+    await tx.execute(
       // status و admin_unread صریحاً نوشته می‌شوند و از ورودی نمی‌آیند.
-      `insert into plus_tickets (user_id, category, subject, order_id, status, admin_unread, user_unread)
-       values ($1, $2, $3, $4, 'waiting_for_support', true, false)
-       returning id, ticket_number`,
-      [user.id, category, subject, orderId],
+      `insert into plus_tickets
+         (id, user_id, category, subject, order_id, status, admin_unread, user_unread)
+       values (?, ?, ?, ?, ?, 'waiting_for_support', 1, 0)`,
+      [id, user.id, category, subject, orderId],
     );
-    if (!ticket) throw new Error("ساخت تیکت انجام نشد.");
 
     await tx.execute(
-      `insert into plus_ticket_messages (ticket_id, author_id, author_role, body)
-       values ($1, $2, 'user', $3)`,
-      [ticket.id, user.id, body],
+      `insert into plus_ticket_messages (id, ticket_id, author_id, author_role, body)
+       values (?, ?, ?, 'user', ?)`,
+      [randomUUID(), id, user.id, body],
     );
 
-    return ticket;
+    // MySQL معادلِ `returning` ندارد؛ شمارهٔ خوانا از `ticket_seq` ساخته
+    // می‌شود (چرایش در lib/plus/order-number.ts).
+    const row = await tx.queryOne<{ ticket_seq: number }>(
+      "select ticket_seq from plus_tickets where id = ?",
+      [id],
+    );
+    return { id, seq: row?.ticket_seq ?? 0 };
   });
 
   revalidatePath("/panel/support");
-  return { ok: true, data: { id: created.id, ticketNumber: created.ticket_number } };
+  return { ok: true, data: { id: created.id, ticketNumber: ticketNumber(created.seq) } };
 }
 
 export async function replyToTicket(input: {
@@ -151,24 +159,26 @@ export async function replyToTicket(input: {
 
   const message = await transaction(async (tx) => {
     // شرطِ مالکیت در همین update — نه در یک select جدا که بینشان فاصله باشد.
-    const ticket = await tx.queryOne<{ id: string }>(
+    // (MySQL `returning` ندارد، پس تعدادِ ردیفِ تحت‌تأثیر همان نقش را دارد:
+    //  صفر یعنی یا مالِ این کاربر نیست یا بسته است.)
+    const affected = await tx.execute(
       `update plus_tickets
           set status = case when status = 'resolved' then 'waiting_for_support' else status end,
-              last_activity_at = now(),
-              admin_unread = true,
-              user_unread = false
-        where id = $1 and user_id = $2 and status <> 'closed'
-        returning id`,
+              last_activity_at = now(6),
+              admin_unread = 1,
+              user_unread = 0
+        where id = ? and user_id = ? and status <> 'closed'`,
       [input.ticketId, user.id],
     );
-    if (!ticket) return null;
+    if (affected === 0) return null;
 
-    return tx.queryOne<{ id: string }>(
-      `insert into plus_ticket_messages (ticket_id, author_id, author_role, body)
-       values ($1, $2, 'user', $3)
-       returning id`,
-      [ticket.id, user.id, body],
+    const id = randomUUID();
+    await tx.execute(
+      `insert into plus_ticket_messages (id, ticket_id, author_id, author_role, body)
+       values (?, ?, ?, 'user', ?)`,
+      [id, input.ticketId, user.id, body],
     );
+    return { id };
   });
 
   if (!message) {
@@ -187,8 +197,8 @@ export async function closeTicket(ticketId: unknown): Promise<ActionResult<null>
   if (!isUuid(ticketId)) return { ok: false, errors: ["این تیکت پیدا نشد."] };
 
   const affected = await execute(
-    `update plus_tickets set status = 'closed', last_activity_at = now(), user_unread = false
-      where id = $1 and user_id = $2 and status <> 'closed'`,
+    `update plus_tickets set status = 'closed', last_activity_at = now(6), user_unread = 0
+      where id = ? and user_id = ? and status <> 'closed'`,
     [ticketId, user.id],
   );
   if (!affected) return { ok: false, errors: ["این تیکت پیدا نشد."] };
@@ -203,7 +213,7 @@ export async function markTicketRead(ticketId: unknown): Promise<void> {
   if (!isUuid(ticketId)) return;
 
   await execute(
-    `update plus_tickets set user_unread = false where id = $1 and user_id = $2 and user_unread`,
+    `update plus_tickets set user_unread = 0 where id = ? and user_id = ? and user_unread = 1`,
     [ticketId, user.id],
   );
 }

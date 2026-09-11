@@ -126,20 +126,21 @@ export const getPlusStatusFor = cache(async (userId: string): Promise<PlusStatus
 
   let rows: Row[];
   try {
-    // ⚠️ همهٔ دسترسی‌های *لغونشده* خوانده می‌شوند و نه فقط دسترسیِ فعالِ
-    // امروز. دلیلش یک باگِ واقعی است: کاربری که دو دورهٔ پشتِ‌سرِهم خریده،
-    // با خواندنِ تنها یک ردیف «۳۰ روز باقی‌مانده» می‌دید در حالی که ۶۰ روز
-    // خریده بود — و هشدارِ «نزدیک پایان» هم زودتر شلیک می‌شد. جزئیاتش بالای
+    // ⚠️ همهٔ دسترسی‌های کاربر خوانده می‌شوند و نه فقط دسترسیِ فعالِ امروز.
+    // دلیلش یک باگِ واقعی است: کاربری که دو دورهٔ پشتِ‌سرِهم خریده، با خواندنِ
+    // تنها یک ردیف «۳۰ روز باقی‌مانده» می‌دید در حالی که ۶۰ روز خریده بود —
+    // و هشدارِ «نزدیک پایان» هم زودتر شلیک می‌شد. جزئیاتش بالای
     // `lib/plus/coverage.ts`.
     //
-    // فیلترِ `revoked_at is null` همان‌جایی است که ایندکسِ جزئی
-    // `plus_entitlements_active_idx` رویش بسته شده.
+    // ⚠️ `nulls first` در MySQL وجود ندارد. `ends_at is null` یک بیانِ
+    // ۰/۱ است و مرتب‌سازیِ نزولی رویش، NULL ها (یعنی دسترسیِ دائمی) را اول
+    // می‌آورد — همان معنایی که در Postgres صریح نوشته می‌شد.
     rows = await query<Row>(
       `select starts_at, ends_at, source, revoked_at
          from plus_entitlements
-        where user_id = $1
-        order by ends_at desc nulls first
-        limit $2`,
+        where user_id = ?
+        order by (ends_at is null) desc, ends_at desc
+        limit ?`,
       [userId, MAX_ENTITLEMENT_ROWS],
     );
   } catch (err) {

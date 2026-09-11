@@ -1,50 +1,50 @@
-import PanelNavigation from "@/components/UI/panel/PanelNavigation";
-import Link from "next/link";
 import { ToastContainer } from "react-toastify";
+import PanelQueryProvider from "@/components/UI/panel/shell/PanelQueryProvider";
+import PanelSidebar from "@/components/UI/panel/shell/PanelSidebar";
+import PanelTopbar from "@/components/UI/panel/shell/PanelTopbar";
+import { GeometricPattern } from "@/components/persian-patterns";
+import styles from "@/components/UI/panel/panel-design.module.css";
 
-export default function PanelLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+/**
+ * پوستهٔ پنل: سایدبارِ ثابتِ راست + یک نوارِ بالا + ستونِ محتوا.
+ *
+ * ⚠️ پنل از `SiteChrome` کنار گذاشته شده (مثل `/admin`)، پس هدر و پاورقیِ
+ * سایت اینجا رندر نمی‌شوند. اگر این را برگردانی، دو نوارِ چسبان روی هم
+ * می‌نشینند.
+ *
+ * ⚠️ `panel-scope` فقط یک کلاسِ تزئینی نیست: قاعدهٔ `* { line-height: 2 }`
+ * سراسریِ سایت را برای این زیردرخت پس می‌گیرد. دلیلش در globals.css نوشته
+ * شده.
+ */
+export default function PanelLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main
-      dir="rtl"
-      className=" container relative z-20 mt-12 mb-80 flex flex-col items-center justify-center"
-    >
-      {/* ⚠️ ToastContainer قبلاً در layoutِ *ریشه* بود، یعنی روی هر صفحهٔ
-          عمومی هم بار می‌شد — خانه، درسنامه، بازی‌ها، همه.
-
-          در حالی که در کلِ پروژه فقط *یک* جا از toast استفاده می‌شود:
-          دکمهٔ خروج در /panel/setting. پس هزینه‌اش را همه می‌دادند و
-          فایده‌اش را یک صفحهٔ پشتِ ورود می‌برد.
-
-          حالا اینجاست: هر صفحه‌ای که واقعاً ممکن است toast نشان دهد
-          زیرِ همین layout است، و بقیهٔ سایت اصلاً بارش نمی‌کند. */}
+    <div dir="rtl" className={`panel-scope flex min-h-dvh ${styles.shell}`}>
+      <div aria-hidden="true" className={styles.pattern}>
+        <GeometricPattern opacity={0.025} />
+      </div>
       <ToastContainer
         position="top-center"
-        autoClose={5000}
+        autoClose={4000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick={false}
-        rtl={true}
+        rtl
         pauseOnFocusLoss
         draggable
         pauseOnHover
         theme="dark"
       />
-      <PanelNavigation />
-      {/* two thirds on a desktop, the full column on a phone — at 390px a 2/3
-          column leaves the picture cards and the option chips unreadable */}
-      <section className=" w-full md:w-2/3 mx-auto mt-12">{children}</section>
-    </main>
+
+      <PanelQueryProvider>
+        <PanelSidebar />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <PanelTopbar />
+          <main id="panel-content" className={`mx-auto flex w-full max-w-[90rem] flex-1 flex-col px-4 sm:px-6 lg:px-8 ${styles.content}`}>
+            {children}
+          </main>
+        </div>
+      </PanelQueryProvider>
+    </div>
   );
 }
-// return (
-// <main className=" grid grid-cols-12 container gap-x-6 relative z-20 mt-12">
-//   <section className=" col-span-9  h-200"></section>
-//   <aside className=" col-span-3 glass rounded-xl h-140"></aside>
-// </main>
-
-// );
-// }

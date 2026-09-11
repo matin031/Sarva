@@ -1,11 +1,15 @@
 "use client";
 
+import Link from "next/link";
+import PanelPageHeader from "./PanelPageHeader";
+import PracticeSummary from "./PracticeSummary";
+import styles from "./panel-design.module.css";
+
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 import PanelSection from "@/components/UI/panel/PanelSection";
 import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
-import StatRing from "@/components/UI/panel/StatRing";
 import { groupIntoSessions, jalali, relativeDay, scoreColor, streak } from "@/lib/panel/format";
 import type { JasoosAnswer } from "@/lib/panel/types";
 
@@ -61,71 +65,9 @@ export default function JasoosPanel({
   }, [answers]);
 
   return (
-    <div>
-      <span
-        className="mb-5 inline-flex items-center gap-2
-       rounded-full border border-primary/30 bg-primary/10
-        px-4 py-1 text-sm font-semibold text-primary"
-      >
-        بازی جاسوس
-      </span>
-
-      <div className=" glass rounded-xl p-4 sm:p-6">
-        <div className=" mt-2 grid grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-7">
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <StatRing percent={accuracy} />
-            <span className=" text-base sm:text-lg">دقت در یافتنِ جاسوس</span>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-              <path
-                fillRule="evenodd"
-                d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 0 1 0-1.113ZM17.25 12a5.25 5.25 0 1 1-10.5 0 5.25 5.25 0 0 1 10.5 0Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">
-                {toFa(total)}
-              </span>{" "}
-              پرونده بررسی کردی
-            </div>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <StatRing percent={best} />
-            <span className=" text-base sm:text-lg">بهترین دست</span>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path
-                fillRule="evenodd"
-                d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.176 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">
-                {toFa(streak(answers.map((a) => a.answeredAt)))}
-              </span>{" "}
-              روز زنجیرۀ تلاش
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className={styles.pageStack}>
+      <PanelPageHeader title="جاسوس" description="کارآگاهِ جمله‌ها، سرنخ‌های پیشرفتت را مرور کن." tone="rose" action={<Link href="/game/jasoos" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PracticeSummary items={[{ label: "دقت در یافتن جاسوس", value: `${toFa(accuracy)}٪` }, { label: "پرونده‌های بررسی‌شده", value: toFa(total) }, { label: "بهترین دست", value: `${toFa(best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(streak(answers.map(a => a.answeredAt)))} روز` }]} />
 
       <PanelSection title="روند پیشرفت" icon="chart">
         <PanelTrendChart

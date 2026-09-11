@@ -53,8 +53,11 @@ export default function StatRing({
           />
         )}
       </svg>
-      <span className=" absolute inset-0 flex items-center justify-center text-xl font-bold sm:text-2xl">
-        {ready ? `${toFa(p)}%` : "—"}
+      {/* ⚠️ درصدِ فارسی «٪» است و نه «%». پیش از این این یک حلقه «۷۱%»
+          می‌نوشت در حالی که حلقه‌های کنارش «۸۴٪» — دو نویسهٔ متفاوت برای
+          یک چیز، در یک صفحه. */}
+      <span className="panel-num absolute inset-0 flex items-center justify-center text-xl font-bold sm:text-2xl">
+        {ready ? `${toFa(p)}٪` : "—"}
       </span>
     </div>
   );

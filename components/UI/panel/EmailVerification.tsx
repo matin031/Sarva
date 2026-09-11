@@ -28,7 +28,7 @@ export default function EmailVerification() {
 
   if (user.emailVerified) {
     return (
-      <section className="glass flex items-center gap-3 rounded-2xl p-5">
+      <section data-panel-card="" data-tone="mint" className="bg-surface border border-border/70 flex items-center gap-3 rounded-2xl p-5">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
@@ -109,7 +109,7 @@ export default function EmailVerification() {
   };
 
   return (
-    <section className="glass flex flex-col gap-4 rounded-2xl border border-gold/30 p-5">
+    <section className="bg-surface border border-border/70 flex flex-col gap-4 rounded-2xl border border-gold/30 p-5">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gold/15 text-gold">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">

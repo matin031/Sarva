@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import PanelPageHeader from "./PanelPageHeader";
+import SarvaBuddy from "./SarvaBuddy";
+import styles from "./panel-design.module.css";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import PoemBody from "@/components/UI/club/PoemBody";
@@ -86,20 +89,7 @@ export default function ClubPanel({
 
   return (
     <div dir="rtl" className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">سروا کلاب</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            سروده‌هایت، وضعیت بررسی‌شان و گفت‌وگوهایی که راه انداخته‌ای.
-          </p>
-        </div>
-        <Link
-          href="/sarvaclub"
-          className="rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-        >
-          رفتن به کلاب
-        </Link>
-      </div>
+      <PanelPageHeader title="کلماتت اینجا خانه دارند" description="سروده‌ها، پسندها و گفت‌وگوهایت را کنار هم ببین." eyebrow="سروا کلاب" tone="rose" action={<Link href="/sarvaclub" className={styles.resumeCta}>بریم به کلاب <span aria-hidden>←</span></Link>} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
@@ -108,7 +98,7 @@ export default function ClubPanel({
           { label: "بازگردانده‌شده", value: stats.rejected, tone: "text-destructive" },
           { label: "پسند دریافتی", value: stats.likes, tone: "text-foreground" },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
+          <div key={s.label} data-panel-card="" className="rounded-2xl border border-border bg-card p-5">
             <span className={`block text-2xl font-bold ${s.tone}`}>{fa(s.value)}</span>
             <span className="text-xs text-muted-foreground">{s.label}</span>
           </div>
@@ -142,7 +132,7 @@ export default function ClubPanel({
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      <div className={styles.filterBar}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -342,8 +332,6 @@ export default function ClubPanel({
 
 function Empty({ text }: { text: string }) {
   return (
-    <p className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-      {text}
-    </p>
+    <div className={styles.emptyState}><SarvaBuddy small /><p className="text-sm text-muted-foreground">{text}</p></div>
   );
 }

@@ -37,7 +37,30 @@
     "**/*.mts",
     ".next/dev/dev/types/**/*.ts"
   ],
+  "//exclude": [
+    "⚠️ این فهرست فقط سرعت نیست — نبودنش `next build` را می‌شکست.",
+    "",
+    "next build پیش از بسته‌بندی یک type-check کامل روی همین tsconfig اجرا",
+    "می‌کند، و `include` اینجا **/*.ts است. یعنی هر پوشه‌ای که کنار پروژه",
+    "بیفتد هم type-check می‌شود:",
+    "",
+    "  r3f-skills/  بستهٔ مرجعِ React Three Fiber است، نه کد این پروژه.",
+    "               tsconfig و مرحلهٔ ساختِ خودش را دارد و فایل‌های",
+    "               .generated/ اش تا آن مرحله اجرا نشود وجود ندارند — پس",
+    "               از دید این tsconfig همیشه سه خطای TS2307/TS2322 دارد.",
+    "",
+    "  deploy/      خروجی host:build است و *کپیِ* proxy.ts، instrumentation.ts",
+    "               و next.config.ts پروژه را در خود دارد. type-check کردنِ",
+    "               کپی‌ها هم بی‌فایده است و هم منبعِ خطاهای تکراری.",
+    "",
+    "نشانه‌اش موذی بود: tsc --noEmit با فیلتر کردنِ همان سه خط ساکت به نظر",
+    "می‌رسید، ولی `next build` روی «Failed to type check» می‌ایستاد. و چون",
+    "host:build عمداً build نمی‌کند و فقط .next موجود را بسته‌بندی می‌کند،",
+    "نتیجه یک بستهٔ کاملاً سالم بود که کدش ساعت‌ها قدیمی‌تر از سورس بود."
+  ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "r3f-skills",
+    "deploy"
   ]
 }

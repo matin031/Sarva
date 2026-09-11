@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import PanelPageHeader from "./PanelPageHeader";
+import PracticeSummary from "./PracticeSummary";
+import styles from "./panel-design.module.css";
+
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 import PanelSection from "@/components/UI/panel/PanelSection";
-import StatRing from "@/components/UI/panel/StatRing";
 import { jalali, relativeDay, scoreColor } from "@/lib/panel/format";
 import type { ExamAttempt } from "@/lib/panel/types";
 
@@ -214,76 +218,9 @@ export default function ExamPanel({
   }, [attempts]);
 
   return (
-    <div>
-      <span
-        className="mb-5 inline-flex items-center gap-2
-       rounded-full border border-primary/30 bg-primary/10
-        px-4 py-1 text-sm font-semibold text-primary"
-      >
-        امتحان نهایی
-      </span>
-
-      <div className=" glass rounded-xl p-4 sm:p-6">
-        <div className=" mt-2 grid grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-7">
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <StatRing percent={stats.average} />
-            <span className=" text-base sm:text-lg">میانگین کارنامه‌ها</span>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              <span className=" text-2xl text-gold sm:text-3xl">
-                {toFa(stats.count)}
-              </span>{" "}
-              آزمون داده‌ای
-            </div>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <StatRing percent={stats.best} />
-            <span className=" text-base sm:text-lg">بهترین کارنامه</span>
-          </div>
-
-          <div className=" flex items-center gap-x-4 rounded-xl bg-card p-4 shadow sm:gap-x-6">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className=" size-9 shrink-0 sm:size-10"
-            >
-              <path
-                fillRule="evenodd"
-                d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className=" text-base sm:text-lg">
-              {stats.lastAt ? (
-                <>
-                  آخرین آزمون{" "}
-                  <span className=" text-gold">{relativeDay(stats.lastAt)}</span>
-                </>
-              ) : (
-                <span className=" text-muted-foreground">هنوز آزمونی نداده‌ای</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className={styles.pageStack}>
+      <PanelPageHeader title="کارنامه‌های من" description="هر آزمون یک قدم رو به جلوست؛ نتیجه‌ها را با هم مرور کنیم." tone="mint" action={<Link href="/exam" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PracticeSummary items={[{ label: "میانگین کارنامه‌ها", value: `${toFa(stats.average)}٪` }, { label: "آزمون‌های تو", value: toFa(stats.count) }, { label: "بهترین کارنامه", value: `${toFa(stats.best)}٪` }, { label: "آخرین آزمون", value: stats.lastAt ? relativeDay(stats.lastAt) : "هنوز شروع نکرده‌ای" }]} />
 
       <PanelSection
         title="کارنامه‌ها"

@@ -2,20 +2,23 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listDevices } from "@/lib/auth/devices";
 import AccountSettings from "@/components/UI/AccountSettings";
-import ExitPanelBtn from "@/components/UI/ExitPanelBtn";
 import EmailVerification from "@/components/UI/panel/EmailVerification";
 import ActiveDevices from "@/components/UI/panel/ActiveDevices";
+import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
+import PlusSettingCard from "@/components/UI/panel/PlusSettingCard";
 
 /**
- * حساب کاربری.
+ * حساب کاربری: نام، رمز، ایمیل، و دستگاه‌هایی که وارد شده‌اند.
  *
- * تا امروز فقط «تغییر نام» و «تغییر رمز» بود. دو چیزی که کنارشان اضافه شده،
- * هر دو قابلیت‌هایی بودند که سمت سرور کامل آماده بودند و فقط رابط نداشتند:
+ * ⚠️ دکمهٔ «خروج از حساب» از انتهای این صفحه برداشته شد و به منوی کاربر در
+ * پایینِ سایدبار رفت. کاربری که می‌خواهد خارج شود، نباید اول به صفحهٔ
+ * تنظیمات برود و تا ته اسکرول کند — و صفحهٔ تنظیمات هم نباید با یک دکمهٔ
+ * قرمزِ بزرگ تمام شود.
  *
- *   • تأیید ایمیل — کاربری که صفحهٔ کد را در ثبت‌نام رد می‌کرد، تا ابد
- *     «تأییدنشده» می‌ماند و راهی برای درستش نداشت.
- *   • دستگاه‌های وارد شده — `listActiveSessions` از ابتدا نوشته شده بود و
- *     هیچ‌جا صدا زده نمی‌شد.
+ * ⚠️ و «سروا پلاس» بالای فرم‌ها نشست، نه پایینِ صفحه. کاربری که دنبالِ روشن
+ * کردنِ پلاس است اول به تنظیمات می‌آید — تا امروز اینجا هیچ نشانی از پلاس
+ * نبود و آن کاربر بن‌بست می‌خورد. وقتی پلاس از پنل مدیریت خاموش باشد، این
+ * کارت اصلاً رندر نمی‌شود.
  */
 export const dynamic = "force-dynamic";
 
@@ -26,29 +29,19 @@ export default async function Page() {
   const devices = await listDevices(user.id);
 
   return (
-    <div className="relative z-20 flex flex-col gap-6">
-      <div>
-        <span
-          className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/30
-           bg-primary/10 px-4 py-1 text-sm font-semibold text-primary"
-        >
-          حساب کاربری
-        </span>
-        <h1 className="text-xl font-bold">تنظیمات حساب</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          نام، رمز عبور، ایمیل و دستگاه‌هایی که با حسابت وارد شده‌اند.
-        </p>
-      </div>
+    <>
+      <PanelPageHeader title="این گوشه، مخصوص توست" description="نامت، رمزت و دستگاه‌هایت؛ حساب سروا را همان‌طور که دوست داری مرتب کن." eyebrow="تنظیمات حساب" tone="lilac" />
 
-      {/* بالای صفحه چون تنها موردی است که ممکن است نیاز به اقدام داشته باشد؛
-          وقتی ایمیل تأیید شده باشد، به یک نوار آرام تبدیل می‌شود. */}
+      {/* بالای صفحه، چون تنها موردی است که ممکن است *نیازِ به اقدام* داشته
+          باشد؛ وقتی ایمیل تأیید شده باشد، خودش به یک نوارِ آرام تبدیل
+          می‌شود. */}
       <EmailVerification />
+
+      <PlusSettingCard />
 
       <AccountSettings />
 
       <ActiveDevices initial={devices} />
-
-      <ExitPanelBtn />
-    </div>
+    </>
   );
 }

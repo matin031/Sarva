@@ -44,6 +44,18 @@
   --gold-ink: oklch(0.52 0.11 85);
   --cream: oklch(0.97 0.01 85);
   --paper: oklch(0.92 0.02 85);
+
+  /* ── سطح و ژرفای پنل ────────────────────────────────────────────────
+     ⚠️ `--surface` یک فرمول است و نه دو رنگِ دستی: کارت همیشه یک لایهٔ
+     نازکِ رنگِ *متن* در خود دارد. در تمِ روشن یعنی کمی تیره‌تر از کاغذ و
+     در تمِ تیره کمی روشن‌تر و گرم‌تر از زمینهٔ شب — یعنی یک تعریف، دو
+     نتیجهٔ درست. پیش از این کارت‌های پنل دقیقاً همرنگِ زمینه بودند و
+     مرزشان فقط از روی بوردر دیده می‌شد. */
+  --surface: color-mix(in oklch, var(--card) 96%, var(--foreground));
+  --surface-2: color-mix(in oklch, var(--card) 91%, var(--foreground));
+  /* سایهٔ زیرِ دکمه‌های «فشاردادنی». تیره‌ترِ همان رنگ، نه یک خاکستری. */
+  --primary-deep: color-mix(in oklch, var(--primary) 72%, #000);
+  --gold-deep: color-mix(in oklch, var(--gold) 68%, #000);
 }
 
 .dark {
@@ -89,6 +101,12 @@
   --gold-ink: oklch(0.8 0.12 85);
   --cream: oklch(0.95 0.01 85);
   --paper: oklch(0.22 0.025 260);
+
+  /* همان فرمولِ بالا؛ چون --card و --foreground اینجا عوض شده‌اند، خودش
+     جهتِ درست را می‌گیرد. فقط نسبت‌ها کمی بازتر است، چون در تمِ تیره
+     چهار درصد کرم به‌سختی دیده می‌شود. */
+  --surface: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --surface-2: color-mix(in oklch, var(--card) 88%, var(--foreground));
 }
 #nprogress .bar {
   background: var(--color-primary) !important;
@@ -159,6 +177,10 @@
   --color-gold-light: var(--gold-light);
   --color-cream: var(--cream);
   --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-primary-deep: var(--primary-deep);
+  --color-gold-deep: var(--gold-deep);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -2809,4 +2831,71 @@ html[data-quality="low"] [class*="backdrop-blur"] {
     animation: none;
     opacity: 0;
   }
+}
+
+/* ============================================================
+   پنل کاربری — ریتمِ عمودی و سطح‌ها
+   ============================================================ */
+
+/* ⚠️ چرا `.panel-scope *` و نه فقط `.panel-scope`:
+   بالاتر در همین فایل یک `* { line-height: 2 }` هست که روی *هر عنصر*
+   مستقیماً می‌نشیند، پس ارث‌بری از والد هیچ‌وقت به آن نمی‌رسد. تنها راهِ
+   پس‌گرفتنش، یک انتخابگر با ویژگیِ بالاتر روی همان عناصر است.
+
+   و چرا اصلاً پس گرفته می‌شود: خطِ ۲ برای متنِ روانِ فارسی خوب است ولی
+   عددِ ۳۴ پیکسلی را در کارتِ KPI شناور می‌کند و کارت را بی‌دلیل بلند
+   می‌سازد. متن ۱٫۸، عنوان و عدد ۱٫۴. */
+.panel-scope,
+.panel-scope * {
+  line-height: 1.8;
+}
+
+.panel-scope :is(h1, h2, h3, h4, h5, button, input, .panel-num) {
+  line-height: 1.4;
+}
+
+/* هر جا عدد در ستون روی هم می‌نشیند (KPI، کارنامه‌ها، محورِ نمودار). */
+.panel-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* بیت، فقط جایی که واقعاً بیت است — نه هر متنِ فارسی.
+   نسخِ عربی برای شعر خوانده می‌شود و وزیرمتن برای رابط کاربری. */
+.panel-verse {
+  font-family: var(--font-naskh), "Noto Naskh Arabic", var(--font-sans), serif;
+  line-height: 2.1;
+}
+
+/* نوارِ کنارِ آیتمِ فعالِ سایدبار. با ::before ساخته می‌شود تا جای عنصر را
+   نگیرد و با باز و بستهٔ کشو جابه‌جا نشود. */
+.panel-nav-active {
+  position: relative;
+}
+.panel-nav-active::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: -0.75rem;
+  top: 50%;
+  translate: 0 -50%;
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 3px;
+  background: var(--color-primary);
+}
+
+/* هالهٔ کارتِ «از همین‌جا ادامه بده» — تنها جایی از پنل که پس‌زمینهٔ رنگی
+   دارد، چون تنها جایی است که باید اول دیده شود. */
+.panel-focus {
+  background:
+    radial-gradient(
+      120% 140% at 88% -20%,
+      color-mix(in oklch, var(--primary) 18%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 120% at 4% 120%,
+      color-mix(in oklch, var(--gold) 9%, transparent),
+      transparent 60%
+    ),
+    var(--surface-2);
 }

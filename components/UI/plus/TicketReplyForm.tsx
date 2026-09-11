@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { closeTicket, replyToTicket } from "@/lib/plus/support-actions";
+import styles from "@/components/UI/panel/panel-design.module.css";
+import { Button } from "@/components/UI/kit/button";
 
 /**
  * پاسخ در یک تیکت.
@@ -60,7 +62,7 @@ export default function TicketReplyForm({
   }
 
   return (
-    <form onSubmit={send} className="glass space-y-3 rounded-2xl p-4">
+    <form onSubmit={send} data-panel-card="" className={`${styles.formCard} space-y-4}`}>
       <label className="block text-sm">
         <span className="text-muted-foreground">پاسخ تو</span>
         <textarea
@@ -82,22 +84,23 @@ export default function TicketReplyForm({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="submit"
           disabled={busy}
           aria-busy={busy}
           className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
         >
           {busy ? "در حال ارسال…" : "ارسال"}
-        </button>
-        <button
+        </Button>
+        <Button variant="outline"
+          data-preview-write=""
           type="button"
           onClick={finish}
           disabled={busy}
           className="rounded-xl border border-border px-4 py-2 text-sm disabled:opacity-60"
         >
           مشکلم حل شد، ببند
-        </button>
+        </Button>
       </div>
     </form>
   );

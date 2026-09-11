@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import SarvaBuddy from "./SarvaBuddy";
+import styles from "./panel-design.module.css";
 import { apiDelete, apiPatch } from "@/lib/api/client";
 import { AREA_LABEL, type Bookmark, type BookmarkArea } from "@/lib/panel/types";
 
@@ -102,8 +104,8 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="glass rounded-2xl p-10 text-center">
-        <p className="font-semibold">هنوز چیزی نشان نکرده‌ای</p>
+      <div className={styles.emptyState}>
+        <SarvaBuddy small /><p className="font-semibold">گنجینه‌ات منتظر اولین نشان است</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
           هر جای سایت که دکمهٔ نشان را ببینی می‌توانی سؤال یا واژه‌ای را ذخیره کنی تا بعداً
           همین‌جا پیدایش کنی.
@@ -125,7 +127,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={styles.filterBar}>
         <button
           type="button"
           onClick={() => setArea("")}
@@ -154,6 +156,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        aria-label="جست‌وجو در نشان‌شده‌ها"
         placeholder="جست‌وجو در نشان‌شده‌ها و یادداشت‌ها…"
         className="min-h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
       />
@@ -171,7 +174,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
       ) : (
         <ul className="flex flex-col gap-3">
           {visible.map((b) => (
-            <li key={b.id} className="glass flex flex-col gap-3 rounded-2xl p-4">
+            <li key={b.id} data-panel-card="" className="bg-surface border border-border/70 flex flex-col gap-3 rounded-2xl p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <span className={`rounded-lg px-2 py-0.5 text-[11px] font-medium ${AREA_TONE[b.area]}`}>
@@ -200,6 +203,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
                     <button
                       type="button"
                       disabled={pending}
+                      data-preview-write=""
                       onClick={() => saveNote(b)}
                       className="min-h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                     >
@@ -241,6 +245,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
                     <button
                       type="button"
                       disabled={pending}
+                      data-preview-write=""
                       onClick={() => remove(b)}
                       className="text-destructive transition-opacity hover:opacity-80 disabled:opacity-50"
                     >

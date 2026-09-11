@@ -5,6 +5,9 @@ import { useState } from "react";
 import { createTicket } from "@/lib/plus/support-actions";
 import { TICKET_CATEGORY_LABEL } from "@/lib/plus/labels";
 import type { TicketCategory } from "@/lib/plus/types";
+import { MessageCircle, Plus } from "lucide-react";
+import { Button } from "@/components/UI/kit/button";
+import styles from "@/components/UI/panel/panel-design.module.css";
 
 /**
  * فرمِ تیکتِ تازه.
@@ -67,16 +70,17 @@ export default function NewTicketForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-bold transition-all hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className={styles.composerTrigger}
       >
-        + تیکت جدید
+        <span className="flex items-center gap-3"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span><span><span className="block text-sm font-bold">یک گفت‌وگوی تازه شروع کنیم</span><span className="mt-1 block text-xs text-muted-foreground">سؤالت را بنویس؛ از همین‌جا پیگیری‌اش کن.</span></span></span>
+        <Plus aria-hidden className="size-5 shrink-0 text-primary" />
       </button>
     );
   }
 
   return (
-    <form onSubmit={submit} className="glass space-y-3 rounded-2xl p-5">
-      <h2 className="font-bold">تیکت جدید</h2>
+    <form onSubmit={submit} data-panel-card="" className={`${styles.formCard} space-y-4`}>
+      <h2 className="flex items-center gap-3 font-bold"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span>گفت‌وگوی تازه</h2>
 
       <label className="block text-sm">
         <span className="text-muted-foreground">موضوع</span>
@@ -158,21 +162,21 @@ export default function NewTicketForm({
       )}
 
       <div className="flex gap-2">
-        <button
+        <Button
           type="submit"
           disabled={busy}
           aria-busy={busy}
           className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
         >
           {busy ? "در حال ارسال…" : "ارسال تیکت"}
-        </button>
-        <button
+        </Button>
+        <Button variant="outline"
           type="button"
           onClick={() => setOpen(false)}
           className="rounded-xl border border-border px-4 py-2 text-sm"
         >
           انصراف
-        </button>
+        </Button>
       </div>
     </form>
   );

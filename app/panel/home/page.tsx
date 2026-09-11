@@ -4,6 +4,7 @@ import HomePanel from "@/components/UI/panel/HomePanel";
 import PlusWelcome from "@/components/UI/plus/PlusWelcome";
 import { getPanelOverview, getPanelUser } from "@/lib/panel/queries";
 import { getPlusStatus } from "@/lib/plus/entitlement";
+import { getTodayPlan } from "@/lib/plus/analysis";
 import { getUnreadWelcome } from "@/lib/plus/notifications";
 import { expiringSoonDays } from "@/lib/plus/config";
 import { fa, jalaliLong } from "@/lib/panel/format";
@@ -22,6 +23,21 @@ export default async function Page() {
      نشان دادنِ پیامِ اشتباه به کاربری که پول داده. */
   const welcome = status.state === "active" ? await getUnreadWelcome(user.id) : null;
   const soonDays = status.expiringSoon ? await expiringSoonDays() : 0;
+
+  /* پیشنهادِ «برنامهٔ من» روی صفحهٔ خانه — فقط یک مورد، و فقط وقتی کاربر
+     واقعاً دسترسی دارد.
+     ⚠️ همان گاردی که صفحهٔ /panel/analysis دارد: وقتی اشتراک فعال نیست،
+     تابعِ تحلیل **اصلاً صدا زده نمی‌شود**، پس دادهٔ پولی نه نمایش داده
+     می‌شود و نه ساخته. */
+  const plan = status.isActive || status.state === "off" ? await getTodayPlan(user.id) : null;
+  const todayPlan = plan?.items[0]
+    ? {
+        title: plan.items[0].title,
+        detail: plan.items[0].detail,
+        href: plan.items[0].href,
+        minutes: plan.items[0].minutes,
+      }
+    : null;
 
   return (
     <>
@@ -59,6 +75,7 @@ export default async function Page() {
         name={user.fullName}
         memberSince={user.createdAt}
         overview={overview}
+        todayPlan={todayPlan}
       />
     </>
   );

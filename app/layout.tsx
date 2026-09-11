@@ -148,6 +148,23 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+      window.NAJVA = {};
+      var s = document.createElement("script");
+      s.src = "https://van.najva.com/static/js/main-script.js";
+      s.defer = true;
+      s.id = "najva-mini-script";
+      s.setAttribute(
+        "data-najva-id",
+        "c414675f-2c42-4b1c-add0-7e64e4a580da"
+      );
+      document.head.appendChild(s);
+    `,
+          }}
+        />
+
         {/* ⚠️ تورِ ایمنیِ محتوا وقتی جاوااسکریپت اجرا نمی‌شود.
             
             بخشِ زیادی از محتوای آموزشی با motion و `whileInView` ظاهر

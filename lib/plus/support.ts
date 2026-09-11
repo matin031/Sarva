@@ -1,12 +1,13 @@
 import "server-only";
 import { query, queryOne } from "@/lib/db";
+import { orderNumber, ticketNumber } from "./order-number";
 import type { TicketCategory, TicketDetail, TicketStatus, TicketSummary } from "./types";
 
 /**
  * خواندنِ تیکت‌ها.
  *
  * ⚠️ **هر کوئریِ این فایل شرطِ مالکیت دارد و باید داشته باشد.** بدونِ RLS،
- * فراموش کردنِ `user_id = $1` در یکی از این توابع یعنی هر کاربری با عوض کردنِ
+ * فراموش کردنِ `user_id = ?` در یکی از این توابع یعنی هر کاربری با عوض کردنِ
  * شناسه در آدرس، گفت‌وگوی خصوصیِ یک نفرِ دیگر با پشتیبانی را می‌خواند — که
  * معمولاً شامل شمارهٔ سفارش و گله‌های شخصی است.
  *
@@ -20,27 +21,27 @@ export { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL } from "./labels";
 
 type TicketRow = {
   id: string;
-  ticket_number: string;
+  ticket_seq: number;
   subject: string;
   category: TicketCategory;
   status: TicketStatus;
   last_activity_at: string;
   created_at: string;
   user_unread: boolean;
-  order_number: string | null;
+  order_seq: number | null;
 };
 
 function toSummary(r: TicketRow): TicketSummary {
   return {
     id: r.id,
-    ticketNumber: r.ticket_number,
+    ticketNumber: ticketNumber(r.ticket_seq),
     subject: r.subject,
     category: r.category,
     status: r.status,
     lastActivityAt: r.last_activity_at,
     createdAt: r.created_at,
     hasUnread: r.user_unread,
-    orderNumber: r.order_number,
+    orderNumber: r.order_seq === null ? null : orderNumber(r.order_seq),
   };
 }
 
@@ -59,14 +60,14 @@ export async function listTickets(
   const offset = Math.max(options.offset ?? 0, 0);
 
   const rows = await query<TicketRow>(
-    `select t.id, t.ticket_number, t.subject, t.category, t.status,
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status,
             t.last_activity_at, t.created_at, t.user_unread,
-            o.order_number
+            o.order_seq
        from plus_tickets t
        left join plus_orders o on o.id = t.order_id
-      where t.user_id = $1
+      where t.user_id = ?
       order by t.last_activity_at desc, t.id
-      limit $2 offset $3`,
+      limit ? offset ?`,
     [userId, limit + 1, offset],
   );
 
@@ -79,12 +80,12 @@ export async function listTickets(
 /** یک تیکت با رشتهٔ کاملش — فقط اگر مالِ همین کاربر باشد. */
 export async function getTicket(userId: string, ticketId: string): Promise<TicketDetail | null> {
   const row = await queryOne<TicketRow>(
-    `select t.id, t.ticket_number, t.subject, t.category, t.status,
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status,
             t.last_activity_at, t.created_at, t.user_unread,
-            o.order_number
+            o.order_seq
        from plus_tickets t
        left join plus_orders o on o.id = t.order_id
-      where t.id = $1 and t.user_id = $2`,
+      where t.id = ? and t.user_id = ?`,
     [ticketId, userId],
   );
   if (!row) return null;
@@ -104,7 +105,7 @@ export async function getTicket(userId: string, ticketId: string): Promise<Ticke
             m.body, m.created_at
        from plus_ticket_messages m
        left join users u on u.id = m.author_id
-      where m.ticket_id = $1
+      where m.ticket_id = ?
       order by m.created_at, m.id
       limit 200`,
     [ticketId],
@@ -125,7 +126,7 @@ export async function getTicket(userId: string, ticketId: string): Promise<Ticke
 /** تعداد تیکت‌هایی که پاسخِ خوانده‌نشده دارند — نشانِ کوچکِ ناوبری. */
 export async function countUnreadTickets(userId: string): Promise<number> {
   const row = await queryOne<{ n: number }>(
-    `select count(*) as n from plus_tickets where user_id = $1 and user_unread`,
+    `select count(*) as n from plus_tickets where user_id = ? and user_unread = 1`,
     [userId],
   );
   return row?.n ?? 0;

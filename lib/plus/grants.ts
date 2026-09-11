@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { transaction, type Tx } from "@/lib/db";
 
 /**
@@ -25,17 +26,20 @@ import { transaction, type Tx } from "@/lib/db";
  * کاربر دو بار پول داده و یک ماه گرفته. هیچ خطایی هم رخ نداده — این همان
  * «lost update» کلاسیک است که فقط با قفل دیده می‌شود.
  *
- * قفلِ ردیفی (`for update`) اینجا کافی نیست: کاربری که هنوز هیچ ردیفی ندارد،
- * ردیفی برای قفل کردن هم ندارد. قفلِ مشورتیِ تراکنشی روی *شناسهٔ کاربر* این
- * حفره را ندارد و در پایانِ تراکنش خودبه‌خود آزاد می‌شود.
+ * ── چرا قفلِ ردیفِ کاربر و نه قفلِ مشورتی ────────────────────────────────
+ * در نسخهٔ Postgres این `pg_advisory_xact_lock` بود. MySQL معادلِ
+ * *تراکنشی* ندارد: `GET_LOCK` به اتصال بسته است و با commit آزاد نمی‌شود،
+ * پس اگر جایی `RELEASE_LOCK` جا می‌افتاد، آن اتصالِ pool تا همیشه قفل را
+ * نگه می‌داشت.
  *
- * عددِ ۹۱۸۲۷۳ فقط یک فضای‌نامِ دلخواه ولی ثابت است تا با قفل‌های دیگرِ پروژه
- * (مثلاً قفلِ migration) برخورد نکند.
+ * `SELECT … FOR UPDATE` روی ردیفِ خودِ کاربر همان کار را می‌کند و بهتر: قفل
+ * دقیقاً در پایانِ تراکنش آزاد می‌شود، چه commit چه rollback. ردیفِ `users`
+ * همیشه وجود دارد (کلیدِ خارجیِ همهٔ این جدول‌ها به آن است)، پس مشکلِ «ردیفی
+ * برای قفل کردن نیست» — که دلیلِ انتخابِ قفلِ مشورتی در Postgres بود — اینجا
+ * وجود ندارد.
  */
-const LOCK_NAMESPACE = 918273;
-
 async function lockUser(tx: Tx, userId: string): Promise<void> {
-  await tx.execute("select pg_advisory_xact_lock($1, hashtext($2))", [LOCK_NAMESPACE, userId]);
+  await tx.query("select id from users where id = ? for update", [userId]);
 }
 
 /* ─────────────────────── محاسبهٔ بازهٔ دورهٔ تازه ───────────────────────── */
@@ -54,20 +58,22 @@ async function lockUser(tx: Tx, userId: string): Promise<void> {
  * پنج روزِ هدیه بلعیده می‌شد. اینجا از ۱۰ مهر شروع می‌شود.
  */
 async function nextPeriodStart(tx: Tx, userId: string, now: Date): Promise<Date> {
-  const row = await tx.queryOne<{ has_permanent: boolean; max_end: string | null }>(
-    `select bool_or(ends_at is null) as has_permanent,
+  const row = await tx.queryOne<{ has_permanent: number | null; max_end: string | null }>(
+    // ⚠️ `bool_or` در MySQL نیست؛ `max()` روی TINYINT(1) همان کار را می‌کند.
+    // (خروجی عدد است و نه boolean، پس پایین با `=== 1` سنجیده می‌شود.)
+    `select max(ends_at is null) as has_permanent,
             max(ends_at) as max_end
        from plus_entitlements
-      where user_id = $1
+      where user_id = ?
         and revoked_at is null
-        and (ends_at is null or ends_at > $2)`,
-    [userId, now.toISOString()],
+        and (ends_at is null or ends_at > ?)`,
+    [userId, now],
   );
 
   // دسترسیِ دائمی: دورهٔ تازه چیزی به آن اضافه نمی‌کند و نباید هم بکند.
   // ردیفش ساخته می‌شود (سابقهٔ خرید باید بماند) ولی از همین حالا، چون
   // «انتهای بی‌نهایت» نقطهٔ شروعِ معنی‌داری نیست.
-  if (row?.has_permanent) return now;
+  if (Number(row?.has_permanent ?? 0) === 1) return now;
 
   const maxEnd = row?.max_end ? new Date(row.max_end) : null;
   return maxEnd && maxEnd.getTime() > now.getTime() ? maxEnd : now;
@@ -108,7 +114,7 @@ export async function activateForOrder(
   // صریح یعنی می‌توانیم «قبلاً فعال شده» را به کاربر بگوییم، نه یک خطای
   // یکتایی.)
   const existing = await tx.queryOne<{ starts_at: string; ends_at: string | null }>(
-    `select starts_at, ends_at from plus_entitlements where source_order_id = $1`,
+    `select starts_at, ends_at from plus_entitlements where source_order_id = ?`,
     [orderId],
   );
   if (existing) {
@@ -124,20 +130,38 @@ export async function activateForOrder(
   const endsAt = addDays(startsAt, durationDays);
   const isRenewal = startsAt.getTime() > now.getTime();
 
-  const inserted = await tx.queryOne<{ id: string }>(
-    // on conflict روی ایندکسِ *جزئیِ* source_order_id — همان چیزی که
-    // callbackِ تکراری و رفرشِ صفحهٔ نتیجه را بی‌اثر می‌کند. اگر دو تراکنش
-    // هم‌زمان به اینجا برسند، یکی برنده می‌شود و دیگری صفر ردیف می‌گیرد.
-    `insert into plus_entitlements
-       (user_id, source, source_order_id, starts_at, ends_at)
-     values ($1, 'purchase', $2, $3, $4)
-     on conflict (source_order_id) where source_order_id is not null do nothing
-     returning id`,
-    [userId, orderId, startsAt.toISOString(), endsAt.toISOString()],
+  // ⚠️ `insert ignore` و نه `insert`: در نسخهٔ Postgres این
+  // `on conflict (source_order_id) do nothing` بود. اینجا همان معنا را
+  // می‌دهد و همان چیزی است که callbackِ تکراری و رفرشِ صفحهٔ نتیجه را بی‌اثر
+  // می‌کند — اگر دو تراکنش هم‌زمان به اینجا برسند، یکی برنده می‌شود و دیگری
+  // صفر ردیف می‌گیرد.
+  //
+  // ⚠️ خطرِ شناخته‌شدهٔ `insert ignore` این است که خطاهای دیگر را هم به
+  // هشدار تبدیل می‌کند. اینجا بی‌خطر است چون بلافاصله بعدش بررسی می‌شود که
+  // ردیف واقعاً ساخته شده یا نه، و اگر ساخته نشده باشد ردیفِ موجود خوانده
+  // می‌شود — پس هیچ شکستی بی‌صدا رد نمی‌شود.
+  const affected = await tx.execute(
+    `insert ignore into plus_entitlements
+       (id, user_id, source, source_order_id, starts_at, ends_at)
+     values (?, ?, 'purchase', ?, ?, ?)`,
+    [randomUUID(), userId, orderId, startsAt, endsAt],
   );
 
+  if (affected === 0) {
+    const winner = await tx.queryOne<{ starts_at: string; ends_at: string | null }>(
+      `select starts_at, ends_at from plus_entitlements where source_order_id = ?`,
+      [orderId],
+    );
+    return {
+      created: false,
+      startsAt: winner?.starts_at ?? startsAt.toISOString(),
+      endsAt: winner?.ends_at ?? endsAt.toISOString(),
+      isRenewal: false,
+    };
+  }
+
   return {
-    created: inserted !== null,
+    created: true,
     startsAt: startsAt.toISOString(),
     endsAt: endsAt.toISOString(),
     isRenewal,
@@ -181,17 +205,16 @@ export async function manualGrant(params: ManualGrantParams): Promise<ManualGran
     const now = new Date();
     const startsAt = startFrom === "now" ? now : await nextPeriodStart(tx, userId, now);
     const endsAt = days === null ? null : addDays(startsAt, days);
+    const id = randomUUID();
 
-    const row = await tx.queryOne<{ id: string; starts_at: string; ends_at: string | null }>(
+    await tx.execute(
       `insert into plus_entitlements
-         (user_id, source, starts_at, ends_at, reason, granted_by)
-       values ($1, 'manual_grant', $2, $3, $4, $5)
-       returning id, starts_at, ends_at`,
-      [userId, startsAt.toISOString(), endsAt?.toISOString() ?? null, reason, grantedBy],
+         (id, user_id, source, starts_at, ends_at, reason, granted_by)
+       values (?, ?, 'manual_grant', ?, ?, ?, ?)`,
+      [id, userId, startsAt, endsAt, reason, grantedBy],
     );
 
-    if (!row) throw new Error("ثبت دسترسی انجام نشد.");
-    return { id: row.id, startsAt: row.starts_at, endsAt: row.ends_at };
+    return { id, startsAt: startsAt.toISOString(), endsAt: endsAt?.toISOString() ?? null };
   });
 }
 
@@ -202,20 +225,23 @@ export async function manualGrant(params: ManualGrantParams): Promise<ManualGran
  * نداشت» — که دروغ است و پاسخ دادن به «چرا دسترسی‌ام قطع شد؟» را ناممکن
  * می‌کند.
  *
- * اثرش فوری است چون هیچ کشِ بین‌درخواستی‌ای برای وضعیت وجود ندارد
- * (`getPlusStatusFor` فقط در محدودهٔ یک درخواست کش می‌شود).
+ * اثرش فوری است چون هیچ کشِ بین‌درخواستی‌ای برای وضعیت وجود ندارد.
  */
 export async function revokeEntitlement(entitlementId: string): Promise<{ userId: string } | null> {
-  const row = await transaction(async (tx) => {
-    return tx.queryOne<{ user_id: string }>(
-      `update plus_entitlements
-          set revoked_at = now()
-        where id = $1 and revoked_at is null
-        returning user_id`,
+  return transaction(async (tx) => {
+    // ⚠️ MySQL معادلِ `update … returning` ندارد، پس اول خوانده می‌شود و بعد
+    // نوشته — هر دو داخلِ یک تراکنش، تا بینشان چیزی عوض نشود.
+    const row = await tx.queryOne<{ user_id: string }>(
+      `select user_id from plus_entitlements where id = ? and revoked_at is null for update`,
       [entitlementId],
     );
+    if (!row) return null;
+
+    await tx.execute(`update plus_entitlements set revoked_at = now(6) where id = ?`, [
+      entitlementId,
+    ]);
+    return { userId: row.user_id };
   });
-  return row ? { userId: row.user_id } : null;
 }
 
 /** تمدیدِ دستیِ یک دسترسیِ موجود — برای جبرانِ خرابی یا عذرخواهی. */
@@ -224,15 +250,27 @@ export async function extendEntitlement(
   extraDays: number,
 ): Promise<{ userId: string; endsAt: string | null } | null> {
   return transaction(async (tx) => {
-    const row = await tx.queryOne<{ user_id: string; ends_at: string | null }>(
-      // ⚠️ دسترسیِ دائمی (ends_at null) تمدید نمی‌شود و *نباید* بشود: هر
-      // عددی که به «بی‌نهایت» اضافه کنیم، در عمل کوتاهش می‌کند.
-      `update plus_entitlements
-          set ends_at = greatest(ends_at, now()) + make_interval(days => $2::int)
-        where id = $1 and revoked_at is null and ends_at is not null
-        returning user_id, ends_at`,
-      [entitlementId, extraDays],
+    // ⚠️ دسترسیِ دائمی (ends_at null) تمدید نمی‌شود و *نباید* بشود: هر
+    // عددی که به «بی‌نهایت» اضافه کنیم، در عمل کوتاهش می‌کند.
+    const row = await tx.queryOne<{ user_id: string }>(
+      `select user_id from plus_entitlements
+        where id = ? and revoked_at is null and ends_at is not null
+        for update`,
+      [entitlementId],
     );
-    return row ? { userId: row.user_id, endsAt: row.ends_at } : null;
+    if (!row) return null;
+
+    await tx.execute(
+      `update plus_entitlements
+          set ends_at = date_add(greatest(ends_at, now(6)), interval ? day)
+        where id = ?`,
+      [extraDays, entitlementId],
+    );
+
+    const after = await tx.queryOne<{ ends_at: string | null }>(
+      `select ends_at from plus_entitlements where id = ?`,
+      [entitlementId],
+    );
+    return { userId: row.user_id, endsAt: after?.ends_at ?? null };
   });
 }

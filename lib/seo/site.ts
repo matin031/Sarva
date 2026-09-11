@@ -88,3 +88,49 @@ export function absoluteUrl(path = "/"): string {
 export function isNoindexEnvironment(): boolean {
   return process.env.SEO_NOINDEX === "true";
 }
+
+/* ─────────────────────── آدرس برای لینک‌های ایمیل ─────────────────────── */
+
+/**
+ * میزبان‌هایی که فقط روی همان ماشین معنی دارند.
+ *
+ * `localhost`، لوپ‌بک، شبکهٔ خصوصی (10/8، 172.16/12، 192.168/16)، لینک‌لوکال،
+ * `*.local` و هر نامی که اصلاً نقطه ندارد (مثل نامِ کانتینرِ داکر).
+ */
+function isLocalHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
+  if (h === "[::1]" || h === "::1") return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true;
+  // نامِ بدونِ نقطه = نامِ داخلیِ شبکه، نه یک دامنهٔ عمومی.
+  return !h.includes(".");
+}
+
+/**
+ * ریشهٔ آدرس برای لینک‌هایی که **داخلِ ایمیل** می‌روند.
+ *
+ * ⚠️ چرا جدا از `siteOrigin()`: لینکِ بازیابیِ رمز روی ماشینِ توسعه با
+ * `NEXT_PUBLIC_SITE_URL=http://localhost:3000` ساخته می‌شد و همان
+ * `http://localhost:3000/reset-password?token=…` به صندوقِ کاربر می‌رفت —
+ * آدرسی که روی دستگاهِ *گیرنده* یا هیچ‌چیز نیست یا برنامهٔ خودش. کاربر عملاً
+ * هیچ راهی برای بازنشانیِ رمز نداشت.
+ *
+ * یک canonical می‌تواند در پیش‌نمایش به خودِ پیش‌نمایش اشاره کند و درست باشد؛
+ * یک لینکِ ایمیل نمی‌تواند، چون از مرزِ آن ماشین بیرون می‌رود. پس اینجا
+ * میزبانِ محلی/خصوصی رد می‌شود و به دامنهٔ اصلی برمی‌گردیم.
+ */
+export function emailOrigin(): string {
+  const configured = normalize(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+  if (!configured) return FALLBACK_ORIGIN;
+  if (isLocalHost(new URL(configured).hostname)) return FALLBACK_ORIGIN;
+  return configured;
+}
+
+/** آدرسِ مطلقِ یک مسیر، مناسبِ قرار گرفتن در ایمیل. */
+export function emailUrl(path = "/"): string {
+  const origin = emailOrigin();
+  if (path === "/" || path === "") return origin;
+  return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+}

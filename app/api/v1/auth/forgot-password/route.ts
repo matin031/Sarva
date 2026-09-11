@@ -9,6 +9,7 @@ import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { withRoute } from "@/lib/api/route";
 import { logger } from "@/lib/observability";
+import { emailUrl } from "@/lib/seo/site";
 
 const schema = z.object({ email: emailField, turnstileToken: turnstileField });
 
@@ -76,8 +77,11 @@ export const POST = withRoute("/api/v1/auth/forgot-password", async (request: Re
         [randomUUID(), user.id, tokenHash, TTL_MINUTES * 60, meta.ip],
       );
 
-      const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
-      const link = `${base}/reset-password?token=${token}`;
+      // ⚠️ `emailUrl` و نه `NEXT_PUBLIC_SITE_URL` خام: روی ماشینِ توسعه آن
+      // متغیر `http://localhost:3000` است و همان داخلِ ایمیل می‌رفت — لینکی
+      // که روی دستگاهِ گیرنده به هیچ‌جا نمی‌رسد. `emailUrl` میزبانِ محلی و
+      // خصوصی را رد می‌کند و به دامنهٔ اصلی برمی‌گردد. جزئیات در lib/seo/site.ts.
+      const link = emailUrl(`/reset-password?token=${token}`);
 
       const template = passwordResetEmail(link, TTL_MINUTES);
 

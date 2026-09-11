@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { execute, query, queryOne, transaction } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { execute, likePattern, query, queryOne, toBool, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { recordAudit } from "@/lib/admin/audit";
 import { enumArg, isUuid, uuidArg } from "@/lib/api/action-input";
 import { tomansToRials, formatRials } from "./money";
+import { orderNumber, parseOrderNumber, parseTicketNumber, ticketNumber } from "./order-number";
 import { extendEntitlement, manualGrant, revokeEntitlement } from "./grants";
 import { settlePayment } from "./orders";
 import { isPilotGrantEnabled } from "./config";
@@ -60,6 +62,8 @@ export type AdminPlanRow = {
     title: string;
     durationDays: number;
     amountRials: number;
+    /** قیمتِ پیش از تخفیف — null یعنی این نسخه تخفیف ندارد. */
+    compareAtRials: number | null;
     isSellable: boolean;
     createdAt: string;
     note: string | null;
@@ -91,13 +95,14 @@ export async function adminListPlans(): Promise<AdminPlanRow[]> {
     title: string;
     duration_days: number;
     amount_rials: number;
+    compare_at_rials: number | null;
     is_sellable: boolean;
     created_at: string;
     note: string | null;
     order_count: number;
   }>(
     `select v.id, v.plan_id, v.version, v.title, v.duration_days, v.amount_rials,
-            v.is_sellable, v.created_at, v.note,
+            v.compare_at_rials, v.is_sellable, v.created_at, v.note,
             (select count(*) from plus_orders o where o.plan_version_id = v.id) as order_count
        from plus_plan_versions v
       order by v.plan_id, v.version desc`,
@@ -119,6 +124,7 @@ export async function adminListPlans(): Promise<AdminPlanRow[]> {
         title: v.title,
         durationDays: v.duration_days,
         amountRials: v.amount_rials,
+        compareAtRials: v.compare_at_rials,
         isSellable: v.is_sellable,
         createdAt: v.created_at,
         note: v.note,
@@ -148,16 +154,22 @@ export async function adminCreatePlan(input: {
     return { ok: false, errors: ["مدت پلن باید عددی بین ۱ و ۳۶۵۰ روز باشد."] };
   }
 
-  const exists = await queryOne<{ id: string }>("select id from plus_plans where code = $1", [code]);
+  const exists = await queryOne<{ id: string }>("select id from plus_plans where code = ?", [code]);
   if (exists) return { ok: false, errors: ["پلنی با این کد از قبل وجود دارد."] };
 
-  const row = await queryOne<{ id: string }>(
-    `insert into plus_plans (code, title, subtitle, duration_days, sort_index)
-     values ($1, $2, $3, $4, coalesce((select max(sort_index) + 1 from plus_plans), 0))
-     returning id`,
-    [code, title, text(input.subtitle, 200) || null, durationDays],
+  // ⚠️ MySQL اجازه نمی‌دهد در زیرکوئریِ INSERT از همان جدولی بخوانی که
+  // می‌نویسی (خطای ۱۰۹۳). پس بیشترین `sort_index` جداگانه خوانده می‌شود.
+  // بی‌خطر است: ترتیبِ نمایش است و نه یک invariant.
+  const maxSort = await queryOne<{ n: number | null }>(
+    "select max(sort_index) as n from plus_plans",
   );
-  if (!row) return { ok: false, errors: ["ساخت پلن انجام نشد."] };
+  const planId = randomUUID();
+  await execute(
+    `insert into plus_plans (id, code, title, subtitle, duration_days, sort_index)
+     values (?, ?, ?, ?, ?, ?)`,
+    [planId, code, title, text(input.subtitle, 200) || null, durationDays, (maxSort?.n ?? -1) + 1],
+  );
+  const row = { id: planId };
 
   await recordAudit({
     actor: admin,
@@ -180,7 +192,7 @@ export async function adminUpdatePlan(
   const id = uuidArg(planId, "شناسهٔ پلن نامعتبر است.");
 
   const current = await queryOne<{ title: string; code: string }>(
-    "select title, code from plus_plans where id = $1",
+    "select title, code from plus_plans where id = ?",
     [id],
   );
   if (!current) return { ok: false, errors: ["پلن پیدا نشد."] };
@@ -201,17 +213,17 @@ export async function adminUpdatePlan(
     // تریگرِ دیتابیس اجازهٔ تغییرشان را نمی‌دهد — یعنی سفارش‌های قدیمی با
     // ویرایشِ امروز بازنویسی نمی‌شوند.
     `update plus_plans
-        set title = coalesce($2, title),
-            subtitle = coalesce($3, subtitle),
-            is_active = coalesce($4, is_active),
-            duration_days = coalesce($5, duration_days)
-      where id = $1`,
+        set title = coalesce(?, title),
+            subtitle = coalesce(?, subtitle),
+            is_active = coalesce(?, is_active),
+            duration_days = coalesce(?, duration_days)
+      where id = ?`,
     [
-      id,
       title,
       input.subtitle === undefined ? null : text(input.subtitle, 200) || null,
       typeof input.isActive === "boolean" ? input.isActive : null,
       durationDays,
+      id,
     ],
   );
 
@@ -241,6 +253,8 @@ export async function adminUpdatePlan(
 export async function adminCreatePlanVersion(input: {
   planId: unknown;
   amountTomans: unknown;
+  /** قیمتِ پیش از تخفیف، به تومان. خالی یعنی بدونِ تخفیف. */
+  compareAtTomans?: unknown;
   note?: unknown;
   makeSellable?: unknown;
 }): Promise<ActionResult<{ id: string; version: number }>> {
@@ -259,8 +273,37 @@ export async function adminCreatePlanVersion(input: {
     return { ok: false, errors: ["مبلغ معتبر نیست."] };
   }
 
+  /* ── قیمتِ پیش از تخفیف ──
+     ⚠️ خالی و صفر هر دو یعنی «تخفیفی در کار نیست» و نه «قیمتِ قبلی صفر
+     بوده». فرمِ HTML برای ورودیِ خالی رشتهٔ تهی می‌فرستد و `Number("")`
+     صفر است — بدونِ این تفکیک، هر نسخه‌ای که مدیر بدونِ تخفیف می‌ساخت یک
+     `compare_at_rials = 0` می‌گرفت و CHECK دیتابیس ردش می‌کرد. */
+  const rawCompare = input.compareAtTomans;
+  const hasCompare =
+    rawCompare !== undefined && rawCompare !== null && String(rawCompare).trim() !== "" &&
+    Number(rawCompare) > 0;
+
+  let compareAtRials: number | null = null;
+  if (hasCompare) {
+    const compareTomans = Number(rawCompare);
+    if (!Number.isInteger(compareTomans) || compareTomans > 100_000_000) {
+      return { ok: false, errors: ["قیمت پیش از تخفیف باید عددی صحیح و معقول بر حسب تومان باشد."] };
+    }
+    if (compareTomans <= amountTomans) {
+      return {
+        ok: false,
+        errors: ["قیمت پیش از تخفیف باید از قیمت فعلی بیشتر باشد، وگرنه تخفیفی در کار نیست."],
+      };
+    }
+    try {
+      compareAtRials = tomansToRials(compareTomans);
+    } catch {
+      return { ok: false, errors: ["قیمت پیش از تخفیف معتبر نیست."] };
+    }
+  }
+
   const plan = await queryOne<{ title: string; duration_days: number; code: string }>(
-    "select title, duration_days, code from plus_plans where id = $1",
+    "select title, duration_days, code from plus_plans where id = ?",
     [planId],
   );
   if (!plan) return { ok: false, errors: ["پلن پیدا نشد."] };
@@ -272,20 +315,29 @@ export async function adminCreatePlanVersion(input: {
       // ایندکسِ یکتای «حداکثر یک نسخهٔ قابلِ فروش» یعنی نسخهٔ قبلی باید *قبل*
       // از insert از فروش خارج شود، وگرنه insert با خطای یکتایی می‌افتد.
       await tx.execute(
-        "update plus_plan_versions set is_sellable = false where plan_id = $1 and is_sellable",
+        "update plus_plan_versions set is_sellable = 0 where plan_id = ? and is_sellable = 1",
         [planId],
       );
     }
 
-    return tx.queryOne<{ id: string; version: number }>(
-      `insert into plus_plan_versions
-         (plan_id, version, title, duration_days, amount_rials, is_sellable, note, created_by)
-       values ($1,
-               coalesce((select max(version) + 1 from plus_plan_versions where plan_id = $1), 1),
-               $2, $3, $4, $5, $6, $7)
-       returning id, version`,
-      [planId, plan.title, plan.duration_days, amountRials, makeSellable, text(input.note, 300) || null, admin.id],
+    // شمارهٔ نسخه جداگانه خوانده می‌شود (همان محدودیتِ ۱۰۹۳ MySQL). قفلِ
+    // تراکنش روی ردیف‌های همین پلن، فاصلهٔ بین خواندن و نوشتن را می‌بندد.
+    const last = await tx.queryOne<{ n: number | null }>(
+      "select max(version) as n from plus_plan_versions where plan_id = ? for update",
+      [planId],
     );
+    const version = (last?.n ?? 0) + 1;
+    const id = randomUUID();
+
+    await tx.execute(
+      `insert into plus_plan_versions
+         (id, plan_id, version, title, duration_days, amount_rials, compare_at_rials,
+          is_sellable, note, created_by)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, planId, version, plan.title, plan.duration_days, amountRials, compareAtRials,
+       makeSellable, text(input.note, 300) || null, admin.id],
+    );
+    return { id, version };
   });
 
   if (!created) return { ok: false, errors: ["ساخت نسخه انجام نشد."] };
@@ -296,7 +348,7 @@ export async function adminCreatePlanVersion(input: {
     targetType: "plus_plan_version",
     targetId: created.id,
     summary: `نسخهٔ ${created.version} پلن «${plan.title}» با مبلغ ${formatRials(amountRials)} ساخته شد`,
-    metadata: { planCode: plan.code, amountRials, sellable: makeSellable },
+    metadata: { planCode: plan.code, amountRials, compareAtRials, sellable: makeSellable },
   });
 
   revalidatePath("/admin/plus");
@@ -313,7 +365,7 @@ export async function adminSetVersionSellable(
   const on = sellable === true;
 
   const version = await queryOne<{ plan_id: string; version: number; title: string }>(
-    "select plan_id, version, title from plus_plan_versions where id = $1",
+    "select plan_id, version, title from plus_plan_versions where id = ?",
     [id],
   );
   if (!version) return { ok: false, errors: ["نسخه پیدا نشد."] };
@@ -321,11 +373,11 @@ export async function adminSetVersionSellable(
   await transaction(async (tx) => {
     if (on) {
       await tx.execute(
-        "update plus_plan_versions set is_sellable = false where plan_id = $1 and is_sellable and id <> $2",
+        "update plus_plan_versions set is_sellable = 0 where plan_id = ? and is_sellable = 1 and id <> ?",
         [version.plan_id, id],
       );
     }
-    await tx.execute("update plus_plan_versions set is_sellable = $2 where id = $1", [id, on]);
+    await tx.execute("update plus_plan_versions set is_sellable = ? where id = ?", [on, id]);
   });
 
   await recordAudit({
@@ -371,24 +423,31 @@ export async function adminListOrders(params: {
 
   const search = params.search?.trim();
   if (search) {
-    values.push(`%${search}%`);
-    conditions.push(`(o.order_number ilike $${values.length} or u.email ilike $${values.length})`);
+    // ⚠️ شمارهٔ سفارش دیگر یک ستونِ متنی نیست؛ عددِ `order_seq` است و شکلِ
+    // خوانا در اپ ساخته می‌شود. پس اگر مدیر «SRV-001040» یا «1040» را کپی
+    // کرده باشد، روی عدد جست‌وجو می‌شود و در غیر این صورت روی ایمیل.
+    const seq = parseOrderNumber(search);
+    if (seq !== null) {
+      values.push(seq, likePattern(search));
+      conditions.push("(o.order_seq = ? or u.email like ?)");
+    } else {
+      values.push(likePattern(search));
+      conditions.push("u.email like ?");
+    }
   }
   if (params.status) {
     values.push(enumArg(params.status, ORDER_STATUSES, "وضعیت نامعتبر است."));
-    conditions.push(`o.status = $${values.length}`);
+    conditions.push("o.status = ?");
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
   const limit = Math.min(Math.max(params.limit ?? 25, 1), 100);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(params.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
-    order_number: string;
+    order_seq: number;
     email: string;
     user_id: string;
     plan_title: string;
@@ -397,10 +456,10 @@ export async function adminListOrders(params: {
     created_at: string;
     paid_at: string | null;
     latest_state: string | null;
-    has_entitlement: boolean;
+    has_entitlement: number;
     total_count: number;
   }>(
-    `select o.id, o.order_number, u.email, o.user_id, o.plan_title, o.amount_rials,
+    `select o.id, o.order_seq, u.email, o.user_id, o.plan_title, o.amount_rials,
             o.status, o.created_at, o.paid_at,
             (select a.state from plus_payment_attempts a
               where a.order_id = o.id order by a.created_at desc limit 1) as latest_state,
@@ -411,7 +470,7 @@ export async function adminListOrders(params: {
        ${where}
       -- شکنندهٔ تساوی، تا صفحه‌بندی پایدار بماند.
       order by o.created_at desc, o.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -419,7 +478,7 @@ export async function adminListOrders(params: {
     total: rows[0]?.total_count ?? 0,
     orders: rows.map((r) => ({
       id: r.id,
-      orderNumber: r.order_number,
+      orderNumber: orderNumber(r.order_seq),
       userEmail: r.email,
       userId: r.user_id,
       planTitle: r.plan_title,
@@ -428,7 +487,8 @@ export async function adminListOrders(params: {
       createdAt: r.created_at,
       paidAt: r.paid_at,
       latestPaymentState: r.latest_state,
-      hasEntitlement: r.has_entitlement,
+      // `exists(...)` در MySQL عدد برمی‌گرداند و نه boolean.
+      hasEntitlement: toBool(r.has_entitlement),
     })),
   };
 }
@@ -445,8 +505,8 @@ export async function adminReconcileOrder(orderId: unknown): Promise<ActionResul
   const admin = await requireAdmin();
   const id = uuidArg(orderId, "شناسهٔ سفارش نامعتبر است.");
 
-  const order = await queryOne<{ user_id: string; order_number: string }>(
-    "select user_id, order_number from plus_orders where id = $1",
+  const order = await queryOne<{ user_id: string; order_seq: number }>(
+    "select user_id, order_seq from plus_orders where id = ?",
     [id],
   );
   if (!order) return { ok: false, errors: ["سفارش پیدا نشد."] };
@@ -463,7 +523,7 @@ export async function adminReconcileOrder(orderId: unknown): Promise<ActionResul
     action: "plus.order_reconcile",
     targetType: "plus_order",
     targetId: id,
-    summary: `سفارش ${order.order_number} بازبینی شد؛ نتیجه: ${result.state}`,
+    summary: `سفارش ${orderNumber(order.order_seq)} بازبینی شد؛ نتیجه: ${result.state}`,
     metadata: { state: result.state, activatedNow: result.activatedNow },
   });
 
@@ -494,18 +554,19 @@ export async function adminSetOrderStatus(
   const why = text(reason, 300);
   if (why.length < 3) return { ok: false, errors: ["دلیل تغییر وضعیت را بنویسید."] };
 
-  const order = await queryOne<{ order_number: string; status: OrderStatus }>(
-    "select order_number, status from plus_orders where id = $1",
+  const order = await queryOne<{ order_seq: number; status: OrderStatus }>(
+    "select order_seq, status from plus_orders where id = ?",
     [id],
   );
   if (!order) return { ok: false, errors: ["سفارش پیدا نشد."] };
 
   await execute(
     `update plus_orders
-        set status = $2,
-            cancelled_at = case when $2 = 'cancelled' then now() else cancelled_at end
-      where id = $1`,
-    [id, next],
+        set status = ?,
+            cancelled_at = case when ? = 'cancelled' then now(6) else cancelled_at end
+      where id = ?`,
+    // `next` دوبار در کوئری آمده، پس دوبار هم فرستاده می‌شود.
+    [next, next, id],
   );
 
   await recordAudit({
@@ -513,7 +574,7 @@ export async function adminSetOrderStatus(
     action: "plus.order_status",
     targetType: "plus_order",
     targetId: id,
-    summary: `وضعیت سفارش ${order.order_number} از ${order.status} به ${next} تغییر کرد — ${why}`,
+    summary: `وضعیت سفارش ${orderNumber(order.order_seq)} از ${order.status} به ${next} تغییر کرد — ${why}`,
     metadata: { from: order.status, to: next, reason: why },
   });
 
@@ -548,10 +609,10 @@ export async function adminPilotActivate(
 
   const order = await queryOne<{
     user_id: string;
-    order_number: string;
+    order_seq: number;
     duration_days: number;
     status: OrderStatus;
-  }>("select user_id, order_number, duration_days, status from plus_orders where id = $1", [id]);
+  }>("select user_id, order_seq, duration_days, status from plus_orders where id = ?", [id]);
   if (!order) return { ok: false, errors: ["سفارش پیدا نشد."] };
   if (order.status !== "pending") {
     return { ok: false, errors: ["فقط سفارش در انتظار پرداخت را می‌توان آزمایشی فعال کرد."] };
@@ -560,12 +621,12 @@ export async function adminPilotActivate(
   const granted = await manualGrant({
     userId: order.user_id,
     days: order.duration_days,
-    reason: `دسترسی آزمایشی برای سفارش ${order.order_number} — ${why}`,
+    reason: `دسترسی آزمایشی برای سفارش ${orderNumber(order.order_seq)} — ${why}`,
     grantedBy: admin.id,
   });
 
   await execute(
-    "update plus_orders set status = 'cancelled', cancelled_at = now() where id = $1 and status = 'pending'",
+    "update plus_orders set status = 'cancelled', cancelled_at = now(6) where id = ? and status = 'pending'",
     [id],
   );
 
@@ -582,7 +643,7 @@ export async function adminPilotActivate(
     action: "plus.pilot_activate",
     targetType: "plus_order",
     targetId: id,
-    summary: `دسترسی آزمایشی ${order.duration_days} روزه برای سفارش ${order.order_number} فعال شد — ${why}`,
+    summary: `دسترسی آزمایشی ${order.duration_days} روزه برای سفارش ${orderNumber(order.order_seq)} فعال شد — ${why}`,
     metadata: { days: order.duration_days, reason: why, entitlementId: granted.id },
   });
 
@@ -619,13 +680,15 @@ export async function adminListEntitlements(params: {
 
   const search = params.search?.trim();
   if (search) {
-    values.push(`%${search}%`);
-    conditions.push(`(u.email ilike $${values.length} or u.full_name ilike $${values.length})`);
+    // دو `?` و دو بار همان الگو: در MySQL هر `?` پارامترِ بعدی را مصرف
+    // می‌کند.
+    values.push(likePattern(search), likePattern(search));
+    conditions.push("(u.email like ? or u.full_name like ?)");
   }
   if (params.state === "active") {
-    conditions.push("e.revoked_at is null and e.starts_at <= now() and (e.ends_at is null or e.ends_at > now())");
+    conditions.push("e.revoked_at is null and e.starts_at <= now(6) and (e.ends_at is null or e.ends_at > now(6))");
   } else if (params.state === "expired") {
-    conditions.push("e.revoked_at is null and e.ends_at is not null and e.ends_at <= now()");
+    conditions.push("e.revoked_at is null and e.ends_at is not null and e.ends_at <= now(6)");
   } else if (params.state === "revoked") {
     conditions.push("e.revoked_at is not null");
   }
@@ -633,9 +696,7 @@ export async function adminListEntitlements(params: {
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
   const limit = Math.min(Math.max(params.limit ?? 25, 1), 100);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(params.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
@@ -647,21 +708,21 @@ export async function adminListEntitlements(params: {
     ends_at: string | null;
     revoked_at: string | null;
     reason: string | null;
-    order_number: string | null;
-    is_active: boolean;
+    order_seq: number | null;
+    is_active: number;
     total_count: number;
   }>(
     `select e.id, e.user_id, u.email, u.full_name, e.source, e.starts_at, e.ends_at,
-            e.revoked_at, e.reason, o.order_number,
-            (e.revoked_at is null and e.starts_at <= now()
-             and (e.ends_at is null or e.ends_at > now())) as is_active,
+            e.revoked_at, e.reason, o.order_seq,
+            (e.revoked_at is null and e.starts_at <= now(6)
+             and (e.ends_at is null or e.ends_at > now(6))) as is_active,
             count(*) over () as total_count
        from plus_entitlements e
        join users u on u.id = e.user_id
        left join plus_orders o on o.id = e.source_order_id
        ${where}
       order by e.created_at desc, e.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -677,8 +738,9 @@ export async function adminListEntitlements(params: {
       endsAt: r.ends_at,
       revokedAt: r.revoked_at,
       reason: r.reason,
-      orderNumber: r.order_number,
-      isActive: r.is_active,
+      orderNumber: r.order_seq === null ? null : orderNumber(r.order_seq),
+      // بیانِ محاسبه‌شده در MySQL عدد است، نه boolean.
+      isActive: toBool(r.is_active),
     })),
   };
 }
@@ -713,9 +775,10 @@ export async function adminGrantPlus(input: {
     }
   }
 
-  // citext است، پس مقایسه خودبه‌خود بی‌توجه به بزرگی و کوچکی حروف انجام می‌شود.
+  // ستونِ ایمیل با collation بی‌توجه به بزرگی/کوچکی حروف است
+  // (`utf8mb4_unicode_ci`)، پس مقایسه خودبه‌خود همان رفتارِ citext را دارد.
   const user = await queryOne<{ id: string; email: string; is_banned: boolean }>(
-    "select id, email, is_banned from users where email = $1",
+    "select id, email, is_banned from users where email = ?",
     [email],
   );
   if (!user) return { ok: false, errors: ["کاربری با این ایمیل پیدا نشد."] };
@@ -847,42 +910,47 @@ export async function adminListTickets(params: {
 
   if (params.status) {
     values.push(enumArg(params.status, TICKET_STATUSES, "وضعیت نامعتبر است."));
-    conditions.push(`t.status = $${values.length}`);
+    conditions.push("t.status = ?");
   }
   const search = params.search?.trim();
   if (search) {
-    values.push(`%${search}%`);
-    conditions.push(`(t.ticket_number ilike $${values.length} or t.subject ilike $${values.length} or u.email ilike $${values.length})`);
+    // مثل سفارش: شمارهٔ تیکت یک عدد است و شکلِ خوانا در اپ ساخته می‌شود.
+    const seq = parseTicketNumber(search);
+    if (seq !== null) {
+      values.push(seq, likePattern(search), likePattern(search));
+      conditions.push("(t.ticket_seq = ? or t.subject like ? or u.email like ?)");
+    } else {
+      values.push(likePattern(search), likePattern(search));
+      conditions.push("(t.subject like ? or u.email like ?)");
+    }
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
   const limit = Math.min(Math.max(params.limit ?? 25, 1), 100);
   values.push(limit);
-  const limitParam = `$${values.length}`;
   values.push(Math.max(params.offset ?? 0, 0));
-  const offsetParam = `$${values.length}`;
 
   const rows = await query<{
     id: string;
-    ticket_number: string;
+    ticket_seq: number;
     subject: string;
     category: TicketCategory;
     status: TicketStatus;
     email: string;
     last_activity_at: string;
     admin_unread: boolean;
-    order_number: string | null;
+    order_seq: number | null;
     total_count: number;
   }>(
-    `select t.id, t.ticket_number, t.subject, t.category, t.status, u.email,
-            t.last_activity_at, t.admin_unread, o.order_number,
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email,
+            t.last_activity_at, t.admin_unread, o.order_seq,
             count(*) over () as total_count
        from plus_tickets t
        join users u on u.id = t.user_id
        left join plus_orders o on o.id = t.order_id
        ${where}
       order by t.admin_unread desc, t.last_activity_at desc, t.id
-      limit ${limitParam} offset ${offsetParam}`,
+      limit ? offset ?`,
     values,
   );
 
@@ -890,14 +958,14 @@ export async function adminListTickets(params: {
     total: rows[0]?.total_count ?? 0,
     tickets: rows.map((r) => ({
       id: r.id,
-      ticketNumber: r.ticket_number,
+      ticketNumber: ticketNumber(r.ticket_seq),
       subject: r.subject,
       category: r.category,
       status: r.status,
       userEmail: r.email,
       lastActivityAt: r.last_activity_at,
       adminUnread: r.admin_unread,
-      orderNumber: r.order_number,
+      orderNumber: r.order_seq === null ? null : orderNumber(r.order_seq),
     })),
   };
 }
@@ -921,7 +989,7 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
 
   const row = await queryOne<{
     id: string;
-    ticket_number: string;
+    ticket_seq: number;
     subject: string;
     category: TicketCategory;
     status: TicketStatus;
@@ -929,14 +997,14 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
     user_id: string;
     last_activity_at: string;
     admin_unread: boolean;
-    order_number: string | null;
+    order_seq: number | null;
   }>(
-    `select t.id, t.ticket_number, t.subject, t.category, t.status, u.email, t.user_id,
-            t.last_activity_at, t.admin_unread, o.order_number
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email, t.user_id,
+            t.last_activity_at, t.admin_unread, o.order_seq
        from plus_tickets t
        join users u on u.id = t.user_id
        left join plus_orders o on o.id = t.order_id
-      where t.id = $1`,
+      where t.id = ?`,
     [ticketId],
   );
   if (!row) return null;
@@ -948,19 +1016,19 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
     created_at: string;
   }>(
     `select id, author_role, body, created_at
-       from plus_ticket_messages where ticket_id = $1
+       from plus_ticket_messages where ticket_id = ?
       order by created_at, id limit 200`,
     [ticketId],
   );
 
   // باز کردنِ تیکت، نشانِ «پاسخ تازه»ی صف را برمی‌دارد.
-  await execute("update plus_tickets set admin_unread = false where id = $1 and admin_unread", [
+  await execute("update plus_tickets set admin_unread = 0 where id = ? and admin_unread = 1", [
     ticketId,
   ]);
 
   return {
     id: row.id,
-    ticketNumber: row.ticket_number,
+    ticketNumber: ticketNumber(row.ticket_seq),
     subject: row.subject,
     category: row.category,
     status: row.status,
@@ -968,7 +1036,7 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
     userId: row.user_id,
     lastActivityAt: row.last_activity_at,
     adminUnread: row.admin_unread,
-    orderNumber: row.order_number,
+    orderNumber: row.order_seq === null ? null : orderNumber(row.order_seq),
     messages: messages.map((m) => ({
       id: m.id,
       authorRole: m.author_role,
@@ -995,22 +1063,27 @@ export async function adminReplyTicket(input: {
       : enumArg(input.status, TICKET_STATUSES, "وضعیت نامعتبر است.");
 
   const ticket = await transaction(async (tx) => {
-    const t = await tx.queryOne<{ id: string; user_id: string; ticket_number: string }>(
-      `update plus_tickets
-          set status = $2, last_activity_at = now(), user_unread = true, admin_unread = false
-        where id = $1
-        returning id, user_id, ticket_number`,
-      [id, nextStatus],
+    // MySQL `returning` ندارد: اول ردیف خوانده و قفل می‌شود، بعد نوشته.
+    const t = await tx.queryOne<{ user_id: string; ticket_seq: number }>(
+      "select user_id, ticket_seq from plus_tickets where id = ? for update",
+      [id],
     );
     if (!t) return null;
 
     await tx.execute(
-      // author_role همیشه 'admin' نوشته می‌شود و از ورودی نمی‌آید.
-      `insert into plus_ticket_messages (ticket_id, author_id, author_role, body)
-       values ($1, $2, 'admin', $3)`,
-      [id, admin.id, body],
+      `update plus_tickets
+          set status = ?, last_activity_at = now(6), user_unread = 1, admin_unread = 0
+        where id = ?`,
+      [nextStatus, id],
     );
-    return t;
+
+    await tx.execute(
+      // author_role همیشه 'admin' نوشته می‌شود و از ورودی نمی‌آید.
+      `insert into plus_ticket_messages (id, ticket_id, author_id, author_role, body)
+       values (?, ?, ?, 'admin', ?)`,
+      [randomUUID(), id, admin.id, body],
+    );
+    return { id, user_id: t.user_id, ticket_seq: t.ticket_seq };
   });
 
   if (!ticket) return { ok: false, errors: ["تیکت پیدا نشد."] };
@@ -1019,7 +1092,7 @@ export async function adminReplyTicket(input: {
     userId: ticket.user_id,
     kind: "ticket_reply",
     title: "پشتیبانی به تیکت تو پاسخ داد",
-    body: `تیکت ${ticket.ticket_number}`,
+    body: `تیکت ${ticketNumber(ticket.ticket_seq)}`,
     href: "/panel/support",
   });
 
@@ -1029,7 +1102,7 @@ export async function adminReplyTicket(input: {
     targetType: "plus_ticket",
     targetId: id,
     // ⚠️ متنِ پاسخ در خلاصه نمی‌آید: ممکن است اطلاعات شخصیِ کاربر را نقل کند.
-    summary: `به تیکت ${ticket.ticket_number} پاسخ داده شد`,
+    summary: `به تیکت ${ticketNumber(ticket.ticket_seq)} پاسخ داده شد`,
     metadata: { status: nextStatus },
   });
 
@@ -1046,8 +1119,8 @@ export async function adminSetTicketStatus(
   const next = enumArg(status, TICKET_STATUSES, "وضعیت نامعتبر است.");
 
   const affected = await execute(
-    "update plus_tickets set status = $2, last_activity_at = now() where id = $1",
-    [id, next],
+    "update plus_tickets set status = ?, last_activity_at = now(6) where id = ?",
+    [next, id],
   );
   if (!affected) return { ok: false, errors: ["تیکت پیدا نشد."] };
 

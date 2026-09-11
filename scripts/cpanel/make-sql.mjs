@@ -22,17 +22,58 @@ import { createHash } from "node:crypto";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const MIGRATIONS = join(ROOT, "mysql-migrations");
-const OUT = join(ROOT, "deploy", "sarva-database.sql");
+const OUT_DIR = join(ROOT, "deploy");
 
-const files = (await readdir(MIGRATIONS)).filter((f) => f.endsWith(".sql")).sort();
-if (files.length === 0) {
+// ⚠️ `--from 003` یعنی «فقط migration های تازه».
+//
+// چرا لازم شد: فایلِ کامل فقط روی دیتابیسِ *خالی* وارد می‌شود. دیتابیسِ سایتِ
+// زنده جدول‌هایش را دارد و وارد کردنِ دوبارهٔ ۰۰۱ روی «table already exists»
+// می‌میرد — آن هم وسطِ کار، چون phpMyAdmin تراکنش ندارد.
+//
+// پس برای به‌روزرسانیِ یک سایتِ زنده، فقط فایل‌هایی که هنوز اعمال نشده‌اند
+// ساخته می‌شوند. کدام‌ها اعمال شده‌اند را در phpMyAdmin ببینید:
+//   SELECT name FROM schema_migrations ORDER BY name;
+const fromArg = (() => {
+  const i = process.argv.indexOf("--from");
+  return i !== -1 ? process.argv[i + 1] : null;
+})();
+
+const allFiles = (await readdir(MIGRATIONS)).filter((f) => f.endsWith(".sql")).sort();
+const files = fromArg ? allFiles.filter((f) => f >= fromArg) : allFiles;
+
+if (allFiles.length === 0) {
   console.error("هیچ فایل migration ای پیدا نشد.");
+  process.exit(1);
+}
+if (files.length === 0) {
+  console.error(`هیچ migration ای با نامِ «${fromArg}» یا بعد از آن نیست.`);
+  console.error(`موجود: ${allFiles.join("، ")}`);
   process.exit(1);
 }
 
 const parts = [];
 
-parts.push(`-- =============================================================================
+const OUT = join(OUT_DIR, fromArg ? `sarva-database-${fromArg}.sql` : "sarva-database.sql");
+
+parts.push(
+  fromArg
+    ? `-- =============================================================================
+-- سروا — به‌روزرسانیِ دیتابیسِ موجود
+-- =============================================================================
+--
+-- ⚠️ این فایل دیتابیس را **نمی‌سازد**؛ فقط چیزهای تازه را اضافه می‌کند. برای
+-- یک دیتابیسِ خالی به‌جای این، \`npm run host:sql\` (بدون --from) را بزنید.
+--
+-- پیش از وارد کردن، از دیتابیس یک backup بگیرید (در phpMyAdmin تب Export).
+-- اگر چیزی نیمه‌کاره ماند، برگرداندنِ backup تنها راهِ مطمئن است: phpMyAdmin
+-- تراکنش ندارد و MySQL هم CREATE TABLE را rollback نمی‌کند.
+--
+-- در phpMyAdmin روی نامِ دیتابیس کلیک کنید، بعد تب Import.
+--
+-- شاملِ: ${files.join("، ")}
+-- =============================================================================
+`
+    : `-- =============================================================================
 -- سروا — ساختِ کاملِ دیتابیس
 -- =============================================================================
 --
@@ -45,7 +86,12 @@ parts.push(`-- =================================================================
 --
 -- ساخته‌شده از: ${files.join("، ")}
 -- =============================================================================
+`,
+);
 
+// همان تنظیماتِ نشستی که اجراکنندهٔ migration هم می‌گذارد؛ بدونشان یک
+// import می‌تواند با collation یا منطقهٔ زمانیِ دیگری بنویسد.
+parts.push(`
 SET NAMES utf8mb4;
 SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 SET SESSION time_zone = '+00:00';
@@ -137,11 +183,11 @@ INSERT INTO \`schema_migrations\` (\`name\`, \`checksum\`, \`finished_at\`, \`st
 ${rows.join(",\n")}
 ON DUPLICATE KEY UPDATE \`checksum\` = VALUES(\`checksum\`), \`finished_at\` = VALUES(\`finished_at\`);
 
--- تمام. حالا باید ${files.length} migration و همهٔ جدول‌ها ساخته شده باشند.
+-- تمام. ${fromArg ? `${files.length} migration تازه اعمال شد.` : `حالا باید ${files.length} migration و همهٔ جدول‌ها ساخته شده باشند.`}
 `);
 
 await mkdir(dirname(OUT), { recursive: true });
 await writeFile(OUT, parts.join("\n"));
 
 const size = (parts.join("\n").length / 1024).toFixed(0);
-console.log(`ساخته شد: deploy/sarva-database.sql  (${size} کیلوبایت، از ${files.length} فایل)`);
+console.log(`ساخته شد: ${OUT.slice(ROOT.length + 1)}  (${size} کیلوبایت، از ${files.length} فایل)`);

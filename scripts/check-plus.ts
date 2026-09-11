@@ -6,7 +6,7 @@
  * چیزی که این فایل می‌سنجد، *رفتارِ دیتابیس* است و نه منطقِ خالص: ایندکس‌های
  * یکتا، تریگرِ تغییرناپذیریِ قیمت، قفلِ هم‌زمانی و تراکنش‌ها. هیچ‌کدام را
  * نمی‌شود با mock تست کرد — mock دقیقاً همان چیزی را جعل می‌کند که قرار
- * است اثبات شود. و `npm test` باید روی ماشینی بدونِ پستگرس هم سبز بماند،
+ * است اثبات شود. و `npm test` باید روی ماشینی بدونِ دیتابیس هم سبز بماند،
  * پس این‌ها آنجا نمی‌روند.
  *
  * همین الگو از قبل در پروژه هست: `db:check-rotation`، `db:check-otp`،
@@ -16,6 +16,8 @@
  * می‌شود و در پایان پاک می‌شود.
  */
 process.loadEnvFile(".env.local");
+
+import { randomUUID } from "node:crypto";
 
 import { execute, query, queryOne, transaction } from "@/lib/db";
 import { activateForOrder, manualGrant, revokeEntitlement } from "@/lib/plus/grants";
@@ -43,33 +45,35 @@ function section(title: string): void {
 
 /* ─────────────────────────── داده آزمایشی ──────────────────────────────── */
 
+// ⚠️ MySQL هیچ `RETURNING` ندارد؛ پس شناسه اینجا ساخته می‌شود و همان
+// برمی‌گردد — نه `LAST_INSERT_ID()`، که برای ستونِ CHAR(36) چیزی نمی‌داند.
 async function makeUser(suffix: string): Promise<string> {
-  const row = await queryOne<{ id: string }>(
-    `insert into users (email, password_hash, full_name)
-     values ($1, 'x', $2) returning id`,
-    [`${TAG}+${suffix}+${Date.now()}@example.invalid`, `کاربر ${suffix}`],
+  const id = randomUUID();
+  await execute(
+    `insert into users (id, email, password_hash, full_name)
+     values (?, ?, 'x', ?)`,
+    [id, `${TAG}+${suffix}+${Date.now()}@example.invalid`, `کاربر ${suffix}`],
   );
-  if (!row) throw new Error("ساخت کاربر آزمایشی انجام نشد.");
-  return row.id;
+  return id;
 }
 
 async function makePlan(code: string, days: number, tomans: number) {
-  const plan = await queryOne<{ id: string }>(
-    `insert into plus_plans (code, title, duration_days)
-     values ($1, $2, $3) returning id`,
-    [code, `پلن ${code}`, days],
+  const planId = randomUUID();
+  await execute(
+    `insert into plus_plans (id, code, title, duration_days)
+     values (?, ?, ?, ?)`,
+    [planId, code, `پلن ${code}`, days],
   );
-  if (!plan) throw new Error("ساخت پلن انجام نشد.");
 
-  const version = await queryOne<{ id: string }>(
+  const versionId = randomUUID();
+  await execute(
     `insert into plus_plan_versions
-       (plan_id, version, title, duration_days, amount_rials, is_sellable)
-     values ($1, 1, $2, $3, $4, true) returning id`,
-    [plan.id, `پلن ${code}`, days, tomansToRials(tomans)],
+       (id, plan_id, version, title, duration_days, amount_rials, is_sellable)
+     values (?, ?, 1, ?, ?, ?, 1)`,
+    [versionId, planId, `پلن ${code}`, days, tomansToRials(tomans)],
   );
-  if (!version) throw new Error("ساخت نسخه انجام نشد.");
 
-  return { planId: plan.id, versionId: version.id };
+  return { planId, versionId };
 }
 
 async function cleanup(): Promise<void> {
@@ -78,13 +82,13 @@ async function cleanup(): Promise<void> {
   //   • نسخهٔ پلن و پلن هر دو `on delete restrict` دارند — عمدی، تا هیچ
   //     حذفی نتواند بی‌سروصدا تاریخچهٔ قیمت را ببرد. پس باید صریح و به
   //     ترتیب حذف شوند.
-  await execute(`delete from users where email like $1`, [`${TAG}+%`]);
+  await execute(`delete from users where email like ?`, [`${TAG}+%`]);
   await execute(
     `delete from plus_plan_versions
-      where plan_id in (select id from plus_plans where code like $1)`,
+      where plan_id in (select id from plus_plans where code like ?)`,
     [`${TAG}%`],
   );
-  await execute(`delete from plus_plans where code like $1`, [`${TAG}%`]);
+  await execute(`delete from plus_plans where code like ?`, [`${TAG}%`]);
 }
 
 /* ────────────────────────────── آزمون‌ها ───────────────────────────────── */
@@ -95,9 +99,11 @@ async function main(): Promise<void> {
   await cleanup();
 
   // سروا پلاس باید روشن باشد وگرنه resolver همه‌چیز را "off" می‌دهد.
+  // ⚠️ `key` در MySQL کلمهٔ کلیدی است؛ بدون backtick خطای نحوی می‌دهد.
+  // json_quote به‌جای to_jsonb، و on duplicate key به‌جای on conflict.
   await execute(
-    `insert into app_settings (key, value) values ('plus.enabled', to_jsonb('on'::text))
-     on conflict (key) do update set value = excluded.value`,
+    "insert into app_settings (`key`, value) values ('plus.enabled', json_quote('on'))\n" +
+      "     on duplicate key update value = values(value)",
   );
 
   const day = 86_400_000;
@@ -111,7 +117,7 @@ async function main(): Promise<void> {
 
     // ⚠️ نقشِ مدیر به‌تنهایی پلاس نمی‌سازد.
     const admin = await makeUser("admin");
-    await execute("update users set role = 'admin' where id = $1", [admin]);
+    await execute("update users set role = 'admin' where id = ?", [admin]);
     const adminStatus = await getPlusStatusFor(admin);
     ok("مدیر بودن به‌تنهایی پلاس نمی‌سازد", !adminStatus.isActive, adminStatus.state);
 
@@ -145,7 +151,7 @@ async function main(): Promise<void> {
     ok("دو درخواست موازی، یک سفارش می‌سازند", a.id === b.id && a.id === first.id);
 
     const count = await queryOne<{ n: number }>(
-      "select count(*) as n from plus_orders where user_id = $1",
+      "select count(*) as n from plus_orders where user_id = ?",
       [user],
     );
     ok("در دیتابیس هم فقط یک سفارش هست", count?.n === 1, `تعداد: ${count?.n}`);
@@ -172,7 +178,7 @@ async function main(): Promise<void> {
     ok("بار دوم دسترسیِ تازه نمی‌سازد", !second.created);
 
     const rows = await queryOne<{ n: number }>(
-      "select count(*) as n from plus_entitlements where source_order_id = $1",
+      "select count(*) as n from plus_entitlements where source_order_id = ?",
       [order.id],
     );
     ok("فقط یک ردیف دسترسی برای این سفارش هست", rows?.n === 1, `تعداد: ${rows?.n}`);
@@ -189,9 +195,10 @@ async function main(): Promise<void> {
     // دسترسی فعلی: تا ۱۰ روز دیگر
     const currentEnd = new Date(Date.now() + 10 * day);
     await execute(
-      `insert into plus_entitlements (user_id, source, starts_at, ends_at, reason, granted_by)
-       values ($1, 'manual_grant', now(), $2, 'آزمون', null)`,
-      [user, currentEnd.toISOString()],
+      `insert into plus_entitlements
+         (id, user_id, source, starts_at, ends_at, reason, granted_by)
+       values (?, ?, 'manual_grant', now(6), ?, 'آزمون', null)`,
+      [randomUUID(), user, currentEnd],
     );
 
     const order = await createOrGetPendingOrder({ userId: user, planCode: `${TAG}_1m` });
@@ -288,7 +295,7 @@ async function main(): Promise<void> {
     ok("وضعیت «لغوشده» است نه «رایگان»", after.state === "revoked", after.state);
 
     const stillThere = await queryOne<{ n: number }>(
-      "select count(*) as n from plus_entitlements where id = $1",
+      "select count(*) as n from plus_entitlements where id = ?",
       [granted.id],
     );
     ok("ردیف حذف نمی‌شود، فقط علامت می‌خورد", stillThere?.n === 1);
@@ -296,9 +303,10 @@ async function main(): Promise<void> {
     // انقضا
     const expiredUser = await makeUser("expired");
     await execute(
-      `insert into plus_entitlements (user_id, source, starts_at, ends_at)
-       values ($1, 'manual_grant', now() - interval '40 days', now() - interval '10 days')`,
-      [expiredUser],
+      `insert into plus_entitlements (id, user_id, source, starts_at, ends_at)
+       values (?, ?, 'manual_grant',
+               date_sub(now(6), interval 40 day), date_sub(now(6), interval 10 day))`,
+      [randomUUID(), expiredUser],
     );
     const expired = await getPlusStatusFor(expiredUser);
     ok("دسترسیِ تمام‌شده «expired» است", expired.state === "expired", expired.state);
@@ -323,17 +331,19 @@ async function main(): Promise<void> {
   {
     const future = await makeUser("future");
     await execute(
-      `insert into plus_entitlements (user_id, source, starts_at, ends_at)
-       values ($1, 'manual_grant', now() + interval '1 day', now() + interval '30 days')`,
-      [future],
+      `insert into plus_entitlements (id, user_id, source, starts_at, ends_at)
+       values (?, ?, 'manual_grant',
+               date_add(now(6), interval 1 day), date_add(now(6), interval 30 day))`,
+      [randomUUID(), future],
     );
     ok("دسترسیِ آینده هنوز فعال نیست", !(await getPlusStatusFor(future)).isActive);
 
     const edge = await makeUser("edge");
     await execute(
-      `insert into plus_entitlements (user_id, source, starts_at, ends_at)
-       values ($1, 'manual_grant', now() - interval '30 days', now() - interval '1 second')`,
-      [edge],
+      `insert into plus_entitlements (id, user_id, source, starts_at, ends_at)
+       values (?, ?, 'manual_grant',
+               date_sub(now(6), interval 30 day), date_sub(now(6), interval 1 second))`,
+      [randomUUID(), edge],
     );
     ok("لحظهٔ پایان دیگر دسترسی نیست", !(await getPlusStatusFor(edge)).isActive);
   }
@@ -363,7 +373,7 @@ async function main(): Promise<void> {
 
     let rejected = false;
     try {
-      await execute("update plus_plan_versions set amount_rials = 1 where id = $1", [versionId]);
+      await execute("update plus_plan_versions set amount_rials = 1 where id = ?", [versionId]);
     } catch {
       rejected = true;
     }
@@ -371,14 +381,14 @@ async function main(): Promise<void> {
 
     let sellableOk = true;
     try {
-      await execute("update plus_plan_versions set is_sellable = false where id = $1", [versionId]);
+      await execute("update plus_plan_versions set is_sellable = 0 where id = ?", [versionId]);
     } catch {
       sellableOk = false;
     }
     ok("ولی خارج کردن از فروش مجاز است", sellableOk);
 
     const amount = await queryOne<{ amount_rials: number }>(
-      "select amount_rials from plus_plan_versions where id = $1",
+      "select amount_rials from plus_plan_versions where id = ?",
       [versionId],
     );
     ok("مبلغ دست‌نخورده مانده", amount?.amount_rials === tomansToRials(149_000));
@@ -393,14 +403,14 @@ async function main(): Promise<void> {
 
     // نسخهٔ تازه با قیمت بالاتر
     await execute(
-      "update plus_plan_versions set is_sellable = false where plan_id = $1",
+      "update plus_plan_versions set is_sellable = 0 where plan_id = ?",
       [planId],
     );
     await execute(
       `insert into plus_plan_versions
-         (plan_id, version, title, duration_days, amount_rials, is_sellable)
-       values ($1, 2, 'گران‌تر', 30, $2, true)`,
-      [planId, tomansToRials(300_000)],
+         (id, plan_id, version, title, duration_days, amount_rials, is_sellable)
+       values (?, ?, 2, 'گران‌تر', 30, ?, 1)`,
+      [randomUUID(), planId, tomansToRials(300_000)],
     );
 
     const again = await getOrderDetail(user, order.id);
@@ -425,9 +435,9 @@ async function main(): Promise<void> {
     try {
       await execute(
         `insert into aruz_bridge_answers
-           (user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
-         values ($1, 'الف', 'فعولن', 'فعولن', 'wrong', true)`,
-        [user],
+           (id, user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
+         values (?, ?, 'الف', 'فعولن', 'فعولن', 'wrong', 1)`,
+        [randomUUID(), user],
       );
     } catch {
       mismatchRejected = true;
@@ -438,9 +448,9 @@ async function main(): Promise<void> {
     try {
       await execute(
         `insert into aruz_bridge_answers
-           (user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
-         values ($1, 'ب', 'فعولن', 'مفاعیلن', 'timeout', false)`,
-        [user],
+           (id, user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
+         values (?, ?, 'ب', 'فعولن', 'مفاعیلن', 'timeout', 0)`,
+        [randomUUID(), user],
       );
     } catch {
       timeoutRejected = true;
@@ -449,12 +459,12 @@ async function main(): Promise<void> {
 
     await execute(
       `insert into aruz_bridge_answers
-         (user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
-       values ($1, 'ج', 'فعولن', null, 'timeout', false)`,
-      [user],
+         (id, user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct)
+       values (?, ?, 'ج', 'فعولن', null, 'timeout', 0)`,
+      [randomUUID(), user],
     );
     const saved = await query<{ outcome: string }>(
-      "select outcome from aruz_bridge_answers where user_id = $1",
+      "select outcome from aruz_bridge_answers where user_id = ?",
       [user],
     );
     ok("ردیفِ سالم ثبت می‌شود", saved.length === 1 && saved[0].outcome === "timeout");

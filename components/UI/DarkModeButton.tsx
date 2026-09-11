@@ -103,6 +103,8 @@ function DarkModeButton() {
 
   return (
     <button
+      type="button"
+      aria-label={isDark ? "فعال کردن حالت روشن" : "فعال کردن حالت تیره"}
       onClick={toggle}
       className="p-2 group rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
     >

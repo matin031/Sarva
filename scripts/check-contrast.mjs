@@ -15,7 +15,7 @@
  *
  * ⚠️ نکتهٔ شناخته‌شده: پالتِ پیش‌فرضِ «فیروزه‌ای» سه مورد زیرِ حد دارد
  * (--primary به‌عنوان متن ۴٫۰۴:۱ و --lapis در تمِ تیره ۲٫۶۷:۱). این‌ها از
- * قبل بوده‌اند و عمداً دست‌نخورده مانده‌اند؛ هشت پالتِ دیگر همه قبول‌اند. */
+ * قبل بوده‌اند و عمداً دست‌نخورده مانده‌اند؛ شش پالتِ دیگر همه قبول‌اند. */
 import fs from "node:fs";
 
 const css = fs.readFileSync("app/globals.css", "utf8");
@@ -192,8 +192,8 @@ const sharedLight = decls(':root:not(.dark)[data-palette]:not([data-palette="tur
 const sharedDark = decls(':root.dark[data-palette]:not([data-palette="turquoise"])');
 
 const PALETTES = [
-  ["turquoise", "فیروزه‌ای"], ["mint", "نعنایی"], ["lilac", "یاسی"], ["peach", "هلویی"],
-  ["pistachio", "پسته‌ای"], ["sky", "آسمانی"], ["galaxy", "کهکشانی"], ["sunset", "غروب"],
+  ["turquoise", "فیروزه‌ای"], ["sky", "آسمانی"], ["lilac", "یاسی"], ["mint", "نعنایی"],
+  ["pistachio", "پسته‌ای"], ["peach", "هلویی"], ["rose", "رز"], ["saffron", "زعفرانی"],
 ];
 
 function tokensFor(id, mode) {
@@ -223,7 +223,33 @@ const PAIRS = [
   ["--secondary-foreground", "--secondary", 4.5, "متن روی ثانویه"],
   ["--surface", "--background", 1.0, "—"],
   ["--border", "--background", 1.15, "حاشیه روی زمینه (نه متن؛ فقط باید دیده شود)"],
+
+  /* ⚠️ این‌ها سقف‌اند و نه کف. یک لایهٔ تزئینی که *زیادی* دیده شود، به همان
+     اندازه اشکال دارد که متنی که کم دیده شود — و چون هیچ ابزاری دنبالش
+     نمی‌گردد، تا وقتی کاربر نگوید «چرا یک هاله افتاده روی سایت؟» کسی
+     نمی‌فهمد. الگوی هندسی باید حس شود، نه دیده شود.
+
+     ⚠️ و اندازه‌گیری روی *رنگِ ترکیب‌شده* است و نه رنگِ خام. الگو با
+     opacity ۰٫۰۶ کشیده می‌شود؛ یک طلاییِ روشن روی زمینهٔ شب خامش ۸:۱ است
+     ولی آنچه چشم می‌بیند ۱٫۴:۱ است. سنجیدنِ رنگِ خام، عدد را بی‌معنی و
+     آستانه را غیرقابلِ تنظیم می‌کند.
+
+     سقفِ ۱٫۵ از خودِ تمِ پیش‌فرض آمده: الگوی طلاییِ سروا روی زمینهٔ شب
+     ۱٫۴۷ است. یعنی «نباید از چیزی که همیشه داشتیم پررنگ‌تر باشد». */
+  ["--pattern-color", "--background", 1.5, "الگوی هندسی روی زمینه (ترکیب‌شده با ۶٪)", "max", 0.06],
+  ["--pattern-color", "--card", 1.5, "الگوی هندسی روی کارت (ترکیب‌شده با ۶٪)", "max", 0.06],
 ];
+
+/** رنگِ الگو با شفافیتِ واقعی‌اش روی زمینه می‌نشیند؛ همان چیزی که دیده می‌شود. */
+function overlay(fg, bg, alpha) {
+  const a = toRgb(fg).rgb;
+  const b = toRgb(bg).rgb;
+  return a.map((c, i) => c * alpha + b[i] * (1 - alpha));
+}
+function contrastLin(a, b) {
+  const [hi, lo] = luminance(a) > luminance(b) ? [luminance(a), luminance(b)] : [luminance(b), luminance(a)];
+  return (hi + 0.05) / (lo + 0.05);
+}
 
 let failures = 0;
 let clips = 0;
@@ -231,17 +257,20 @@ for (const [id, label] of PALETTES) {
   for (const mode of ["light", "dark"]) {
     const tokens = tokensFor(id, mode);
     const rows = [];
-    for (const [fg, bg, min, what] of PAIRS) {
+    for (const [fg, bg, limit, what, kind, alpha] of PAIRS) {
+      const isCeiling = kind === "max";
       const a = resolve(`var(${fg})`, tokens);
       const b = resolve(`var(${bg})`, tokens);
-      const ratio = contrast(a, b);
-      const ok = ratio >= min;
+      const ratio = alpha
+        ? contrastLin(overlay(a, b, alpha), toRgb(b).rgb)
+        : contrast(a, b);
+      const ok = isCeiling ? ratio <= limit : ratio >= limit;
       if (!ok) failures++;
       for (const [n, c] of [[fg, a], [bg, b]]) {
         if (toRgb(c).clipped) { clips++; rows.push(`      ⚠ خارج از گامات: ${n}`); }
       }
       rows.push(
-        `   ${ok ? "✓" : "✗"} ${ratio.toFixed(2).padStart(5)}:1  (حداقل ${min})  ${fg} روی ${bg}  ${hex(a)}/${hex(b)}  ${what}`,
+        `   ${ok ? "✓" : "✗"} ${ratio.toFixed(2).padStart(5)}:1  (${isCeiling ? "حداکثر" : "حداقل"} ${limit})  ${fg} روی ${bg}  ${hex(a)}/${hex(b)}  ${what}`,
       );
     }
     console.log(`\n── ${label} (${id}) / ${mode === "dark" ? "تیره" : "روشن"} ──`);

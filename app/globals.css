@@ -69,8 +69,18 @@
      دو دستهٔ کال‌سایت‌ها استفاده می‌کردند.
 
      ⚠️ خودِ شفافیت اینجا نیست؛ در prop‌ِ opacity هر کال‌سایت می‌ماند
-     (۰٫۰۶ در سایت، ۰٫۰۲۵ در پنل) چون هر زمینه‌ای غلظتِ خودش را می‌خواهد. */
-  --pattern-color: color-mix(in oklch, var(--gold) 55%, var(--primary));
+     (۰٫۰۶ در سایت، ۰٫۰۲۵ در پنل) چون هر زمینه‌ای غلظتِ خودش را می‌خواهد.
+
+     ⚠️⚠️ اینجا یک بار `color-mix(--gold 55%, --primary)` بود و **غلط بود**.
+     میان‌یابیِ فام در oklch از کوتاه‌ترین کمان می‌گذرد؛ بین طلایی (۸۵) و
+     فیروزه (۱۹۶) آن کمان از وسطِ سبز رد می‌شود. یعنی الگوی طلاییِ سایت روی
+     تمِ پیش‌فرض بی‌صدا زیتونی شده بود (‎#76a35d‎) و روی پالت‌های دیگر هر
+     بار یک فامِ سومِ بی‌ربط می‌ساخت — همان «هاله»ای که دیده می‌شد.
+
+     درسش کلی است: color-mix بینِ دو فامِ دور، یک رنگِ سوم می‌سازد و نه
+     میانگینِ آن دو. حالا تک‌رنگ است و هیچ فامی جابه‌جا نمی‌شود؛ چون --gold
+     خودش در هر پالت عوض می‌شود، الگو هم عوض می‌شود. */
+  --pattern-color: var(--gold);
 
   /* ── دو تنِ نشانِ سروا ────────────────────────────────────────────────
      لوگو دو رنگ دارد: یک تنِ روشن‌تر و یک تنِ کمی تیره‌تر که به آن حجم
@@ -187,28 +197,30 @@
   /* متنِ روی رنگِ اصلی = خودِ زمینه. در تمِ روشن یعنی سفید روی رنگِ میانه و
      در تمِ تیره یعنی تیره روی رنگِ روشن — یک خط، دو نتیجهٔ درست. */
   --primary-foreground: var(--background);
-  --secondary: color-mix(in oklch, var(--background) 86%, var(--primary));
   --secondary-foreground: var(--foreground);
   --muted: color-mix(in oklch, var(--background) 88%, var(--primary));
   /* ۷۶٪ عمدی است: کمتر از این، متنِ کم‌رنگ زیرِ ۴٫۵:۱ می‌افتد. */
   --muted-foreground: color-mix(in oklch, var(--foreground) 76%, var(--background));
 
-  --accent: var(--gold);
-  /* --accent در هر دو تم یک پاستلِ روشن است، پس متنِ رویش در هر دو تم باید
-     تیره باشد — نه --foreground (که در تیره کرم است) و نه --background (که
-     در روشن سفید است). */
-  --accent-foreground: color-mix(in oklch, var(--gold) 20%, #0a0d12);
+  /* ⚠️ --accent دیگر فرمول نیست و بذر است: رنگِ چهارمِ هر پالت بی‌کم‌وکاست
+     همین‌جا می‌نشیند. پس متنِ رویش هم باید از خودِ --accent ساخته شود و نه
+     از --gold. در هر دو تم یک پاستلِ روشن است، یعنی متنش در هر دو تم تیره
+     است — نه --foreground (که در تیره کرم است) و نه --background (که در
+     روشن سفید است). */
+  --accent-foreground: color-mix(in oklch, var(--accent) 18%, #0a0d12);
 
   --border: color-mix(in oklch, var(--background) 78%, var(--primary));
   --input: color-mix(in oklch, var(--background) 87%, var(--primary));
   --ring: var(--primary);
 
   --turquoise: var(--primary);
-  --turquoise-light: color-mix(in oklch, var(--primary) 55%, var(--cream));
-  /* ⚠️ همان هشدارِ بالای فایل: --lapis-light باید در هر دو تم *روشن‌تر* از
-     --lapis باشد و خودش هم خوانا بماند. چون به سمتِ --primary میل می‌کند (که
-     در تمِ تیره روشن‌تر است) این خودبه‌خود درست درمی‌آید. */
-  --lapis-light: color-mix(in oklch, var(--lapis) 45%, var(--primary));
+  /* ⚠️ --lapis-light اینجا فرمول نیست و بذر است — و یک بار بود و غلط بود:
+     `color-mix(--lapis 45%, --primary)`. آن فرمول وقتی درست کار می‌کرد که
+     لاجورد و رنگِ اصلی هم‌خانواده بودند. حالا رنگِ سومِ هر پالت عمداً یک فامِ
+     *ناهمخوان* است تا در نمودار و برچسب از رنگِ اصلی جدا شود؛ میل دادنش به
+     سمتِ --primary دقیقاً همان جدایی را از بین می‌برد. در نعنایی نتیجه‌اش
+     ‎#00636e‎ شد — عملاً خودِ رنگِ اصلی. هر پالت حالا لاجوردِ روشنِ خودش را
+     در خانوادهٔ رنگِ سوم می‌کارد. */
   --gold-light: color-mix(in oklch, var(--gold) 62%, var(--background));
   --paper: color-mix(in oklch, var(--background) 88%, var(--foreground));
 
@@ -231,153 +243,214 @@
   --logo-2: color-mix(in oklch, var(--primary) 78%, var(--cream));
 }
 
-/* تنها توکنی که فرمولش با تم عوض می‌شود: «کرم» در تمِ روشن همان کاغذِ زمینه
-   است و در تمِ تیره همان جوهرِ کرمِ متن. */
+/* «کرم» در تمِ روشن همان کاغذِ زمینه است و در تمِ تیره همان جوهرِ کرمِ متن —
+   تنها توکنی که فرمولش با تم عوض می‌شود. */
 :root:not(.dark)[data-palette]:not([data-palette="turquoise"]) {
   --cream: var(--background);
 }
+
+/* ⚠️ --secondary در تمِ روشن *بذر* است (رنگِ دومِ هر پالت، بی‌کم‌وکاست) ولی
+   در تمِ تیره نمی‌تواند باشد: آن رنگ یک پاستلِ روشن است و در شب به‌عنوان
+   سطحِ ثانویه، یک تختهٔ سفید وسطِ صفحه می‌شد. پس فقط اینجا فرمول می‌گیرد. */
 :root.dark[data-palette]:not([data-palette="turquoise"]) {
   --cream: var(--foreground);
+  --secondary: color-mix(in oklch, var(--background) 86%, var(--primary));
 }
 
-/* ---------------------------------------------------------------- نعنایی */
-:root:not(.dark)[data-palette="mint"] {
-  --background: oklch(0.962 0.032 165);
-  --foreground: oklch(0.27 0.046 205);
-  --card: oklch(0.988 0.014 165);
-  --primary: oklch(0.525 0.099 172);
-  --lapis: oklch(0.33 0.055 205);
-  --gold: oklch(0.84 0.12 105);
-  --gold-ink: oklch(0.535 0.11 105);
-}
-:root.dark[data-palette="mint"] {
-  --background: oklch(0.155 0.029 205);
-  --foreground: oklch(0.95 0.014 105);
-  --card: oklch(0.122 0.026 205);
-  --primary: oklch(0.77 0.13 172);
-  --lapis: oklch(0.52 0.078 205);
-  --gold: oklch(0.84 0.12 105);
-  --gold-ink: oklch(0.86 0.102 105);
-}
-
-/* ------------------------------------------------------------------ یاسی */
-:root:not(.dark)[data-palette="lilac"] {
-  --background: oklch(0.962 0.028 320);
-  --foreground: oklch(0.27 0.05 300);
-  --card: oklch(0.988 0.009 320);
-  --primary: oklch(0.55 0.15 312);
-  --lapis: oklch(0.33 0.1 300);
-  --gold: oklch(0.84 0.085 25);
-  --gold-ink: oklch(0.545 0.13 25);
-}
-:root.dark[data-palette="lilac"] {
-  --background: oklch(0.155 0.032 300);
-  --foreground: oklch(0.95 0.014 25);
-  --card: oklch(0.122 0.03 300);
-  --primary: oklch(0.77 0.15 312);
-  --lapis: oklch(0.52 0.1 300);
-  --gold: oklch(0.84 0.085 25);
-  --gold-ink: oklch(0.86 0.073 25);
-}
-
-/* ----------------------------------------------------------------- هلویی */
-:root:not(.dark)[data-palette="peach"] {
-  --background: oklch(0.962 0.023 60);
-  --foreground: oklch(0.27 0.05 38);
-  --card: oklch(0.988 0.007 60);
-  --primary: oklch(0.545 0.14 45);
-  --lapis: oklch(0.33 0.1 38);
-  --gold: oklch(0.84 0.086 18);
-  --gold-ink: oklch(0.55 0.13 18);
-}
-:root.dark[data-palette="peach"] {
-  --background: oklch(0.155 0.032 38);
-  --foreground: oklch(0.95 0.014 18);
-  --card: oklch(0.122 0.03 38);
-  --primary: oklch(0.77 0.14 45);
-  --lapis: oklch(0.52 0.1 38);
-  --gold: oklch(0.84 0.086 18);
-  --gold-ink: oklch(0.86 0.074 18);
-}
-
-/* ---------------------------------------------------------------- پسته‌ای */
-:root:not(.dark)[data-palette="pistachio"] {
-  --background: oklch(0.962 0.032 135);
-  --foreground: oklch(0.27 0.05 155);
-  --card: oklch(0.988 0.014 135);
-  --primary: oklch(0.525 0.14 142);
-  --lapis: oklch(0.33 0.08 155);
-  --gold: oklch(0.84 0.13 95);
-  --gold-ink: oklch(0.535 0.107 95);
-}
-:root.dark[data-palette="pistachio"] {
-  --background: oklch(0.155 0.032 155);
-  --foreground: oklch(0.95 0.014 95);
-  --card: oklch(0.122 0.03 155);
-  --primary: oklch(0.77 0.14 142);
-  --lapis: oklch(0.52 0.1 155);
-  --gold: oklch(0.84 0.13 95);
-  --gold-ink: oklch(0.86 0.111 95);
-}
-
-/* ---------------------------------------------------------------- آسمانی */
+/* ------------------------------------------------------------------ آسمانی */
+/* #337A9F  #B9DDF2  #E7DDF6  #F6E4C8 */
 :root:not(.dark)[data-palette="sky"] {
-  --background: oklch(0.962 0.018 255);
-  --foreground: oklch(0.27 0.05 272);
-  --card: oklch(0.988 0.005 255);
-  --primary: oklch(0.54 0.16 258);
-  --lapis: oklch(0.33 0.1 272);
-  --gold: oklch(0.84 0.1 310);
-  --gold-ink: oklch(0.55 0.14 310);
+  --background: oklch(0.985 0.008 233.663);
+  --foreground: oklch(0.27 0.045 234.615);
+  --card: oklch(0.995 0.002 233.663);
+  --primary: oklch(0.551 0.091 234.615);
+  --secondary: oklch(0.878 0.048 233.663);
+  --accent: oklch(0.926 0.042 78.962);
+  --turquoise-light: oklch(0.878 0.048 233.663);
+  --lapis: oklch(0.35 0.075 303.792);
+  --lapis-light: oklch(0.5 0.075 303.792);
+  --gold: oklch(0.8 0.085 78.962);
+  --gold-ink: oklch(0.555 0.11 78.962);
 }
 :root.dark[data-palette="sky"] {
-  --background: oklch(0.155 0.032 272);
-  --foreground: oklch(0.95 0.014 310);
-  --card: oklch(0.122 0.03 272);
-  --primary: oklch(0.77 0.115 258);
-  --lapis: oklch(0.52 0.1 272);
-  --gold: oklch(0.84 0.1 310);
-  --gold-ink: oklch(0.86 0.085 310);
+  --background: oklch(0.155 0.028 234.615);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 234.615);
+  --primary: oklch(0.68 0.118 234.615);
+  --accent: oklch(0.82 0.06 78.962);
+  --turquoise-light: oklch(0.8 0.062 233.663);
+  --lapis: oklch(0.52 0.08 303.792);
+  --lapis-light: oklch(0.68 0.075 303.792);
+  --gold: oklch(0.75 0.09 78.962);
+  --gold-ink: oklch(0.85 0.075 78.962);
 }
 
-/* --------------------------------------------------------------- کهکشانی */
-:root:not(.dark)[data-palette="galaxy"] {
-  --background: oklch(0.962 0.02 295);
-  --foreground: oklch(0.27 0.05 288);
-  --card: oklch(0.988 0.006 295);
-  --primary: oklch(0.55 0.17 298);
-  --lapis: oklch(0.33 0.1 288);
-  --gold: oklch(0.84 0.1 335);
-  --gold-ink: oklch(0.55 0.15 335);
+/* -------------------------------------------------------------------- یاسی */
+/* #6F63A8  #D8D0F0  #D7ECE7  #F6DDD2 */
+:root:not(.dark)[data-palette="lilac"] {
+  --background: oklch(0.985 0.007 296.915);
+  --foreground: oklch(0.27 0.045 290.382);
+  --card: oklch(0.995 0.002 296.915);
+  --primary: oklch(0.541 0.106 290.382);
+  --secondary: oklch(0.874 0.044 296.915);
+  --accent: oklch(0.915 0.032 45.273);
+  --turquoise-light: oklch(0.874 0.044 296.915);
+  --lapis: oklch(0.35 0.06 179.924);
+  --lapis-light: oklch(0.5 0.075 179.924);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
 }
-:root.dark[data-palette="galaxy"] {
-  --background: oklch(0.155 0.032 288);
-  --foreground: oklch(0.95 0.014 335);
-  --card: oklch(0.122 0.03 288);
-  --primary: oklch(0.77 0.131 298);
-  --lapis: oklch(0.52 0.1 288);
-  --gold: oklch(0.84 0.1 335);
-  --gold-ink: oklch(0.86 0.085 335);
+:root.dark[data-palette="lilac"] {
+  --background: oklch(0.155 0.028 290.382);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 290.382);
+  --primary: oklch(0.68 0.137 290.382);
+  --accent: oklch(0.82 0.06 45.273);
+  --turquoise-light: oklch(0.8 0.057 296.915);
+  --lapis: oklch(0.52 0.08 179.924);
+  --lapis-light: oklch(0.68 0.075 179.924);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
 }
 
-/* ------------------------------------------------------------------ غروب */
-:root:not(.dark)[data-palette="sunset"] {
-  --background: oklch(0.962 0.019 40);
-  --foreground: oklch(0.27 0.05 22);
-  --card: oklch(0.988 0.006 40);
-  --primary: oklch(0.55 0.16 32);
-  --lapis: oklch(0.33 0.1 22);
-  --gold: oklch(0.84 0.127 72);
-  --gold-ink: oklch(0.54 0.113 72);
+/* ------------------------------------------------------------------ نعنایی */
+/* #2F7F69  #BFE6D9  #DDE9F7  #F6E0CB */
+:root:not(.dark)[data-palette="mint"] {
+  --background: oklch(0.985 0.014 173.052);
+  --foreground: oklch(0.27 0.045 171.774);
+  --card: oklch(0.995 0.006 173.052);
+  --primary: oklch(0.541 0.085 171.774);
+  --secondary: oklch(0.893 0.044 173.052);
+  --accent: oklch(0.919 0.037 66.026);
+  --turquoise-light: oklch(0.893 0.044 173.052);
+  --lapis: oklch(0.35 0.075 252.179);
+  --lapis-light: oklch(0.5 0.075 252.179);
+  --gold: oklch(0.8 0.085 66.026);
+  --gold-ink: oklch(0.56 0.11 66.026);
 }
-:root.dark[data-palette="sunset"] {
-  --background: oklch(0.155 0.032 22);
-  --foreground: oklch(0.95 0.014 72);
-  --card: oklch(0.122 0.03 22);
-  --primary: oklch(0.77 0.133 32);
-  --lapis: oklch(0.52 0.1 22);
-  --gold: oklch(0.84 0.127 72);
-  --gold-ink: oklch(0.86 0.11 72);
+:root.dark[data-palette="mint"] {
+  --background: oklch(0.155 0.028 171.774);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 171.774);
+  --primary: oklch(0.68 0.111 171.774);
+  --accent: oklch(0.82 0.06 66.026);
+  --turquoise-light: oklch(0.8 0.057 173.052);
+  --lapis: oklch(0.52 0.08 252.179);
+  --lapis-light: oklch(0.68 0.075 252.179);
+  --gold: oklch(0.75 0.09 66.026);
+  --gold-ink: oklch(0.85 0.075 66.026);
+}
+
+/* ----------------------------------------------------------------- پسته‌ای */
+/* #577B59  #CEDFC7  #E4E2F2  #F2E2C8 */
+:root:not(.dark)[data-palette="pistachio"] {
+  --background: oklch(0.985 0.014 136.459);
+  --foreground: oklch(0.27 0.045 145.964);
+  --card: oklch(0.995 0.006 136.459);
+  --primary: oklch(0.546 0.066 145.964);
+  --secondary: oklch(0.884 0.037 136.459);
+  --accent: oklch(0.919 0.039 80.02);
+  --turquoise-light: oklch(0.884 0.037 136.459);
+  --lapis: oklch(0.35 0.075 291.715);
+  --lapis-light: oklch(0.5 0.075 291.715);
+  --gold: oklch(0.8 0.085 80.02);
+  --gold-ink: oklch(0.555 0.11 80.02);
+}
+:root.dark[data-palette="pistachio"] {
+  --background: oklch(0.155 0.028 145.964);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 145.964);
+  --primary: oklch(0.68 0.086 145.964);
+  --accent: oklch(0.82 0.06 80.02);
+  --turquoise-light: oklch(0.8 0.048 136.459);
+  --lapis: oklch(0.52 0.08 291.715);
+  --lapis-light: oklch(0.68 0.075 291.715);
+  --gold: oklch(0.75 0.09 80.02);
+  --gold-ink: oklch(0.85 0.075 80.02);
+}
+
+/* ------------------------------------------------------------------- هلویی */
+/* #A95F45  #F2CBB8  #DCE8F4  #E5DDF2 */
+:root:not(.dark)[data-palette="peach"] {
+  --background: oklch(0.985 0.007 47.476);
+  --foreground: oklch(0.27 0.045 39.962);
+  --card: oklch(0.995 0.002 47.476);
+  --primary: oklch(0.565 0.104 39.962);
+  --secondary: oklch(0.871 0.051 47.476);
+  --accent: oklch(0.91 0.03 303.057);
+  --turquoise-light: oklch(0.871 0.051 47.476);
+  --lapis: oklch(0.35 0.075 248.053);
+  --lapis-light: oklch(0.5 0.075 248.053);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="peach"] {
+  --background: oklch(0.155 0.028 39.962);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 39.962);
+  --primary: oklch(0.68 0.135 39.962);
+  --accent: oklch(0.82 0.06 303.057);
+  --turquoise-light: oklch(0.8 0.066 47.476);
+  --lapis: oklch(0.52 0.08 248.053);
+  --lapis-light: oklch(0.68 0.075 248.053);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ---------------------------------------------------------------------- رز */
+/* #A95870  #EBC6D1  #DCE9F6  #E7E0F4 */
+:root:not(.dark)[data-palette="rose"] {
+  --background: oklch(0.985 0.007 358.261);
+  --foreground: oklch(0.27 0.045 2.31);
+  --card: oklch(0.995 0.002 358.261);
+  --primary: oklch(0.563 0.109 2.31);
+  --secondary: oklch(0.861 0.044 358.261);
+  --accent: oklch(0.918 0.028 301.737);
+  --turquoise-light: oklch(0.861 0.044 358.261);
+  --lapis: oklch(0.35 0.075 248.071);
+  --lapis-light: oklch(0.5 0.075 248.071);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="rose"] {
+  --background: oklch(0.155 0.028 2.31);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 2.31);
+  --primary: oklch(0.68 0.141 2.31);
+  --accent: oklch(0.82 0.06 301.737);
+  --turquoise-light: oklch(0.8 0.057 358.261);
+  --lapis: oklch(0.52 0.08 248.071);
+  --lapis-light: oklch(0.68 0.075 248.071);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ----------------------------------------------------------------- زعفرانی */
+/* #95672C  #F0D4B2  #D9ECE1  #F3DAE5 */
+:root:not(.dark)[data-palette="saffron"] {
+  --background: oklch(0.985 0.01 72.413);
+  --foreground: oklch(0.27 0.045 70.068);
+  --card: oklch(0.995 0.003 72.413);
+  --primary: oklch(0.551 0.095 70.068);
+  --secondary: oklch(0.885 0.055 72.413);
+  --accent: oklch(0.912 0.031 349.281);
+  --turquoise-light: oklch(0.885 0.055 72.413);
+  --lapis: oklch(0.35 0.074 160.569);
+  --lapis-light: oklch(0.5 0.075 160.569);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="saffron"] {
+  --background: oklch(0.155 0.028 70.068);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.19 0.026 70.068);
+  --primary: oklch(0.68 0.123 70.068);
+  --accent: oklch(0.82 0.06 349.281);
+  --turquoise-light: oklch(0.8 0.071 72.413);
+  --lapis: oklch(0.52 0.08 160.569);
+  --lapis-light: oklch(0.68 0.075 160.569);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
 }
 
 /* ---- الگوی هندسیِ ایرانی ------------------------------------------------
@@ -417,23 +490,23 @@
    ⚠️ این‌ها عمداً تکرارِ دستیِ دو رنگِ هر پالت‌اند و نه var().
    دلیلش ساده است: دایرهٔ نمونه باید رنگِ پالتی را نشان دهد که *فعال نیست*؛
    اگر از توکن می‌خواند، هر هشت دایره یک رنگِ یکسان می‌شدند. */
-.pal-swatch[data-pal="turquoise"] { --sw-1: #008687; --sw-2: oklch(0.75 0.12 85); }
-.pal-swatch[data-pal="mint"] { --sw-1: oklch(0.525 0.099 172); --sw-2: oklch(0.84 0.12 105); }
-.pal-swatch[data-pal="lilac"] { --sw-1: oklch(0.55 0.15 312); --sw-2: oklch(0.84 0.085 25); }
-.pal-swatch[data-pal="peach"] { --sw-1: oklch(0.545 0.14 45); --sw-2: oklch(0.84 0.086 18); }
-.pal-swatch[data-pal="pistachio"] { --sw-1: oklch(0.525 0.14 142); --sw-2: oklch(0.84 0.13 95); }
-.pal-swatch[data-pal="sky"] { --sw-1: oklch(0.54 0.16 258); --sw-2: oklch(0.84 0.1 310); }
-.pal-swatch[data-pal="galaxy"] { --sw-1: oklch(0.55 0.17 298); --sw-2: oklch(0.84 0.1 335); }
-.pal-swatch[data-pal="sunset"] { --sw-1: oklch(0.55 0.16 32); --sw-2: oklch(0.84 0.127 72); }
+.pal-swatch[data-pal="turquoise"]          { --sw-1: #008687; --sw-2: oklch(0.75 0.12 85); }
+.pal-swatch[data-pal="sky"]                { --sw-1: #337A9F; --sw-2: #F6E4C8; }
+.pal-swatch[data-pal="lilac"]              { --sw-1: #6F63A8; --sw-2: #F6DDD2; }
+.pal-swatch[data-pal="mint"]               { --sw-1: #2F7F69; --sw-2: #F6E0CB; }
+.pal-swatch[data-pal="pistachio"]          { --sw-1: #577B59; --sw-2: #F2E2C8; }
+.pal-swatch[data-pal="peach"]              { --sw-1: #A95F45; --sw-2: #E5DDF2; }
+.pal-swatch[data-pal="rose"]               { --sw-1: #A95870; --sw-2: #E7E0F4; }
+.pal-swatch[data-pal="saffron"]            { --sw-1: #95672C; --sw-2: #F3DAE5; }
 
-.dark .pal-swatch[data-pal="turquoise"] { --sw-1: #00a5a6; --sw-2: oklch(0.75 0.12 85); }
-.dark .pal-swatch[data-pal="mint"] { --sw-1: oklch(0.77 0.13 172); --sw-2: oklch(0.84 0.12 105); }
-.dark .pal-swatch[data-pal="lilac"] { --sw-1: oklch(0.77 0.15 312); --sw-2: oklch(0.84 0.085 25); }
-.dark .pal-swatch[data-pal="peach"] { --sw-1: oklch(0.77 0.14 45); --sw-2: oklch(0.84 0.086 18); }
-.dark .pal-swatch[data-pal="pistachio"] { --sw-1: oklch(0.77 0.14 142); --sw-2: oklch(0.84 0.13 95); }
-.dark .pal-swatch[data-pal="sky"] { --sw-1: oklch(0.77 0.115 258); --sw-2: oklch(0.84 0.1 310); }
-.dark .pal-swatch[data-pal="galaxy"] { --sw-1: oklch(0.77 0.131 298); --sw-2: oklch(0.84 0.1 335); }
-.dark .pal-swatch[data-pal="sunset"] { --sw-1: oklch(0.77 0.133 32); --sw-2: oklch(0.84 0.127 72); }
+.dark .pal-swatch[data-pal="turquoise"]          { --sw-1: #00a5a6; --sw-2: oklch(0.75 0.12 85); }
+.dark .pal-swatch[data-pal="sky"]                { --sw-1: #3fa3d6; --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="lilac"]              { --sw-1: #9888e6; --sw-2: #e6b9a4; }
+.dark .pal-swatch[data-pal="mint"]               { --sw-1: #3eae90; --sw-2: #e0bd9b; }
+.dark .pal-swatch[data-pal="pistachio"]          { --sw-1: #75a778; --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="peach"]              { --sw-1: #dd7855; --sw-2: #ccbbe5; }
+.dark .pal-swatch[data-pal="rose"]               { --sw-1: #de7091; --sw-2: #cbbce5; }
+.dark .pal-swatch[data-pal="saffron"]            { --sw-1: #c88937; --sw-2: #e3b5ca; }
 
 #nprogress .bar {
   background: var(--color-primary) !important;

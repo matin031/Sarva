@@ -13,13 +13,13 @@
 
 export const PALETTES = [
   { id: "turquoise", label: "فیروزه‌ای" },
-  { id: "mint", label: "نعنایی" },
-  { id: "lilac", label: "یاسی" },
-  { id: "peach", label: "هلویی" },
-  { id: "pistachio", label: "پسته‌ای" },
   { id: "sky", label: "آسمانی" },
-  { id: "galaxy", label: "کهکشانی" },
-  { id: "sunset", label: "غروب" },
+  { id: "lilac", label: "یاسی" },
+  { id: "mint", label: "نعنایی" },
+  { id: "pistachio", label: "پسته‌ای" },
+  { id: "peach", label: "هلویی" },
+  { id: "rose", label: "رز" },
+  { id: "saffron", label: "زعفرانی" },
 ] as const;
 
 export type PaletteId = (typeof PALETTES)[number]["id"];

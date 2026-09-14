@@ -7,6 +7,7 @@ import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
 import { removeTeacherDocumentChecked } from "@/lib/teacher/documents";
+import { documentKeyFingerprint } from "@/lib/teacher/doc-paths";
 import { logger } from "@/lib/observability";
 import type { UserRole } from "@/lib/auth/types";
 
@@ -343,13 +344,14 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
      می‌ماند بی‌آنکه کسی بداند مالِ کیست.
 
      ⚠️ و فقط مدارکِ *همین* کاربر: شرطِ `user_id` تضمین می‌کند فایلِ دبیرِ
-     دیگری هرگز در این فهرست نیاید. */
-  const documentKeys = (
-    await query<{ document_key: string }>(
-      "select document_key from teacher_requests where user_id = ?",
-      [userId],
-    )
-  ).map((r) => r.document_key);
+     دیگری هرگز در این فهرست نیاید.
+
+     `id` هم خوانده می‌شود چون بعد از تراکنش دیگر وجود ندارد و لاگِ پایین
+     به آن نیاز دارد — شناسهٔ پرونده در لاگ جای کلیدِ فایل را می‌گیرد. */
+  const documents = await query<{ id: string; document_key: string }>(
+    "select id, document_key from teacher_requests where user_id = ?",
+    [userId],
+  );
 
   await transaction(async (tx) => {
     const affected = await tx.query<{ post_id: string }>(
@@ -376,21 +378,37 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
      پیدایش می‌کند.
 
      ⚠️ شکستِ حذفِ فایل، حذفِ حساب را برنمی‌گرداند (کاربر واقعاً حذف شده)،
-     ولی **بی‌صدا هم نمی‌ماند**: کلید در لاگ می‌آید تا قابلِ پیگیری باشد. */
-  const orphaned: string[] = [];
-  for (const key of documentKeys) {
-    if (!(await removeTeacherDocumentChecked(key))) orphaned.push(key);
+     ولی **بی‌صدا هم نمی‌ماند**. */
+  const orphaned: { requestId: string; fingerprint: string }[] = [];
+  for (const doc of documents) {
+    if (!(await removeTeacherDocumentChecked(doc.document_key))) {
+      orphaned.push({
+        requestId: doc.id,
+        fingerprint: documentKeyFingerprint(doc.document_key),
+      });
+    }
   }
 
   if (orphaned.length > 0) {
+    /* ⚠️ خودِ `document_key` اینجا **نوشته نمی‌شود**.
+
+       کلید نامِ واقعیِ فایلِ حکم روی دیسک است و تنها چیزی است که
+       `GET …/document` برای پیدا کردنش لازم دارد. لاگِ عملیاتی جایی است که
+       فراتر از مدیرِ سایت دیده می‌شود (stdout کانتینر، جمع‌آورندهٔ لاگ،
+       اسکرین‌شاتِ اشکال‌زدایی)، پس پخشِ کلید در آن یک لایهٔ دفاعی را برای
+       راحتیِ دیباگ می‌سوزاند.
+
+       آنچه برای پیگیری لازم است بدونِ کلید هم به‌دست می‌آید: شناسهٔ پرونده
+       (که خودش بعد از cascade دیگر در دیتابیس نیست) و یک اثرِ انگشتِ
+       یک‌طرفه که با خروجیِ `db:check-teacher-docs` قابلِ تطبیق است.
+       `request_id` را هم لاگر خودش از زمینهٔ درخواست اضافه می‌کند. */
     logger.error("حذفِ مدارکِ دبیری بعد از حذفِ حساب ناموفق بود", {
       event: "teacher.document.orphaned",
       user_id: userId,
       orphan_count: orphaned.length,
-      /* ⚠️ کلید فقط در لاگِ سرور می‌آید و نه در پاسخِ API. برای آشتی دادن
-         لازم است و جای دیگری نباید برود. */
-      orphan_keys: orphaned,
-      hint: "npm run db:check-teacher-docs -- --purge",
+      teacher_request_ids: orphaned.map((o) => o.requestId),
+      document_fingerprints: orphaned.map((o) => o.fingerprint),
+      hint: "npm run db:check-teacher-docs",
     });
   }
 

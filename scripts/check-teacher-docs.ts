@@ -26,7 +26,17 @@
 process.loadEnvFile(".env.local");
 
 import { query } from "@/lib/db";
+import { documentKeyFingerprint } from "@/lib/teacher/doc-paths";
 import { listStoredDocumentKeys, removeTeacherDocumentChecked } from "@/lib/teacher/documents";
+
+/* ⚠️ اینجا — و فقط اینجا — کلیدِ خام چاپ می‌شود، چون کاری که این ابزار
+   می‌کند همین است: به اپراتور بگوید کدام فایل را حذف کند. این با «لاگِ
+   عملیاتی» فرق دارد؛ خروجیِ یک اسکریپتِ دستی است که خودِ مدیر روی سرور
+   اجرایش می‌کند و جایی جمع‌آوری نمی‌شود.
+
+   اثرِ انگشت هم کنارش می‌آید تا بشود ردیفِ `teacher.document.orphaned` در
+   لاگ را — که کلید ندارد — به فایلِ واقعی وصل کرد. */
+const label = (key: string) => `${key}  (${documentKeyFingerprint(key)})`;
 
 const purge = process.argv.includes("--purge");
 
@@ -59,7 +69,7 @@ async function main() {
     console.log("\n⚠️ این ردیف‌ها به فایلی اشاره می‌کنند که روی دیسک نیست.");
     console.log("   حذف نمی‌شوند — یعنی مدیر نمی‌تواند آن پرونده‌ها را بررسی کند");
     console.log("   و باید از کاربر خواسته شود دوباره بفرستد:");
-    for (const k of missing.slice(0, 20)) console.log(`     ${k}`);
+    for (const k of missing.slice(0, 20)) console.log(`     ${label(k)}`);
     if (missing.length > 20) console.log(`     … و ${missing.length - 20} مورد دیگر`);
   }
 
@@ -69,7 +79,7 @@ async function main() {
   }
 
   console.log("\nفایل‌های یتیم:");
-  for (const k of orphans.slice(0, 20)) console.log(`  ${k}`);
+  for (const k of orphans.slice(0, 20)) console.log(`  ${label(k)}`);
   if (orphans.length > 20) console.log(`  … و ${orphans.length - 20} مورد دیگر`);
 
   if (!purge) {
@@ -87,7 +97,7 @@ async function main() {
   console.log(`\n${removed} فایل حذف شد.`);
   if (failed.length > 0) {
     console.log(`${failed.length} فایل حذف نشد (دسترسی؟ قفل؟):`);
-    for (const k of failed) console.log(`  ${k}`);
+    for (const k of failed) console.log(`  ${label(k)}`);
   }
   process.exit(failed.length > 0 ? 1 : 0);
 }

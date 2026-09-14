@@ -1,7 +1,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { join, sep } from "node:path";
-import { isPrivateRootSafe, safeDocumentPath } from "@/lib/teacher/doc-paths";
+import {
+  documentKeyFingerprint,
+  isPrivateRootSafe,
+  safeDocumentPath,
+} from "@/lib/teacher/doc-paths";
 
 /**
  * قواعدِ مسیرِ انبارِ خصوصیِ مدارک.
@@ -104,5 +108,41 @@ describe("مسیرِ امنِ یک کلید", () => {
       assert.ok(target, `${key} باید مسیر بدهد`);
       assert.ok(target.startsWith(root + sep), `${target} زیرِ ریشه نیست`);
     }
+  });
+});
+
+/**
+ * اثرِ انگشتِ کلید — چیزی که در لاگ می‌نشیند به‌جای نامِ فایلِ حکم.
+ *
+ * ⚠️ خاصیتی که باید نگه داشته شود دو تاست و هر دو لازم‌اند:
+ *   ۱) از خروجی نشود کلید را ساخت (وگرنه بی‌فایده است).
+ *   ۲) برای یک کلید همیشه یکی باشد (وگرنه برای پیگیری بی‌فایده است).
+ */
+describe("اثرِ انگشتِ کلیدِ مدرک", () => {
+  const key = "1757900000000-0123456789abcdef0123456789abcdef.pdf";
+
+  test("پایدار است — همان کلید، همان اثرِ انگشت", () => {
+    assert.equal(documentKeyFingerprint(key), documentKeyFingerprint(key));
+  });
+
+  test("دو کلیدِ متفاوت دو اثرِ انگشتِ متفاوت می‌دهند", () => {
+    assert.notEqual(documentKeyFingerprint("a.pdf"), documentKeyFingerprint("b.pdf"));
+  });
+
+  /** ⚠️ خودِ قاعده: هیچ بخشی از کلید نباید در خروجی دیده شود — نه پسوند،
+   *  نه مهرِ زمان، نه هیچ زیررشته‌ای. */
+  test("هیچ تکه‌ای از کلید در خروجی نیست", () => {
+    const fp = documentKeyFingerprint(key);
+    assert.ok(!fp.includes("pdf"), "پسوند نباید بماند");
+    assert.ok(!fp.includes("1757900000000"), "مهرِ زمان نباید بماند");
+    assert.ok(!fp.includes("0123456789abcdef"), "بخشِ تصادفی نباید بماند");
+    // و برعکسش هم: هیچ زیررشتهٔ ۸نویسه‌ای از کلید نباید در اثرِ انگشت باشد.
+    for (let i = 0; i + 8 <= key.length; i++) {
+      assert.ok(!fp.includes(key.slice(i, i + 8)), `«${key.slice(i, i + 8)}» نشت کرده`);
+    }
+  });
+
+  test("شکلش ثابت و کوتاه است", () => {
+    assert.match(documentKeyFingerprint(key), /^dk_[0-9a-f]{12}$/);
   });
 });

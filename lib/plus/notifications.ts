@@ -36,23 +36,53 @@ export type NotifyParams = {
 };
 
 /**
+ * نتیجهٔ ثبتِ اعلان.
+ *
+ * ⚠️ سه حالت و نه دو، چون «ساخته نشد» دو معنای کاملاً متفاوت دارد:
+ *
+ *   • `created`   — ردیف نوشته شد.
+ *   • `duplicate` — کلیدِ dedupe از قبل بود. این یک **موفقیت** است؛ دقیقاً
+ *                   همان چیزی که `dedupeKey` برایش وجود دارد.
+ *   • `failed`    — چیزی خراب است: ستون نیست، `kind` در CHECK نیست
+ *                   (migration اجرا نشده)، یا دیتابیس در دسترس نیست.
+ *
+ * قاطی کردنِ دوتای آخر همان چیزی بود که باید رفع می‌شد.
+ */
+export type NotifyResult = "created" | "duplicate" | "failed";
+
+/**
  * ثبتِ یک اعلان.
  *
  * ⚠️ هرگز throw نمی‌کند. اعلان یک کارِ جانبی است؛ اگر شکستش بتواند خرید یا
  * پاسخِ تیکت را بشکند، یک جدولِ فرعی به مسیرِ حیاتی وصل شده که نباید.
+ *
+ * ⚠️⚠️ ولی «throw نمی‌کند» با «بی‌صدا رد می‌شود» یکی نیست — و تا دیروز یکی
+ * بود.
+ *
+ * نسخهٔ قبلی `INSERT IGNORE` می‌زد. آن دستور *هر* خطایی را به هشدار تبدیل
+ * می‌کند و نه فقط کلیدِ تکراری: ستونِ ناموجود، جدولِ ناموجود، و مهم‌تر از
+ * همه نقضِ CHECK روی `kind`. یعنی اگر مهاجرتی که مقدارِ تازهٔ `kind` را
+ * اضافه می‌کند روی سرور اجرا نشده بود، اعلان **بی‌صدا ناپدید می‌شد** و
+ * `execute` هم موفق برمی‌گشت. نه خطایی، نه لاگی، نه ردیفی.
+ *
+ * حالا `ON DUPLICATE KEY UPDATE id = id` جایش را گرفته: *فقط* کلیدِ تکراری
+ * را می‌بلعد و هر خطای دیگری واقعاً throw می‌شود تا اینجا گرفته و با صدای
+ * بلند ثبت شود.
  */
-export async function notify(params: NotifyParams): Promise<void> {
+export async function notify(params: NotifyParams): Promise<NotifyResult> {
+  const id = randomUUID();
+
   try {
-    // ⚠️ `insert ignore` جای `on conflict … do nothing` را می‌گیرد: اگر
-    // اعلانی با همان `dedupe_key` برای همان کاربر باشد، ردیفِ دوم ساخته
-    // نمی‌شود. بدون آن، هشدارِ «۳ روز تا پایان اشتراک» هر بار که کاربر صفحه
-    // را باز می‌کند یک ردیفِ تازه می‌ساخت.
+    /* ⚠️ `on duplicate key update id = id` و نه `insert ignore`.
+       یک no-opِ هدفمند: تنها چیزی که بی‌صدا رد می‌شود، برخورد با
+       `(user_id, dedupe_key)` است — همان چیزی که `dedupeKey` برایش هست. */
     await execute(
-      `insert ignore into plus_notifications
+      `insert into plus_notifications
          (id, user_id, kind, title, body, href, dedupe_key)
-       values (?, ?, ?, ?, ?, ?, ?)`,
+       values (?, ?, ?, ?, ?, ?, ?)
+       on duplicate key update id = id`,
       [
-        randomUUID(),
+        id,
         params.userId,
         params.kind,
         params.title,
@@ -61,13 +91,63 @@ export async function notify(params: NotifyParams): Promise<void> {
         params.dedupeKey ?? null,
       ],
     );
+
+    /* ⚠️ «درج شد یا تکراری بود؟» از روی `affectedRows` تشخیص داده
+       **نمی‌شود**.
+
+       مستندات می‌گویند برای `ON DUPLICATE KEY UPDATE` مقدارش برای درج ۱ و
+       برای به‌روزرسانیِ بی‌تغییر ۰ است — و در کلاینتِ خط فرمان دقیقاً همین
+       است. ولی از مسیرِ statementهای آماده‌ی این درایور، هر دو حالت ۱
+       برمی‌گردانند (آزموده شد). تکیه به آن یعنی هر اعلانِ تکراری «تازه»
+       گزارش شود.
+
+       پس وقتی کلیدِ dedupe داریم، یک نگاهِ ارزان به ایندکسِ یکتا قطعی
+       جواب می‌دهد: اگر شناسهٔ ذخیره‌شده همانی باشد که ما ساختیم، درج شده.
+       بدونِ کلیدِ dedupe اصلاً برخوردی ممکن نیست و این کوئری هم زده
+       نمی‌شود. */
+    if (params.dedupeKey == null) return "created";
+
+    const stored = await queryOne<{ id: string }>(
+      `select id from plus_notifications where user_id = ? and dedupe_key = ?`,
+      [params.userId, params.dedupeKey],
+    );
+    return stored?.id === id ? "created" : "duplicate";
   } catch (err) {
-    logger.error("ثبت اعلان سروا پلاس ناموفق بود", {
-      event: "plus.notification.failed",
-      err,
-      notification_kind: params.kind,
-    });
+    /* ⚠️ «مهاجرت اجرا نشده» از «دیتابیس خراب است» جدا گزارش می‌شود.
+       اولی یک کارِ انجام‌نشدهٔ استقرار است و راه‌حلش یک دستور است؛ دومی
+       یک حادثه. یک پیامِ عمومی برای هر دو، آن یکی را که راه‌حلِ ساده دارد
+       زیرِ نویز دفن می‌کرد. */
+    const deployment = isSchemaError(err);
+
+    logger.error(
+      deployment
+        ? "ثبت اعلان ناموفق بود — به‌نظر می‌رسد مهاجرت دیتابیس اجرا نشده"
+        : "ثبت اعلان ناموفق بود",
+      {
+        event: deployment ? "notification.schema_missing" : "plus.notification.failed",
+        err,
+        notification_kind: params.kind,
+        ...(deployment ? { hint: "npm run db:migrate" } : {}),
+      },
+    );
+
+    return "failed";
   }
+}
+
+/**
+ * آیا این خطا یعنی «اسکیما با کد جور نیست»؟
+ *
+ * ⚠️ بر اساس *کدِ* خطا و نه متنِ پیام: متن با زبان و نسخهٔ سرور عوض می‌شود.
+ *
+ *   1054 ER_BAD_FIELD_ERROR          — ستون نیست
+ *   1146 ER_NO_SUCH_TABLE            — جدول نیست
+ *   3819 ER_CHECK_CONSTRAINT_VIOLATED (MySQL 8)
+ *   4025 ER_CONSTRAINT_FAILED         (MariaDB) — `kind`ِ تازه در CHECK نیست
+ */
+function isSchemaError(err: unknown): boolean {
+  const code = (err as { errno?: unknown })?.errno;
+  return code === 1054 || code === 1146 || code === 3819 || code === 4025;
 }
 
 /** آخرین اعلان‌های کاربر. سقفِ سخت دارد تا صفحهٔ پنل هیچ‌وقت هزار ردیف نکشد. */

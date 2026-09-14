@@ -21,7 +21,30 @@ import { TABLE_ORDER } from "./mysql/type-map.mjs";
 /** جدول‌هایی که اجراکنندهٔ migration می‌سازد، نه مولدِ اسکیما. */
 const RUNNER_TABLES = ["schema_migrations"];
 
-const EXPECTED_TABLES = [...TABLE_ORDER, ...RUNNER_TABLES].sort();
+/**
+ * جدول‌هایی که **بعد از** تولیدِ اسکیما با migration اضافه شده‌اند.
+ *
+ * ⚠️ `TABLE_ORDER` در `scripts/mysql/type-map.mjs` عکسِ لحظه‌ایِ همان
+ * اسکیمایی است که از PostgreSQL تولید شد (۰۰۱). هر جدولی که بعدش آمده در
+ * آن نیست، و *نباید* هم اضافه شود: آن فهرست ورودیِ مولدِ اسکیماست و دست
+ * زدن به آن یعنی دست زدن به چیزی که قرار است بازتولید شود.
+ *
+ * پس فهرست اینجا نگه داشته می‌شود. بدونِ آن، `db:check` هشت جدولِ کاملاً
+ * سالم را «ناشناخته» گزارش می‌کرد — و یک گزارشِ همیشه-قرمز، همان قدر
+ * بی‌فایده است که گزارش نداشتن.
+ */
+const MIGRATION_TABLES = [
+  "phone_otps", // ۰۰۶
+  "aruz_rapid_questions", // ۰۰۸
+  "schools", // ۰۰۹
+  "teacher_requests",
+  "teacher_classes",
+  "class_members",
+  "teacher_schools", // ۰۱۰
+  "teacher_verification_logs",
+];
+
+const EXPECTED_TABLES = [...TABLE_ORDER, ...RUNNER_TABLES, ...MIGRATION_TABLES].sort();
 
 const EXPECTED_TRIGGERS = [
   // updated_at
@@ -44,12 +67,30 @@ const EXPECTED_TRIGGERS = [
   "user_identities_keep_login_method",
 
   // Sarva Plus
-  "plus_plans_touch",
-  "plus_plan_versions_immutable_trg",
-  "plus_orders_touch",
-  "plus_payment_attempts_touch",
-  "plus_entitlements_touch",
-  "plus_tickets_touch",
+  //
+  // ⚠️ این نام‌ها یک بار کاملاً غلط بودند و `db:check` شش تریگرِ «گم‌شده»
+  // گزارش می‌کرد که هیچ‌وقت وجود نداشتند. فهرستِ قبلی از طرحِ اولیه مانده
+  // بود: جدول‌های پلاس `updated_at` را با `ON UPDATE CURRENT_TIMESTAMP(6)`
+  // در خودِ DDL می‌گیرند و تریگرِ `_touch` ندارند.
+  //
+  // نام‌های واقعی از ۰۰۴ می‌آیند و با `information_schema.triggers` روی
+  // MariaDB 10.11 تطبیق داده شده‌اند.
+  "plus_plan_versions_sellable_bi",
+  "plus_plan_versions_sellable_bu",
+  "plus_plan_versions_immutable_bu",
+  "plus_orders_open_key_bi",
+  "plus_orders_open_key_bu",
+
+  // ۰۰۸
+  "aruz_rapid_questions_touch",
+
+  // ۰۰۹ — `full_name` مشتقِ نام و نام خانوادگی است.
+  "users_full_name_bi",
+  "users_full_name_bu",
+
+  // ۰۱۰ — «حداکثر یک پروندهٔ باز برای هر کاربر».
+  "teacher_requests_pending_key_bi",
+  "teacher_requests_pending_key_bu",
 ];
 
 const EXPECTED_VIEWS = ["exam_question_totals"];

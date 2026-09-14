@@ -29,10 +29,19 @@ export default async function PlusSettingCard() {
     switch (status.state) {
       case "active":
         return {
-          title: status.isTrial ? "دسترسی آزمایشی سروا پلاس روشن است" : "سروا پلاس روشن است",
+          // ⚠️ سه حالتِ جدا و نه «آزمایشی یا نه»: اشتراکِ دبیرِ تأییدشده هم
+          // خریداری نشده ولی آزمایشی هم نیست، و نوشتنِ «آزمایشی» رویش یعنی
+          // به دبیری که تازه تأیید شده بگوییم دسترسی‌اش موقتی است.
+          title: status.source === "teacher_verified"
+            ? "سروا پلاس دبیران برایت روشن است"
+            : status.isTrial
+              ? "دسترسی آزمایشی سروا پلاس روشن است"
+              : "سروا پلاس روشن است",
           body:
             status.expiresAt === null
-              ? "دسترسی‌ات دائمی است."
+              ? status.source === "teacher_verified"
+                ? "به‌عنوان دبیر تأییدشده، دسترسی‌ات همیشگی است."
+                : "دسترسی‌ات دائمی است."
               : `تا ${jalaliLong(status.expiresAt)} فعال است.`,
           cta: "مدیریت اشتراک",
           href: "/panel/subscription",

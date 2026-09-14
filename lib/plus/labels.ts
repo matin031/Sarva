@@ -1,4 +1,10 @@
-import type { OrderStatus, PaymentState, TicketCategory, TicketStatus } from "./types";
+import type {
+  OrderStatus,
+  PaymentState,
+  PlusSource,
+  TicketCategory,
+  TicketStatus,
+} from "./types";
 
 /**
  * برچسب‌های فارسیِ نمایشی.
@@ -60,4 +66,19 @@ export const PAYMENT_STATE_LABEL: Record<PaymentState, string> = {
   failed: "ناموفق",
   cancelled: "لغو شد",
   unknown: "نامعلوم",
+};
+
+/**
+ * منبعِ دسترسی، آن‌طور که کاربر و مدیر می‌بینند.
+ *
+ * ⚠️ این نقشه جای یک شرطِ دوحالتی را گرفت که در سه فایل تکرار شده بود
+ * (`source === "manual_grant" ? … : "خرید"`). با آمدنِ `teacher_verified` در
+ * مهاجرت ۰۰۹، هر سهٔ آن شرط‌ها بی‌سروصدا اشتراکِ دبیر را «خرید» می‌خواندند —
+ * دقیقاً همان نوع باگی که یک `Record` روی یک اتحادِ بسته ممکنش نمی‌کند:
+ * اضافه شدنِ مقدارِ چهارم، همین‌جا خطای کامپایل می‌دهد.
+ */
+export const PLUS_SOURCE_LABEL: Record<PlusSource, string> = {
+  purchase: "خریداری‌شده",
+  manual_grant: "اعطاشده توسط سروا",
+  teacher_verified: "دبیر تأییدشده",
 };

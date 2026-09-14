@@ -34,8 +34,17 @@ import type { Currency } from "./money";
  */
 export type PlusState = "off" | "free" | "active" | "expired" | "revoked" | "unavailable";
 
-/** از کجا دسترسی آمده — برای اینکه هدیهٔ مدیر «پرداخت موفق» جا زده نشود. */
-export type PlusSource = "purchase" | "manual_grant";
+/**
+ * از کجا دسترسی آمده — برای اینکه هدیهٔ مدیر «پرداخت موفق» جا زده نشود.
+ *
+ * ⚠️ `teacher_verified` از مهاجرت ۰۰۹ اضافه شد و عمداً یک مقدارِ سوم است و
+ * نه یک `manual_grant` با `reason` خاص. دلیلش را `isTrial` پایین نشان
+ * می‌دهد: اگر همان `manual_grant` بود، صفحهٔ اشتراکِ هر دبیرِ تأییدشده
+ * می‌نوشت «دسترسی آزمایشی» — برای چیزی که نه آزمایشی است و نه تمام می‌شود.
+ *
+ * برچسبِ فارسیِ هر کدام در `PLUS_SOURCE_LABEL` است.
+ */
+export type PlusSource = "purchase" | "manual_grant" | "teacher_verified";
 
 export type PlusStatus = {
   state: PlusState;
@@ -49,7 +58,13 @@ export type PlusStatus = {
   /** «نزدیک پایان» — آستانه‌اش از تنظیمات می‌آید و در UI هاردکد نیست. */
   expiringSoon: boolean;
   source: PlusSource | null;
-  /** برای نمایش «دسترسی آزمایشی» به‌جای «خریداری‌شده». */
+  /**
+   * فقط `manual_grant` — یعنی هدیهٔ دستیِ مدیر.
+   *
+   * ⚠️ «خریداری‌نشده» نیست. اشتراکِ دبیرِ تأییدشده هم خریداری نشده ولی
+   * آزمایشی هم نیست. برای نمایشِ منبع از `PLUS_SOURCE_LABEL[source]`
+   * استفاده کنید و نه از این بولی؛ این یکی فقط همان یک حالت را می‌گوید.
+   */
   isTrial: boolean;
 };
 
@@ -186,7 +201,20 @@ export type PlusNotificationKind =
   | "plus_expired"
   | "plus_revoked"
   | "ticket_reply"
-  | "payment_action_needed";
+  | "payment_action_needed"
+  /**
+   * ⚠️ دو نوعِ تازه از مهاجرت ۰۰۹، و عمداً جدا از `plus_*`.
+   *
+   * `plus_activated` کارتِ خوش‌آمدگوییِ پلاس را روشن می‌کند
+   * (`getUnreadWelcome`)، پس استفاده از آن برای تأییدِ دبیری یعنی دبیرِ تازه
+   * به‌جای پیامِ خودش، onboardingِ خریدِ پلاس را می‌بیند.
+   */
+  | "teacher_approved"
+  | "teacher_rejected"
+  /** «مدارکت را اصلاح کن» — نه تأیید است و نه رد؛ پرونده باز می‌ماند.
+   *  استفادهٔ دوباره از `teacher_rejected` یعنی کاربری که فقط باید یک عکسِ
+   *  واضح‌تر بفرستد، پیامِ «رد شد» بگیرد و دیگر تلاش نکند. */
+  | "teacher_needs_revision";
 
 export type PlusNotification = {
   id: string;

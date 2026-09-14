@@ -140,6 +140,74 @@ export async function detectAudioFile(file: File): Promise<FileTypeCheck> {
   };
 }
 
+// ----------------------------------------------------- نوعِ واقعیِ تصویر --
+
+/**
+ * تصویرِ مجاز: پسوند + امضای بایتی — دقیقاً همان قاعدهٔ فایل صوتی بالا، و به
+ * همان دلیل. اینجا حتی پرخطرتر است: یک SVG *یک سندِ اجرایی* است و اگر با
+ * پسوندِ خودش روی دامنهٔ سایت بنشیند، `<script>` داخلش اجرا می‌شود.
+ *
+ * ⚠️ پس SVG عمداً در این فهرست نیست و نباید اضافه شود. هر چیزی که اینجا
+ * پذیرفته شود یک بیت‌مپ است و مرورگر راهی برای «اجرا»ی آن ندارد.
+ */
+type ImageFormat = {
+  extension: string;
+  mimeTypes: readonly string[];
+  matches: (head: Buffer) => boolean;
+};
+
+const IMAGE_FORMATS: readonly ImageFormat[] = [
+  {
+    extension: "png",
+    mimeTypes: ["image/png"],
+    matches: (head) =>
+      head[0] === 0x89 && hasAscii(head, 1, "PNG") && head[4] === 0x0d && head[5] === 0x0a,
+  },
+  {
+    extension: "jpg",
+    mimeTypes: ["image/jpeg", "image/jpg", "image/pjpeg"],
+    // SOI + نشانگرِ بعدی. هر JPEG با FFD8FF شروع می‌شود.
+    matches: (head) => head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff,
+  },
+  {
+    extension: "webp",
+    mimeTypes: ["image/webp"],
+    // RIFF....WEBP — همان ظرفِ wav، با برچسبِ دیگر در بایت ۸.
+    matches: (head) => hasAscii(head, 0, "RIFF") && hasAscii(head, 8, "WEBP"),
+  },
+  {
+    extension: "gif",
+    mimeTypes: ["image/gif"],
+    matches: (head) => hasAscii(head, 0, "GIF87a") || hasAscii(head, 0, "GIF89a"),
+  },
+  {
+    extension: "avif",
+    mimeTypes: ["image/avif"],
+    // ISO-BMFF مثل m4a، ولی برندِ ftyp اینجا avif/avis است.
+    matches: (head) =>
+      hasAscii(head, 4, "ftyp") && (hasAscii(head, 8, "avif") || hasAscii(head, 8, "avis")),
+  },
+];
+
+/** نوع واقعیِ فایل تصویری را از بایت‌هایش تشخیص می‌دهد. */
+export async function detectImageFile(file: File): Promise<FileTypeCheck> {
+  const head = Buffer.from(await file.slice(0, 16).arrayBuffer());
+  if (head.length < 12) return { ok: false, error: "فایل خالی یا ناقص است." };
+
+  const declared = (file.type || "").toLowerCase().split(";")[0].trim();
+  const preferred = IMAGE_FORMATS.filter((f) => f.mimeTypes.includes(declared));
+  const rest = IMAGE_FORMATS.filter((f) => !f.mimeTypes.includes(declared));
+
+  for (const format of [...preferred, ...rest]) {
+    if (format.matches(head)) return { ok: true, extension: format.extension };
+  }
+
+  return {
+    ok: false,
+    error: "محتوای فایل یک تصویر معتبر نیست. فقط png، jpg، webp، gif و avif پذیرفته می‌شود.",
+  };
+}
+
 /** نام فایلِ امن و یکتا.
  *
  *  یکتا بودنش دو کار می‌کند: جلوی بازنویسی فایل قبلی را می‌گیرد، و چون یک URL
@@ -237,6 +305,37 @@ class LocalDiskAdapter implements StorageAdapter {
 // --------------------------------------------------------------- انتخاب --
 
 let cached: StorageAdapter | null = null;
+
+/**
+ * عکسِ `urlFor` — از نشانیِ ذخیره‌شده به کلیدِ انبار می‌رسد.
+ *
+ * ⚠️ چرا لازم شد: تصویرِ پروفایل تنها فایلی است که *جایگزین* می‌شود. بقیهٔ
+ * آپلودها (صوتِ کوییز، نگارهٔ جفت‌ها) اضافه می‌شوند و کنارِ هم می‌مانند، ولی
+ * هر بار که کاربر تصویرش را عوض کند، نسخهٔ قبلی باید برود — وگرنه دیسک با
+ * تصویرهایی پر می‌شود که هیچ ردیفی به آن‌ها اشاره نمی‌کند و هیچ‌کس هم
+ * نمی‌داند کدام‌ها را می‌شود پاک کرد.
+ *
+ * ⚠️ و چرا از روی *نشانی* و نه با ذخیرهٔ کلید در یک ستونِ جدا: ستونِ دوم
+ * یعنی دو مقدار که باید همیشه با هم بخوانند، و اولین جایی که یکی به‌روز
+ * شود و دیگری نه، فایلِ اشتباهی حذف می‌شود.
+ *
+ * `null` یعنی این نشانی از انبارِ ما نیست (مثلاً تصویری از یک سرویسِ
+ * بیرونی، یا مقداری که دستی در دیتابیس نوشته شده) — و چیزی که مالِ ما
+ * نیست را حذف نمی‌کنیم.
+ */
+export function storageKeyFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+
+  const base = (process.env.UPLOADS_PUBLIC_BASE ?? "/uploads").replace(/\/+$/, "");
+  const prefix = `${base}/`;
+  if (!url.startsWith(prefix)) return null;
+
+  const key = url.slice(prefix.length);
+  // همان نگهبانِ `LocalDiskAdapter.remove`، ولی زودتر: کلیدی که «..» داشته
+  // باشد اصلاً نباید ساخته شود.
+  if (!key || key.includes("..") || key.includes("\0")) return null;
+  return key;
+}
 
 export function storageAdapter(): StorageAdapter {
   if (cached) return cached;

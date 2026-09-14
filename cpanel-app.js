@@ -150,6 +150,50 @@ if (!usableDir(process.env.UPLOADS_DIR)) {
 }
 
 // ---------------------------------------------------------------------------
+// ۲-ب) مسیرِ **خصوصیِ** حکم‌های کارگزینیِ دبیران
+// ---------------------------------------------------------------------------
+//
+// ⚠️ این پوشه با پوشهٔ آپلودِ بالا فرق دارد، و فرقش امنیتی است.
+//
+// `sarva-uploads` عمداً عمومی است: صوتِ کوییز و نگاره‌ها از `/uploads` سرو
+// می‌شوند و باید هم بشوند. ولی حکمِ کارگزینی سندِ هویتیِ یک آدمِ واقعی است و
+// تنها راهِ دیدنش مسیری است که پشتِ احراز هویتِ مدیر قرار دارد
+// (`/api/v1/admin/teacher-requests/[id]/document`).
+//
+// پس دو پوشهٔ **جدا**، و نه یک زیرپوشه در همان یکی. خودِ برنامه هم این را
+// تضمین می‌کند: `lib/teacher/documents.ts` در زمانِ اجرا بررسی می‌کند که این
+// مسیر داخلِ پوشهٔ عمومی نباشد و اگر بود با خطا می‌ایستد — یعنی یک
+// پیکربندیِ اشتباه بی‌صدا رد نمی‌شود.
+//
+// ⚠️ و مثل آپلودها، *بیرونِ* پوشهٔ برنامه می‌نشیند. اگر داخلش بود، اولین
+// باری که نسخهٔ تازه را آپلود کنید مدارکِ همهٔ درخواست‌های در انتظار پاک
+// می‌شد — و مدیر دیگر نمی‌توانست هیچ‌کدام را بررسی کند.
+const DEFAULT_TEACHER_DOCS = path.join(
+  path.dirname(ROOT),
+  path.basename(ROOT) + "-private",
+  "teacher-docs",
+);
+
+if (process.env.TEACHER_DOCS_DIR && !usableDir(process.env.TEACHER_DOCS_DIR)) {
+  console.error(
+    `[سروا] ⚠️ مسیر مدارک دبیران «${process.env.TEACHER_DOCS_DIR}» قابل نوشتن نیست.\n` +
+      `        به‌جایش از «${DEFAULT_TEACHER_DOCS}» استفاده می‌شود.\n` +
+      "        اگر این مقدار را خودتان نگذاشته‌اید، خطِ TEACHER_DOCS_DIR را از\n" +
+      "        فایل ‎.env و از Environment variables در cPanel پاک کنید.",
+  );
+  delete process.env.TEACHER_DOCS_DIR;
+}
+
+if (!process.env.TEACHER_DOCS_DIR) process.env.TEACHER_DOCS_DIR = DEFAULT_TEACHER_DOCS;
+
+if (!usableDir(process.env.TEACHER_DOCS_DIR)) {
+  console.error(
+    `[سروا] پوشهٔ مدارک دبیران ساخته نشد: ${process.env.TEACHER_DOCS_DIR}\n` +
+      "        سایت بالا می‌آید ولی «ارسال درخواست دبیری» کار نمی‌کند.",
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ۳) بررسی تنظیماتِ لازم، پیش از بالا آمدن
 // ---------------------------------------------------------------------------
 
@@ -239,7 +283,8 @@ function seedAdminIfRequested(done) {
 
 console.log(
   `[سروا] شروع | Node ${process.version} | ` +
-    `${envCount} مقدار از .env خوانده شد | آپلودها: ${process.env.UPLOADS_DIR}`,
+    `${envCount} مقدار از .env خوانده شد | آپلودها: ${process.env.UPLOADS_DIR}` +
+      ` | مدارک دبیران: ${process.env.TEACHER_DOCS_DIR}`,
 );
 
 seedAdminIfRequested(() => {

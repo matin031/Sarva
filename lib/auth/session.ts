@@ -19,14 +19,71 @@ export type RequestMeta = {
   ip?: string | null;
 };
 
-const USER_COLUMNS = `id, email, full_name, role, email_verified_at, is_banned, created_at`;
+/**
+ * ستون‌هایی که یک `AuthUser` از آن‌ها ساخته می‌شود.
+ *
+ * ⚠️ یک رشتهٔ ثابت و نه `select *`. هر ستونی که به این فهرست اضافه شود،
+ * از راهِ `/api/v1/auth/me` مستقیم به مرورگر می‌رسد — پس `password_hash`
+ * اینجا نیست و هیچ ستونِ حساسِ دیگری هم نباید اضافه شود. (کد ملی در جدولِ
+ * جداگانهٔ `teacher_requests` است، دقیقاً به همین دلیل.)
+ *
+ * ⚠️ و چرا یک **رشتهٔ تحت‌اللفظی** است و نه آرایه‌ای که `join` می‌شود:
+ *
+ * `npm run db:check-sql` هر `${…}` داخل کوئری را با مقدارِ ثابتش جایگزین
+ * می‌کند و بعد به MariaDB می‌دهد تا PREPARE کند. آن ابزار فقط یک
+ * StringLiteralِ تنها را می‌فهمد — نه آرایه‌ای که `join` می‌شود و نه حتی دو
+ * رشته که با `+` به هم چسبیده‌اند. پس این خط عمداً بلند و نشکسته است.
+ *
+ * نتیجه‌اش خطای نحوی نبود که کسی ببیند — **هشت کوئریِ احراز هویت بی‌صدا از
+ * پوششِ بررسی بیرون می‌افتادند**. یعنی دقیقاً همان ابزاری که برای گرفتنِ
+ * «نام ستون اشتباه» ساخته شده، برای حساس‌ترین کوئری‌های پروژه کور می‌شد.
+ * (این یک بار واقعاً اتفاق افتاد و در همین بررسی پیدا شد.)
+ */
+export const AUTH_USER_COLUMNS = "id, email, phone, full_name, first_name, last_name, avatar_url, province_id, city_id, school, grade, role, desired_role, email_verified_at, phone_verified_at, profile_completed_at, is_banned, created_at";
+
+/**
+ * همان فهرست، با پیشوندِ نامِ جدول — برای کوئری‌هایی که `users` را join
+ * می‌کنند.
+ *
+ * ⚠️ این تابع وجود دارد چون نبودش یک باگِ واقعی ساخت و دو بار ساخت.
+ *
+ * تا امروز چهار جای مختلف این فهرست را *دستی* می‌نوشتند. مهاجرت ۰۰۶ دو ستون
+ * اضافه کرد و فقط دوتایشان به‌روز شدند؛ `lib/auth/oauth/link-account.ts` از
+ * آن جا ماند و از آن روز هر کسی که با گوگل وارد می‌شد، `phone` و
+ * `phoneVerified` اش `undefined` بود — نه `null`. TypeScript متوجه نمی‌شد
+ * (نوعِ `UserRow` ادعا می‌کرد ستون هست) و هیچ خطایی هم رخ نمی‌داد؛ فقط
+ * صفحهٔ تنظیماتِ آن کاربر رفتار عجیبی داشت.
+ *
+ * حالا یک فهرست است و فراموش کردنش ممکن نیست.
+ */
+export function authUserColumns(alias: string): string {
+  // ⚠️ از همان رشتهٔ بالا مشتق می‌شود و فهرستِ دومی ندارد — کلِ نکتهٔ این
+  // تابع همین است. تقسیم روی `", "` امن است چون آن رشته را خودمان با همان
+  // جداکننده نوشته‌ایم.
+  return AUTH_USER_COLUMNS.split(", ")
+    .map((field) => `${alias}.${field}`)
+    .join(", ");
+}
 
 export type UserRow = {
   id: string;
-  email: string;
+  /** ⚠️ nullable از مهاجرت ۰۰۶ — کاربرِ ثبت‌نام‌کرده با موبایل ایمیل ندارد. */
+  email: string | null;
+  /** شکلِ متعارف `989…`، یا null برای کسی که فقط با ایمیل ثبت‌نام کرده. */
+  phone: string | null;
   full_name: string | null;
-  role: "student" | "admin";
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  province_id: string | null;
+  city_id: string | null;
+  school: string | null;
+  grade: "10" | "11" | "12" | null;
+  role: "student" | "teacher" | "admin";
+  desired_role: "student" | "teacher";
   email_verified_at: string | null;
+  phone_verified_at: string | null;
+  profile_completed_at: string | null;
   is_banned: boolean;
   created_at: string;
 };
@@ -35,25 +92,53 @@ export function toAuthUser(row: UserRow): AuthUser {
   return {
     id: row.id,
     email: row.email,
+    phone: row.phone,
     fullName: row.full_name,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    avatarUrl: row.avatar_url,
+    provinceId: row.province_id,
+    cityId: row.city_id,
+    school: row.school,
+    grade: row.grade,
     role: row.role,
+    desiredRole: row.desired_role,
     emailVerified: row.email_verified_at !== null,
+    phoneVerified: row.phone_verified_at !== null,
+    profileCompleted: row.profile_completed_at !== null,
     isBanned: row.is_banned,
     createdAt: row.created_at,
   };
 }
 
 export async function findUserById(id: string): Promise<AuthUser | null> {
-  const row = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [id]);
+  const row = await queryOne<UserRow>(`select ${AUTH_USER_COLUMNS} from users where id = ?`, [id]);
   return row ? toAuthUser(row) : null;
 }
 
 export async function findUserByEmail(email: string): Promise<(AuthUser & { passwordHash: string }) | null> {
   const row = await queryOne<UserRow & { password_hash: string }>(
-    `select ${USER_COLUMNS}, password_hash from users where email = ?`,
+    `select ${AUTH_USER_COLUMNS}, password_hash from users where email = ?`,
     [email],
   );
   return row ? { ...toAuthUser(row), passwordHash: row.password_hash } : null;
+}
+
+/**
+ * یافتنِ کاربر با شمارهٔ موبایل.
+ *
+ * ⚠️ ورودی باید **از قبل نرمال شده** باشد (`normalizePhone` در
+ * `lib/auth/phone.ts`). اگر شکلِ خام پاس داده شود، `09123456789` هیچ‌وقت با
+ * ردیفی که `989123456789` ذخیره شده جور درنمی‌آید و نتیجه‌اش «این شماره
+ * حساب ندارد» برای کسی است که حساب دارد.
+ *
+ * ⚠️ `password_hash` برنمی‌گردد چون ورود با موبایل رمز ندارد — کدِ
+ * یک‌بارمصرف جای آن را می‌گیرد. برگرداندنِ هشِ رمز در مسیری که لازمش ندارد،
+ * فقط سطحِ حمله را بزرگ می‌کند.
+ */
+export async function findUserByPhone(phone: string): Promise<AuthUser | null> {
+  const row = await queryOne<UserRow>(`select ${AUTH_USER_COLUMNS} from users where phone = ?`, [phone]);
+  return row ? toAuthUser(row) : null;
 }
 
 /** سشن تازه + جفت توکن. بعد از ورود موفق یا تأیید ایمیل صدا زده می‌شود. */
@@ -222,7 +307,7 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
     // در کار نیست؛ فقط «دوباره وارد شو».
     if (session.revoked_at !== null || toBool(session.expired)) return { kind: "none" as const };
 
-    const userRow = await tx.queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [
+    const userRow = await tx.queryOne<UserRow>(`select ${AUTH_USER_COLUMNS} from users where id = ?`, [
       session.user_id,
     ]);
     if (!userRow) return { kind: "none" as const };
@@ -294,7 +379,7 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
   }
 
   if (outcome.kind === "race") {
-    const userRow = await queryOne<UserRow>(`select ${USER_COLUMNS} from users where id = ?`, [
+    const userRow = await queryOne<UserRow>(`select ${AUTH_USER_COLUMNS} from users where id = ?`, [
       outcome.userId,
     ]);
     if (!userRow || userRow.is_banned) return null;

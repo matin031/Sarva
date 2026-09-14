@@ -125,13 +125,61 @@ await cp(join(ROOT, ".next", "standalone"), OUT, { recursive: true });
 // را — که خودش یک zip چهل‌مگابایتی دارد — داخل بستهٔ بعدی گذاشت، یعنی هر
 // build حجم را تصاعدی زیاد می‌کرد. next.config جلویش را می‌گیرد؛ این خط
 // تضمین می‌کند که اگر آن تنظیم روزی از کار افتاد، بی‌صدا نگذرد.
-for (const junk of [
+// ⚠️⚠️ این فهرست یک «تمیزکاری» نیست — نگهبانِ نشتِ راز است.
+//
+// یک بار، بستهٔ آمادهٔ آپلود فایلِ `.env` *واقعی* را در خودش داشت: گذرواژهٔ
+// دیتابیس، کلیدِ امضای ورود، pepperِ کدهای یک‌بارمصرف و کلیدِ پیامک. کنارش
+// `vocab-images.tar.gz` هم بود — ۱۱۶ مگابایت از ۳۴۶ مگابایتِ بسته، بی‌آنکه
+// هیچ‌وقت خوانده شود.
+//
+// علتش ردیابِ فایلِ Next بود: مسیرهایی که فایل را با مسیرِ زمانِ اجرا
+// می‌خوانند برایش مبهم‌اند و محتاطانه هر چیزی را که در ریشهٔ پروژه ببیند
+// وارد خروجی می‌کند. `next.config.ts` حالا جلویش را می‌گیرد.
+//
+// ⚠️ ولی این فهرست هم می‌ماند و نباید حذف شود. آن یکی تنظیمِ فریمورک است و
+// می‌تواند با یک ارتقای Next رفتارش عوض شود؛ این یکی روی *خروجیِ نهایی*
+// کار می‌کند — همان چیزی که واقعاً آپلود می‌شود. دو نگهبان برای چیزی که
+// شکستنش یعنی رفتنِ کلیدِ دیتابیس روی یک هاست اشتراکی، زیادی نیست.
+const JUNK = [
+  // رازها — مهم‌ترین بخشِ این فهرست.
+  ".env",
+  ".env.local",
+  ".env.production",
+  ".env.development",
+  // آرشیوهای محتوا: بزرگ، و در اجرا خوانده نمی‌شوند.
+  "audio.tar.gz",
+  "vocab-images.tar.gz",
+  // سورس و پیکربندی که فقط از build عبور کرده‌اند.
+  "instrumentation.ts",
+  "instrumentation.node.ts",
+  "proxy.ts",
+  "next.config.ts",
   "tsconfig.tsbuildinfo",
   "package-lock.json",
+  "r3f-skills",
   "deploy",
   "cpanel-app.js",
-]) {
+];
+
+for (const junk of JUNK) {
   await rm(join(OUT, junk), { recursive: true, force: true });
+}
+
+// ⚠️ و یک بررسیِ نهایی: اگر با همهٔ این‌ها باز هم چیزی شبیهِ راز در بسته
+// ماند، build باید **بشکند** و نه اینکه هشدار بدهد و رد شود.
+//
+// یک هشدار در میانِ سی خط لاگ دیده نمی‌شود؛ و بسته‌ای که با راز آپلود شود،
+// دیگر برگشتنی نیست — باید همهٔ کلیدها را عوض کرد.
+const leaked = (await readdir(OUT)).filter(
+  (name) => name === ".env" || name.startsWith(".env."),
+);
+if (leaked.length > 0) {
+  console.error(
+    `\n⛔ بسته ساخته نشد: این فایل‌ها راز دارند و نباید آپلود شوند:\n` +
+      leaked.map((n) => `      ${n}`).join("\n") +
+      `\n\n   به فهرست JUNK در همین اسکریپت اضافه‌شان کنید.\n`,
+  );
+  process.exit(1);
 }
 
 step("کپی .next/static  (standalone خودش این را نمی‌آورد)");
@@ -178,13 +226,24 @@ await cp(join(ROOT, "deploy", "sarva-database.sql"), join(OUT, "sarva-database.s
 // فایلِ کامل فقط روی دیتابیسِ خالی وارد می‌شود؛ روی دیتابیسِ زنده روی
 // «table already exists» می‌میرد — وسطِ کار، چون phpMyAdmin تراکنش ندارد.
 //
-// مرزِ ۰۰۲ دلبخواه نیست: ۰۰۱ و ۰۰۲ همان چیزی‌اند که در اولین راه‌اندازی
-// وارد شده‌اند، پس هر هاستِ موجود آن‌ها را دارد. هرچه بعد از آن آمده، تازه
-// است. سرتیترِ خودِ فایل می‌گوید دقیقاً کدام migration ها داخلش‌اند تا با
-// `SELECT name FROM schema_migrations` قابل مقایسه باشد.
+// ⚠️ این عدد یعنی «اولین migration ای که هنوز روی هاست نرفته» — و با هر
+// انتشار باید جلو برود.
+//
+// اگر عقب بماند، فایلِ به‌روزرسانی شاملِ migration هایی می‌شود که هاست از
+// قبل دارد، و phpMyAdmin وسطِ import روی «table already exists» می‌ایستد —
+// با نیمی از تغییرات اعمال‌شده و بدون راهِ برگشت (تراکنش ندارد).
+//
+// امروز: ۰۰۱ تا ۰۰۵ منتشر شده‌اند (پلاس و تخفیفش)، و ۰۰۶ به بعد تازه‌اند:
+//   ۰۰۶ هویتِ موبایل · ۰۰۷ نگارهٔ جفت‌ها · ۰۰۸ عروضِ سریع
+//   ۰۰۹ پروفایل، حساب دبیر و کلاس‌ها
+//
+// ⚠️ پیش از انتشار، این را با واقعیتِ هاست بسنجید:
+//     SELECT name FROM schema_migrations ORDER BY name;
+// و اگر فرق داشت، با `--db-from <نام>` بسازید. سرتیترِ خودِ فایلِ خروجی هم
+// می‌گوید دقیقاً چه چیزی داخلش است.
 const UPDATE_FROM = (() => {
   const i = process.argv.indexOf("--db-from");
-  return i !== -1 ? process.argv[i + 1] : "003";
+  return i !== -1 ? process.argv[i + 1] : "006";
 })();
 const updateBuild = spawnSync(
   process.execPath,
@@ -247,13 +306,53 @@ step("ساخت فایل zip");
 // حالی که همه‌چیزِ محلی سبز بود.
 await rm(join(ROOT, "deploy", "sarva.zip"), { force: true });
 
-const zip = spawnSync("zip", ["-rq", "sarva.zip", "sarva"], { cwd: join(ROOT, "deploy") });
-const zipped = zip.status === 0 && existsSync(join(ROOT, "deploy", "sarva.zip"));
+/**
+ * فشرده‌سازی — دو ابزار، و یکی که عمداً استفاده **نمی‌شود**.
+ *
+ * ⚠️⚠️ `Compress-Archive` در پاورشل zip می‌سازد ولی مسیرها را با
+ * **بک‌اسلش** می‌نویسد: `sarvapp.js` به‌جای `sarva/app.js`.
+ *
+ * استانداردِ ZIP اسلشِ رو به جلو می‌خواهد، و ابزارهای لینوکسی (همان چیزی که
+ * روی cPanel فایل را باز می‌کند) آن بک‌اسلش را جزئی از *نامِ فایل* می‌فهمند
+ * و نه جداکنندهٔ پوشه. نتیجه‌اش یک پوشهٔ صاف با چند هزار فایلِ عجیب است و
+ * سایتی که بالا نمی‌آید — و هیچ پیامِ خطایی هم در کار نیست.
+ *
+ * آزموده شد: همین بسته یک بار با Compress-Archive ساخته شد و همهٔ ۵۲۱۴
+ * ورودی‌اش بک‌اسلش داشتند.
+ *
+ * پس دو ابزارِ درست:
+ *   • `zip`   — روی لینوکس و مک، و اگر کسی روی ویندوز نصبش کرده باشد.
+ *   • bsdtar  — روی ویندوز ۱۰ به بعد در System32 هست و zip استاندارد
+ *               می‌سازد. (⚠️ با مسیرِ مطلق صدا زده می‌شود: در Git Bash
+ *               نامِ `tar` به GNU tar می‌رسد که اصلاً zip نمی‌سازد.)
+ *
+ * اگر هیچ‌کدام نبود، **فایلی ساخته نمی‌شود** و پوشه می‌ماند. یک zipِ خراب
+ * بدتر از نبودنِ zip است.
+ */
+function makeZip() {
+  const cwd = join(ROOT, "deploy");
+
+  const zip = spawnSync("zip", ["-rq", "sarva.zip", "sarva"], { cwd });
+  if (zip.status === 0) return "zip";
+
+  if (process.platform === "win32") {
+    const bsdtar = join(process.env.SystemRoot ?? "C:/Windows", "System32", "tar.exe");
+    if (existsSync(bsdtar)) {
+      const out = spawnSync(bsdtar, ["-a", "-c", "-f", "sarva.zip", "sarva"], { cwd });
+      if (out.status === 0) return "bsdtar";
+    }
+  }
+
+  return null;
+}
+
+const zipTool = makeZip();
+const zipped = zipTool !== null && existsSync(join(ROOT, "deploy", "sarva.zip"));
 if (zipped) {
   const zipMb = ((await stat(join(ROOT, "deploy", "sarva.zip"))).size / 1024 / 1024).toFixed(0);
-  say(`  deploy/sarva.zip — ${zipMb} مگابایت`);
+  say(`  deploy/sarva.zip — ${zipMb} مگابایت  (با ${zipTool})`);
 } else {
-  say("  (zip نصب نیست — پوشهٔ deploy/sarva را دستی فشرده کنید)");
+  say("  (نه zip بود و نه bsdtar — پوشهٔ deploy/sarva را دستی فشرده کنید)");
 }
 
 // ⚠️ پوشهٔ میانی بعد از فشرده شدن پاک می‌شود.
@@ -281,5 +380,4 @@ say(`
         "  فایل SQL و راهنمای فارسی هر دو داخل همین zip هستند."
       : `پوشهٔ ${relative(ROOT, OUT)} را دستی فشرده کنید (zip روی سیستم نیست).`
   }
-────────────────────────────────────────────────────────────
-`);
+────────────────────────────────────────────────────────────\n`);

@@ -23,7 +23,7 @@ import {
 } from "@/lib/plus/admin-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { formatRials } from "@/lib/plus/money";
-import { orderStatusLabel } from "@/lib/plus/labels";
+import { PLUS_SOURCE_LABEL, orderStatusLabel } from "@/lib/plus/labels";
 import { fa, jalaliLong } from "@/lib/panel/format";
 
 /**
@@ -641,7 +641,7 @@ function EntitlementsTab({
                 <div className="min-w-0">
                   <p className="truncate font-bold">{row.userEmail}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {row.source === "manual_grant" ? "دسترسی اعطاشده" : "خرید"}
+                    {PLUS_SOURCE_LABEL[row.source]}
                     {row.orderNumber ? ` • ${row.orderNumber}` : ""} •{" "}
                     {jalaliLong(row.startsAt)} تا{" "}
                     {row.endsAt ? jalaliLong(row.endsAt) : "دائمی"}

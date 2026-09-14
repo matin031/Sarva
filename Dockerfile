@@ -79,8 +79,8 @@ COPY --from=tools /tools/node_modules ./scripts/node_modules
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
- && mkdir -p /app/uploads \
- && chown nextjs:nodejs /app/uploads
+ && mkdir -p /app/uploads /app/private-uploads/teacher-docs \
+ && chown -R nextjs:nodejs /app/uploads /app/private-uploads
 
 USER nextjs
 EXPOSE 3000

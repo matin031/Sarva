@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { query, execute, transaction } from "@/lib/db";
-import { toAuthUser, type UserRow } from "@/lib/auth/session";
+import { AUTH_USER_COLUMNS, authUserColumns, toAuthUser, type UserRow } from "@/lib/auth/session";
 import type { AuthUser } from "@/lib/auth/types";
 import { mayLinkToExistingAccount, type VerifiedGoogleUser } from "./google-claims";
 
@@ -26,8 +26,7 @@ export type LinkOutcome =
 export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutcome> {
   // ۱) هویتِ شناخته‌شده
   const existing = await query<UserRow>(
-    `select u.id, u.email, u.full_name, u.role, u.email_verified_at,
-            u.is_banned, u.created_at
+    `select ${authUserColumns("u")}
        from user_identities i
        join users u on u.id = i.user_id
       where i.provider = 'google' and i.provider_account_id = ?`,
@@ -40,8 +39,10 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
   }
 
   // ۲) حسابی با همین ایمیل
-  const byEmail = await query<UserRow>(`select id, email, full_name, role, email_verified_at, is_banned, created_at
-       from users where email = ?`, [g.email]);
+  const byEmail = await query<UserRow>(
+    `select ${AUTH_USER_COLUMNS} from users where email = ?`,
+    [g.email],
+  );
   if (byEmail.length > 0) {
     // ⚠️ اینجا حساس‌ترین نقطهٔ کلِ این قابلیت است.
     //
@@ -99,8 +100,7 @@ export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutc
     // RETURNING نداریم؛ ردیف با همان شناسه و در همان تراکنش خوانده می‌شود،
     // پس مقدارهای DEFAULT (role و created_at) هم واقعی‌اند.
     const row = await tx.queryOne<UserRow>(
-      `select id, email, full_name, role, email_verified_at, is_banned, created_at
-         from users where id = ?`,
+      `select ${AUTH_USER_COLUMNS} from users where id = ?`,
       [userId],
     );
     if (!row) throw new Error("حساب گوگل ساخته شد ولی خوانده نشد.");

@@ -7,9 +7,11 @@ import {
   House,
   LifeBuoy,
   Music4,
+  Presentation,
   ScanSearch,
   Settings,
   Sparkles,
+  Users,
 } from "lucide-react";
 
 /**
@@ -73,6 +75,16 @@ export const PANEL_NAV: PanelNavGroup[] = [
     label: "حساب",
     items: [
       { src: "bookmarks", title: "نشان‌شده‌ها", icon: BookMarked },
+      /* ⚠️ «کلاس‌های من» برای *همه* نمایش داده می‌شود و نه فقط عضوهای کلاس.
+         کسی که کدی از دبیرش گرفته، باید جایی برای وارد کردنش پیدا کند — و
+         اگر آیتم فقط برای عضوها دیده می‌شد، هیچ‌وقت نمی‌توانست عضوِ اول
+         شود. */
+      { src: "classes", title: "کلاس‌های من", icon: Users },
+      /* ⚠️ «پنل دبیر» هم همیشه هست، به همان دلیل: این همان صفحه‌ای است که
+         درخواستِ دبیری از آن ثبت می‌شود. برای کاربرِ عادی عنوانش هم همین
+         می‌ماند ولی محتوایش فرمِ درخواست است — و پنهان کردنش یعنی هیچ‌کس
+         راهِ دبیر شدن را پیدا نکند. */
+      { src: "teacher", title: "پنل دبیر", icon: Presentation },
       { src: "subscription", title: "اشتراک", icon: Sparkles },
       { src: "support", title: "پشتیبانی", icon: LifeBuoy },
       { src: "setting", title: "تنظیمات حساب", icon: Settings },
@@ -95,6 +107,9 @@ export function titleOf(pathname: string): string {
   // ⚠️ «سروا کلاب» از فهرست بیرون رفت ولی صفحه‌اش سرِ جایش است؛ بدونِ این
   // خط، نوارِ بالای /panel/club به «پنل کاربری» می‌افتاد.
   if (pathname.startsWith("/panel/club")) return "سروا کلاب";
+  // ⚠️ زیرصفحه‌های کلاس (`/panel/teacher/class/…`) در فهرست نیستند و بدونِ
+  // این خط، نوارِ بالا رویشان به «پنل کاربری» می‌افتاد.
+  if (pathname.startsWith("/panel/teacher")) return "پنل دبیر";
   const src = pathname.replace(/^\/panel\/?/, "").split("/")[0];
   for (const group of PANEL_NAV) {
     const hit = group.items.find((i) => i.src === src);

@@ -131,6 +131,10 @@ services:
       # (@ : / ? # و فاصله). .env.example توضیحش داده.
       DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
       UPLOADS_DIR: /app/uploads
+      # ⚠️ مدارکِ دبیران — یک volumeِ **جدا** و نه زیرپوشه‌ای از uploads.
+      # کلِ دلیلش پایین در بخش volumes نوشته شده: این یکی عمداً به proxy
+      # داده نمی‌شود.
+      TEACHER_DOCS_DIR: /app/private-uploads/teacher-docs
       # خروجی لاگ در کانتینر همیشه JSON است، حتی اگر NODE_ENV جور دیگری تنظیم
       # شود — یک خط JSON با grep و jq قابل کار است، متنِ رنگی نه.
       LOG_FORMAT: json
@@ -138,6 +142,9 @@ services:
       # فایل‌های آپلودی باید از بازسازی کانتینر جان سالم به در ببرند. همین
       # volume با :ro به caddy هم داده می‌شود تا مستقیم سروشان کند.
       - uploads:/app/uploads
+      # ⚠️ حکم‌های کارگزینی. جدا از uploads، و برخلاف آن هرگز به proxy
+      # داده نمی‌شود.
+      - private_uploads:/app/private-uploads
     expose:
       - "3000"
 
@@ -172,5 +179,18 @@ volumes:
   pgdata:
   mysqldata:
   uploads:
+  # ⚠️ `private_uploads` عمداً **به سرویس proxy داده نمی‌شود**.
+  #
+  # `uploads` با `:ro` به caddy می‌رود تا مستقیم از دیسک سرو شود — برای
+  # صوتِ کوییز و نگاره‌ها همین درست است. ولی حکمِ کارگزینی سندِ هویتیِ یک
+  # آدمِ واقعی است و تنها راهِ دیدنش مسیری است که پشتِ احراز هویتِ مدیر
+  # قرار دارد (`/api/v1/admin/teacher-requests/[id]/document`).
+  #
+  # اگر روزی کسی این volume را هم به caddy بدهد و در Caddyfile سروش کند،
+  # همهٔ آن مدارک عمومی می‌شوند. برنامه نگهبانِ دومی دارد
+  # (`lib/teacher/documents.ts` مسیرِ خصوصی را با مسیرِ عمومی می‌سنجد و اگر
+  # یکی داخلِ دیگری بود با خطا می‌ایستد) — ولی آن نگهبان فقط پیکربندیِ خودِ
+  # برنامه را می‌بیند، نه پیکربندیِ caddy را.
+  private_uploads:
   caddy_data:
   caddy_config:

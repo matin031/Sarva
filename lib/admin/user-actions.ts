@@ -6,12 +6,13 @@ import { revokeAllSessions } from "@/lib/auth/session";
 import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
+import type { UserRole } from "@/lib/auth/types";
 
 export type AdminUserRow = {
   id: string;
   email: string | undefined;
   fullName: string | undefined;
-  role: "student" | "admin";
+  role: UserRole;
   createdAt: string;
   lastSignInAt: string | undefined;
   emailConfirmed: boolean;
@@ -21,12 +22,16 @@ export type AdminUserRow = {
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
 
 /** فارسیِ نقش‌ها، برای خلاصهٔ لاگ. */
-const ROLE_LABEL: Record<string, string> = { student: "دانش‌آموز", admin: "مدیر" };
+const ROLE_LABEL: Record<string, string> = {
+  student: "دانش‌آموز",
+  teacher: "دبیر",
+  admin: "مدیر",
+};
 
 export type UserListParams = {
   /** جست‌وجو در ایمیل و نام */
   query?: string;
-  role?: "student" | "admin";
+  role?: UserRole;
   status?: "active" | "banned" | "unverified";
   limit?: number;
   offset?: number;
@@ -76,7 +81,11 @@ export async function adminListUsers(
   }
 
   if (params.role) {
-    values.push(enumArg(params.role, ["student", "admin"], "نقش نامعتبر است."));
+    // ⚠️ فهرست شاملِ `teacher` است ولی `adminSetUserRole` پایین عمداً
+    // نیست — فیلتر کردن یک عملِ خواندنی است، ولی *دادنِ* نقشِ دبیر باید
+    // اشتراکِ دبیری را هم روشن کند و آن کار فقط از مسیرِ تأییدِ درخواست
+    // انجام می‌شود.
+    values.push(enumArg(params.role, ["student", "teacher", "admin"], "نقش نامعتبر است."));
     conditions.push("u.role = ?");
   }
 
@@ -94,7 +103,7 @@ export async function adminListUsers(
     id: string;
     email: string;
     full_name: string | null;
-    role: "student" | "admin";
+    role: UserRole;
     created_at: string;
     last_sign_in_at: string | null;
     email_verified_at: string | null;
@@ -144,7 +153,7 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
     id: string;
     email: string;
     full_name: string | null;
-    role: "student" | "admin";
+    role: UserRole;
     created_at: string;
     last_sign_in_at: string | null;
     email_verified_at: string | null;
@@ -176,15 +185,23 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
 export async function adminUserCounts(): Promise<{
   total: number;
   admins: number;
+  teachers: number;
   banned: number;
   unverified: number;
 }> {
   await requireAdmin();
-  const row = await queryOne<{ total: number; admins: number; banned: number; unverified: number }>(
-    // FILTER (WHERE …) → COUNT(CASE …). روی جدولِ خالی هر چهار عدد ۰
+  const row = await queryOne<{
+    total: number;
+    admins: number;
+    teachers: number;
+    banned: number;
+    unverified: number;
+  }>(
+    // FILTER (WHERE …) → COUNT(CASE …). روی جدولِ خالی همهٔ عددها ۰
     // می‌شوند، مثل قبل.
     `select count(*)                                                as total,
             count(case when role = 'admin' then 1 end)              as admins,
+            count(case when role = 'teacher' then 1 end)            as teachers,
             count(case when is_banned then 1 end)                   as banned,
             count(case when email_verified_at is null then 1 end)   as unverified
        from users`,
@@ -192,6 +209,7 @@ export async function adminUserCounts(): Promise<{
   return {
     total: row?.total ?? 0,
     admins: row?.admins ?? 0,
+    teachers: row?.teachers ?? 0,
     banned: row?.banned ?? 0,
     unverified: row?.unverified ?? 0,
   };

@@ -76,6 +76,10 @@ export type AuditAction =
   | "jasoos.level_save"
   | "jasoos.level_publish"
   | "jasoos.level_delete"
+
+  | "aruz_rapid.question_save"
+  | "aruz_rapid.question_publish"
+  | "aruz_rapid.question_delete"
   // کلاب
   | "club.post_status"
   | "club.post_feature"
@@ -85,6 +89,7 @@ export type AuditAction =
   | "club.report_resolve"
   // فایل
   | "upload.audio"
+  | "upload.image"
   // اعلان سایت
   | "announcement.create"
   | "announcement.update"
@@ -111,7 +116,12 @@ export type AuditAction =
   | "plus.order_reconcile"
   | "plus.pilot_activate"
   | "plus.ticket_reply"
-  | "plus.ticket_status";
+  | "plus.ticket_status"
+  // فعال‌سازی دبیر
+  | "teacher.approve"
+  | "teacher.reject"
+  | "teacher.needs_revision"
+  | "teacher.document_view";
 
 export type AuditTargetType =
   | "user"
@@ -126,6 +136,7 @@ export type AuditTargetType =
   | "ninja_word"
   | "grammar_circuit_question"
   | "jasoos_level"
+  | "aruz_rapid_question"
   | "club_post"
   | "club_comment"
   | "club_report"
@@ -138,7 +149,8 @@ export type AuditTargetType =
   | "plus_plan_version"
   | "plus_order"
   | "plus_entitlement"
-  | "plus_ticket";
+  | "plus_ticket"
+  | "teacher_request";
 
 /** متن فارسیِ نمایشیِ هر عمل. اینجا و نه در دیتابیس، تا عوض کردن عبارت به
  *  migration نیاز نداشته باشد. */
@@ -174,6 +186,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "jasoos.level_save": "ذخیرهٔ پروندهٔ جاسوس",
   "jasoos.level_publish": "تغییر انتشار پروندهٔ جاسوس",
   "jasoos.level_delete": "حذف پروندهٔ جاسوس",
+  "aruz_rapid.question_save": "ذخیرهٔ مصراعِ کوتاه یا بلند",
+  "aruz_rapid.question_publish": "تغییر انتشار مصراعِ کوتاه یا بلند",
+  "aruz_rapid.question_delete": "حذف مصراعِ کوتاه یا بلند",
   "club.post_status": "تعیین وضعیت سروده",
   "club.post_feature": "برگزیده کردن سروده",
   "club.post_delete": "حذف سروده",
@@ -181,6 +196,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "club.comment_delete": "حذف دیدگاه",
   "club.report_resolve": "رسیدگی به گزارش",
   "upload.audio": "آپلود فایل صوتی",
+  "upload.image": "آپلود تصویر",
   "announcement.create": "ساخت اعلان سایت",
   "announcement.update": "ویرایش اعلان سایت",
   "announcement.delete": "حذف اعلان سایت",
@@ -203,6 +219,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "plus.pilot_activate": "فعال‌سازی آزمایشی سفارش",
   "plus.ticket_reply": "پاسخ به تیکت پشتیبانی",
   "plus.ticket_status": "تغییر وضعیت تیکت",
+  "teacher.approve": "تأیید درخواست دبیری",
+  "teacher.reject": "رد درخواست دبیری",
+  "teacher.needs_revision": "درخواست اصلاح مدارک دبیری",
+  "teacher.document_view": "مشاهدهٔ حکم کارگزینی",
 };
 
 /** عمل‌هایی که برگشت‌ناپذیرند — در پنل با رنگ متفاوت دیده می‌شوند. */

@@ -1,0 +1,34 @@
+import type { Metadata } from "next";
+import { adminListTeacherRequests } from "@/lib/admin/teacher-actions";
+import { AdminAccessDenied, loadAdminData } from "@/components/admin/AdminGate";
+import TeacherRequestsPanel from "@/components/admin/TeacherRequestsPanel";
+
+/**
+ * مدیریت درخواست دبیران — بند ۷.
+ *
+ * ⚠️ `loadAdminData` جای یک `try/catch` دستی را می‌گیرد و لازم است: بدونِ
+ * آن، «شما دسترسی مدیریت ندارید» به‌شکلِ یک صفحهٔ خطای خامِ Next دیده
+ * می‌شود، و مهم‌تر — خطای «جدول وجود ندارد» (یعنی migration اجرا نشده) به
+ * یک دستورِ روشن تبدیل می‌شود به‌جای یک stack trace. این صفحه اولین جایی
+ * است که بعد از مهاجرت ۰۰۹ باز می‌شود، پس آن حالت اینجا واقعاً پیش می‌آید.
+ */
+
+export const metadata: Metadata = {
+  title: "مدیریت درخواست دبیران",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const result = await loadAdminData(() => adminListTeacherRequests({ status: "pending" }));
+  if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
+
+  return (
+    <TeacherRequestsPanel
+      initialRequests={result.data.requests}
+      initialTotal={result.data.total}
+      initialPending={result.data.pendingCount}
+    />
+  );
+}

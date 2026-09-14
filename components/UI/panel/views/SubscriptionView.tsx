@@ -3,6 +3,7 @@ import PanelPageHeader from "../PanelPageHeader";
 import styles from "../panel-design.module.css";
 import type { PlusStatus, PlusOrderSummary } from "@/lib/plus/types";
 import { fa, jalaliLong } from "@/lib/panel/format";
+import { PLUS_SOURCE_LABEL } from "@/lib/plus/labels";
 
 export default function SubscriptionView({ status, sellable, soonDays, recent, plusOn }: { status: PlusStatus; sellable: boolean; soonDays: number; recent: { orders: PlusOrderSummary[] }; plusOn: boolean; }) {
   return (
@@ -61,9 +62,11 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
                 status.daysRemaining === null ? "دائمی" : `${fa(status.daysRemaining)} روز`
               }
             />
+            {/* ⚠️ از نقشهٔ برچسب و نه یک شرطِ دوحالتی: با آمدنِ اشتراکِ
+                دبیرِ تأییدشده، `!isTrial` دیگر معنیِ «خریداری‌شده» نمی‌دهد. */}
             <Field
               label="نوع دسترسی"
-              value={status.isTrial ? "اعطاشده توسط سروا" : "خریداری‌شده"}
+              value={status.source ? PLUS_SOURCE_LABEL[status.source] : "—"}
             />
           </dl>
 

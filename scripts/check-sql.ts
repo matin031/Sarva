@@ -43,13 +43,37 @@ import mysql from "mysql2/promise";
 const SQL_CALLS = new Set(["query", "queryOne", "execute", "insertId"]);
 
 /** فایل‌هایی که کوئری‌شان را کاربر می‌نویسد، نه ما. */
+/** فایل‌هایی که کوئری‌شان را کاربر می‌نویسد، نه ما.
+ *
+ *  ⚠️ مسیر پیش از تطبیق به اسلشِ رو به جلو یکدست می‌شود. روی ویندوز
+ *  `walkTs` مسیرها را با بک‌اسلش می‌سازد و این الگوها هیچ‌وقت نمی‌خوردند —
+ *  یعنی کنسولِ SQL مدیر (که عمداً کوئریِ ناقص دارد) هر بار دو «خطا»ی
+ *  ساختگی تولید می‌کرد و گزارش را نویزی می‌کرد. */
 const SKIP = [/lib\/admin\/sql-console\.ts$/, /lib\/admin\/sql-constants\.ts$/, /scripts\//];
+const skipped = (file: string) => SKIP.some((re) => re.test(file.replace(/\\/g, "/")));
 
 type Found = { file: string; line: number; sql: string };
 type PartialQ = { file: string; line: number; variants: string[] };
 
 const found: Found[] = [];
 const partial: PartialQ[] = [];
+
+/**
+ * ثابت‌های رشته‌ایِ کلِ پروژه — پشتیبانِ `collectConstants`.
+ *
+ * ⚠️ چرا لازم شد: `collectConstants` فقط فایلِ جاری را می‌بیند، پس یک
+ * `select ${AUTH_USER_COLUMNS} …` که ثابتش از `lib/auth/session.ts`
+ * **import** شده، حل نمی‌شد و به `select from users` تبدیل می‌شد.
+ *
+ * نتیجه‌اش خطای نحوی بود که *شبیهِ* باگِ کد به‌نظر می‌رسید، در حالی که کد
+ * سالم بود و ابزار نابینا. بدتر: همان پنج کوئری عملاً از پوشش بیرون
+ * می‌افتادند — دقیقاً کوئری‌های احراز هویت.
+ *
+ * نگاشت بر اساس *نام* است و نه مسیرِ import. برخوردِ نام در عمل پیش
+ * نمی‌آید و بدترین حالتش این است که یک رشتهٔ هم‌نام جایگزین شود — که باز
+ * هم یک رشتهٔ ثابت است و PREPARE معنی‌دار می‌ماند.
+ */
+const globalConstants = new Map<string, string>();
 
 function collectConstants(source: ts.SourceFile): Map<string, string> {
   const out = new Map<string, string>();
@@ -79,7 +103,8 @@ function walkTs(dir: string): string[] {
 function extract(file: string) {
   const text = readFileSync(file, "utf8");
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-  const constants = collectConstants(source);
+  // ثابت‌های خودِ فایل بر ثابت‌های سراسری مقدم‌اند.
+  const constants = new Map([...globalConstants, ...collectConstants(source)]);
 
   const walk = (node: ts.Node) => {
     if (ts.isCallExpression(node)) {
@@ -104,6 +129,12 @@ function extract(file: string) {
           const fillFor = (before: string): string[] => {
             const tail = before.replace(/(\s|--[^\n]*|#[^\n]*)+$/, "").toLowerCase();
             if (/\b(limit|offset)$/.test(tail)) return ["1"];
+            // ⚠️ فهرستِ ستون‌هایی که در زمان اجرا ساخته می‌شود (مثلاً
+            // `select ${authUserColumns("u")} from …`). با پرکنندهٔ خالی،
+            // کوئری به `select from …` تبدیل و به‌عنوان خطای نحوی گزارش
+            // می‌شد — یک خطای *ساختگی* روی کدِ کاملاً سالم. با `1`، بندهای
+            // from/join/where همچنان واقعاً بررسی می‌شوند.
+            if (/\bselect$/.test(tail)) return ["1"];
             if (/\border\s+by$/.test(tail)) return ["id"];
             if (/\b(where|and|or|on|not|having)$/.test(tail)) return ["true"];
             // فهرستِ جای‌نگهدارِ IN — placeholders() این را می‌سازد.
@@ -384,8 +415,18 @@ function scanSourceSmells(files: string[]): { file: string; line: number; why: s
 
 async function main() {
   const files = [...walkTs("lib"), ...walkTs("app"), "proxy.ts"].filter(
-    (f) => !SKIP.some((re) => re.test(f)),
+    (f) => !skipped(f),
   );
+
+  /* ⚠️ دو پاس، و ترتیبش مهم است.
+     پاسِ اول فقط ثابت‌های رشته‌ای را جمع می‌کند تا وقتی پاسِ دوم به یک
+     `${AUTH_USER_COLUMNS}`ِ import‌شده می‌رسد، مقدارش را بشناسد. با یک پاس،
+     هر ثابتی که در فایلِ دیگری تعریف شده باشد حل نمی‌شد. */
+  for (const f of files) {
+    const text = readFileSync(f, "utf8");
+    const source = ts.createSourceFile(f, text, ts.ScriptTarget.Latest, true);
+    for (const [name, value] of collectConstants(source)) globalConstants.set(name, value);
+  }
 
   for (const f of files) extract(f);
 

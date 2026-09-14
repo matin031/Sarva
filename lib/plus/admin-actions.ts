@@ -12,7 +12,7 @@ import { extendEntitlement, manualGrant, revokeEntitlement } from "./grants";
 import { settlePayment } from "./orders";
 import { isPilotGrantEnabled } from "./config";
 import { notify } from "./notifications";
-import type { OrderStatus, TicketCategory, TicketStatus } from "./types";
+import type { OrderStatus, PlusSource, TicketCategory, TicketStatus } from "./types";
 
 /**
  * پنل مدیریتِ سروا پلاس.
@@ -658,7 +658,7 @@ export type AdminEntitlementRow = {
   userId: string;
   userEmail: string;
   userName: string | null;
-  source: "purchase" | "manual_grant";
+  source: PlusSource;
   startsAt: string;
   endsAt: string | null;
   revokedAt: string | null;
@@ -703,7 +703,7 @@ export async function adminListEntitlements(params: {
     user_id: string;
     email: string;
     full_name: string | null;
-    source: "purchase" | "manual_grant";
+    source: PlusSource;
     starts_at: string;
     ends_at: string | null;
     revoked_at: string | null;

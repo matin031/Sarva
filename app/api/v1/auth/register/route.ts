@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { queryOne, execute, isUniqueViolation } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
-import { createSession, toAuthUser } from "@/lib/auth/session";
+import { AUTH_USER_COLUMNS, createSession, toAuthUser, type UserRow } from "@/lib/auth/session";
 import { accessCookie, refreshCookie } from "@/lib/auth/cookies";
 import { registerSchema } from "@/lib/auth/schemas";
 import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib/api/http";
@@ -95,17 +95,13 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
 
     // ستون‌های role و created_at و … از DEFAULT می‌آیند، پس ردیف باید خوانده
     // شود؛ ساختنش از روی مقادیرِ ورودی یعنی تکرارِ پیش‌فرض‌ها در دو جا.
-    const row = await queryOne<{
-      id: string;
-      email: string;
-      full_name: string | null;
-      role: "student" | "admin";
-      email_verified_at: string | null;
-      is_banned: boolean;
-      created_at: string;
-    }>(
-      `select id, email, full_name, role, email_verified_at, is_banned, created_at
-         from users where id = ?`,
+    /* ⚠️ ستون‌ها دیگر اینجا نوشته نمی‌شوند.
+       تا دیروز این select دستی بود و مهاجرت ۰۰۶ که دو ستون اضافه کرد، از
+       قلم انداختنش را ممکن کرد. حالا `AUTH_USER_COLUMNS` تنها جایی است که
+       این فهرست وجود دارد — توضیحِ کامل کنارِ `authUserColumns` در
+       `lib/auth/session.ts`. */
+    const row = await queryOne<UserRow>(
+      `select ${AUTH_USER_COLUMNS} from users where id = ?`,
       [userId],
     );
 

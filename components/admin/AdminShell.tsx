@@ -94,6 +94,17 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/teachers",
+    label: "درخواست دبیران",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m12 4 9 4.5-9 4.5-9-4.5L12 4Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 10.8V16c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5v-5.2" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.5 9v5" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/activity",
     label: "فعالیت و خطاها",
     icon: (

@@ -2,13 +2,15 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listDevices } from "@/lib/auth/devices";
 import AccountSettings from "@/components/UI/AccountSettings";
+import ProfileForm from "@/components/UI/panel/ProfileForm";
+import PhoneVerification from "@/components/UI/panel/PhoneVerification";
 import EmailVerification from "@/components/UI/panel/EmailVerification";
 import ActiveDevices from "@/components/UI/panel/ActiveDevices";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 import PlusSettingCard from "@/components/UI/panel/PlusSettingCard";
 
 /**
- * حساب کاربری: نام، رمز، ایمیل، و دستگاه‌هایی که وارد شده‌اند.
+ * حساب کاربری: پروفایل، رمز، ایمیل، موبایل، و دستگاه‌هایی که وارد شده‌اند.
  *
  * ⚠️ دکمهٔ «خروج از حساب» از انتهای این صفحه برداشته شد و به منوی کاربر در
  * پایینِ سایدبار رفت. کاربری که می‌خواهد خارج شود، نباید اول به صفحهٔ
@@ -37,7 +39,19 @@ export default async function Page() {
           می‌شود. */}
       <EmailVerification />
 
+      {/* ⚠️ تأیید شماره کنارِ تأیید ایمیل و نه جای دیگری: هر دو یک کار
+          می‌کنند و کاربری که دنبالِ «چطور شماره‌ام را اضافه کنم» است، اول
+          همین بالا را نگاه می‌کند. و بند ۵ به این ستون تکیه دارد — بدونِ
+          شمارهٔ تأییدشده، درخواستِ دبیری ثبت نمی‌شود. */}
+      <PhoneVerification />
+
       <PlusSettingCard />
+
+      {/* ⚠️ بند ۱: اطلاعاتِ تکمیلی *اینجا* گرفته می‌شود و نه در ثبت‌نام.
+          این فرم جای کارتِ «تغییر نام» را در `AccountSettings` گرفت؛ دو
+          فرم که هر دو نام را می‌نویسند، یعنی کاربر نمی‌داند کدام برنده
+          است. */}
+      <ProfileForm />
 
       <AccountSettings />
 

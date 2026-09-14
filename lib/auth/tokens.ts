@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, createHash } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { accessTtlSeconds, jwtSecret } from "./config";
+import type { UserRole } from "./types";
 
 /**
  * دو توکن، دو نقش کاملاً متفاوت.
@@ -27,7 +28,7 @@ export type AccessClaims = {
    *  دیتابیس می‌خواند. اگر ادمینی همین حالا عزل شود، این ادعا تا ۱۵ دقیقه
    *  کهنه می‌ماند — که برای «آیا منوی مدیریت را نشان بدهم» بی‌خطر است و برای
    *  «آیا اجازهٔ حذف کاربر دارد» نیست. */
-  role: "student" | "admin";
+  role: UserRole;
   /** شناسهٔ سشنی که این توکن از آن زاده شده — برای ردیابی و ابطال */
   sid: string;
 };

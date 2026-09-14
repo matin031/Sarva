@@ -12,13 +12,24 @@ import {
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import type { UserRole } from "@/lib/auth/types";
 
 function formatDate(iso: string | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "short", day: "numeric" });
 }
 
-type RoleFilter = "" | "student" | "admin";
+type RoleFilter = "" | UserRole;
+
+/** ⚠️ یک `Record` روی اتحادِ بسته و نه یک شرطِ دوحالتی: با آمدنِ نقشِ
+ *  `teacher`، شرطِ قبلی (`role === "admin" ? … : "دانش‌آموز"`) هر دبیری را
+ *  «دانش‌آموز» نشان می‌داد و هیچ خطایی هم نمی‌داد. این شکل، نقشِ چهارم را
+ *  خطای کامپایل می‌کند. */
+const ROLE_TEXT: Record<UserRole, string> = {
+  student: "دانش‌آموز",
+  teacher: "دبیر",
+  admin: "مدیر",
+};
 type StatusFilter = "" | "active" | "banned" | "unverified";
 
 /** کاری که منتظر تأیید است. */
@@ -53,7 +64,7 @@ export default function UserAdminPanel({
     startTransition(async () => {
       const result = await adminListUsers({
         query: (next.query ?? query) || undefined,
-        role: ((next.role ?? role) || undefined) as "student" | "admin" | undefined,
+        role: ((next.role ?? role) || undefined) as UserRole | undefined,
         status: ((next.status ?? status) || undefined) as StatusFilter extends "" ? never : "active" | "banned" | "unverified" | undefined,
         limit: USER_PAGE_SIZE,
         offset: append ? users.length : 0,
@@ -139,6 +150,7 @@ export default function UserAdminPanel({
         >
           <option value="">همهٔ نقش‌ها</option>
           <option value="student">دانش‌آموز</option>
+          <option value="teacher">دبیر</option>
           <option value="admin">مدیر</option>
         </select>
         <select
@@ -307,14 +319,18 @@ const CONFIRM_COPY: Record<
   },
 };
 
-function RoleBadge({ role }: { role: "student" | "admin" }) {
+function RoleBadge({ role }: { role: UserRole }) {
   return (
     <span
       className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-        role === "admin" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+        role === "admin"
+          ? "bg-primary/15 text-primary"
+          : role === "teacher"
+            ? "bg-gold/15 text-gold-ink"
+            : "bg-muted text-muted-foreground"
       }`}
     >
-      {role === "admin" ? "مدیر" : "دانش‌آموز"}
+      {ROLE_TEXT[role]}
     </span>
   );
 }

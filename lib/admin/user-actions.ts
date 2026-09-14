@@ -6,6 +6,8 @@ import { revokeAllSessions } from "@/lib/auth/session";
 import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
+import { removeTeacherDocumentChecked } from "@/lib/teacher/documents";
+import { logger } from "@/lib/observability";
 import type { UserRole } from "@/lib/auth/types";
 
 export type AdminUserRow = {
@@ -333,6 +335,22 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
   // پس قبل از حذف، سروده‌های تحت‌تأثیر شناسایی می‌شوند و بعد از حذف
   // شمارنده‌شان بازسازی می‌شود. همه در یک تراکنش، وگرنه یک خطای میانی
   // دقیقاً همان ناسازگاری را به جا می‌گذاشت که می‌خواهیم جلویش را بگیریم.
+  /* ⚠️ کلیدهای مدارکِ دبیری **پیش از** حذف خوانده می‌شوند.
+
+     `teacher_requests` با cascade می‌رود، و با رفتنش تنها چیزی که می‌گفت
+     کدام فایل روی دیسک مالِ چه کسی بوده هم می‌رود. بعد از تراکنش دیگر
+     راهی برای پیدا کردنشان نیست — یک حکمِ کارگزینی برای همیشه روی دیسک
+     می‌ماند بی‌آنکه کسی بداند مالِ کیست.
+
+     ⚠️ و فقط مدارکِ *همین* کاربر: شرطِ `user_id` تضمین می‌کند فایلِ دبیرِ
+     دیگری هرگز در این فهرست نیاید. */
+  const documentKeys = (
+    await query<{ document_key: string }>(
+      "select document_key from teacher_requests where user_id = ?",
+      [userId],
+    )
+  ).map((r) => r.document_key);
+
   await transaction(async (tx) => {
     const affected = await tx.query<{ post_id: string }>(
       `select post_id from club_likes where user_id = ?
@@ -349,6 +367,32 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult<null
       await tx.execute("call club_recount(?)", [post_id]);
     }
   });
+
+  /* ⚠️ فایل‌ها **بعد** از موفقیتِ تراکنش پاک می‌شوند و نه قبلش.
+
+     ترتیبِ برعکس یعنی اگر تراکنش شکست بخورد، کاربر هنوز هست ولی مدرکش
+     رفته — و مدیر پرونده‌ای می‌بیند که سندش باز نمی‌شود.
+     این ترتیب بدترین حالتش یک فایلِ یتیم است، که `db:check-teacher-docs`
+     پیدایش می‌کند.
+
+     ⚠️ شکستِ حذفِ فایل، حذفِ حساب را برنمی‌گرداند (کاربر واقعاً حذف شده)،
+     ولی **بی‌صدا هم نمی‌ماند**: کلید در لاگ می‌آید تا قابلِ پیگیری باشد. */
+  const orphaned: string[] = [];
+  for (const key of documentKeys) {
+    if (!(await removeTeacherDocumentChecked(key))) orphaned.push(key);
+  }
+
+  if (orphaned.length > 0) {
+    logger.error("حذفِ مدارکِ دبیری بعد از حذفِ حساب ناموفق بود", {
+      event: "teacher.document.orphaned",
+      user_id: userId,
+      orphan_count: orphaned.length,
+      /* ⚠️ کلید فقط در لاگِ سرور می‌آید و نه در پاسخِ API. برای آشتی دادن
+         لازم است و جای دیگری نباید برود. */
+      orphan_keys: orphaned,
+      hint: "npm run db:check-teacher-docs -- --purge",
+    });
+  }
 
   // بعد از حذف، خودِ ردیف کاربر دیگر وجود ندارد — پس هر چیزی که برای فهمیدن
   // «چه کسی حذف شد» لازم است باید در همین خلاصه باشد.

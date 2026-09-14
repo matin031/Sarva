@@ -68,15 +68,27 @@ export async function rateLimitDb(
                             reset_at)`,
         [key, windowSeconds, windowSeconds],
       );
-      return tx.queryOne<{ hits: number; reset_at: string }>(
-        "select count as hits, reset_at from rate_limits where `key` = ?",
+      /* ⚠️ «چقدر باقی مانده؟» **در SQL** حساب می‌شود و نه در جاوااسکریپت.
+
+         نسخهٔ قبلی `reset_at` را می‌خواند و از `Date.now()` کم می‌کرد. آن
+         مقدار را ساعتِ *دیتابیس* نوشته (`now(6) + interval`)، پس دو طرفِ
+         تفریق از دو ساعتِ متفاوت می‌آمدند.
+         روی سروری که `time_zone = SYSTEM` دارد و ساعتش UTC نیست، نتیجه به
+         اندازهٔ همان اختلاف غلط می‌شد — روی یک سرورِ ایران یعنی پیامِ
+         «۱۲۶۰۰ ثانیه صبر کنید» به‌جای «۶۰ ثانیه». (اندازه‌گیری‌اش در
+         `npm run db:check-time`.)
+         با `timestampdiff` هر دو طرف ساعتِ دیتابیس‌اند و عدد مستقل از
+         تنظیمِ منطقهٔ زمانیِ سرور درست است. */
+      return tx.queryOne<{ hits: number; retry_after: number }>(
+        "select count as hits," +
+          " greatest(1, timestampdiff(second, now(6), reset_at)) as retry_after" +
+          " from rate_limits where `key` = ?",
         [key],
       );
     });
 
     const hits = row?.hits ?? 1;
-    const resetAt = row?.reset_at ? new Date(row.reset_at).getTime() : Date.now();
-    const retryAfterSeconds = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+    const retryAfterSeconds = Math.max(1, Math.ceil(row?.retry_after ?? 1));
 
     return {
       allowed: hits <= limit,

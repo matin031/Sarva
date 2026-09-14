@@ -267,3 +267,49 @@ export async function removeTeacherDocument(key: string): Promise<void> {
   if (!target) return;
   await unlink(target).catch(() => {});
 }
+
+/**
+ * حذفِ فایل، با **گزارشِ موفقیت**.
+ *
+ * ⚠️ فرقش با `removeTeacherDocument` این است که شکست را قورت نمی‌دهد.
+ *
+ * برای مسیرِ «ارسال دوباره» بی‌صدا بودن درست است (بدترین حالتش یک فایلِ
+ * یتیم است و ردیفِ دیتابیس سالم می‌ماند). ولی وقتی حسابِ کاربر حذف می‌شود،
+ * ردیف برای همیشه می‌رود و دیگر هیچ‌چیز نمی‌گوید این فایل مالِ که بود —
+ * پس شکستش باید دیده و قابلِ پیگیری شود.
+ */
+export async function removeTeacherDocumentChecked(key: string): Promise<boolean> {
+  const target = safeTarget(key);
+  if (!target) return false;
+
+  try {
+    await unlink(target);
+    return true;
+  } catch (err) {
+    // نبودنِ فایل یعنی همان نتیجهٔ مطلوب — قبلاً پاک شده.
+    if ((err as { code?: string })?.code === "ENOENT") return true;
+    return false;
+  }
+}
+
+/**
+ * نامِ همهٔ فایل‌هایی که در انبارِ خصوصی هستند.
+ *
+ * ⚠️ فقط برای آشتی‌دادنِ دیسک با دیتابیس (`scripts/check-teacher-docs.ts`).
+ * خروجی‌اش هرگز نباید به کلاینت برسد — فهرستِ کلیدها همان چیزی است که کلِ
+ * طراحیِ این ماژول می‌خواهد پنهانش کند.
+ */
+export async function listStoredDocumentKeys(): Promise<string[]> {
+  const root = docsRoot();
+  assertPrivateRoot(root);
+
+  try {
+    const { readdir } = await import("node:fs/promises");
+    const entries = await readdir(root, { withFileTypes: true });
+    return entries.filter((e) => e.isFile()).map((e) => e.name);
+  } catch (err) {
+    // پوشه هنوز ساخته نشده = هیچ فایلی نیست.
+    if ((err as { code?: string })?.code === "ENOENT") return [];
+    throw err;
+  }
+}

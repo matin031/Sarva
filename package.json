@@ -23,6 +23,8 @@
     "db:check-sql": "tsx --conditions=react-server scripts/check-sql.ts",
     "db:check-plus": "tsx --conditions=react-server scripts/check-plus.ts",
     "db:check-teacher": "tsx --conditions=react-server scripts/check-teacher.ts",
+    "db:check-time": "tsx --conditions=react-server scripts/check-time.ts",
+    "db:check-teacher-docs": "tsx --conditions=react-server scripts/check-teacher-docs.ts",
     "db:check-tz": "node scripts/check-timezone.mjs",
     "host:sql": "node scripts/cpanel/make-sql.mjs",
     "host:build": "node scripts/cpanel/build-package.mjs",

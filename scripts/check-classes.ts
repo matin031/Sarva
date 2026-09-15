@@ -23,6 +23,7 @@ import { execute, queryOne } from "@/lib/db";
 import {
   allowRejoin,
   createClass,
+  getTeacherClass,
   joinClassByCode,
   leaveClass,
   listClassMembers,
@@ -34,6 +35,7 @@ import {
   setJoinEnabled,
   teacherCanSeeStudent,
 } from "@/lib/teacher/classes";
+import { createFeedback, listStudentFeedback } from "@/lib/teacher/feedback";
 import { normalizeSchoolName } from "@/lib/teacher/school-name";
 
 let failures = 0;
@@ -348,6 +350,158 @@ async function main() {
     true,
     "هیچ ردیفِ removed ای برنمی‌گردد",
   );
+
+  /* ── ۱۲) شناسه‌های بدشکل ─────────────────────────────────────── */
+  section("۱۲) شناسه‌های بدشکل");
+
+  /* ⚠️ همه از راهِ لایهٔ داده می‌آیند، پس یک شناسهٔ بدشکل باید بی‌خطر رد
+     شود و نه اینکه به یک خطای ۵۰۰ برسد. */
+  for (const junk of ["", "not-a-uuid", "../../etc", "' or 1=1 --", "x".repeat(200)]) {
+    const a = await getTeacherClass(teacherA, junk);
+    const b = await teacherCanSeeStudent(teacherA, junk);
+    if (a === null && b === false) ok(`«${junk.slice(0, 16)}» بی‌خطر رد شد`);
+    else bad(`«${junk.slice(0, 16)}» بی‌خطر رد نشد`, JSON.stringify({ a, b }));
+  }
+
+  /* ── ۱۳) نقش و اشتراک ────────────────────────────────────────── */
+  section("۱۳) نقش و اشتراک");
+
+  /**
+   * ⚠️ `desired_role` چیزی است که **خودِ کاربر** می‌نویسد و هیچ دسترسی‌ای
+   * نمی‌دهد. تنها ستونِ معتبر `role` است که فقط از مسیرِ تأییدِ درخواست
+   * نوشته می‌شود.
+   */
+  const pretender = await makeUser("pretender", "student");
+  await execute("update users set desired_role = 'teacher' where id = ?", [pretender]);
+
+  const pretenderClass = await createClass({
+    teacherId: pretender,
+    schoolId,
+    name: `${TAG} کلاسِ مدعی`,
+    grade: "12",
+  });
+  /* لایهٔ داده نقش را نمی‌سنجد (گاردش در Server Action است)، ولی آنچه
+     اینجا سنجیده می‌شود این است که `desired_role` هیچ دری به کلاسِ
+     دیگری باز نمی‌کند. */
+  is(await getTeacherClass(pretender, klass.id), null, "desiredRole کلاسِ دیگری را باز نمی‌کند");
+  is(await teacherCanSeeStudent(pretender, alice), false, "و دانش‌آموزِ دیگری را نشان نمی‌دهد");
+  is(await removeClassMember(pretender, klass.id, alice), false, "و عضوی را بیرون نمی‌گذارد");
+  await execute("delete from teacher_classes where id = ?", [pretenderClass.id]);
+
+  /**
+   * ⚠️ اشتراکِ پلاس **هیچ ربطی** به دسترسیِ دبیری ندارد.
+   *
+   * دبیرِ تأییدشده پلاسِ مادام‌العمر می‌گیرد، ولی جهتش یک‌طرفه است: پلاس
+   * داشتن کسی را دبیر نمی‌کند. اگر این دو جایی قاطی شوند، هر خریدارِ
+   * پلاس به کلاس‌ها دسترسی پیدا می‌کند.
+   */
+  const plusStudent = await makeUser("plusStudent", "student");
+  await execute(
+    `insert into plus_entitlements (id, user_id, source, starts_at, ends_at, reason)
+     values (?, ?, 'manual_grant', ?, null, 'آزمون')`,
+    [randomUUID(), plusStudent, new Date()],
+  );
+  is(await getTeacherClass(plusStudent, klass.id), null, "پلاس کلاسِ دبیر را باز نمی‌کند");
+  is(await teacherCanSeeStudent(plusStudent, alice), false, "و عملکردِ کسی را نشان نمی‌دهد");
+
+  /**
+   * ⚠️ و برعکسش: دانش‌آموزِ **بدونِ** پلاس باید کاملاً بتواند عضوِ کلاس
+   * شود و بازخورد بگیرد. اگر رابطهٔ دبیر و دانش‌آموز پشتِ paywall برود،
+   * کلِ این قابلیت برای بیشترِ کاربران وجود ندارد.
+   */
+  const freeStudent = await makeUser("freeStudent", "student");
+  const freeJoin = await joinClassByCode(freeStudent, newCode!);
+  is(freeJoin.ok, true, "دانش‌آموزِ رایگان عضوِ کلاس می‌شود");
+  is(await teacherCanSeeStudent(teacherA, freeStudent), true, "و دبیرش عملکردش را می‌بیند");
+
+  const freeFeedback = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: freeStudent,
+    classId: klass.id,
+    category: "general",
+    message: "خوب پیش می‌روی.",
+  });
+  is(freeFeedback.ok, true, "و بازخورد هم می‌گیرد");
+  is(
+    (await listStudentFeedback(freeStudent)).length,
+    1,
+    "و بدونِ پلاس می‌تواند بخواندش",
+  );
+
+  /* ── ۱۴) بازخورد پس از خروج ──────────────────────────────────── */
+  section("۱۴) بازخورد پس از خروج");
+
+  await leaveClass(freeStudent, klass.id);
+  is(
+    await teacherCanSeeStudent(teacherA, freeStudent),
+    false,
+    "با خروج، دسترسیِ دبیر قطع می‌شود",
+  );
+  /* ⚠️ ولی بازخوردِ قبلی نباید ناپدید شود — دانش‌آموز آن را خوانده و
+     ممکن است بعداً بخواهد دوباره ببیندش. */
+  is(
+    (await listStudentFeedback(freeStudent)).length,
+    1,
+    "ولی بازخوردِ قبلی سرِ جایش می‌ماند",
+  );
+
+  /* ── ۱۵) مسابقه‌ها ───────────────────────────────────────────── */
+  section("۱۵) مسابقه‌ها");
+
+  /* ⚠️ پیوستن هم‌زمان با بستنِ عضوگیری. هر نتیجه‌ای مجاز است جز
+     «هم عضو شد و هم نشد» یا ردیفِ دوم. */
+  const racer = await makeUser("racer", "student");
+  await Promise.all([
+    joinClassByCode(racer, newCode!),
+    setJoinEnabled(teacherA, klass.id, false),
+  ]);
+  const racerRows = await queryOne<{ n: number }>(
+    "select count(*) as n from class_members where class_id = ? and student_id = ?",
+    [klass.id, racer],
+  );
+  truthy(Number(racerRows?.n ?? 0) <= 1, "پیوستن هم‌زمان با بستنِ عضوگیری ردیفِ دوم نساخت");
+  await setJoinEnabled(teacherA, klass.id, true);
+
+  /* دو بار حذفِ پشتِ سرِ هم — دومی باید بی‌اثر باشد و نه خطا. */
+  await joinClassByCode(racer, newCode!);
+  const [rm1, rm2] = await Promise.all([
+    removeClassMember(teacherA, klass.id, racer),
+    removeClassMember(teacherA, klass.id, racer),
+  ]);
+  is([rm1, rm2].filter(Boolean).length, 1, "فقط یکی از دو حذفِ هم‌زمان اثر کرد");
+  is(await statusOf(klass.id, racer), "blocked", "و وضعیتِ نهایی درست است");
+
+  /* خروجِ خودخواسته در برابرِ اخراجِ هم‌زمان — نتیجه هرچه باشد، باید یکی
+     از دو وضعیتِ معتبر باشد و نه چیزِ سوم. */
+  await allowRejoin(teacherA, klass.id, racer);
+  await joinClassByCode(racer, newCode!);
+  await Promise.all([
+    leaveClass(racer, klass.id),
+    removeClassMember(teacherA, klass.id, racer),
+  ]);
+  const finalStatus = await statusOf(klass.id, racer);
+  truthy(
+    finalStatus === "removed" || finalStatus === "blocked",
+    `وضعیتِ نهاییِ خروج/اخراجِ هم‌زمان معتبر است (${finalStatus})`,
+  );
+
+  /* دو چرخشِ هم‌زمانِ کد — هر دو باید موفق شوند و کدِ نهایی یکی باشد. */
+  const [c1, c2] = await Promise.all([
+    rotateJoinCode(teacherA, klass.id),
+    rotateJoinCode(teacherA, klass.id),
+  ]);
+  truthy(c1 && c2, "هر دو چرخشِ هم‌زمان موفق شدند");
+  const current = await queryOne<{ join_code: string }>(
+    "select join_code from teacher_classes where id = ?",
+    [klass.id],
+  );
+  truthy(
+    current?.join_code === c1 || current?.join_code === c2,
+    "و کدِ ذخیره‌شده یکی از آن دوست",
+  );
+  /* ⚠️ و اعضای فعلی از هیچ‌کدام آسیب ندیدند. */
+  is(await statusOf(klass.id, alice), "active", "اعضای فعلی از چرخش‌ها آسیب ندیدند");
 
   /* ── پاک‌سازی ────────────────────────────────────────────────── */
   await cleanup();

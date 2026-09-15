@@ -500,6 +500,40 @@ export async function joinClassByCode(
 
 /* ═══════════════════════════ خروج و بازگشت ════════════════════════════ */
 
+/* ═══════════════════════ مسابقهٔ خروج و اخراج ══════════════════════════ */
+
+/**
+ * یک تلاشِ دوباره وقتی InnoDB بن‌بست اعلام می‌کند.
+ *
+ * =============================================================================
+ * ⚠️ چرا لازم شد — یک بن‌بستِ واقعی، نه نظری
+ * =============================================================================
+ *
+ * `removeClassMember` با `join` روی `teacher_classes` قفل می‌گیرد (برای
+ * گاردِ مالکیت) و `leaveClass` فقط `class_members` را دست می‌زند. دو
+ * دستور، دو ترتیبِ متفاوتِ قفل‌گیری — و اگر هم‌زمان روی **یک ردیف** اجرا
+ * شوند، InnoDB یکی را با خطای ۱۲۱۳ برمی‌گرداند.
+ *
+ * سناریوی واقعی‌اش کوتاه است ولی ممکن: دانش‌آموز «خروج از کلاس» را
+ * می‌زند در همان لحظه‌ای که دبیرش «خارج کردن» را. آزموده شد و دقیقاً
+ * همین اتفاق افتاد.
+ *
+ * ⚠️ بن‌بست یک باگ نیست؛ رفتارِ عادیِ InnoDB است و چارهٔ استانداردش هم
+ * همین است: تراکنشِ بازگردانده‌شده دوباره اجرا شود. یک تلاشِ دوباره کافی
+ * است — دو دستورِ کوتاه دو بار پشتِ سرِ هم بن‌بست نمی‌سازند.
+ *
+ * ⚠️ و فقط ۱۲۱۳: هر خطای دیگری همان‌طور که هست بالا می‌رود. بلعیدنِ
+ * خطاهای دیگر یعنی یک اشکالِ واقعی دو بار اجرا شود و بعد ناپدید.
+ */
+async function retryOnDeadlock<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if ((err as { errno?: number })?.errno !== 1213) throw err;
+    return run();
+  }
+}
+
 /**
  * بیرون گذاشتنِ عضو **توسطِ دبیر** → `blocked`.
  *
@@ -517,12 +551,14 @@ export async function removeClassMember(
   classId: string,
   studentId: string,
 ): Promise<boolean> {
-  const affected = await execute(
-    `update class_members m
-       join teacher_classes c on c.id = m.class_id
-        set m.status = 'blocked', m.left_at = now(6)
-      where m.class_id = ? and m.student_id = ? and c.teacher_id = ? and m.status = 'active'`,
-    [classId, studentId, teacherId],
+  const affected = await retryOnDeadlock(() =>
+    execute(
+      `update class_members m
+         join teacher_classes c on c.id = m.class_id
+          set m.status = 'blocked', m.left_at = now(6)
+        where m.class_id = ? and m.student_id = ? and c.teacher_id = ? and m.status = 'active'`,
+      [classId, studentId, teacherId],
+    ),
   );
   return affected > 0;
 }
@@ -560,10 +596,12 @@ export async function allowRejoin(
  * و دبیر هم نمی‌فهمید چرا.
  */
 export async function leaveClass(studentId: string, classId: string): Promise<boolean> {
-  const affected = await execute(
-    `update class_members set status = 'removed', left_at = now(6)
-      where class_id = ? and student_id = ? and status = 'active'`,
-    [classId, studentId],
+  const affected = await retryOnDeadlock(() =>
+    execute(
+      `update class_members set status = 'removed', left_at = now(6)
+        where class_id = ? and student_id = ? and status = 'active'`,
+      [classId, studentId],
+    ),
   );
   return affected > 0;
 }

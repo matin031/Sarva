@@ -24,7 +24,7 @@ process.loadEnvFile(".env.local");
 
 import { randomUUID } from "node:crypto";
 
-import { execute, getPool } from "@/lib/db";
+import { execute, getPool, query, queryOne } from "@/lib/db";
 import {
   getClassDashboard,
   getStudentDailyActivity,
@@ -34,6 +34,8 @@ import { getStudentReport } from "@/lib/teacher/student-report";
 import { MIN_VERIFIED_FOR_ACCURACY } from "@/lib/teacher/analytics-rules";
 import { resetTehranDayCache, tehranDayAvailable } from "@/lib/analytics/timezone";
 import { normalizeSchoolName } from "@/lib/teacher/school-name";
+import { recordStudentView, listMyViewers } from "@/lib/teacher/views";
+import { countUnreadNotifications, listNotifications, markNotificationRead } from "@/lib/plus/notifications";
 import { generateJoinCode } from "@/lib/teacher/join-code";
 
 let failures = 0;
@@ -399,6 +401,105 @@ async function main() {
       "تحلیلِ غیرروزانه بدونِ جدول‌های منطقه هم کار می‌کند",
     );
   }
+
+  /* ── ۹) ثبتِ بازدید و ضدِ اسپمِ اعلان ─────────────────────────── */
+  section("۹) ثبتِ بازدید و ضدِ اسپمِ اعلان");
+
+  const viewer = {
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: both,
+    classId: classA1,
+    className: "کلاس ۱",
+  };
+
+  /* ⚠️ همان کاری که یک دبیرِ واقعی می‌کند: صفحه را چند بار تازه می‌کند. */
+  for (let i = 0; i < 5; i++) await recordStudentView(viewer);
+
+  const views = await queryOne<{ n: number }>(
+    "select count(*) as n from teacher_student_views where teacher_id = ? and student_id = ?",
+    [teacherA, both],
+  );
+  is(Number(views?.n ?? 0), 5, "هر پنج بازدید ثبت شد (ثبت دقیق است)");
+
+  const notes = await query<{ n: number }>(
+    "select count(*) as n from plus_notifications where user_id = ? and kind = 'teacher_viewed_student'",
+    [both],
+  );
+  is(Number(notes[0]?.n ?? 0), 1, "ولی فقط **یک** اعلان ساخته شد");
+
+  /* ⚠️ لحن: نامِ دبیر باید در متن باشد و متن نباید نظارتی باشد. */
+  const note = await queryOne<{ title: string; body: string | null; href: string | null }>(
+    "select title, body, href from plus_notifications where user_id = ? and kind = 'teacher_viewed_student'",
+    [both],
+  );
+  ok(note?.title.includes("احمدی") ? "نامِ دبیر در متنِ اعلان هست" : "");
+  if (!note?.title.includes("احمدی")) {
+    failures++;
+    console.log("  ✗ نامِ دبیر در متنِ اعلان نیست");
+  }
+  is(note?.href, "/panel/classes", "لینکِ اعلان داخلی است");
+
+  /* ⚠️ دبیرِ دیگری که همان دانش‌آموز را ببیند، اعلانِ خودش را می‌سازد —
+     یکتاسازی نباید دو دبیر را یکی کند. */
+  await join(classB1, both);
+  await recordStudentView({
+    teacherId: teacherB,
+    teacherName: "خانم رضایی",
+    studentId: both,
+    classId: classB1,
+    className: "کلاس دبیر ب",
+  });
+  const notes2 = await queryOne<{ n: number }>(
+    "select count(*) as n from plus_notifications where user_id = ? and kind = 'teacher_viewed_student'",
+    [both],
+  );
+  is(Number(notes2?.n ?? 0), 2, "دبیرِ دوم اعلانِ جداگانهٔ خودش را ساخت");
+
+  /* ── ۱۰) نمای خودِ دانش‌آموز ──────────────────────────────────── */
+  section("۱۰) نمای خودِ دانش‌آموز");
+
+  const viewers = await listMyViewers(both);
+  is(viewers.length, 2, "دانش‌آموز هر دو بازدیدکننده را می‌بیند");
+  ok(
+    viewers.every((v) => v.className.length > 0)
+      ? "نامِ کلاس در فهرست هست"
+      : "",
+  );
+
+  /* ⚠️ و دانش‌آموزِ دیگری هیچ‌کدام را نمی‌بیند — این جدول خودش نباید به
+     نشتی تبدیل شود. */
+  is((await listMyViewers(mine)).length, 0, "دانش‌آموزِ دیگر بازدیدهای او را نمی‌بیند");
+
+  /* ── ۱۱) مالکیتِ اعلان ────────────────────────────────────────── */
+  section("۱۱) مالکیتِ اعلان");
+
+  const bothNotes = await listNotifications(both);
+  const mineNotes = await listNotifications(mine);
+  ok(bothNotes.length > 0 ? "اعلان‌های خودِ کاربر خوانده می‌شوند" : "");
+  if (bothNotes.length === 0) {
+    failures++;
+    console.log("  ✗ اعلان‌های خودِ کاربر خوانده نمی‌شوند");
+  }
+  is(
+    mineNotes.some((n) => n.kind === "teacher_viewed_student"),
+    false,
+    "کاربرِ دیگر اعلان‌های او را نمی‌بیند",
+  );
+
+  /* ⚠️ «خوانده شد»ِ کاربر A نباید اعلانِ B را دست بزند. */
+  const targetId = bothNotes[0].id;
+  const unreadBefore = await countUnreadNotifications(both);
+  await markNotificationRead(mine, targetId);
+  const unreadAfter = await countUnreadNotifications(both);
+  is(unreadAfter, unreadBefore, "mark-read کاربرِ دیگر اثری روی اعلانِ او ندارد");
+
+  await markNotificationRead(both, targetId);
+  is(
+    await countUnreadNotifications(both),
+    unreadBefore - 1,
+    "ولی خودِ صاحبِ اعلان می‌تواند بخواندش",
+  );
 
   /* ── پاک‌سازی ─────────────────────────────────────────────────── */
   await cleanup();

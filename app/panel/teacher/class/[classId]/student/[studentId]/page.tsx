@@ -11,6 +11,7 @@ import { GRADE_LABEL } from "@/lib/profile/schemas";
 import { fa, jalali, relativeDay } from "@/lib/panel/format";
 import { getStudentDailyActivity } from "@/lib/teacher/analytics";
 import { getStudentReport } from "@/lib/teacher/student-report";
+import { recordStudentView } from "@/lib/teacher/views";
 import type { SkillAnalysis } from "@/lib/plus/analysis";
 
 /**
@@ -70,6 +71,26 @@ export default async function Page({
   if (!report) notFound();
 
   const daily = await getStudentDailyActivity(teacher.id, studentId);
+
+  /* ⚠️ **بعد** از گاردِ دسترسی و نه قبلش.
+  
+     اگر بالاتر بود، تلاشِ ناموفقِ یک دبیر برای دیدنِ دانش‌آموزی که مالِ او
+     نیست هم ثبت می‌شد — و بدتر، برای آن دانش‌آموز اعلان می‌ساخت. یعنی
+     همان گارد به ابزارِ آزار تبدیل می‌شد.
+  
+     ⚠️ و `await` و نه fire-and-forget: کارِ رهاشده در پایانِ رندرِ یک
+     Server Component ممکن است اصلاً اجرا نشود. خودِ تابع هرگز throw
+     نمی‌کند، پس هزینه‌اش فقط یکی دو کوئری است.
+  
+     دبیری که صفحه را چند بار تازه می‌کند، اینجا چند ردیفِ بازدید می‌سازد
+     ولی فقط یک اعلان — تفکیکشان در `lib/teacher/views.ts`. */
+  await recordStudentView({
+    teacherId: teacher.id,
+    teacherName: teacher.fullName ?? null,
+    studentId,
+    classId,
+    className: activeClassName(report.student.classes, classId),
+  });
 
   const { student, aruz, weights, roles, exams, games } = report;
   const activeClass = student.classes.find((c) => c.id === classId) ?? student.classes[0];
@@ -266,6 +287,14 @@ export default async function Page({
       </div>
     </>
   );
+}
+
+/** نامِ کلاسی که صفحه از راهش باز شده. */
+function activeClassName(
+  classes: { id: string; name: string }[],
+  classId: string,
+): string {
+  return classes.find((c) => c.id === classId)?.name ?? classes[0]?.name ?? "کلاس";
 }
 
 /** تازه‌ترین زمانِ ثبت‌شده در میانِ همهٔ منابع. */

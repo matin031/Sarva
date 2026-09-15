@@ -214,7 +214,18 @@ export type PlusNotificationKind =
   /** «مدارکت را اصلاح کن» — نه تأیید است و نه رد؛ پرونده باز می‌ماند.
    *  استفادهٔ دوباره از `teacher_rejected` یعنی کاربری که فقط باید یک عکسِ
    *  واضح‌تر بفرستد، پیامِ «رد شد» بگیرد و دیگر تلاش نکند. */
-  | "teacher_needs_revision";
+  | "teacher_needs_revision"
+  /**
+   * ⚠️ چهار نوعِ تازه از مهاجرت ۰۱۲ — کلاس و بازخورد.
+   *
+   * جدولِ تازه‌ای برای اعلان ساخته نشد: `plus_notifications` با وجودِ
+   * نامش عمومی است و یک سیستمِ دومِ موازی یعنی دانش‌آموز باید دو جا را
+   * نگاه کند و زنگولهٔ شمارنده یکی‌شان را جا بیندازد.
+   */
+  | "teacher_viewed_student"
+  | "teacher_feedback"
+  | "class_joined"
+  | "class_removed";
 
 export type PlusNotification = {
   id: string;

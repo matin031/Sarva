@@ -1,15 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import {
   adminApproveTeacherRequest,
+  adminGetTeacherRequest,
   adminListTeacherRequests,
   adminRejectTeacherRequest,
   adminRequestTeacherRevision,
 } from "@/lib/admin/teacher-actions";
-import { TEACHER_STATUS_LABEL, type AdminTeacherRequest, type TeacherRequestStatus } from "@/lib/teacher/types";
+import {
+  TEACHER_LOG_ACTION_LABEL,
+  TEACHER_STATUS_LABEL,
+  type AdminTeacherRequest,
+  type TeacherRequestStatus,
+  type TeacherVerificationLogEntry,
+} from "@/lib/teacher/types";
 
 /**
  * مدیریت درخواست دبیران — بند ۷.
@@ -354,6 +361,115 @@ function RequestCard({
             </div>
           )}
         </dl>
+      )}
+
+      {/* ⚠️ فقط وقتی پرونده باز است — کامپوننت با بسته شدن unmount می‌شود و
+          درخواستش هم لغو. */}
+      {open && <RequestHistory key={request.id} requestId={request.id} />}
+    </div>
+  );
+}
+
+/**
+ * تاریخچهٔ پرونده.
+ *
+ * =============================================================================
+ * ⚠️ چرا فقط هنگامِ باز شدن خوانده می‌شود
+ * =============================================================================
+ *
+ * `adminGetTeacherRequest` از اول هم `history` را برمی‌گرداند، ولی هیچ‌کس
+ * صدایش نمی‌زد — یعنی `teacher_verification_logs` که در مهاجرت ۰۱۰ ساخته
+ * شد، از پنلِ ادمین اصلاً دیده نمی‌شد و جوابِ «چرا این پرونده سه بار
+ * اصلاح خورد؟» فقط با SQL درمی‌آمد.
+ *
+ * ⚠️ و در *فهرست* خوانده نمی‌شود: یک صفحهٔ بیست‌وپنج‌ردیفی بیست‌وپنج کوئریِ
+ * اضافه می‌زد برای چیزی که تا روی ردیف کلیک نشود دیده نمی‌شود. همان
+ * دلیلی که خودِ `adminGetTeacherRequest` هم تاریخچه را جدا نگه داشته.
+ *
+ * ⚠️ هیچ فیلدِ تازه‌ای از پرونده اینجا تکرار نمی‌شود — نه کد ملی، نه
+ * شماره، نه سند. آن‌ها بالاتر در همان کارت هستند و دوباره‌نویسی‌شان فقط
+ * سطحِ نشت را بیشتر می‌کند.
+ */
+function RequestHistory({ requestId }: { requestId: string }) {
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "error" }
+    | { kind: "ready"; entries: TeacherVerificationLogEntry[] }
+  >({ kind: "loading" });
+
+  /* ⚠️ اینجا عمداً `setState({ kind: "loading" })` در بدنهٔ effect نیست.
+  
+     مقدارِ اولیه از قبل `loading` است، و کامپوننت با بسته شدنِ ردیف
+     unmount می‌شود — پس هر بار که باز شود از نو شروع می‌کند. `key` در
+     محلِ فراخوانی همین را تضمین می‌کند.
+  
+     (نسخهٔ اول آن را می‌گذاشت و `react-hooks/set-state-in-effect` درست
+     گرفتش: یک setStateِ همگام در effect یعنی یک رندرِ آبشاریِ اضافه در
+     هر بار باز شدن.) */
+  useEffect(() => {
+    let alive = true;
+
+    adminGetTeacherRequest(requestId)
+      .then((result) => {
+        if (!alive) return;
+        /* `null` یعنی پرونده بین باز شدنِ فهرست و این درخواست حذف شده —
+           نادر، ولی نباید به یک بخشِ خالیِ بی‌توضیح برسد. */
+        setState(result ? { kind: "ready", entries: result.history } : { kind: "error" });
+      })
+      .catch(() => {
+        /* ⚠️ حالتِ خطا لازم است: بدونِ آن، یک قطعیِ شبکه دقیقاً شبیهِ
+           «تاریخچه‌ای نیست» دیده می‌شود و مدیر فکر می‌کند پرونده سابقه
+           ندارد. */
+        if (alive) setState({ kind: "error" });
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [requestId]);
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-border p-4">
+      <h3 className="text-xs font-bold text-muted-foreground">تاریخچهٔ پرونده</h3>
+
+      {state.kind === "loading" && (
+        <p className="text-[13px] text-muted-foreground">در حال خواندن…</p>
+      )}
+
+      {state.kind === "error" && (
+        <p className="text-[13px] text-muted-foreground">تاریخچه خوانده نشد.</p>
+      )}
+
+      {state.kind === "ready" && state.entries.length === 0 && (
+        <p className="text-[13px] text-muted-foreground">رویدادی ثبت نشده است.</p>
+      )}
+
+      {state.kind === "ready" && state.entries.length > 0 && (
+        /* ⚠️ `<ol>` و نه `<ul>`: ترتیب اینجا خودش معناست و صفحه‌خوان هم
+            باید همین را بگوید. */
+        <ol className="flex flex-col gap-2.5">
+          {state.entries.map((entry) => (
+            <li key={entry.id} className="flex flex-col gap-0.5 border-s-2 border-border ps-3">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px]">
+                <span className="font-medium">{TEACHER_LOG_ACTION_LABEL[entry.action]}</span>
+                {/* ⚠️ `actorName` برای `submitted` و `resubmitted` خالی
+                    است، چون خودِ کاربر انجامشان داده و ادمینی در کار
+                    نیست. نوشتنِ «—» آنجا گمراه‌کننده بود. */}
+                {entry.actorName && (
+                  <span className="text-muted-foreground">· {entry.actorName}</span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  · {new Date(entry.createdAt).toLocaleString("fa-IR")}
+                </span>
+              </div>
+              {entry.description && (
+                <p className="whitespace-pre-line text-[12.5px] text-muted-foreground">
+                  {entry.description}
+                </p>
+              )}
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );

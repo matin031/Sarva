@@ -10,13 +10,18 @@ import { notify } from "@/lib/plus/notifications";
 import { normalizeJoinCode } from "./join-code";
 import { findOrCreateSchool, findSchool, linkTeacherToSchool } from "./schools";
 import {
+  allowRejoin,
   createClass,
   joinClassByCode,
   leaveClass,
+  previewClassByCode,
   removeClassMember,
   rotateJoinCode,
   setClassActive,
+  setJoinEnabled,
+  type ClassPreview,
 } from "./classes";
+import { NO_SUCH_CODE } from "./membership";
 import type { School, TeacherClass } from "./types";
 
 /**
@@ -155,6 +160,53 @@ export async function teacherRotateJoinCode(classId: string): Promise<ActionResu
   return { ok: true, data: { joinCode: code } };
 }
 
+/**
+ * باز و بسته کردنِ **عضوگیری**.
+ *
+ * ⚠️ این همان دکمه‌ای است که تا مهاجرت ۰۱۴ به `is_active` وصل بود. متنِ
+ * رابط کاربری از همان اول همین را می‌گفت («کسی نمی‌تواند عضو شود، اعضای
+ * فعلی سرِ جایشان هستند») ولی ستونش چیزِ دیگری بود. حالا هر دو یک چیز
+ * می‌گویند و `is_active` برای بایگانی آزاد شد.
+ */
+export async function teacherSetJoinEnabled(
+  classId: string,
+  enabled: boolean,
+): Promise<ActionResult<null>> {
+  const teacher = await requireTeacher();
+  const id = uuidArg(classId, "شناسهٔ کلاس نامعتبر است.");
+  const value = boolArg(enabled, "مقدار نامعتبر است.");
+
+  const done = await setJoinEnabled(teacher.id, id, value);
+  if (!done) return invalid(["کلاس پیدا نشد."]);
+
+  revalidatePath("/panel/teacher");
+  revalidatePath(`/panel/teacher/class/${id}`);
+  return { ok: true, data: null };
+}
+
+/**
+ * «اجازهٔ بازگشت» به دانش‌آموزی که دبیر بیرونش گذاشته بود.
+ *
+ * ⚠️ خودش عضو نمی‌کند: وضعیت از `blocked` به `removed` می‌رود و دانش‌آموز
+ * باید خودش دوباره با کد وارد شود. عضو کردنِ کسی بدونِ اینکه خواسته باشد،
+ * دقیقاً همان کاری است که جریانِ «پیش‌نمایش سپس تأیید» برای جلوگیری از آن
+ * ساخته شد.
+ */
+export async function teacherAllowRejoin(
+  classId: string,
+  studentId: string,
+): Promise<ActionResult<null>> {
+  const teacher = await requireTeacher();
+  const id = uuidArg(classId, "شناسهٔ کلاس نامعتبر است.");
+  const student = uuidArg(studentId, "شناسهٔ دانش‌آموز نامعتبر است.");
+
+  const done = await allowRejoin(teacher.id, id, student);
+  if (!done) return invalid(["این دانش‌آموز در فهرستِ اخراج‌شده‌های این کلاس نیست."]);
+
+  revalidatePath(`/panel/teacher/class/${id}`);
+  return { ok: true, data: null };
+}
+
 /** بیرون گذاشتنِ یک دانش‌آموز از کلاس. */
 export async function teacherRemoveMember(
   classId: string,
@@ -189,6 +241,53 @@ export async function teacherRemoveMember(
 }
 
 /* ═════════════════════════ سمتِ دانش‌آموز ════════════════════════════ */
+
+/**
+ * گامِ **اول** از پیوستن: نگاه کردن، بدونِ عضو شدن.
+ *
+ * ⚠️ چرا این گام اصلاً وجود دارد:
+ *
+ * تا امروز وارد کردنِ کد **مستقیماً** عضویت می‌ساخت. یعنی دانش‌آموز پیش از
+ * آنکه بداند کلاسِ کیست، در کدام مدرسه است، و مهم‌تر از همه **دبیر از این
+ * به بعد چه چیزی از او می‌بیند**، قبولش کرده بود. برای دسترسی به دادهٔ
+ * آموزشیِ یک نوجوان، «کد را زدی پس قبول کردی» رضایت نیست.
+ *
+ * ⚠️ این اکشن هیچ چیزی نمی‌نویسد. (`previewClassByCode` هم همین‌طور — و
+ * تستِ E2E می‌سنجد که تعدادِ ردیف‌های `class_members` عوض نشود.)
+ */
+export async function studentPreviewClass(
+  joinCode: string,
+): Promise<ActionResult<ClassPreview>> {
+  const user = await requireUser();
+
+  const text = optionalTextArg(joinCode, 20, "کد عضویت خیلی بلند است.");
+  if (!text) return invalid(["کد عضویت را وارد کنید."]);
+
+  const code = normalizeJoinCode(text);
+
+  /* ⚠️ شکلِ بدشکل همان پیامِ «پیدا نشد» را می‌گیرد و نه «فرمت غلط است».
+     تفکیکشان به کسی که کد می‌سازد می‌گفت کدام الگوها اصلاً وجود دارند. */
+  if (!/^[A-Z2-9]{6,10}$/.test(code)) return invalid([NO_SUCH_CODE]);
+
+  /* ⚠️ سقفِ نرخ روی **پیش‌نمایش** هم لازم است و نه فقط روی عضویت.
+
+     بدونِ آن، پیش‌نمایش به یک اوراکلِ رایگان تبدیل می‌شد: با هر کد می‌شد
+     پرسید «کلاسی هست؟» و نامِ دبیر و مدرسه را گرفت، بی‌آنکه هیچ ردیفی
+     ساخته شود و هیچ سقفی به آن بخورد. سخاوتمندتر از عضویت است (دانش‌آموز
+     ممکن است کد را غلط تایپ کند) ولی کران‌دار.
+
+     دیتابیسی و نه در-حافظه: این یک شمارشِ امنیتی است و ری‌استارتِ سرور
+     نباید سهمیه را برگرداند. */
+  const limit = await rateLimitDb(`class-preview:${user.id}`, 30, 60 * 60);
+  if (!limit.allowed) {
+    return invalid([`تلاش‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`]);
+  }
+
+  const result = await previewClassByCode(user.id, code);
+  if (!result.ok) return invalid([result.error]);
+
+  return { ok: true, data: result.preview };
+}
 
 /**
  * پیوستن به کلاس با کد — گامِ ۵ در فرآیندِ خواسته‌شده.

@@ -10,7 +10,7 @@ import { GRADE_LABEL } from "@/lib/profile/schemas";
 import {
   teacherRemoveMember,
   teacherRotateJoinCode,
-  teacherSetClassActive,
+  teacherSetJoinEnabled,
 } from "@/lib/teacher/actions";
 import type { ClassMember, TeacherClass } from "@/lib/teacher/types";
 
@@ -31,7 +31,13 @@ export default function ClassDetail({
   initialMembers: ClassMember[];
 }) {
   const [joinCode, setJoinCode] = useState(klass.joinCode);
-  const [isActive, setIsActive] = useState(klass.isActive);
+  /* ⚠️ این کلید به `join_enabled` وصل است و نه `is_active`.
+  
+     تا مهاجرت ۰۱۴ یک ستون بودند و همین دکمه `is_active` را عوض می‌کرد —
+     در حالی که متنش («کسی نمی‌تواند عضو شود، اعضای فعلی سرِ جایشان
+     هستند») دقیقاً `join_enabled` را توصیف می‌کرد. حالا هر دو یک چیز
+     می‌گویند و بایگانیِ کلاس یک اقدامِ جداست. */
+  const [joinOpen, setJoinOpen] = useState(klass.joinEnabled);
   const [members, setMembers] = useState(initialMembers);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -94,30 +100,33 @@ export default function ClassDetail({
         </CardContent>
       </Card>
 
-      {/* ── وضعیت کلاس ──────────────────────────────────────────────── */}
+      {/* ── عضوگیری ─────────────────────────────────────────────────── */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-bold">{isActive ? "کلاس باز است" : "کلاس بسته است"}</h2>
+            <h2 className="font-bold">
+              {joinOpen ? "عضوگیری باز است" : "عضوگیری بسته است"}
+            </h2>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              {isActive
+              {joinOpen
                 ? "دانش‌آموزان تازه می‌توانند با کد عضو شوند."
-                : "کسی نمی‌تواند عضو شود. اعضای فعلی سرِ جایشان هستند."}
+                : "کسی نمی‌تواند با کد عضو شود. اعضای فعلی سرِ جایشان هستند و عملکردشان را می‌بینی."}
             </p>
           </div>
           <Button
             type="button"
-            variant={isActive ? "outline" : "default"}
+            variant={joinOpen ? "outline" : "default"}
             size="sm"
             disabled={pending}
+            aria-pressed={!joinOpen}
             onClick={() =>
               run(
-                () => teacherSetClassActive(klass.id, !isActive),
-                () => setIsActive((v) => !v),
+                () => teacherSetJoinEnabled(klass.id, !joinOpen),
+                () => setJoinOpen((v) => !v),
               )
             }
           >
-            {isActive ? "بستن کلاس" : "باز کردن کلاس"}
+            {joinOpen ? "بستن عضوگیری" : "باز کردن عضوگیری"}
           </Button>
         </CardContent>
       </Card>
@@ -175,7 +184,10 @@ export default function ClassDetail({
                             setMembers((prev) =>
                               prev.map((m) =>
                                 m.studentId === member.studentId
-                                  ? { ...m, status: "removed" as const }
+                                  /* ⚠️ `blocked` و نه `removed`: از مهاجرت ۰۱۴ به
+                                     بعد، بیرون گذاشتنِ دبیر یعنی بلاک — و
+                                     همان چیزی است که سرور نوشته. */
+                                  ? { ...m, status: "blocked" as const }
                                   : m,
                               ),
                             ),

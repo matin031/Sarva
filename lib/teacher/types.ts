@@ -10,6 +10,7 @@
  */
 
 import type { Grade } from "@/lib/profile/schemas";
+import type { MembershipStatus } from "./membership";
 
 /**
  * ⚠️ `needs_revision` نه تأیید است و نه رد — یک حالتِ *باز* است.
@@ -188,7 +189,16 @@ export type TeacherClass = {
   schoolName: string;
   /** ⚠️ فقط برای خودِ دبیر. هر کسی که این کد را داشته باشد وارد کلاس می‌شود. */
   joinCode: string;
+  /** کلاس بایگانی نشده؟ — وضعیتِ خودِ کلاس. */
   isActive: boolean;
+  /**
+   * عضوگیری باز است؟
+   *
+   * ⚠️ از `isActive` جداست و مهاجرت ۰۱۴ همین را جدا کرد: «کلاس بسته است»
+   * و «فعلاً عضو نمی‌پذیرم» دو کارِ متفاوت‌اند و تا آن migration یک ستون
+   * بودند.
+   */
+  joinEnabled: boolean;
   memberCount: number;
   createdAt: string;
 };
@@ -202,6 +212,15 @@ export type StudentClass = {
   teacherName: string | null;
   isActive: boolean;
   joinedAt: string;
+  /**
+   * ⚠️ فقط `active` و `blocked` به این فهرست می‌رسند.
+   *
+   * `removed` (خروجِ خودخواسته) عمداً نمی‌آید: دانش‌آموز خودش رفته و نشان
+   * دادنِ کلاسی که ترکش کرده فقط شلوغی است. ولی `blocked` می‌آید — کسی که
+   * دبیر بیرونش گذاشته باید بفهمد چه شده، نه اینکه کلاس بی‌توضیح ناپدید
+   * شود و او با کد دوباره امتحان کند.
+   */
+  status: "active" | "blocked";
 };
 
 export type ClassMember = {
@@ -209,5 +228,6 @@ export type ClassMember = {
   fullName: string | null;
   grade: Grade | null;
   joinedAt: string;
-  status: "active" | "removed";
+  /** شرحِ هر وضعیت در `lib/teacher/membership.ts`. */
+  status: MembershipStatus;
 };

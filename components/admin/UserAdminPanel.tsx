@@ -11,7 +11,9 @@ import {
 } from "@/lib/admin/user-actions";
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { adminRevokeTeacher } from "@/lib/admin/teacher-actions";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import RevokeTeacherDialog from "@/components/admin/RevokeTeacherDialog";
 import type { UserRole } from "@/lib/auth/types";
 
 function formatDate(iso: string | undefined) {
@@ -55,6 +57,11 @@ export default function UserAdminPanel({
   const [status, setStatus] = useState<StatusFilter>("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<PendingAction | null>(null);
+  /* ⚠️ جدا از `confirming` و نه یک `kind` تازه در آن: لغوِ دبیری یک متنِ
+     آزاد لازم دارد و `ConfirmDialog` فقط تأییدِ ساده یا تایپِ یک عبارتِ
+     مشخص را می‌شناسد. قاطی کردنشان یعنی آن دیالوگِ مشترک باید حالتِ
+     چهارمی بگیرد که هیچ‌جای دیگری استفاده نمی‌شود. */
+  const [revoking, setRevoking] = useState<AdminUserRow | null>(null);
   const [pending, startTransition] = useTransition();
 
   const load = (
@@ -84,6 +91,33 @@ export default function UserAdminPanel({
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(() => load({ query: value }), 300);
   };
+
+  /**
+   * لغوِ دسترسیِ دبیری.
+   *
+   * ⚠️ جدا از `run` و نه یک شاخهٔ تازه در آن: تنها اقدامِ این صفحه است که
+   * یک ورودیِ متنی می‌گیرد، و چپاندنش در آن سوییچ یعنی همهٔ شاخه‌های دیگر
+   * باید یک پارامترِ بی‌ربط را حمل کنند.
+   *
+   * ⚠️ دیالوگ **پس از موفقیت** بسته می‌شود و نه قبلش: اگر زودتر بسته
+   * می‌شد، خطای سرور روی یک صفحهٔ بی‌بافت ظاهر می‌شد و متنی که مدیر تایپ
+   * کرده بود از بین می‌رفت.
+   */
+  async function revoke(user: AdminUserRow, reason: string) {
+    setBusyId(user.id);
+    try {
+      const result = await adminRevokeTeacher(user.id, reason);
+      if (!result.ok) return toast(result.errors.join("\n"));
+
+      setRevoking(null);
+      /* نقش در همان لحظه در فهرست به‌روز می‌شود تا دکمه‌ها با واقعیت
+         بخوانند؛ `revalidatePath` سمتِ سرور هم زده شده. */
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: "student" } : u)));
+      toast("دسترسی دبیری لغو شد.", "success");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function run(action: PendingAction) {
     const { user } = action;
@@ -207,7 +241,7 @@ export default function UserAdminPanel({
                   {formatDate(u.lastSignInAt)}
                 </td>
                 <td className="px-4 py-3">
-                  <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} />
+                  <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} onRevoke={setRevoking} />
                 </td>
               </tr>
             ))}
@@ -234,7 +268,7 @@ export default function UserAdminPanel({
             <p className="text-xs text-muted-foreground">
               عضویت {formatDate(u.createdAt)} · آخرین ورود {formatDate(u.lastSignInAt)}
             </p>
-            <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} />
+            <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} onRevoke={setRevoking} />
           </div>
         ))}
         {users.length === 0 && !pending && (
@@ -274,6 +308,15 @@ export default function UserAdminPanel({
         onConfirm={() => confirming && run(confirming)}
         onCancel={() => setConfirming(null)}
       />
+
+      {revoking && (
+        <RevokeTeacherDialog
+          who={revoking.fullName || revoking.email || revoking.id}
+          busy={busyId === revoking.id}
+          onConfirm={(reason) => revoke(revoking, reason)}
+          onCancel={() => setRevoking(null)}
+        />
+      )}
     </div>
   );
 }
@@ -359,13 +402,19 @@ function RowActions({
   user,
   busy,
   onAsk,
+  onRevoke,
 }: {
   user: AdminUserRow;
   busy: boolean;
   onAsk: (a: PendingAction) => void;
+  onRevoke: (user: AdminUserRow) => void;
 }) {
+  /* ⚠️ حلقهٔ فوکوس در پایهٔ مشترک است و نه فقط روی دکمهٔ تازه: هر چهار
+     دکمهٔ این ردیف با کیبورد قابلِ رسیدن‌اند و هیچ‌کدام نشان نمی‌دادند
+     کجا هستیم. */
   const btn =
-    "min-h-9 rounded-lg border border-border bg-card px-2.5 text-xs disabled:opacity-60 transition-colors";
+    "min-h-9 rounded-lg border border-border bg-card px-2.5 text-xs disabled:opacity-60 transition-colors " +
+    "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -380,6 +429,23 @@ function RowActions({
       >
         {user.role === "admin" ? "برداشتن مدیریت" : "ارتقا به مدیر"}
       </button>
+
+      {/* ⚠️ فقط برای دبیر، و عمداً جدا از «ارتقا به مدیر» و «مسدود کردن».
+      
+          پیش از این هیچ راهی برای پس گرفتنِ دبیری نبود: دکمهٔ نقش برای یک
+          دبیر «ارتقا به مدیر» می‌گفت. و قاطی کردنش با مسدودسازی هم غلط
+          بود — مسدود کردن یعنی «اصلاً وارد نشو»، این یعنی «وارد شو ولی
+          دیگر دبیر نیستی». */}
+      {user.role === "teacher" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onRevoke(user)}
+          className={`${btn} text-destructive hover:border-destructive/50`}
+        >
+          لغو دبیری
+        </button>
+      )}
       <button
         type="button"
         disabled={busy}
@@ -392,7 +458,7 @@ function RowActions({
         type="button"
         disabled={busy}
         onClick={() => onAsk({ kind: "delete", user })}
-        className="min-h-9 rounded-lg bg-destructive/10 px-2.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60"
+        className={`min-h-9 rounded-lg bg-destructive/10 px-2.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
       >
         حذف
       </button>

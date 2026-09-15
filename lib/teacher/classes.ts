@@ -164,10 +164,22 @@ export async function teacherCanSeeStudent(
   studentId: string,
 ): Promise<boolean> {
   const row = await queryOne<{ n: number }>(
+    /* ⚠️ `t.role = 'teacher'` هم شرط است و نه فقط مالکیتِ کلاس.
+    
+       بدونِ آن، دبیری که مدیر دسترسی‌اش را لغو کرده هنوز از دیدِ **این
+       تابع** دانش‌آموزانش را می‌بیند: کلاس‌ها سرِ جایشان می‌مانند (عمداً —
+       سابقه حذف نمی‌شود) و این کوئری فقط همان‌ها را می‌سنجید.
+    
+       در عمل `requireTeacher()` در صفحه جلویش را می‌گیرد، ولی این تابع
+       «دروازهٔ کلِ تحلیل» نامیده شده و باید خودش هم درست جواب بدهد —
+       وگرنه اولین فراخوانی که یادش برود گاردِ نقش را بگذارد، یک نشتِ
+       کامل است. آزمونِ `db:check-teacher` دقیقاً همین را گرفت. */
     `select 1 as n
        from class_members m
        join teacher_classes c on c.id = m.class_id
+       join users t on t.id = c.teacher_id
       where m.student_id = ? and c.teacher_id = ? and m.status = 'active'
+        and t.role = 'teacher'
       limit 1`,
     [studentId, teacherId],
   );

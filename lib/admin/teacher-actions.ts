@@ -9,7 +9,7 @@ import { notify } from "@/lib/plus/notifications";
 import { locationLabel } from "@/lib/geo";
 import { logger } from "@/lib/observability";
 import { listRequestHistory, recordVerification } from "@/lib/teacher/verification-log";
-import { approveTeacherRequest } from "@/lib/teacher/review";
+import { approveTeacherRequest, revokeTeacher } from "@/lib/teacher/review";
 import {
   OPEN_TEACHER_STATUSES,
   type AdminTeacherRequest,
@@ -444,4 +444,114 @@ export async function adminRequestTeacherRevision(
   note: string,
 ): Promise<ActionResult<null>> {
   return settleRequest(requestId, note, "needs_revision");
+}
+
+/* ═══════════════════════════ لغوِ دسترسی ══════════════════════════════ */
+
+/** سقفِ متنِ دلیل — همان سقفِ ستونِ خلاصهٔ `admin_audit_log`. */
+const MAX_REVOKE_REASON = 300;
+
+/**
+ * لغوِ دسترسیِ دبیری.
+ *
+ * =============================================================================
+ * ⚠️ چرا این مسیر لازم بود
+ * =============================================================================
+ *
+ * تأیید تا امروز یک درِ یک‌طرفه بود. `adminSetUserRole` فقط `student` و
+ * `admin` می‌پذیرد و دکمه‌اش در رابط کاربری برای یک دبیر «ارتقا به مدیر»
+ * است — پس هیچ راهی برای پس گرفتنِ دبیری وجود نداشت. نتیجهٔ یک تأییدِ
+ * اشتباه، یک اشتراکِ مادام‌العمرِ برگشت‌ناپذیر بود و یک کلاسِ زنده بدونِ
+ * ناظر.
+ *
+ * ⚠️ و چرا `adminSetUserRole` را گسترش ندادم: آن تابع فقط یک ستون را عوض
+ * می‌کند. لغوِ دبیری سه نوشتن است که باید با هم انجام شوند. قاطی کردنشان
+ * یعنی روزی کسی نقش را عوض کند و اشتراک و کلاس‌ها جا بمانند — دقیقاً
+ * همان چیزی که این کار برای رفعش هست.
+ *
+ * ⚠️ `reason` اجباری است. بدونِ آن، شش ماه بعد ردیفِ audit می‌گوید «لغو
+ * شد» و هیچ‌کس نمی‌داند چرا — و اگر کاربر اعتراض کند، هیچ مبنایی برای
+ * بازبینی نیست.
+ */
+export async function adminRevokeTeacher(
+  userId: string,
+  reason: string,
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  const id = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+
+  const note = typeof reason === "string" ? reason.trim() : "";
+  if (note.length < 5) return { ok: false, errors: ["دلیل لغو را بنویسید."] };
+  if (note.length > MAX_REVOKE_REASON) {
+    return { ok: false, errors: [`دلیل لغو نباید از ${MAX_REVOKE_REASON} نویسه بیشتر باشد.`] };
+  }
+
+  /* ⚠️ مدیر نمی‌تواند دسترسیِ دبیریِ **خودش** را لغو کند — و این یک حالتِ
+     نظری نیست: نقشِ `admin` اصلاً به `revokeTeacher` نمی‌رسد (آنجا
+     `not_teacher` می‌گیرد)، ولی پیامِ صریح بهتر از یک خطای گیج‌کننده است. */
+  if (id === admin.id) {
+    return { ok: false, errors: ["نمی‌توانید دسترسی حساب خودتان را تغییر دهید."] };
+  }
+
+  const outcome = await revokeTeacher(id);
+
+  if (outcome.kind === "missing") return { ok: false, errors: ["کاربر پیدا نشد."] };
+  if (outcome.kind === "not_teacher") {
+    return {
+      ok: false,
+      errors: [
+        outcome.role === "admin"
+          ? "این کاربر مدیر است و نقش دبیری ندارد."
+          : "این کاربر دبیر نیست.",
+      ],
+    };
+  }
+
+  /* ⚠️ اعلان و audit **بیرونِ** تراکنش — همان ترتیبی که تأیید هم دارد.
+     `notify` هرگز throw نمی‌کند، ولی اگر داخل بود، کندی‌اش قفلِ ردیفِ
+     کاربر را نگه می‌داشت و هر خطای غیرمنتظره‌ای می‌توانست لغوی را
+     برگرداند که از نظر مدیر انجام شده. */
+  await notify({
+    userId: id,
+    kind: "teacher_revoked",
+    title: "دسترسی دبیری حساب شما لغو شد",
+    /* ⚠️ متنِ دلیل **در اعلان نمی‌آید**.
+
+       دلیل را مدیر برای سابقهٔ داخلی می‌نویسد و ممکن است صریح یا
+       قضاوت‌آمیز باشد؛ فرستادنش خام به کاربر، یک یادداشتِ اداری را به یک
+       پیامِ شخصی تبدیل می‌کند. کاربری که توضیح بخواهد، از راهِ پشتیبانی
+       می‌پرسد و آنجا با زبانِ درست جواب می‌گیرد. */
+    body: "پنل دبیر و سروا پلاسِ ناشی از تأیید دبیری دیگر فعال نیست. اگر فکر می‌کنید اشتباهی شده، با پشتیبانی تماس بگیرید.",
+    href: "/panel/support",
+  });
+
+  await recordAudit({
+    actor: admin,
+    action: "teacher.revoke",
+    targetType: "user",
+    targetId: id,
+    summary: `دسترسی دبیریِ ${outcome.fullName ?? outcome.email ?? id} لغو شد — ${note}`,
+    metadata: {
+      reason: note,
+      plusRevoked: outcome.plusRevoked,
+      classesClosed: outcome.classesClosed,
+    },
+  });
+
+  /* ⚠️ لاگِ عملیاتی فقط شناسه و شمارش دارد.
+
+     `reason` را مدیر نوشته و می‌تواند نامِ آدم‌ها یا جزئیاتِ یک شکایت را
+     داشته باشد؛ جایش `admin_audit_log` است که پشتِ `requireAdmin()`
+     خوانده می‌شود، نه stdoutِ کانتینر که هر جمع‌آورندهٔ لاگی می‌بیندش.
+     (همان قاعده‌ای که برای `document_key` هم گذاشته شد.) */
+  logger.info("دسترسی دبیری لغو شد", {
+    event: "teacher.revoked",
+    user_id: id,
+    plus_revoked: outcome.plusRevoked,
+    classes_closed: outcome.classesClosed,
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/teachers");
+  return { ok: true, data: null };
 }

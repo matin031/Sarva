@@ -92,14 +92,20 @@ export async function getStudentForTeacher(
     full_name: string | null;
     grade: Grade | null;
   }>(
+    /* ⚠️ `t.role = 'teacher'` — همان شرطی که `teacherCanSeeStudent` هم
+       دارد و به همان دلیل: مدیر که دسترسیِ دبیری کسی را لغو می‌کند،
+       کلاس‌هایش عمداً باقی می‌مانند (سابقه حذف نمی‌شود)، پس مالکیتِ کلاس
+       به‌تنهایی دیگر «هنوز دبیر است» را ثابت نمی‌کند. */
     `select c.id as class_id, c.name as class_name, c.grade as class_grade,
             m.joined_at, u.full_name, u.grade
        from class_members m
        join teacher_classes c on c.id = m.class_id
        join users u on u.id = m.student_id
+       join users t on t.id = c.teacher_id
       where m.student_id = ?
         and c.teacher_id = ?
         and m.status = 'active'
+        and t.role = 'teacher'
         -- ⚠️ الگوی «یا فیلتر نده یا برابر باشد»: در MySQL هر ? یک پارامتر
         -- مصرف می‌کند، پس مقدار دو بار فرستاده می‌شود.
         and (? is null or c.id = ?)

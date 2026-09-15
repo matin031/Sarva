@@ -121,7 +121,9 @@ export type AuditAction =
   | "teacher.approve"
   | "teacher.reject"
   | "teacher.needs_revision"
-  | "teacher.document_view";
+  | "teacher.document_view"
+  /** لغوِ دسترسیِ دبیری — قرینهٔ `teacher.approve`. */
+  | "teacher.revoke";
 
 export type AuditTargetType =
   | "user"
@@ -223,6 +225,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "teacher.reject": "رد درخواست دبیری",
   "teacher.needs_revision": "درخواست اصلاح مدارک دبیری",
   "teacher.document_view": "مشاهدهٔ حکم کارگزینی",
+  "teacher.revoke": "لغو دسترسی دبیری",
 };
 
 /** عمل‌هایی که برگشت‌ناپذیرند — در پنل با رنگ متفاوت دیده می‌شوند. */
@@ -253,6 +256,10 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   // و باید در فهرستِ «کارهای برگشت‌ناپذیر» دیده شوند.
   "plus.revoke",
   "plus.order_status",
+  /* ⚠️ لغوِ دبیری هم برگشت‌ناپذیر است و نه فقط «تغییرِ نقش»: اشتراکِ
+     مادام‌العمری که لغو می‌شود با تأییدِ دوباره هم برنمی‌گردد — یک ردیفِ
+     تازه ساخته می‌شود و ردیفِ قبلی برای همیشه `revoked_at` دارد. */
+  "teacher.revoke",
 ]);
 
 /**

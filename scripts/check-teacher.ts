@@ -24,8 +24,12 @@ import { submitTeacherRequest } from "@/lib/teacher/requests";
 import { getLatestTeacherRequest } from "@/lib/teacher/requests";
 import { listMyVerificationHistory } from "@/lib/teacher/verification-log";
 import { findOrCreateSchool } from "@/lib/teacher/schools";
+import { createClass, joinClassByCode, teacherCanSeeStudent } from "@/lib/teacher/classes";
+import { getStudentForTeacher } from "@/lib/teacher/analytics";
+import { createFeedback, listStudentFeedback } from "@/lib/teacher/feedback";
+import { listRequestHistory } from "@/lib/teacher/verification-log";
 // ⚠️ همان تابعی که Server Action ادمین صدا می‌زند — نه رونوشتِ آن.
-import { approveTeacherRequest } from "@/lib/teacher/review";
+import { approveTeacherRequest, revokeTeacher } from "@/lib/teacher/review";
 import { getPlusStatusFor } from "@/lib/plus/entitlement";
 import { notify } from "@/lib/plus/notifications";
 import type { AuthUser } from "@/lib/auth/types";
@@ -45,6 +49,10 @@ function bad(label: string, detail?: string) {
 function is(actual: unknown, expected: unknown, label: string) {
   if (actual === expected) ok(label);
   else bad(label, `انتظار: ${JSON.stringify(expected)} — دریافت: ${JSON.stringify(actual)}`);
+}
+function truthy(value: unknown, label: string) {
+  if (value) ok(label);
+  else bad(label, `مقدار: ${JSON.stringify(value)}`);
 }
 function section(title: string) {
   console.log(`\n${title}`);
@@ -403,12 +411,284 @@ async function main() {
   );
   is(membersAgain?.n, 2, "⚠️ فراخوانیِ دوباره ردیف تکراری نساخت");
 
+  /* ══════════════════════ لغوِ دسترسیِ دبیری ═══════════════════════ */
+  section("لغوِ دسترسیِ دبیری");
+
+  /* صحنه: یک دبیرِ تأییدشده با کلاس، دانش‌آموز، بازخورد، و سه اشتراک از
+     سه منبعِ متفاوت. */
+  const revokee = await makeUser("revokee");
+  /* ⚠️ از مسیرِ **واقعیِ** ثبت و نه یک INSERT خام: فقط این مسیر ردیفِ
+     `submitted` را در تاریخچه می‌نویسد، و تاریخچه همان چیزی است که پنلِ
+     ادمین نشان می‌دهد. (نسخهٔ اول INSERT خام داشت و تستِ تاریخچه درست
+     گرفتش: پرونده‌ای با یک رویداد به‌جای دو تا.) */
+  const revokeeSubmit = await submitTeacherRequest({
+    user: revokee,
+    nationalId: "0499370899",
+    provinceId: PROVINCE,
+    cityId: CITY,
+    school: "دبیرستان لغو",
+    document: doc("revokee"),
+  });
+  if (!revokeeSubmit.ok) bad("ثبتِ درخواستِ revokee", revokeeSubmit.error);
+  const revokeeRequest = await queryOne<{ id: string }>(
+    "select id from teacher_requests where user_id = ?",
+    [revokee.id],
+  );
+  const approvedRevokee = await approveTeacherRequest(revokeeRequest!.id, adminId);
+  is(approvedRevokee.kind, "approved", "دبیرِ آزمون تأیید شد");
+
+  /* اشتراکِ خریداری‌شده و هدیهٔ دستی — هیچ‌کدام نباید لغو شوند. */
+  const purchaseId = randomUUID();
+  const manualId = randomUUID();
+  await execute(
+    `insert into plus_entitlements (id, user_id, source, starts_at, ends_at, reason)
+     values (?, ?, 'purchase', ?, ?, 'خریدِ آزمون')`,
+    [purchaseId, revokee.id, new Date(), new Date(Date.now() + 90 * 864e5)],
+  );
+  await execute(
+    `insert into plus_entitlements (id, user_id, source, starts_at, ends_at, reason)
+     values (?, ?, 'manual_grant', ?, null, 'هدیهٔ آزمون')`,
+    [manualId, revokee.id, new Date()],
+  );
+
+  /* یک کلاس با یک دانش‌آموزِ فعال. */
+  const revClass = await createClass({
+    teacherId: revokee.id,
+    schoolId: school.id,
+    name: `${TAG} کلاسِ لغو`,
+    grade: "11",
+  });
+  const pupil = await makeUser("pupil");
+  const joined = await joinClassByCode(pupil.id, revClass.joinCode);
+  is(joined.ok, true, "دانش‌آموز عضوِ کلاس شد");
+  is(await teacherCanSeeStudent(revokee.id, pupil.id), true, "و دبیر عملکردش را می‌بیند");
+
+  const fb = await createFeedback({
+    teacherId: revokee.id,
+    teacherName: "آزمون دبیری",
+    studentId: pupil.id,
+    classId: revClass.id,
+    category: "general",
+    message: "پیش از لغو نوشته شد.",
+  });
+  is(fb.ok, true, "بازخوردی پیش از لغو ثبت شد");
+
+  /* ── خودِ لغو ─────────────────────────────────────────────────── */
+  const outcome = await revokeTeacher(revokee.id);
+  is(outcome.kind, "revoked", "لغو انجام شد");
+  if (outcome.kind === "revoked") {
+    is(outcome.plusRevoked, 1, "دقیقاً یک اشتراکِ دبیری لغو شد");
+    is(outcome.classesClosed, 1, "و عضوگیریِ یک کلاس بسته شد");
+  }
+
+  /* ── نقش ─────────────────────────────────────────────────────── */
+  const afterRole = await queryOne<{ role: string }>("select role from users where id = ?", [
+    revokee.id,
+  ]);
+  is(afterRole?.role, "student", "نقش به دانش‌آموز برگشت");
+
+  /* ── اشتراک‌ها ───────────────────────────────────────────────── */
+  const ents = await query<{ id: string; source: string; revoked_at: string | null }>(
+    "select id, source, revoked_at from plus_entitlements where user_id = ?",
+    [revokee.id],
+  );
+  const bySource = new Map(ents.map((e) => [e.source, e]));
+  truthy(bySource.get("teacher_verified")?.revoked_at, "اشتراکِ دبیری لغو شد");
+  /* ⚠️ مهم‌ترین دو بررسیِ این بخش: لغوِ دبیری نباید پولِ کاربر را بسوزاند. */
+  is(bySource.get("purchase")?.revoked_at, null, "اشتراکِ خریداری‌شده دست‌نخورده ماند");
+  is(bySource.get("manual_grant")?.revoked_at, null, "هدیهٔ دستی هم دست‌نخورده ماند");
+
+  /* ── کلاس ────────────────────────────────────────────────────── */
+  const afterClass = await queryOne<{ join_enabled: number; is_active: number }>(
+    "select join_enabled, is_active from teacher_classes where id = ?",
+    [revClass.id],
+  );
+  is(Number(afterClass?.join_enabled), 0, "عضوگیریِ کلاس بسته شد");
+  is(Number(afterClass?.is_active), 1, "ولی کلاس بایگانی نشد");
+
+  /* ⚠️ و کدِ کلاس دیگر کسی را وارد نمی‌کند — بدونِ اینکه چرخانده شود. */
+  const latecomer = await makeUser("latecomer");
+  is(
+    (await joinClassByCode(latecomer.id, revClass.joinCode)).ok,
+    false,
+    "کدِ کلاس دیگر عضوِ تازه نمی‌پذیرد",
+  );
+
+  /* ── سابقه ───────────────────────────────────────────────────── */
+  const memberStill = await queryOne<{ status: string }>(
+    "select status from class_members where class_id = ? and student_id = ?",
+    [revClass.id, pupil.id],
+  );
+  is(memberStill?.status, "active", "عضویتِ دانش‌آموز حذف نشد");
+
+  is(
+    (await listStudentFeedback(pupil.id)).length,
+    1,
+    "بازخوردِ قبلی برای دانش‌آموز باقی ماند",
+  );
+
+  /* ⚠️ درخواست باید `approved` بماند — یک واقعیتِ تاریخی است و لغوِ امروز
+     نباید بازنویسی‌اش کند. */
+  const requestAfter = await queryOne<{ status: string }>(
+    "select status from teacher_requests where id = ?",
+    [revokeeRequest!.id],
+  );
+  is(requestAfter?.status, "approved", "وضعیتِ درخواست همچنان «تأییدشده» است");
+
+  /* ── دسترسی ──────────────────────────────────────────────────── */
+  is(
+    await teacherCanSeeStudent(revokee.id, pupil.id),
+    false,
+    "دسترسیِ دبیر به عملکردِ دانش‌آموز قطع شد",
+  );
+  is(
+    await getStudentForTeacher(revokee.id, pupil.id),
+    null,
+    "و تحلیلِ دانش‌آموز هم برایش برنمی‌گردد",
+  );
+
+  /* ── خودتکرارپذیری ───────────────────────────────────────────── */
+  const revokeAgain = await revokeTeacher(revokee.id);
+  is(revokeAgain.kind, "not_teacher", "اجرای دوباره چیزی نمی‌نویسد");
+
+  const entsAgain = await query<{ source: string; revoked_at: string | null }>(
+    "select source, revoked_at from plus_entitlements where user_id = ?",
+    [revokee.id],
+  );
+  is(
+    entsAgain.filter((e) => e.revoked_at !== null).length,
+    1,
+    "و اشتراکِ دیگری لغو نشد",
+  );
+
+  /* ── غیرِدبیر ─────────────────────────────────────────────────── */
+  const plainStudent = await makeUser("plain");
+  const plainOutcome = await revokeTeacher(plainStudent.id);
+  is(plainOutcome.kind, "not_teacher", "کاربرِ عادی قابلِ لغو نیست");
+
+  /* ⚠️ مدیر هم نه — نقشِ `admin` نباید از این مسیر پایین بیاید. */
+  const adminOutcome = await revokeTeacher(adminId);
+  is(adminOutcome.kind, "not_teacher", "مدیر از این مسیر پایین نمی‌آید");
+  if (adminOutcome.kind === "not_teacher") {
+    is(adminOutcome.role, "admin", "و دلیلش هم روشن است");
+  }
+  const adminRole = await queryOne<{ role: string }>("select role from users where id = ?", [
+    adminId,
+  ]);
+  is(adminRole?.role, "admin", "نقشِ مدیر دست‌نخورده ماند");
+
+  is(
+    (await revokeTeacher(randomUUID())).kind,
+    "missing",
+    "کاربرِ ناموجود بی‌خطر رد می‌شود",
+  );
+
+  /* ── هم‌زمانی ────────────────────────────────────────────────── */
+  section("هم‌زمانیِ لغو");
+
+  /* صحنهٔ دوم: یک دبیرِ تازه، و دو لغوِ کاملاً هم‌زمان. */
+  const racer = await makeUser("racer");
+  /* ⚠️ از مسیرِ **واقعیِ** ثبت و نه یک INSERT خام: فقط این مسیر ردیفِ
+     `submitted` را در تاریخچه می‌نویسد، و تاریخچه همان چیزی است که پنلِ
+     ادمین نشان می‌دهد. (نسخهٔ اول INSERT خام داشت و تستِ تاریخچه درست
+     گرفتش: پرونده‌ای با یک رویداد به‌جای دو تا.) */
+  const racerSubmit = await submitTeacherRequest({
+    user: racer,
+    nationalId: "0499370899",
+    provinceId: PROVINCE,
+    cityId: CITY,
+    school: "دبیرستان مسابقه",
+    document: doc("racer"),
+  });
+  if (!racerSubmit.ok) bad("ثبتِ درخواستِ racer", racerSubmit.error);
+  const racerRequest = await queryOne<{ id: string }>(
+    "select id from teacher_requests where user_id = ?",
+    [racer.id],
+  );
+  await approveTeacherRequest(racerRequest!.id, adminId);
+
+  const racerClass = await createClass({
+    teacherId: racer.id,
+    schoolId: school.id,
+    name: `${TAG} کلاسِ مسابقه`,
+    grade: "12",
+  });
+
+  const [r1, r2] = await Promise.all([
+    revokeTeacher(racer.id),
+    revokeTeacher(racer.id),
+  ]);
+
+  /* ⚠️ دقیقاً یکی باید «revoked» باشد. اگر هر دو بودند، یعنی قفلِ ردیف
+     کار نکرده و دو بار نوشته شده. */
+  is(
+    [r1.kind, r2.kind].filter((k) => k === "revoked").length,
+    1,
+    "از دو لغوِ هم‌زمان فقط یکی نوشت",
+  );
+  is(
+    [r1.kind, r2.kind].filter((k) => k === "not_teacher").length,
+    1,
+    "و دومی دید که کاری نمانده",
+  );
+
+  const racerEnts = await query<{ revoked_at: string | null }>(
+    "select revoked_at from plus_entitlements where user_id = ? and source = 'teacher_verified'",
+    [racer.id],
+  );
+  is(racerEnts.length, 1, "فقط یک ردیفِ اشتراکِ دبیری وجود دارد");
+  truthy(racerEnts[0]?.revoked_at, "و یک بار لغو شده");
+
+  const racerRole = await queryOne<{ role: string }>("select role from users where id = ?", [
+    racer.id,
+  ]);
+  is(racerRole?.role, "student", "وضعیتِ نهایی درست است");
+
+  const racerClassAfter = await queryOne<{ join_enabled: number }>(
+    "select join_enabled from teacher_classes where id = ?",
+    [racerClass.id],
+  );
+  is(Number(racerClassAfter?.join_enabled), 0, "و کلاسش هم بسته شد");
+
+  /* ── تاریخچهٔ پرونده، همان چیزی که پنلِ ادمین می‌خواند ─────────── */
+  section("تاریخچهٔ پرونده");
+
+  const revokeeHistory = await listRequestHistory(revokeeRequest!.id);
+  truthy(revokeeHistory.length >= 2, `تاریخچه ${revokeeHistory.length} رویداد دارد`);
+  /* ⚠️ ترتیب **زمانی** است و نه تازه‌ترین-اول: `listRequestHistory` با
+     `order by created_at, id` می‌خواند و پنلِ ادمین همان را به‌صورت یک
+     خطِ زمانی نشان می‌دهد — «ثبت شد → اصلاح خواسته شد → تأیید شد» همان
+     ترتیبی است که آدم داستان را می‌خواند. */
+  is(revokeeHistory[0]?.action, "submitted", "قدیمی‌ترین رویداد اول است");
+  is(
+    revokeeHistory[revokeeHistory.length - 1]?.action,
+    "approved",
+    "و تازه‌ترین رویداد آخر",
+  );
+  truthy(
+    revokeeHistory[revokeeHistory.length - 1]?.actorName,
+    "تصمیمِ ادمین نامِ بررسی‌کننده را دارد",
+  );
+  is(
+    revokeeHistory.some((e) => e.action === "submitted"),
+    true,
+    "ثبتِ اولیه هم در تاریخچه هست",
+  );
+  /* ⚠️ `submitted` را خودِ کاربر انجام داده، پس نامِ ادمین ندارد. */
+  is(
+    revokeeHistory.find((e) => e.action === "submitted")?.actorName,
+    null,
+    "ثبتِ خودِ کاربر نامِ ادمین ندارد",
+  );
+
   /* ── پاک‌سازی ──────────────────────────────────────────────────── */
   section("پاک‌سازی");
   await execute("delete from teacher_schools where school_id = ?", [school.id]);
   await execute("delete from teacher_classes where school_id = ?", [school.id]);
   await execute("delete from schools where id = ?", [school.id]);
-  await execute("delete from users where id in (?, ?, ?)", [user.id, teacher2.id, adminId]);
+  /* ⚠️ همهٔ کاربرانِ آزمون با همین پیشوند ساخته شده‌اند؛ فهرستِ دستی با
+     هر آزمونِ تازه از قلم می‌افتاد. */
+  await execute("delete from users where email like ?", [`${TAG}-%`]);
   const left = await queryOne<{ n: number }>(
     "select count(*) as n from teacher_requests where user_id = ?",
     [user.id],

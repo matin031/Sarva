@@ -225,7 +225,16 @@ export type PlusNotificationKind =
   | "teacher_viewed_student"
   | "teacher_feedback"
   | "class_joined"
-  | "class_removed";
+  | "class_removed"
+  /**
+   * ⚠️ مهاجرت ۰۱۵ — «دسترسیِ دبیری‌ات لغو شد».
+   *
+   * `plus_revoked` عمداً دوباره استفاده نشد: در این رویداد اشتراک هم لغو
+   * می‌شود ولی آن عارضه است و نه خودِ خبر. کاربری که «اشتراک پلاس شما
+   * لغو شد» می‌بیند سراغِ پشتیبانیِ خرید می‌رود، در حالی که چیزی که
+   * واقعاً عوض شده نقشِ اوست.
+   */
+  | "teacher_revoked";
 
 export type PlusNotification = {
   id: string;

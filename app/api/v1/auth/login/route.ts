@@ -8,6 +8,7 @@ import { rateLimitDb, resetRateLimitDb, sweepRateLimits } from "@/lib/api/rate-l
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
+import { recordActivity } from "@/lib/activity/record";
 
 /** هشِ argon2id یک رمزِ دورریختنی، با همان پارامترهای lib/auth/password.ts.
  *  فقط برای برابر کردن زمانِ پاسخ استفاده می‌شود — پایین‌تر توضیح داده شده. */
@@ -122,6 +123,18 @@ export const POST = withRoute("/api/v1/auth/login", async (request: Request) => 
     // از این به بعد هر لاگی در همین درخواست user_id را هم دارد.
     attachUserId(safeUser.id);
     logger.info("ورود موفق", { event: "auth.login.succeeded", user_id: safeUser.id });
+
+    /* ثبتِ «ورود» در تاریخچهٔ فعالیت.
+
+       ⚠️ چرا با اینکه `sessions` از قبل هست: آن جدول منبعِ *معتبرِ* آخرین
+       ورود است و می‌ماند (`adminListUsers` از همان می‌خواند). این ردیف
+       برای تقویمِ یکدستِ فعالیت است — جایی که ورود و بازی و آزمون در یک
+       فهرست کنارِ هم دیده می‌شوند.
+
+       ⚠️ و `await` و نه fire-and-forget: یک درج در برابرِ argon2 که همین
+       بالا اجرا شده هزینه‌ای ندارد، و کارِ رهاشده در پایانِ درخواست ممکن
+       است اصلاً اجرا نشود. خودِ تابع هرگز throw نمی‌کند. */
+    await recordActivity({ userId: safeUser.id, eventType: "login" });
 
     return withCookies(ok({ user: safeUser }), [
       accessCookie(tokens.accessToken),

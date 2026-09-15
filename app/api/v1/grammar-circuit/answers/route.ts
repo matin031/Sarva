@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
+import { recordActivity } from "@/lib/activity/record";
 import { rowToQuestion, type GrammarCircuitRow } from "@/lib/grammar-circuit/server/rows";
 
 /**
@@ -137,6 +138,20 @@ export const POST = withRoute("/api/v1/grammar-circuit/answers", async (request:
           ],
         );
       }
+    });
+
+
+    /* ⚠️ یک ردیفِ فعالیت به‌ازای هر **دور**، نه هر پاسخ.
+
+       نتیجهٔ کلِ دور در یک درخواست می‌آید، پس اینجا دقیقاً یک بار ثبت
+       می‌شود. اگر این endpoint پاسخ‌ها را یکی‌یکی می‌گرفت (مثل واژه‌یاب و
+       جاسوس)، ثبتِ رویداد اینجا صدها ردیفِ تکراری می‌ساخت — و آن دو بازی
+       دقیقاً به همین دلیل رویدادی ثبت نمی‌کنند: زمانِ فعالیتشان از خودِ
+       جدولِ پاسخ درمی‌آید. قاعده‌اش در `docs/activity-events.md`. */
+    await recordActivity({
+      userId: user.id,
+      eventType: "game_completed",
+      entityId: "grammar-circuit",
     });
 
     return ok({ saved: rows.length }, 201);

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
+import { recordActivity } from "@/lib/activity/record";
 
 /**
  * POST /api/v1/aruz-bridge/answers — ثبتِ نتیجهٔ یک دورِ «پلِ وزن».
@@ -141,6 +142,20 @@ export const POST = withRoute("/api/v1/aruz-bridge/answers", async (request: Req
           ],
         );
       }
+    });
+
+
+    /* ⚠️ یک ردیفِ فعالیت به‌ازای هر **دور**، نه هر پاسخ.
+
+       نتیجهٔ کلِ دور در یک درخواست می‌آید، پس اینجا دقیقاً یک بار ثبت
+       می‌شود. اگر این endpoint پاسخ‌ها را یکی‌یکی می‌گرفت (مثل واژه‌یاب و
+       جاسوس)، ثبتِ رویداد اینجا صدها ردیفِ تکراری می‌ساخت — و آن دو بازی
+       دقیقاً به همین دلیل رویدادی ثبت نمی‌کنند: زمانِ فعالیتشان از خودِ
+       جدولِ پاسخ درمی‌آید. قاعده‌اش در `docs/activity-events.md`. */
+    await recordActivity({
+      userId: user.id,
+      eventType: "game_completed",
+      entityId: "aruz-bridge",
     });
 
     return ok({ saved: values.length }, 201);

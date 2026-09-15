@@ -14,6 +14,7 @@ import { cookieSecure } from "@/lib/auth/config";
 import { requestMeta } from "@/lib/api/http";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
+import { recordActivity } from "@/lib/activity/record";
 
 /**
  * GET /api/v1/auth/google/callback — بازگشت از گوگل.
@@ -106,6 +107,9 @@ export const GET = withRoute("/api/v1/auth/google/callback", async (request: Req
     user_id: outcome.user.id,
     created: outcome.created,
   });
+
+  /* ثبتِ «ورود» در تاریخچهٔ فعالیت — چراییِ کاملش در مسیرِ ورود با رمز. */
+  await recordActivity({ userId: outcome.user.id, eventType: "login" });
 
   const response = clearFlowCookies(
     NextResponse.redirect(new URL("/panel/home", request.url)),

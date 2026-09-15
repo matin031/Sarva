@@ -7,6 +7,7 @@ import { gradePart } from "@/lib/exam/grading";
 import { getExamByKey, getExamQuestion } from "@/lib/exam/db-exam";
 import { queryOne, execute } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { recordActivity } from "@/lib/activity/record";
 
 // Server-only: getExamByKey returns the full SeedExam (with the answer key),
 // so this action must never be imported from a "use client" file. The page
@@ -119,12 +120,14 @@ export async function submitExamAttempt(
   }
   if (maxScore === 0) return { saved: false, reason: "too_few" };
 
+  const attemptId = randomUUID();
+
   try {
     await execute(
       `insert into exam_attempts (id, user_id, exam_id, total_score, max_score, question_results, answers)
        values (?, ?, ?, ?, ?, ?, ?)`,
       [
-        randomUUID(),
+        attemptId,
         user.id,
         exam.id,
         totalScore,
@@ -142,6 +145,14 @@ export async function submitExamAttempt(
     console.error("[exam] ثبت کارنامه ناموفق بود:", err);
     return { saved: false, reason: "unknown_exam" };
   }
+
+  /* ⚠️ بعد از موفقیتِ درج و بیرون از همان try — شکستِ ثبتِ فعالیت نباید
+     کارنامه را «ثبت‌نشده» اعلام کند. خودِ تابع هم هرگز throw نمی‌کند. */
+  await recordActivity({
+    userId: user.id,
+    eventType: "exam_completed",
+    entityId: attemptId,
+  });
 
   return { saved: true };
 }

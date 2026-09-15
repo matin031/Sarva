@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
+import { recordActivity } from "@/lib/activity/record";
 
 const schema = z.object({
   answers: z
@@ -155,6 +156,22 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
     });
 
     if ("badRequest" in result) return fail("یکی از سؤال‌ها وجود ندارد.", 400);
+
+    /* ⚠️ **بعد** از commit و نه داخلِ تراکنش.
+
+       داخل بردنش یعنی شکستِ ثبتِ فعالیت — یک جدولِ فرعی — می‌تواند کارنامهٔ
+       واقعیِ دانش‌آموز را برگرداند. ترتیبِ فعلی بدترین حالتش یک ردیفِ
+       فعالیتِ جاافتاده است، در حالی که خودِ کارنامه سرِ جایش می‌ماند.
+
+       ⚠️ و `entityId` همان شناسه‌ای است که سرور تازه ساخته — پس بررسیِ
+       مالکیت در `recordActivity` قطعاً پاس می‌شود و کلاینت هیچ نقشی در
+       تعیینش ندارد. */
+    await recordActivity({
+      userId: user.id,
+      eventType: "quiz_completed",
+      entityId: result.attemptId,
+    });
+
     return ok(result, 201);
   } catch (err) {
     return handleError(err);

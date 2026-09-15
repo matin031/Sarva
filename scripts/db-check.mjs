@@ -42,6 +42,7 @@ const MIGRATION_TABLES = [
   "class_members",
   "teacher_schools", // ۰۱۰
   "teacher_verification_logs",
+  "user_activity_events", // ۰۱۱
 ];
 
 const EXPECTED_TABLES = [...TABLE_ORDER, ...RUNNER_TABLES, ...MIGRATION_TABLES].sort();

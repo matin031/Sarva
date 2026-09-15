@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
+import { Card, CardContent } from "@/components/UI/kit/card";
 import StudentClasses from "@/components/UI/panel/StudentClasses";
 import { listStudentClasses } from "@/lib/teacher/classes";
 import { JOIN_PARAM, invitePath } from "@/lib/teacher/invite";
 import { normalizeJoinCode } from "@/lib/teacher/join-code";
 import { listMyViewers } from "@/lib/teacher/views";
+import ClassPrivacyCard from "@/components/UI/panel/ClassPrivacyCard";
 import { listStudentFeedback } from "@/lib/teacher/feedback";
 import { FEEDBACK_CATEGORY_LABEL } from "@/lib/teacher/feedback-rules";
 import { jalali } from "@/lib/panel/format";
-import { Card, CardContent } from "@/components/UI/kit/card";
-import { relativeDay } from "@/lib/panel/format";
 
 /**
  * کلاس‌های من — سمتِ دانش‌آموز.
@@ -108,37 +108,13 @@ export default async function Page({
         </Card>
       )}
 
-      {/* ⚠️ شفافیت، و جایش عمدی است: کنارِ همان صفحه‌ای که کلاس‌ها در آن
-          دیده می‌شوند، نه در یک صفحهٔ «قوانین» که کسی باز نمی‌کند.
+      {/* ⚠️ افشا **همیشه** نشان داده می‌شود و نه فقط وقتی کلاسی هست.
+          کسی که هنوز عضو نشده، دقیقاً همان کسی است که باید پیش از وارد
+          کردنِ کد بداند چه چیزی را می‌پذیرد. */}
+      <div className="mt-4">
+        <ClassPrivacyCard viewers={viewers} />
+      </div>
 
-          و دقیقاً همان‌قدر که درست است — «عملکرد آموزشی». دبیر خرید،
-          صورتحساب، تیکتِ پشتیبانی، رمز، نشست‌ها و کلاس‌های دیگر را
-          نمی‌بیند؛ نوشتنِ «فعالیت شما» این‌ها را هم القا می‌کرد. */}
-      {classes.length > 0 && (
-        <Card className="mt-4">
-          <CardContent className="flex flex-col gap-3 py-4 text-[13px]">
-            <p className="text-muted-foreground">
-              دبیر هر کلاس می‌تواند عملکرد آموزشی مرتبط با فعالیت‌های شما در سروا را ببیند:
-              پاسخ‌های تمرین‌ها و بازی‌ها، نتیجهٔ آزمون‌ها و زمان آخرین فعالیت. خریدها،
-              صورتحساب، پیام‌های پشتیبانی، اطلاعات ورود و کلاس‌های دیگر شما برای او قابل
-              مشاهده نیست.
-            </p>
-
-            {viewers.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <h2 className="font-bold">چه کسانی عملکرد شما را دیده‌اند</h2>
-                <ul className="flex flex-col gap-1 text-muted-foreground">
-                  {viewers.map((v) => (
-                    <li key={`${v.teacherName}-${v.className}-${v.viewedAt}`}>
-                      {v.teacherName ?? "دبیر"} · کلاس {v.className} · {relativeDay(v.viewedAt)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </>
   );
 }

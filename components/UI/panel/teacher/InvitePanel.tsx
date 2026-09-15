@@ -94,7 +94,7 @@ export default function InvitePanel({
             {/* ⚠️ زمینهٔ سفیدِ ثابت و نه رنگِ پوسته: QR روی زمینهٔ تیره اسکن
                 نمی‌شود، و پنل حالتِ تاریک دارد. */}
             <div
-              className="rounded-xl bg-white p-2"
+              className="rounded-xl bg-white p-2 [&>svg]:h-auto [&>svg]:w-full [&>svg]:max-w-[220px]"
               /* SVG از سرورِ خودمان می‌آید و هیچ ورودیِ کاربری در آن
                  درون‌ریزی نمی‌شود — فقط کدِ کلاس که الگویش
                  `[A-Z2-9]{6,10}` است. */
@@ -187,7 +187,7 @@ function CopyButton({
           })
           .catch(() => {});
       }}
-      className={`inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/[0.03] px-3 py-2 text-[13px] transition-colors hover:border-muted-foreground/50 ${className}`}
+      className={`inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/[0.03] px-3 py-2 text-[13px] transition-colors hover:border-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
     >
       {children}
       {copied ? (

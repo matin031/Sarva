@@ -366,7 +366,7 @@ function JoinCode({ code }: { code: string }) {
           })
           .catch(() => {});
       }}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-foreground/[0.03] px-2.5 py-1 font-mono text-sm tracking-widest transition-colors hover:border-muted-foreground/50"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-foreground/[0.03] px-2.5 py-1 font-mono text-sm tracking-widest transition-colors hover:border-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       aria-label={`کپی کد عضویت ${code}`}
     >
       <span dir="ltr">{code}</span>

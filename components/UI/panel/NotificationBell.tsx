@@ -118,7 +118,7 @@ export default function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         aria-label={unread > 0 ? `اعلان‌ها (${unread} خوانده‌نشده)` : "اعلان‌ها"}
         aria-expanded={open}
-        className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-border/70 text-muted-foreground transition-colors hover:text-foreground"
+        className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-border/70 text-muted-foreground transition-colors hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Bell aria-hidden className="size-4.5" />
         {unread > 0 && (
@@ -274,7 +274,7 @@ function NotificationRow({
     <button
       type="button"
       onClick={onRead}
-      className="block w-full transition-colors hover:bg-foreground/[0.03]"
+      className="block w-full transition-colors hover:bg-foreground/[0.03] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {body}
     </button>

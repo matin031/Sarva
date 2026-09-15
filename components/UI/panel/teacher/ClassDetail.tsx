@@ -10,6 +10,7 @@ import { GRADE_LABEL } from "@/lib/profile/schemas";
 import {
   teacherAllowRejoin,
   teacherRemoveMember,
+  teacherSetClassActive,
   teacherSetJoinEnabled,
 } from "@/lib/teacher/actions";
 import type { ClassMember, TeacherClass } from "@/lib/teacher/types";
@@ -40,6 +41,8 @@ export default function ClassDetail({
      هستند») دقیقاً `join_enabled` را توصیف می‌کرد. حالا هر دو یک چیز
      می‌گویند و بایگانیِ کلاس یک اقدامِ جداست. */
   const [joinOpen, setJoinOpen] = useState(klass.joinEnabled);
+  const [isActive, setIsActive] = useState(klass.isActive);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [members, setMembers] = useState(initialMembers);
   const [search, setSearch] = useState("");
   /** شناسهٔ دانش‌آموزی که دبیر روی «خارج کردن»ش زده و هنوز تأیید نکرده. */
@@ -105,6 +108,82 @@ export default function ClassDetail({
         </CardContent>
       </Card>
 
+      {/* ── بایگانی ─────────────────────────────────────────────────── */}
+      <Card>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold">{isActive ? "کلاس فعال است" : "کلاس بایگانی شده"}</h2>
+              {/* ⚠️ معنای بایگانی صریح نوشته می‌شود، چون از «بستنِ
+                  عضوگیری» بالا به‌سختی قابلِ تشخیص است — و تا مهاجرت ۰۱۴
+                  واقعاً یک چیز بودند. */}
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                {isActive
+                  ? "برای پایان ترم، کلاس را بایگانی کن. اعضا و عملکردشان می‌مانند و همچنان می‌توانی ببینی‌شان؛ فقط عضو تازه‌ای وارد نمی‌شود."
+                  : "عضو تازه‌ای وارد نمی‌شود. اعضا و عملکردشان سرِ جایشان هستند."}
+              </p>
+            </div>
+
+            {!confirmArchive && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() =>
+                  isActive
+                    ? setConfirmArchive(true)
+                    : run(
+                        () => teacherSetClassActive(klass.id, true),
+                        () => setIsActive(true),
+                      )
+                }
+              >
+                {isActive ? "بایگانی کلاس" : "فعال کردن دوباره"}
+              </Button>
+            )}
+          </div>
+
+          {confirmArchive && (
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-foreground/[0.03] p-3">
+              <p className="text-[12.5px] leading-relaxed">
+                کلاس بایگانی می‌شود: هیچ دانش‌آموزی حذف نمی‌شود، بازخوردها و عملکردها
+                می‌مانند و همچنان می‌توانی ببینی‌شان. فقط کسی نمی‌تواند عضو تازه شود.
+                هر وقت خواستی دوباره فعالش کن.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() =>
+                    run(
+                      () => teacherSetClassActive(klass.id, false),
+                      () => {
+                        setIsActive(false);
+                        setConfirmArchive(false);
+                      },
+                    )
+                  }
+                >
+                  {pending ? "در حال بایگانی…" : "بایگانی کن"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => setConfirmArchive(false)}
+                >
+                  انصراف
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {error && (
         <p role="alert" className="whitespace-pre-line rounded-xl border border-destructive/35 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
           {error}
@@ -129,7 +208,7 @@ export default function ClassDetail({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="جست‌وجوی نام…"
                 aria-label="جست‌وجو در دانش‌آموزان"
-                className="w-full rounded-xl border border-border bg-transparent px-3 py-1.5 text-[13px] outline-none focus:border-primary sm:w-56"
+                className="w-full rounded-xl border border-border bg-transparent px-3 py-1.5 text-[13px] outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring sm:w-56"
               />
             )}
           </div>

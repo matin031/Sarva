@@ -133,7 +133,7 @@ export default function FeedbackPanel({
                 type="button"
                 onClick={() => setCategory(c)}
                 aria-pressed={category === c}
-                className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
+                className={`rounded-full border px-3 py-1 text-[12px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                   category === c
                     ? "border-primary bg-primary/10 font-semibold text-primary"
                     : "border-border text-muted-foreground hover:text-foreground"
@@ -196,7 +196,7 @@ export default function FeedbackPanel({
                           aria-label="ذخیره"
                           onClick={() => saveEdit(f.id)}
                           disabled={pending}
-                          className="grid size-7 place-items-center rounded-lg text-primary hover:bg-primary/10"
+                          className="grid size-7 place-items-center rounded-lg text-primary hover:bg-primary/10 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <Check aria-hidden className="size-4" />
                         </button>
@@ -204,7 +204,7 @@ export default function FeedbackPanel({
                           type="button"
                           aria-label="انصراف"
                           onClick={() => setEditing(null)}
-                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5"
+                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <X aria-hidden className="size-4" />
                         </button>
@@ -218,7 +218,7 @@ export default function FeedbackPanel({
                             setEditing(f.id);
                             setEditText(f.message);
                           }}
-                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5"
+                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <Pencil aria-hidden className="size-4" />
                         </button>
@@ -227,7 +227,7 @@ export default function FeedbackPanel({
                           aria-label="بایگانی"
                           onClick={() => archive(f.id)}
                           disabled={pending}
-                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5"
+                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <Archive aria-hidden className="size-4" />
                         </button>

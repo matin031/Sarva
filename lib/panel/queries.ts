@@ -1,6 +1,8 @@
 import "server-only";
 import { query, queryOne, placeholders } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { tehranDayAvailable } from "@/lib/analytics/timezone";
+import type { DailyState } from "@/lib/analytics/daily";
 import type {
   AruzAttempt,
   AruzQuestionType,
@@ -450,46 +452,34 @@ export async function getExamAttempts(
 
 // ----------------------------------------------------- خلاصهٔ همهٔ بخش‌ها ----
 
-/** یک خواندن برای صفحهٔ اول پنل.
- *
- *  سه جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای سه رفت‌وبرگشت
- *  جدا. ستون area در خودِ SQL ساخته می‌شود، پس کد فقط ردیف‌ها را می‌شمارد و
- *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
-export async function getPanelOverview(userId: string): Promise<PanelOverview> {
-  const [activityRows, bookmarkRow, exams] = await Promise.all([
-    // ⚠️ تجمیع در دیتابیس، نه در کد.
-    //
-    // نسخهٔ قبلی ردیف‌های *خام* را می‌آورد با سقفِ ۳۰۰۰ + ۵۰۰۰ + ۳۰۰۰ —
-    // یعنی تا یازده هزار ردیف، برای صفحه‌ای که فقط چند شمارنده و یک نمودارِ
-    // سی‌روزه نشان می‌دهد. کد هم بعد همان یازده هزار ردیف را یکی‌یکی
-    // می‌شمرد و برای هرکدام یک `Intl.DateTimeFormat` می‌ساخت.
-    //
-    // حالا هر بخش به تفکیکِ روزِ تهران شمرده می‌شود: حداکثر چند صد ردیف،
-    // و شمارنده‌ها از جمعِ همان‌ها درمی‌آیند.
-    //
-    // ⚠️ سقف‌های قبلی هم برداشته شدند و این یک اصلاحِ درستی است، نه فقط
-    // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
-    // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
-    query<{ area: BookmarkArea; day: string; total: number; correct: number }>(
-      // ⚠️ گروه‌بندی روزِ تهران، سه تفاوت با نسخهٔ PostgreSQL:
-      //
-      //   ۱) `at time zone 'Asia/Tehran'` → CONVERT_TZ(x, '+00:00', 'Asia/Tehran').
-      //      مبدأ صریحاً '+00:00' است و نه 'UTC': اولی همیشه کار می‌کند،
-      //      دومی به جدول‌های منطقهٔ زمانی نیاز دارد.
-      //
-      //   ⚠️⚠️ مقصد ولی *باید* نامِ منطقه باشد و نه یک offset ثابت، و این
-      //      یعنی جدول‌های mysql.time_zone باید بارگذاری شده باشند. اگر
-      //      نباشند CONVERT_TZ مقدار NULL می‌دهد و کلِ نمودار خالی می‌شود
-      //      بی‌آنکه خطایی بدهد. (scripts/db-check.mjs همین را می‌سنجد.)
-      //
-      //      و offset ثابتِ +03:30 جایگزین نیست: ایران تا ۲۰۲۲ ساعت
-      //      تابستانی داشت، پس تاریخ‌های قدیمی‌تر یک ساعت جابه‌جا می‌شدند
-      //      و پاسخ‌های نزدیک نیمه‌شب به روزِ اشتباه می‌افتادند. آزموده شد:
-      //      ۲۰۲۰-۰۶-۰۱ در تهران +۰۴:۳۰ است و ۲۰۲۰-۱۲-۰۱ برابر +۰۳:۳۰.
-      //
-      //   ۲) `to_char(…, 'YYYY-MM-DD')` → DATE_FORMAT(…, '%Y-%m-%d').
-      //   ۳) `count(*) filter (where ok)` → count(case when ok then 1 end).
-      `select area,
+type ActivityRow = { area: BookmarkArea; day: string | null; total: number; correct: number };
+
+/* ⚠️ دو رشتهٔ **کاملِ** جدا، با بدنهٔ تکراری — عمداً.
+
+   دو تلاشِ قبلی هر دو از دیدِ `npm run db:check-sql` نامرئی بودند:
+   یک `${…}`ِ شرطی وسطِ SQL، و بعد دو ثابت با درون‌ریزیِ رشته. هر دو کار
+   می‌کردند و هیچ‌کدام بررسی نمی‌شدند. آزموده شد: یک توکنِ عمداً خراب در
+   کوئری گذاشته شد و بررسیگر **پیدایش نکرد**.
+
+   بررسیگر فقط رشتهٔ ثابتِ کامل را می‌فهمد. همان درسی که `AUTH_USER_COLUMNS`
+   داد: کدی که بررسیگر نمی‌تواند بخواند، عملاً بررسی‌نشده است — و «ولی
+   واضح است که درست است» دقیقاً همان جمله‌ای است که پیش از هر باگِ
+   production گفته می‌شود.
+
+   گروه‌بندی روزِ تهران، سه تفاوت با نسخهٔ PostgreSQL:
+
+     ۱) `at time zone 'Asia/Tehran'` → CONVERT_TZ(x, '+00:00', 'Asia/Tehran').
+        مبدأ صریحاً '+00:00' است و نه 'UTC': اولی همیشه کار می‌کند، دومی
+        خودش به جدول‌های منطقهٔ زمانی نیاز دارد.
+
+     ⚠️⚠️ مقصد ولی *باید* نامِ منطقه باشد و نه یک offset ثابت — ایران تا
+        ۲۰۲۲ ساعتِ تابستانی داشت، پس `+03:30` برای تاریخ‌های قدیمی‌تر یک
+        ساعت جابه‌جا می‌شود و پاسخ‌های نزدیکِ نیمه‌شب به روزِ اشتباه
+        می‌افتند. (آزموده شد: ۲۰۲۰-۰۶-۰۱ در تهران +۰۴:۳۰ است.)
+
+     ۲) `to_char(…, 'YYYY-MM-DD')` → DATE_FORMAT(…, '%Y-%m-%d').
+     ۳) `count(*) filter (where ok)` → count(case when ok then 1 end). */
+const OVERVIEW_BY_DAY = `select area,
               date_format(convert_tz(at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
               count(*)                             as total,
               count(case when ok then 1 end)       as correct
@@ -505,9 +495,75 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
          ) t
         where at is not null
         group by area, 2
-        order by 2`,
-      [userId, userId, userId],
-    ),
+        order by 2`;
+
+/* ⚠️ همان کوئری بدونِ بُعدِ روز — برای سروری که جدول‌های منطقهٔ زمانی
+   ندارد. شمارنده‌ها **دقیقاً** همان‌اند؛ فقط نمودارِ روزانه از دست می‌رود،
+   و آن هم با یک وضعیتِ صریح و نه یک آرایهٔ خالیِ گمراه‌کننده. */
+const OVERVIEW_BY_AREA = `select area,
+              null                                 as day,
+              count(*)                             as total,
+              count(case when ok then 1 end)       as correct
+         from (
+           select 'aruz' as area, is_correct as ok, answered_at as at
+             from user_answers where user_id = ?
+           union all
+           select 'vocab', is_correct, answered_at
+             from vocab_answers where user_id = ?
+           union all
+           select 'jasoos', is_correct, answered_at
+             from jasoos_answers where user_id = ?
+         ) t
+        where at is not null
+        group by area`;
+
+/** یک خواندن برای صفحهٔ اول پنل.
+ *
+ *  سه جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای سه رفت‌وبرگشت
+ *  جدا. ستون area در خودِ SQL ساخته می‌شود، پس کد فقط ردیف‌ها را می‌شمارد و
+ *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
+export async function getPanelOverview(userId: string): Promise<PanelOverview> {
+  /* ⚠️⚠️ گروه‌بندیِ روز پیش از هر کاری سنجیده می‌شود.
+  
+     `CONVERT_TZ` با نامِ منطقه به جدول‌های `mysql.time_zone` نیاز دارد و اگر
+     بارگذاری نشده باشند **بی‌هیچ خطایی `NULL`** برمی‌گرداند. آن‌وقت همهٔ
+     ردیف‌ها در یک سطلِ `NULL` می‌افتند و هر چیزی که از `dayCounts` ساخته
+     می‌شود — «روزهای فعال»، «رشتهٔ روزها»، نوارِ هفته — یک عددِ **غلط**
+     می‌دهد و نه یک نمودارِ خالی. روی MariaDB 10.11 آزموده شد: یک پاسخ در
+     یک روز → `day = NULL` و `total = 1`.
+  
+     پس وقتی در دسترس نیست، ستونِ روز اصلاً در کوئری نمی‌آید: شمارنده‌ها
+     دقیق می‌مانند (هیچ‌کدام منطقهٔ زمانی نمی‌خواهند) و بخشِ روزمحور یک
+     وضعیتِ صریح می‌گیرد. */
+  const dayReady = await tehranDayAvailable();
+  const dayState: DailyState = dayReady ? "ready" : "unavailable";
+
+  const [activityRows, bookmarkRow, exams] = await Promise.all([
+    // ⚠️ تجمیع در دیتابیس، نه در کد.
+    //
+    // نسخهٔ قبلی ردیف‌های *خام* را می‌آورد با سقفِ ۳۰۰۰ + ۵۰۰۰ + ۳۰۰۰ —
+    // یعنی تا یازده هزار ردیف، برای صفحه‌ای که فقط چند شمارنده و یک نمودارِ
+    // سی‌روزه نشان می‌دهد. کد هم بعد همان یازده هزار ردیف را یکی‌یکی
+    // می‌شمرد و برای هرکدام یک `Intl.DateTimeFormat` می‌ساخت.
+    //
+    // حالا هر بخش به تفکیکِ روزِ تهران شمرده می‌شود: حداکثر چند صد ردیف،
+    // و شمارنده‌ها از جمعِ همان‌ها درمی‌آیند.
+    //
+    // ⚠️ سقف‌های قبلی هم برداشته شدند و این یک اصلاحِ درستی است، نه فقط
+    // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
+    // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
+    /* ⚠️ دو فراخوانِ جدا و نه `query(shart ? A : B, …)`.
+    
+       بررسیگرِ SQL آرگومانِ شرطی را نمی‌تواند بازسازی کند و آن شکل هر دو
+       کوئری را از پوشش بیرون می‌انداخت — آزموده شد. (چراییِ کاملش بالای
+       خودِ ثابت‌ها.)
+    
+       تجمیع هم در دیتابیس انجام می‌شود و نه در کد: نسخهٔ قدیمی تا یازده
+       هزار ردیفِ خام می‌آورد تا چند شمارنده و یک نمودارِ سی‌روزه ساخته
+       شود، و سقف‌هایش شمارندهٔ کاربرِ پرکار را بی‌صدا می‌برید. */
+    dayReady
+      ? query<ActivityRow>(OVERVIEW_BY_DAY, [userId, userId, userId])
+      : query<ActivityRow>(OVERVIEW_BY_AREA, [userId, userId, userId]),
     queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = ?`, [userId]),
     // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
     // جزئیاتِ تک‌تکِ سؤال‌هایش خوانده می‌شد تا سه عدد ساخته شود.
@@ -523,7 +579,13 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
   };
 
   for (const row of activityRows) {
-    dayCounts.push({ day: row.day, total: row.total, correct: row.correct, area: row.area });
+    /* ⚠️ وقتی گروه‌بندیِ روز ممکن نبوده، `day` عمداً `null` است و ردیف
+       **وارد `dayCounts` نمی‌شود** — وگرنه همان سطلِ `NULL` که کلِ این
+       گارد برایش نوشته شد، از در پشتی برمی‌گشت. شمارنده‌ها ولی درست‌اند و
+       جمع می‌شوند. */
+    if (dayReady && row.day !== null) {
+      dayCounts.push({ day: row.day, total: row.total, correct: row.correct, area: row.area });
+    }
     counts[row.area].total += row.total;
     counts[row.area].correct += row.correct;
   }
@@ -532,6 +594,7 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
 
   return {
     dayCounts,
+    dayState: dayReady && dayCounts.length === 0 ? "no_data" : dayState,
     counts,
     bookmarks: bookmarkRow?.n ?? 0,
     exams,
@@ -600,6 +663,12 @@ export async function getAruzDayCounts(
   userId: string,
   days = 400,
 ): Promise<{ day: string; total: number; correct: number }[]> {
+  /* ⚠️ همان گاردی که `getPanelOverview` دارد، به همان دلیل: بدونِ
+     جدول‌های `mysql.time_zone`، `CONVERT_TZ` بی‌هیچ خطایی `NULL` می‌دهد و
+     نمودار پر می‌شود از سطل‌های `NULL`. آرایهٔ خالی دستِ‌کم دروغ نمی‌گوید.
+     (وضعیتِ صریحش را صفحه از `getPanelOverview().dayState` می‌گیرد.) */
+  if (!(await tehranDayAvailable())) return [];
+
   const rows = await query<{ day: string; total: number; correct: number }>(
     // `($2 || ' days')::interval` یعنی ساختنِ بازه از یک عدد. در MySQL
     // بازه نحوِ خودش را دارد و پارامتر هم می‌پذیرد: `interval ? day`.

@@ -25,7 +25,7 @@ export default async function DesignPreview({ searchParams }: {
   const counts = Object.fromEntries(areas.map(area => [area, dayCounts.filter(d => d.area === area).reduce(
     (sum, day) => ({ total: sum.total + day.total, correct: sum.correct + day.correct }), { total: 0, correct: 0 },
   )])) as PanelOverview["counts"];
-  const overview: PanelOverview = { dayCounts, counts, bookmarks: empty ? 0 : 12, exams: empty ? { attempts: 0, best: 0, average: 0 } : { attempts: 8, best: 95, average: 86 } };
+  const overview: PanelOverview = { dayCounts, dayState: empty ? "no_data" : "ready", counts, bookmarks: empty ? 0 : 12, exams: empty ? { attempts: 0, best: 0, average: 0 } : { attempts: 8, best: 95, average: 86 } };
   return (
     <PanelLayout>
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">

@@ -4,15 +4,14 @@ import { notFound, redirect } from "next/navigation";
 import { AuthError } from "@/lib/auth/types";
 import { requireTeacher } from "@/lib/auth/current-user";
 import { isUuid } from "@/lib/api/action-input";
-import { queryOne } from "@/lib/db";
 import { Button } from "@/components/UI/kit/button";
-import { Card, CardContent } from "@/components/UI/kit/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/kit/card";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
-import { getPanelOverview } from "@/lib/panel/queries";
-import { AREA_LABEL, type BookmarkArea } from "@/lib/panel/types";
 import { GRADE_LABEL } from "@/lib/profile/schemas";
-import { fa, pct } from "@/lib/panel/format";
-import { getTeacherClass, teacherCanSeeStudent } from "@/lib/teacher/classes";
+import { fa, jalali, relativeDay } from "@/lib/panel/format";
+import { getStudentDailyActivity } from "@/lib/teacher/analytics";
+import { getStudentReport } from "@/lib/teacher/student-report";
+import type { SkillAnalysis } from "@/lib/plus/analysis";
 
 /**
  * عملکردِ یک دانش‌آموز، از دیدِ دبیرش.
@@ -21,26 +20,23 @@ import { getTeacherClass, teacherCanSeeStudent } from "@/lib/teacher/classes";
  * ⚠️ بند ۱۰ — هیچ جدولِ تازه‌ای برای نتایج ساخته نشد
  * =============================================================================
  *
- * همهٔ اعدادِ این صفحه از `getPanelOverview` می‌آیند — همان تابعی که صفحهٔ
- * خانهٔ خودِ دانش‌آموز هم از آن می‌خواند، و همان جدول‌های موجود
- * (`user_answers`، `vocab_answers`، `jasoos_answers`، `exam_attempts`).
- *
- * وسوسه‌اش یک جدولِ «خلاصهٔ کلاسی» بود که از قبل محاسبه شده باشد. دو دلیل
- * که نشد: خواسته صریحاً منعش کرده، و مهم‌تر — دو منبعِ حقیقت برای یک عدد
- * یعنی روزی دانش‌آموز در پنلِ خودش ۸۰٪ ببیند و دبیرش ۷۵٪، و هیچ‌کدام
- * نفهمند کدام درست است.
+ * همهٔ اعدادِ این صفحه از جدول‌های موجود می‌آیند، و تحلیلِ وزن و نقش از
+ * **همان توابعی** که پنلِ خودِ دانش‌آموز هم از آن‌ها می‌خواند
+ * (`getWeightAnalysis` / `getRoleAnalysis`). دو پیاده‌سازیِ جدا یعنی روزی
+ * دانش‌آموز ۸۰٪ ببیند و دبیرش ۷۵٪، و هیچ‌کدام نفهمند کدام درست است.
  *
  * =============================================================================
- * ⚠️ دو گارد، و هر دو لازم‌اند
+ * ⚠️ گارد
  * =============================================================================
  *
- *   ۱) `getTeacherClass(teacher.id, classId)` — این کلاس مالِ این دبیر است؟
- *   ۲) `teacherCanSeeStudent(teacher.id, studentId)` — این دانش‌آموز عضوِ
- *      *فعالِ* یکی از کلاس‌های همین دبیر است؟
+ * `getStudentReport` در خطِ اولش `getStudentForTeacher` را صدا می‌زند و آن
+ * شناسهٔ دبیر را داخلِ خودِ `where` می‌گذارد. پس عوض کردنِ `studentId` در
+ * نوارِ آدرس یک ۴۰۴ می‌دهد و نه کارنامهٔ یک غریبه — و «وجود ندارد» با «مالِ
+ * تو نیست» یک پاسخ می‌گیرند تا نشود با امتحانِ شناسه‌ها فهمید کدام کاربرِ
+ * واقعی است.
  *
- * دومی بدونِ اولی کافی نیست و برعکسش هم: بدونِ (۲)، یک دبیر می‌توانست
- * شناسهٔ هر کاربرِ سایت را در نوارِ آدرس بگذارد و کارنامه‌اش را ببیند؛
- * بدونِ (۱)، می‌توانست کلاسِ همکارش را در مسیر بگذارد.
+ * ⚠️ و هیچ دادهٔ غیرآموزشی خوانده نمی‌شود: نه ایمیل، نه شماره، نه خرید، نه
+ * تیکت، نه نشست. دبیر فقط باید عملکرد را ببیند.
  */
 
 export const metadata: Metadata = {
@@ -67,95 +63,272 @@ export default async function Page({
 
   if (!isUuid(classId) || !isUuid(studentId)) notFound();
 
-  const klass = await getTeacherClass(teacher.id, classId);
-  if (!klass) notFound();
+  /* ⚠️ `classId` هم فرستاده می‌شود: دانش‌آموزی که عضوِ کلاسِ دیگری از همین
+     دبیر است، نباید از مسیرِ این کلاس دیده شود. بدونِ آن، نشانیِ صفحه یک
+     چیز می‌گفت و محتوایش چیزِ دیگری. */
+  const report = await getStudentReport(teacher.id, studentId, classId);
+  if (!report) notFound();
 
-  const allowed = await teacherCanSeeStudent(teacher.id, studentId);
-  if (!allowed) notFound();
+  const daily = await getStudentDailyActivity(teacher.id, studentId);
 
-  /* ⚠️ فقط نام و پایه خوانده می‌شوند.
-     ایمیل، شماره و کد ملیِ دانش‌آموز هیچ ربطی به «عملکرد» ندارند و دبیر
-     هیچ دلیلی برای دیدنشان ندارد. یک `select *` اینجا، اطلاعاتِ تماسِ
-     نوجوانان را در اختیارِ کسی می‌گذاشت که فقط باید نمره‌شان را ببیند. */
-  const student = await queryOne<{ full_name: string | null; grade: "10" | "11" | "12" | null }>(
-    "select full_name, grade from users where id = ?",
-    [studentId],
-  );
-  if (!student) notFound();
+  const { student, aruz, weights, roles, exams, games } = report;
+  const activeClass = student.classes.find((c) => c.id === classId) ?? student.classes[0];
 
-  const overview = await getPanelOverview(studentId);
-
-  const areas = Object.entries(overview.counts) as [BookmarkArea, { total: number; correct: number }][];
-  const totalAnswers = areas.reduce((sum, [, c]) => sum + c.total, 0);
-  const totalCorrect = areas.reduce((sum, [, c]) => sum + c.correct, 0);
-  const activeDays = new Set(overview.dayCounts.map((d) => d.day)).size;
+  const totalActivity =
+    aruz.total + games.filter((g) => g.key !== "aruz-bridge").reduce((n, g) => n + g.total, 0);
 
   return (
     <>
       <PanelPageHeader
-        title={student.full_name ?? "دانش‌آموز بدون نام"}
-        description={`${klass.name}${student.grade ? ` · پایهٔ ${GRADE_LABEL[student.grade]}` : ""}`}
+        title={student.fullName ?? "دانش‌آموز بدون نام"}
+        description={`${activeClass?.name ?? "کلاس"}${
+          student.grade ? ` · پایهٔ ${GRADE_LABEL[student.grade]}` : ""
+        }`}
         eyebrow="عملکرد دانش‌آموز"
         tone="lilac"
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href={`/panel/teacher/class/${klass.id}`}>بازگشت به کلاس</Link>
+            <Link href={`/panel/teacher/class/${classId}`}>بازگشت به کلاس</Link>
           </Button>
         }
       />
 
-      {totalAnswers === 0 ? (
+      <div className="flex flex-col gap-6">
+        {/* ── خلاصه ─────────────────────────────────────────────────── */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Stat label="تاریخ عضویت در کلاس" value={jalali(student.joinedAt)} />
+          <Stat
+            label="آخرین فعالیت"
+            value={games.some((g) => g.lastAt) || aruz.lastAt ? lastSeen(report) : "—"}
+          />
+          <Stat label="فعالیت‌های آموزشی" value={fa(totalActivity)} />
+        </div>
+
+        {student.classes.length > 1 && (
+          <p className="text-[13px] text-muted-foreground">
+            این دانش‌آموز در {fa(student.classes.length)} کلاس شماست:{" "}
+            {student.classes.map((c) => c.name).join("، ")}. اعداد این صفحه کلِ فعالیت او در سروا
+            است و به کلاس تفکیک نمی‌شود.
+          </p>
+        )}
+
+        {/* ── نمودارِ روزانه ────────────────────────────────────────── */}
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            این دانش‌آموز هنوز تمرینی انجام نداده است.
+          <CardHeader>
+            <CardTitle>فعالیت روزانه</CardTitle>
+            <CardDescription>شصت روز گذشته</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* ⚠️ سه حالتِ جدا و نه دو. «نمودار خالی» و «سرور نمی‌تواند
+                روز را حساب کند» دو چیزِ کاملاً متفاوت‌اند؛ یکی کردنشان یعنی
+                دبیر بخواند «این دانش‌آموز هیچ کاری نکرده» در حالی که فقط
+                جدول‌های منطقهٔ زمانی روی سرور بارگذاری نشده‌اند. */}
+            {daily === null || daily.state !== "ready" ? (
+              <p className="py-6 text-center text-[13px] text-muted-foreground">
+                {daily?.note ?? "در دسترس نیست."}
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {daily.days.map((d) => (
+                  <li
+                    key={d.day}
+                    title={`${d.day} — ${d.correct} از ${d.total}`}
+                    className="rounded-md bg-primary/10 px-2 py-1 text-[11px]"
+                  >
+                    <span className="panel-num">{d.day.slice(5)}</span>
+                    <span className="panel-num ms-1 text-muted-foreground">{fa(d.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="کل پاسخ‌ها" value={fa(totalAnswers)} />
-            <Stat label="درصد درست" value={pct(totalCorrect, totalAnswers)} />
-            <Stat label="روزهای فعال" value={fa(activeDays)} />
-          </div>
 
-          <Card>
-            <CardContent className="flex flex-col gap-4">
-              <h2 className="font-bold">به تفکیک بخش</h2>
-              <ul className="flex flex-col divide-y divide-border">
-                {areas
-                  // بخشی که هیچ پاسخی ندارد، یک ردیفِ «۰ از ۰» می‌شد که
-                  // چیزی نمی‌گوید و فقط جدول را بلند می‌کند.
-                  .filter(([, counts]) => counts.total > 0)
-                  .map(([area, counts]) => (
+        {/* ── عروض ──────────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>عروض</CardTitle>
+            <CardDescription>
+              از پاسخ‌های عروضِ سماعی و پلِ وزن — هر دو را سرور تصحیح کرده.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Stat label="پاسخ‌های عروض سماعی" value={fa(aruz.total)} />
+              <Stat label="درست" value={fa(aruz.correct)} />
+              <Stat
+                label="درصد موفقیت"
+                value={aruz.accuracy === null ? "داده کافی نیست" : `${fa(Math.round(aruz.accuracy * 100))}٪`}
+              />
+            </div>
+            <SkillList
+              analysis={weights}
+              emptyNote="هنوز داده کافی برای تحلیل وزن‌ها وجود ندارد."
+            />
+          </CardContent>
+        </Card>
+
+        {/* ── نقش‌های دستوری ─────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>نقش‌های دستوری</CardTitle>
+            <CardDescription>از جاسوس و مدارِ دستور.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SkillList
+              analysis={roles}
+              emptyNote="هنوز داده کافی برای تحلیل نقش‌ها وجود ندارد."
+            />
+          </CardContent>
+        </Card>
+
+        {/* ── آزمون‌ها ───────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>آزمون‌ها</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {exams.count === 0 ? (
+              <p className="py-4 text-center text-[13px] text-muted-foreground">
+                هنوز آزمونی نداده است.
+              </p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Stat label="تعداد" value={fa(exams.count)} />
+                  <Stat label="بهترین" value={exams.best === null ? "—" : `${fa(exams.best)}٪`} />
+                  <Stat
+                    label="میانگین"
+                    value={exams.average === null ? "—" : `${fa(exams.average)}٪`}
+                  />
+                </div>
+                <ul className="flex flex-col divide-y divide-border">
+                  {exams.recent.map((e) => (
                     <li
-                      key={area}
-                      className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                      key={e.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
                     >
-                      <span className="font-medium">{AREA_LABEL[area]}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {fa(counts.correct)} از {fa(counts.total)} · {pct(counts.correct, counts.total)}
+                      <span className="font-medium">{e.title}</span>
+                      <span className="panel-num text-[13px] text-muted-foreground">
+                        {fa(e.score)} از {fa(e.max)} · {jalali(e.at)}
                       </span>
                     </li>
                   ))}
-              </ul>
-            </CardContent>
-          </Card>
+                </ul>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-          {overview.exams.attempts > 0 && (
-            <Card>
-              <CardContent className="flex flex-col gap-4">
-                <h2 className="font-bold">آزمون نهایی</h2>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Stat label="دفعات" value={fa(overview.exams.attempts)} />
-                  <Stat label="بهترین" value={`${fa(overview.exams.best)}٪`} />
-                  <Stat label="میانگین" value={`${fa(overview.exams.average)}٪`} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+        {/* ── بازی‌ها ────────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>بازی‌ها</CardTitle>
+            <CardDescription>
+              برای هر بازی فقط چیزی نشان داده می‌شود که واقعاً ثبت شده است.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col divide-y divide-border">
+              {games.map((g) => (
+                <li
+                  key={g.key}
+                  className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="font-medium">{g.label}</span>
+
+                  {/* ⚠️ قاعدهٔ دادهٔ بازی، همین‌جا و به‌صراحت.
+                      این سه بازی نتیجه‌ای ذخیره نمی‌کنند؛ ساختنِ یک عدد
+                      برایشان — حتی «۰» — دروغ است. */}
+                  {!g.hasStoredResults ? (
+                    <span className="text-[13px] text-muted-foreground">
+                      جزئیات نتیجه برای این بازی هنوز ثبت نمی‌شود.
+                    </span>
+                  ) : g.total === 0 ? (
+                    <span className="text-[13px] text-muted-foreground">هنوز بازی نکرده است.</span>
+                  ) : (
+                    <span className="panel-num text-[13px] text-muted-foreground">
+                      {fa(g.correct)} از {fa(g.total)}
+                      {g.accuracy !== null && ` · ${fa(Math.round(g.accuracy * 100))}٪`}
+                      {/* ⚠️ واژه‌یاب داده دارد ولی درستی‌اش را مرورگر
+                          فرستاده. بدونِ این برچسب، دبیر آن درصد را
+                          هم‌ارزِ بقیه می‌خواند. */}
+                      {g.clientReported && (
+                        <span className="ms-2 text-[11px]">(گزارش‌شده توسط خودِ بازی)</span>
+                      )}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
     </>
+  );
+}
+
+/** تازه‌ترین زمانِ ثبت‌شده در میانِ همهٔ منابع. */
+function lastSeen(report: Awaited<ReturnType<typeof getStudentReport>>): string {
+  if (!report) return "—";
+  const times = [report.aruz.lastAt, ...report.games.map((g) => g.lastAt)].filter(
+    (t): t is string => t !== null,
+  );
+  if (times.length === 0) return "—";
+  return relativeDay(times.reduce((a, b) => (a > b ? a : b)));
+}
+
+/**
+ * سطل‌های یک تحلیلِ مهارت — ضعیف‌ترین اول.
+ *
+ * ⚠️ `hasEnoughEvidence` از خودِ `bucketize` می‌آید و همان قاعده‌ای است که
+ * پنلِ دانش‌آموز هم رعایتش می‌کند: تحلیلی که با سه پاسخ نتیجه بگیرد حدس
+ * است، نه تحلیل.
+ */
+function SkillList({ analysis, emptyNote }: { analysis: SkillAnalysis; emptyNote: string }) {
+  if (!analysis.hasEnoughEvidence || analysis.buckets.length === 0) {
+    return <p className="py-4 text-center text-[13px] text-muted-foreground">{emptyNote}</p>;
+  }
+
+  const weakest = analysis.buckets.slice(0, 5);
+  const strongest = [...analysis.buckets].reverse().slice(0, 3);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="mb-2 text-[13px] font-bold">نیازمند تمرین</h3>
+        <ul className="flex flex-col gap-1.5">
+          {weakest.map((b) => (
+            <li key={b.key} className="flex items-center justify-between gap-3 text-[13px]">
+              <span>{b.label}</span>
+              <span className="panel-num text-muted-foreground">
+                {fa(b.correct)} از {fa(b.total)} · {fa(Math.round(b.accuracy * 100))}٪
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-[13px] font-bold">قوی‌ترها</h3>
+        <ul className="flex flex-col gap-1.5">
+          {strongest.map((b) => (
+            <li key={b.key} className="flex items-center justify-between gap-3 text-[13px]">
+              <span>{b.label}</span>
+              <span className="panel-num text-muted-foreground">
+                {fa(Math.round(b.accuracy * 100))}٪
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {analysis.ignoredBuckets > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {fa(analysis.ignoredBuckets)} مورد دیگر هنوز پاسخ کافی ندارند و در این فهرست نیامده‌اند.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -164,7 +337,7 @@ function Stat({ label, value }: { label: string; value: string }) {
     <Card>
       <CardContent className="flex flex-col gap-1 py-4">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xl font-extrabold">{value}</span>
+        <span className="panel-num text-lg font-extrabold">{value}</span>
       </CardContent>
     </Card>
   );

@@ -17,6 +17,7 @@ import {
 } from "@/lib/panel/day-counts";
 import { answersInLastDays, badges, bestStreak, resumeItems, weekStrip } from "@/lib/panel/derive";
 import type { PanelOverview } from "@/lib/panel/types";
+import { DAILY_UNAVAILABLE_NOTE } from "@/lib/analytics/daily";
 
 /**
  * صفحهٔ خانهٔ پنل.
@@ -40,10 +41,27 @@ export default function HomePanel({
   /** پیشنهادِ «برنامهٔ من» — فقط وقتی کاربر سروا پلاس فعال دارد. */
   todayPlan?: { title: string; detail: string; href: string; minutes: number } | null;
 }) {
-  const { dayCounts, bookmarks, exams } = overview;
+  const { dayCounts, dayState, bookmarks, exams } = overview;
 
-  const total = totalFromDayCounts(dayCounts);
-  const correct = correctFromDayCounts(dayCounts);
+  /* ⚠️ گروه‌بندیِ روز ممکن نبوده — جدول‌های منطقهٔ زمانی روی سرور نیستند.
+  
+     در آن حالت `dayCounts` **خالی** است و خالی بودنش معنایش «کاری نکرده‌ای»
+     نیست. پس هر چیزی که از روزها ساخته می‌شود (رشتهٔ روزها، نوارِ هفته،
+     نمودار) پنهان می‌شود و به‌جایش دلیلش نوشته می‌شود — ولی شمارنده‌ها
+     می‌مانند، چون `counts` هیچ ربطی به منطقهٔ زمانی ندارد. */
+  const daysUsable = dayState === "ready";
+
+  /* ⚠️ جمع‌ها از `counts` و نه از `dayCounts`.
+  
+     تا دیروز از `dayCounts` می‌آمدند و روی سروری بدونِ جدول‌های منطقه،
+     کلِ صفحه صفر می‌شد — «هنوز تمرینی نکرده‌ای» به کسی که صدها پاسخ
+     داده. `counts` همان ردیف‌ها را بدونِ گروه‌بندیِ روز می‌شمارد. */
+  const total = daysUsable
+    ? totalFromDayCounts(dayCounts)
+    : Object.values(overview.counts).reduce((n, c) => n + c.total, 0);
+  const correct = daysUsable
+    ? correctFromDayCounts(dayCounts)
+    : Object.values(overview.counts).reduce((n, c) => n + c.correct, 0);
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
   const streak = streakFromDayCounts(dayCounts);
   const best = bestStreak(dayCounts);
@@ -65,7 +83,17 @@ export default function HomePanel({
         <p className={styles.eyebrow}><Sprout aria-hidden className="size-4" /> هر روز، یک قدم به دانستن نزدیک‌تر</p>
         <h1>درود، {name}</h1>
         <p className={styles.heroDescription}>
-          {lastAt ? (
+          {/* ⚠️ ترتیبِ این شرط‌ها مهم است: بدونِ گروه‌بندیِ روز، `lastAt`
+              همیشه null است — و پیامِ «اولین تمرینت از همین‌جا شروع می‌شود»
+              به کسی که صدها پاسخ داده، غلط‌ترین جمله‌ای است که می‌شد نوشت.
+              پس اول وضعیتِ روزها سنجیده می‌شود و بعد خودِ تاریخ. */}
+          {!daysUsable ? (
+            total > 0 ? (
+              <>تا حالا {fa(total)} تمرین انجام داده‌ای.</>
+            ) : (
+              <>خوش آمدی. اولین تمرینت از همین‌جا شروع می‌شود.</>
+            )
+          ) : lastAt ? (
             streak > 0 ? (
               <>
                 آخرین تمرینت {relativeDay(lastAt)} بود و{" "}
@@ -143,7 +171,14 @@ export default function HomePanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
-          <PanelTrendChart buckets={bucketsFromDayCounts(dayCounts, 30)} days={30} />
+          {daysUsable ? (
+            <PanelTrendChart buckets={bucketsFromDayCounts(dayCounts, 30)} days={30} />
+          ) : (
+            /* ⚠️ یک نمودارِ صفر اینجا دروغ می‌گفت. جملهٔ صریح بهتر است. */
+            <p className="py-6 text-center text-[13px] text-muted-foreground">
+              {DAILY_UNAVAILABLE_NOTE}
+            </p>
+          )}
         </CardContent>
       </Card>
 

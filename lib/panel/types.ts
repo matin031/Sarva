@@ -138,10 +138,32 @@ export type PanelUser = {
   createdAt: string | null;
 };
 
+import type { DailyState } from "@/lib/analytics/daily";
+
 export type PanelOverview = {
   /** فعالیت، تجمیع‌شده به تفکیکِ روز و بخش — نه ردیف‌های خام.
-   *  دلیلش در getPanelOverview نوشته شده. */
+   *  دلیلش در getPanelOverview نوشته شده.
+   *
+   *  ⚠️ وقتی `dayState` برابرِ `"unavailable"` است این آرایه **خالی** است و
+   *  خالی بودنش معنایش «فعالیتی نبوده» **نیست**. پیش از ساختنِ هر عددی از
+   *  آن، `dayState` را ببین. */
   dayCounts: { day: string; total: number; correct: number; area: BookmarkArea }[];
+
+  /**
+   * ⚠️ آیا گروه‌بندیِ روزانه اصلاً ممکن بوده؟
+   *
+   * گروه‌بندیِ روز به `CONVERT_TZ(…, 'Asia/Tehran')` نیاز دارد و آن به
+   * جدول‌های `mysql.time_zone`. اگر بارگذاری نشده باشند، `CONVERT_TZ`
+   * بی‌هیچ خطایی `NULL` می‌دهد — و آن‌وقت همهٔ ردیف‌ها در یک سطلِ `NULL`
+   * می‌افتند و «روزهای فعال» می‌شود **یک**، هرچقدر هم کاربر فعال بوده
+   * باشد. یک عددِ غلط، نه یک نمودارِ خالی. (روی MariaDB آزموده شد.)
+   *
+   * پس در آن حالت `dayCounts` خالی برمی‌گردد و این پرچم می‌گوید چرا.
+   * `counts` و `exams` دست‌نخورده و **درست** می‌مانند: هیچ‌کدام به منطقهٔ
+   * زمانی نیاز ندارند.
+   */
+  dayState: DailyState;
+
   counts: Record<BookmarkArea, { total: number; correct: number }>;
   bookmarks: number;
   exams: { attempts: number; best: number; average: number };

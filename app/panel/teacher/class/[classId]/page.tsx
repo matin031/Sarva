@@ -5,7 +5,9 @@ import { requireTeacher } from "@/lib/auth/current-user";
 import { isUuid } from "@/lib/api/action-input";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 import ClassDetail from "@/components/UI/panel/teacher/ClassDetail";
+import ClassAnalytics from "@/components/UI/panel/teacher/ClassAnalytics";
 import { getTeacherClass, listClassMembers } from "@/lib/teacher/classes";
+import { getClassDashboard } from "@/lib/teacher/analytics";
 import { GRADE_LABEL } from "@/lib/profile/schemas";
 
 /**
@@ -50,7 +52,13 @@ export default async function Page({ params }: { params: Promise<{ classId: stri
   const klass = await getTeacherClass(teacher.id, classId);
   if (!klass) notFound();
 
-  const members = await listClassMembers(teacher.id, classId);
+  /* ⚠️ هر دو با همان گاردِ مالکیت خوانده می‌شوند و موازی — دومی تحلیل
+     است و نباید بارگذاریِ صفحه را دو برابر کند. `getClassDashboard` خودش
+     `teacher.id` را در `where` می‌گذارد، پس گارد دوباره لازم نیست. */
+  const [members, dashboard] = await Promise.all([
+    listClassMembers(teacher.id, classId),
+    getClassDashboard(teacher.id, classId),
+  ]);
 
   return (
     <>
@@ -62,6 +70,11 @@ export default async function Page({ params }: { params: Promise<{ classId: stri
       />
 
       <ClassDetail klass={klass} initialMembers={members} />
+      {dashboard && (
+        <div className="mt-6">
+          <ClassAnalytics dashboard={dashboard} />
+        </div>
+      )}
     </>
   );
 }

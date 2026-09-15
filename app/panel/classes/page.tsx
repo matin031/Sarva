@@ -5,6 +5,9 @@ import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 import StudentClasses from "@/components/UI/panel/StudentClasses";
 import { listStudentClasses } from "@/lib/teacher/classes";
 import { listMyViewers } from "@/lib/teacher/views";
+import { listStudentFeedback } from "@/lib/teacher/feedback";
+import { FEEDBACK_CATEGORY_LABEL } from "@/lib/teacher/feedback-rules";
+import { jalali } from "@/lib/panel/format";
 import { Card, CardContent } from "@/components/UI/kit/card";
 import { relativeDay } from "@/lib/panel/format";
 
@@ -28,12 +31,15 @@ export default async function Page() {
   const user = await getCurrentUser();
   if (!user) redirect("/auth");
 
-  const [classes, viewers] = await Promise.all([
+  const [classes, viewers, feedback] = await Promise.all([
     listStudentClasses(user.id),
     /* ⚠️ شرطِ `student_id` داخلِ خودِ کوئری است — این فهرست فقط بازدیدهای
        *همین* کاربر را می‌دهد و هیچ‌کس نمی‌تواند ببیند دبیرها سراغِ چه
        کسانِ دیگری رفته‌اند. */
     listMyViewers(user.id),
+    /* باز هم شرطِ `student_id` در خودِ کوئری — تنها چیزی که بینِ این
+       کاربر و بازخوردهای بقیه ایستاده. */
+    listStudentFeedback(user.id),
   ]);
 
   return (
@@ -46,6 +52,37 @@ export default async function Page() {
       />
 
       <StudentClasses initial={classes} />
+
+      {/* ── بازخوردهای دبیر ─────────────────────────────────────────
+          ⚠️ `id="feedback"` همان لنگری است که لینکِ اعلان به آن می‌آید
+          (`/panel/classes#feedback`). عوض کردنش یعنی هر اعلانِ قدیمی به
+          بالای صفحه می‌رسد و کاربر خودش باید دنبالش بگردد. */}
+      {feedback.length > 0 && (
+        <Card id="feedback" className="mt-4 scroll-mt-24">
+          <CardContent className="flex flex-col gap-3 py-4">
+            <h2 className="font-bold">بازخورد دبیران</h2>
+            <ul className="flex flex-col divide-y divide-border">
+              {feedback.map((f) => (
+                <li key={f.id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[13px] font-semibold">
+                      {f.teacherName ?? "دبیر"}
+                    </span>
+                    <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-[11px]">
+                      {FEEDBACK_CATEGORY_LABEL[f.category]}
+                    </span>
+                    <span className="panel-num text-[11px] text-muted-foreground">
+                      کلاس {f.className} · {jalali(f.createdAt)}
+                    </span>
+                  </div>
+                  {/* متنِ کامل، از خودِ جدول — اعلان فقط پیش‌نمایش داشت. */}
+                  <p className="whitespace-pre-wrap text-[13px]">{f.message}</p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ⚠️ شفافیت، و جایش عمدی است: کنارِ همان صفحه‌ای که کلاس‌ها در آن
           دیده می‌شوند، نه در یک صفحهٔ «قوانین» که کسی باز نمی‌کند.

@@ -12,6 +12,8 @@ import { fa, jalali, relativeDay } from "@/lib/panel/format";
 import { getStudentDailyActivity } from "@/lib/teacher/analytics";
 import { getStudentReport } from "@/lib/teacher/student-report";
 import { recordStudentView } from "@/lib/teacher/views";
+import { listTeacherFeedbackFor } from "@/lib/teacher/feedback";
+import FeedbackPanel from "@/components/UI/panel/teacher/FeedbackPanel";
 import type { SkillAnalysis } from "@/lib/plus/analysis";
 
 /**
@@ -70,7 +72,12 @@ export default async function Page({
   const report = await getStudentReport(teacher.id, studentId, classId);
   if (!report) notFound();
 
-  const daily = await getStudentDailyActivity(teacher.id, studentId);
+  const [daily, feedback] = await Promise.all([
+    getStudentDailyActivity(teacher.id, studentId),
+    /* فقط بازخوردهای *همین* دبیر: صفحه جای نوشتنِ اوست و نه خواندنِ
+       یادداشت‌های همکارانش. */
+    listTeacherFeedbackFor(teacher.id, studentId),
+  ]);
 
   /* ⚠️ **بعد** از گاردِ دسترسی و نه قبلش.
   
@@ -240,6 +247,9 @@ export default async function Page({
             )}
           </CardContent>
         </Card>
+
+        {/* ── بازخورد ───────────────────────────────────────────────── */}
+        <FeedbackPanel studentId={studentId} classId={classId} initial={feedback} />
 
         {/* ── بازی‌ها ────────────────────────────────────────────────── */}
         <Card>

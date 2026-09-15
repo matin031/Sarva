@@ -5,6 +5,7 @@ import { Menu, ArrowUpLeft, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import DarkModeButton from "@/components/UI/DarkModeButton";
 import PaletteButton from "@/components/UI/PaletteButton";
+import NotificationBell from "@/components/UI/panel/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/UI/kit/sheet";
 import { usePanelUi } from "@/lib/panel/ui-store";
 import { titleOf } from "./nav";
@@ -47,6 +48,10 @@ export default function PanelTopbar() {
           ندارد و بدونِ این، کاربری که تمِ روشن را ترجیح می‌دهد داخلِ پنل
           راهی برای عوض کردنش نداشت. */}
       <div className="ms-auto flex shrink-0 items-center gap-2">
+        {/* ⚠️ زنگوله اینجا و نه در سایدبار: سایدبار روی موبایل پشتِ یک
+            دکمه پنهان است، و شمارنده‌ای که دیده نمی‌شود کارِ شمارنده را
+            نمی‌کند. */}
+        <NotificationBell />
         <Link href="/" className={styles.topAction}>
           <span className="hidden sm:inline">بازگشت به سروا</span>
           <span className="sr-only sm:hidden">بازگشت به سروا</span>

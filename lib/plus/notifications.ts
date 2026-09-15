@@ -150,20 +150,34 @@ function isSchemaError(err: unknown): boolean {
   return code === 1054 || code === 1146 || code === 3819 || code === 4025;
 }
 
+type NotificationRow = {
+  id: string;
+  kind: PlusNotificationKind;
+  title: string;
+  body: string | null;
+  href: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+function toNotification(r: NotificationRow): PlusNotification {
+  return {
+    id: r.id,
+    kind: r.kind,
+    title: r.title,
+    body: r.body,
+    href: r.href,
+    readAt: r.read_at,
+    createdAt: r.created_at,
+  };
+}
+
 /** آخرین اعلان‌های کاربر. سقفِ سخت دارد تا صفحهٔ پنل هیچ‌وقت هزار ردیف نکشد. */
 export async function listNotifications(
   userId: string,
   limit = 20,
 ): Promise<PlusNotification[]> {
-  const rows = await query<{
-    id: string;
-    kind: PlusNotificationKind;
-    title: string;
-    body: string | null;
-    href: string | null;
-    read_at: string | null;
-    created_at: string;
-  }>(
+  const rows = await query<NotificationRow>(
     `select id, kind, title, body, href, read_at, created_at
        from plus_notifications
       where user_id = ?
@@ -172,15 +186,45 @@ export async function listNotifications(
     [userId, Math.min(Math.max(limit, 1), 50)],
   );
 
-  return rows.map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    title: r.title,
-    body: r.body,
-    href: r.href,
-    readAt: r.read_at,
-    createdAt: r.created_at,
-  }));
+  return rows.map(toNotification);
+}
+
+/** یک صفحه از مرکزِ اعلان‌ها. */
+export const NOTIFICATION_PAGE_SIZE = 20;
+
+/**
+ * صفحه‌بندیِ اعلان‌ها.
+ *
+ * ⚠️ مرتب‌سازی `created_at desc, id` است و نه فقط `created_at`.
+ *
+ * دو اعلان می‌توانند در یک میکروثانیه ساخته شوند — مثلاً وقتی تأییدِ دبیری
+ * هم‌زمان «دبیر شدی» و «پلاس فعال شد» می‌سازد. بدونِ شکنندهٔ تساوی،
+ * ترتیبشان بینِ دو کوئری می‌تواند عوض شود و آن‌وقت یکی در هر دو صفحه
+ * می‌آید و دیگری در هیچ‌کدام. (همان استدلالِ `adminListUsers`.)
+ *
+ * ⚠️ یک ردیف بیشتر خوانده می‌شود تا `hasMore` بدونِ کوئریِ شمارشِ دوم
+ * معلوم شود.
+ */
+export async function listNotificationsPage(
+  userId: string,
+  offset = 0,
+  limit = NOTIFICATION_PAGE_SIZE,
+): Promise<{ notifications: PlusNotification[]; hasMore: boolean }> {
+  const size = Math.min(Math.max(limit, 1), 50);
+
+  const rows = await query<NotificationRow>(
+    `select id, kind, title, body, href, read_at, created_at
+       from plus_notifications
+      where user_id = ?
+      order by created_at desc, id
+      limit ? offset ?`,
+    [userId, size + 1, Math.max(offset, 0)],
+  );
+
+  return {
+    notifications: rows.slice(0, size).map(toNotification),
+    hasMore: rows.length > size,
+  };
 }
 
 export async function countUnreadNotifications(userId: string): Promise<number> {

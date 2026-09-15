@@ -35,7 +35,21 @@ import { MIN_VERIFIED_FOR_ACCURACY } from "@/lib/teacher/analytics-rules";
 import { resetTehranDayCache, tehranDayAvailable } from "@/lib/analytics/timezone";
 import { normalizeSchoolName } from "@/lib/teacher/school-name";
 import { recordStudentView, listMyViewers } from "@/lib/teacher/views";
-import { countUnreadNotifications, listNotifications, markNotificationRead } from "@/lib/plus/notifications";
+import {
+  countUnreadNotifications,
+  listNotifications,
+  listNotificationsPage,
+  markNotificationRead,
+  notify,
+} from "@/lib/plus/notifications";
+import {
+  archiveFeedback,
+  createFeedback,
+  listStudentFeedback,
+  listTeacherFeedbackFor,
+  updateFeedback,
+} from "@/lib/teacher/feedback";
+import { feedbackPreview } from "@/lib/teacher/feedback-rules";
 import { generateJoinCode } from "@/lib/teacher/join-code";
 
 let failures = 0;
@@ -104,6 +118,16 @@ async function join(classId: string, studentId: string): Promise<string> {
   return id;
 }
 
+/** یک آزمونِ حداقلی — فقط برای اینکه `exam_attempts` کلیدِ خارجی داشته باشد. */
+async function makeExam(): Promise<string> {
+  const id = randomUUID();
+  await execute(
+    "insert into exams (id, subject, grade, title, exam_session) values (?, ?, 10, ?, ?)",
+    [id, "ادبیات", `${TAG}-آزمون`, `${TAG}-session-${id.slice(0, 8)}`],
+  );
+  return id;
+}
+
 /** چند پاسخِ «سنجیده‌شده» برای یک دانش‌آموز — از جدولِ پلِ وزن. */
 async function seedBridgeAnswers(studentId: string, total: number, correct: number) {
   for (let i = 0; i < total; i++) {
@@ -118,6 +142,53 @@ async function seedBridgeAnswers(studentId: string, total: number, correct: numb
         i % 2 === 0 ? "مفاعیلن" : "فاعلاتن",
         "مفاعیلن",
         i < correct ? "correct" : "wrong",
+        i < correct,
+      ],
+    );
+  }
+}
+
+/**
+ * پاسخ‌های یک وزنِ مشخص — برای سنجشِ گروه‌بندیِ تحلیلِ وزن.
+ *
+ * ⚠️ از `aruz_bridge_answers` و نه `user_answers`: آنجا وزنِ درست به‌صورت
+ * snapshot در خودِ ردیف است، پس هیچ پرسش و گزینه‌ای لازم نیست ساخته شود.
+ */
+async function seedWeight(studentId: string, weight: string, total: number, correct: number) {
+  for (let i = 0; i < total; i++) {
+    await execute(
+      `insert into aruz_bridge_answers
+         (id, user_id, phrase, correct_pattern, chosen_pattern, outcome, is_correct, difficulty)
+       values (?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        randomUUID(),
+        studentId,
+        `${weight}-${i}`,
+        weight,
+        weight,
+        i < correct ? "correct" : "wrong",
+        i < correct,
+      ],
+    );
+  }
+}
+
+/** پاسخ‌های یک نقشِ دستوریِ مشخص — از جاسوس. */
+async function seedRole(studentId: string, role: string, total: number, correct: number) {
+  for (let i = 0; i < total; i++) {
+    await execute(
+      `insert into jasoos_answers
+         (id, user_id, level_id, category, verse_line_1, verse_line_2,
+          chosen_role, correct_role, is_correct)
+       values (?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+      [
+        randomUUID(),
+        studentId,
+        "آزمون",
+        `مصراع ${i}`,
+        `مصراع دوم ${i}`,
+        role,
+        role,
         i < correct,
       ],
     );
@@ -500,6 +571,283 @@ async function main() {
     unreadBefore - 1,
     "ولی خودِ صاحبِ اعلان می‌تواند بخواندش",
   );
+
+  /* ── ۱۲) اجازه‌های بازخورد ────────────────────────────────────── */
+  section("۱۲) اجازه‌های بازخورد");
+
+  const fb = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "aruz",
+    message: "وزن «مفاعیلن» را بیشتر تمرین کن.",
+  });
+  is(fb.ok, true, "دبیر برای دانش‌آموزِ کلاسِ خودش بازخورد می‌نویسد");
+
+  /* ⚠️ دانش‌آموزی که در کلاسِ این دبیر نیست. */
+  const outsider = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: stranger,
+    classId: classA1,
+    category: "general",
+    message: "سلام",
+  });
+  is(outsider.ok, false, "برای دانش‌آموزِ خارج از کلاس رد می‌شود");
+
+  /* ⚠️ کلاسِ دبیرِ دیگری، با شناسهٔ درست. */
+  const wrongClass = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classB1,
+    category: "general",
+    message: "سلام",
+  });
+  is(wrongClass.ok, false, "از راهِ کلاسِ دبیرِ دیگر رد می‌شود");
+
+  /* ⚠️ مهم‌ترینِ این بخش: ارجاع به فعالیتِ کاربرِ دیگر.
+     بدونِ این بررسی، بازخوردی ساخته می‌شد که به دادهٔ یک غریبه اشاره
+     می‌کند و بعد در صفحهٔ دانش‌آموزِ خودی رندر می‌شود. */
+  const examId = await makeExam();
+  const theirExam = randomUUID();
+  await execute(
+    `insert into exam_attempts (id, user_id, exam_id, total_score, max_score, question_results, answers)
+     values (?, ?, ?, 10, 20, json_object(), json_object())`,
+    [theirExam, stranger, examId],
+  );
+  const stolenRef = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "exam",
+    message: "دربارهٔ این آزمون",
+    relatedType: "exam_attempt",
+    relatedId: theirExam,
+  });
+  is(stolenRef.ok, false, "ارجاع به کارنامهٔ کاربرِ دیگر رد می‌شود");
+
+  const ownExam = randomUUID();
+  await execute(
+    `insert into exam_attempts (id, user_id, exam_id, total_score, max_score, question_results, answers)
+     values (?, ?, ?, 15, 20, json_object(), json_object())`,
+    [ownExam, mine, examId],
+  );
+  const goodRef = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "exam",
+    message: "کارنامه‌ات خوب بود.",
+    relatedType: "exam_attempt",
+    relatedId: ownExam,
+  });
+  is(goodRef.ok, true, "ارجاع به کارنامهٔ خودِ دانش‌آموز پذیرفته می‌شود");
+
+  const halfRef = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "exam",
+    message: "ناقص",
+    relatedType: "exam_attempt",
+    relatedId: null,
+  });
+  is(halfRef.ok, false, "ارجاعِ ناقص رد می‌شود");
+
+  const emptyText = await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "general",
+    message: "   ",
+  });
+  is(emptyText.ok, false, "متنِ خالی رد می‌شود");
+
+  /* ── ۱۳) اعلانِ بازخورد ───────────────────────────────────────── */
+  section("۱۳) اعلانِ بازخورد");
+
+  const fbNotes = await query<{ title: string; body: string | null; href: string | null }>(
+    "select title, body, href from plus_notifications" +
+      " where user_id = ? and kind = 'teacher_feedback' order by created_at",
+    [mine],
+  );
+  is(fbNotes.length, 2, "برای هر بازخورد یک اعلان ساخته شد (بدونِ یکتاسازی)");
+  ok(fbNotes[0]?.title.includes("احمدی") ? "نامِ دبیر در عنوان هست" : "");
+  if (!fbNotes[0]?.title.includes("احمدی")) {
+    failures++;
+    console.log("  ✗ نامِ دبیر در عنوان نیست");
+  }
+  is(fbNotes[0]?.href, "/panel/classes#feedback", "لینکِ اعلان به بخشِ بازخوردها می‌رود");
+
+  /* ⚠️ متنِ بلند نباید کامل در ردیفِ اعلان تکرار شود. */
+  const longText = "الف ".repeat(400);
+  await createFeedback({
+    teacherId: teacherA,
+    teacherName: "آقای احمدی",
+    studentId: mine,
+    classId: classA1,
+    category: "general",
+    message: longText,
+  });
+  const lastNote = await queryOne<{ body: string | null }>(
+    "select body from plus_notifications" +
+      " where user_id = ? and kind = 'teacher_feedback' order by created_at desc limit 1",
+    [mine],
+  );
+  is(lastNote?.body, feedbackPreview(longText), "فقط پیش‌نمایشِ کوتاه در اعلان نشست");
+  ok((lastNote?.body?.length ?? 0) < 200 ? "و کوتاه است" : "");
+  if ((lastNote?.body?.length ?? 0) >= 200) {
+    failures++;
+    console.log("  ✗ پیش‌نمایش کوتاه نیست");
+  }
+
+  /* ── ۱۴) ویرایش و بایگانی ────────────────────────────────────── */
+  section("۱۴) ویرایش و بایگانی");
+
+  const mineFb = fb.ok ? fb.id : "";
+  is(
+    (await updateFeedback(teacherB, mineFb, "دستکاری")).ok,
+    false,
+    "دبیرِ دیگر نمی‌تواند بازخوردِ او را ویرایش کند",
+  );
+  is(
+    (await updateFeedback(teacherA, mineFb, "متنِ اصلاح‌شده")).ok,
+    true,
+    "خودِ نویسنده می‌تواند",
+  );
+
+  const studentSees = await listStudentFeedback(mine);
+  ok(
+    studentSees.some((f) => f.message === "متنِ اصلاح‌شده")
+      ? "دانش‌آموز نسخهٔ ویرایش‌شده را می‌بیند"
+      : "",
+  );
+  if (!studentSees.some((f) => f.message === "متنِ اصلاح‌شده")) {
+    failures++;
+    console.log("  ✗ نسخهٔ ویرایش‌شده دیده نمی‌شود");
+  }
+
+  /* ⚠️ دانش‌آموزِ دیگری هیچ‌کدام را نمی‌بیند. */
+  is((await listStudentFeedback(both)).length, 0, "دانش‌آموزِ دیگر بازخوردهای او را نمی‌بیند");
+
+  is(
+    (await archiveFeedback(teacherB, mineFb)).ok,
+    false,
+    "دبیرِ دیگر نمی‌تواند بایگانی کند",
+  );
+
+  const beforeArchive = (await listStudentFeedback(mine)).length;
+  is((await archiveFeedback(teacherA, mineFb)).ok, true, "نویسنده می‌تواند بایگانی کند");
+  is(
+    (await listStudentFeedback(mine)).length,
+    beforeArchive - 1,
+    "بایگانی‌شده از فهرست بیرون می‌رود",
+  );
+
+  /* ⚠️ ولی ردیف **حذف نشده** — بازخوردی که خوانده شده نباید ناپدید شود. */
+  const still = await queryOne<{ status: string }>(
+    "select status from teacher_feedback where id = ?",
+    [mineFb],
+  );
+  is(still?.status, "archived", "ردیف حذف نشده، فقط بایگانی شده");
+
+  is(
+    (await listTeacherFeedbackFor(teacherB, mine)).length,
+    0,
+    "دبیرِ دیگر بازخوردهای همکارش را نمی‌بیند",
+  );
+
+  /* ── ۱۵) صفحه‌بندیِ اعلان و نبودِ regression ───────────────────── */
+  section("۱۵) صفحه‌بندیِ اعلان");
+
+  const p1n = await listNotificationsPage(mine, 0, 2);
+  const p2n = await listNotificationsPage(mine, 2, 2);
+  const seenIds = new Set(p1n.notifications.map((n) => n.id));
+  is(p1n.notifications.length, 2, "صفحهٔ اول دو ردیف دارد");
+  is(p1n.hasMore, true, "و می‌داند ادامه دارد");
+  is(
+    p2n.notifications.filter((n) => seenIds.has(n.id)).length,
+    0,
+    "صفحهٔ دوم هیچ تکراری ندارد",
+  );
+
+  /* ⚠️ regression: اعلان‌های پلاس باید دست‌نخورده کار کنند. */
+  is(
+    await notify({
+      userId: mine,
+      kind: "plus_activated",
+      title: "سروا پلاس فعال شد",
+      dedupeKey: "zz-plus-regression",
+    }),
+    "created",
+    "اعلانِ پلاس هنوز ساخته می‌شود",
+  );
+  is(
+    await notify({
+      userId: mine,
+      kind: "plus_activated",
+      title: "سروا پلاس فعال شد",
+      dedupeKey: "zz-plus-regression",
+    }),
+    "duplicate",
+    "و یکتاسازی‌اش هنوز کار می‌کند",
+  );
+
+  /* ── ۱۶) گروه‌بندیِ وزن و نقشِ دستوری ─────────────────────────── */
+  section("۱۶) گروه‌بندیِ وزن و نقشِ دستوری");
+
+  const grouped = await makeUser("grouped", "student");
+  await join(classA1, grouped);
+
+  /* دو وزنِ متفاوت با دقتِ کاملاً متفاوت — اگر گروه‌بندی کار نکند، یا یک
+     سطلِ درهم می‌سازد یا اصلاً چیزی نمی‌سازد. */
+  await seedWeight(grouped, "مفاعیلن", 12, 3); // ضعیف
+  await seedWeight(grouped, "فاعلاتن", 12, 11); // قوی
+
+  const report2 = await getStudentReport(teacherA, grouped);
+  const buckets = report2?.weights.buckets ?? [];
+
+  is(buckets.length, 2, "دو وزن، دو سطلِ جدا");
+  is(buckets[0]?.key, "مفاعیلن", "ضعیف‌ترین وزن اولِ فهرست است");
+  is(buckets[0]?.total, 12, "شمارشِ سطلِ ضعیف درست است");
+  is(buckets[0]?.correct, 3, "و درست‌هایش هم");
+  is(buckets[1]?.key, "فاعلاتن", "وزنِ قوی دوم است");
+  is(buckets[1]?.correct, 11, "و شمارشش قاطی نشده");
+  is(report2?.weights.hasEnoughEvidence, true, "شواهد کافی است");
+
+  /* نقشِ دستوری از جاسوس. */
+  await seedRole(grouped, "نهاد", 12, 2);
+  await seedRole(grouped, "مفعول", 12, 10);
+
+  const report3 = await getStudentReport(teacherA, grouped);
+  const roleBuckets = report3?.roles.buckets ?? [];
+  is(roleBuckets.length, 2, "دو نقش، دو سطلِ جدا");
+  is(roleBuckets[0]?.total, 12, "شمارشِ نقشِ ضعیف درست است");
+  is(roleBuckets[0]?.correct, 2, "و درست‌هایش هم");
+  ok(
+    (roleBuckets[0]?.accuracy ?? 1) < (roleBuckets[1]?.accuracy ?? 0)
+      ? "ضعیف‌ترین نقش اولِ فهرست است"
+      : "",
+  );
+  if ((roleBuckets[0]?.accuracy ?? 1) >= (roleBuckets[1]?.accuracy ?? 0)) {
+    failures++;
+    console.log("  ✗ ترتیبِ نقش‌ها درست نیست");
+  }
+
+  /* ⚠️ و دانش‌آموزی با شواهدِ کم هیچ سطلی نمی‌گیرد — «۳۳٪ ضعیف» دربارهٔ
+     کسی که سه پاسخ داده، یک حدس است و نه تحلیل. */
+  const thin = await makeUser("thin", "student");
+  await join(classA1, thin);
+  await seedWeight(thin, "مفاعیلن", 3, 1);
+  const thinReport = await getStudentReport(teacherA, thin);
+  is(thinReport?.weights.hasEnoughEvidence, false, "شواهدِ کم تحلیل نمی‌سازد");
+  is(thinReport?.weights.buckets.length, 0, "و هیچ سطلی برنمی‌گرداند");
 
   /* ── پاک‌سازی ─────────────────────────────────────────────────── */
   await cleanup();

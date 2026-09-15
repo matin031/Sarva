@@ -1,10 +1,9 @@
-import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { recordActivity } from "@/lib/activity/record";
-import { ACTIVITY_EVENT_TYPES } from "@/lib/activity/schema";
+import { activityRequestSchema } from "@/lib/activity/schema";
 
 /**
  * POST /api/v1/activity — ثبتِ یک رویدادِ فعالیت.
@@ -29,19 +28,6 @@ import { ACTIVITY_EVENT_TYPES } from "@/lib/activity/schema";
  *     «چه اتفاقی افتاد»، نه «چقدر خوب بود». درست/غلط فقط از جدول‌های پاسخ
  *     می‌آید که سرور خودش نوشته. توضیحِ کاملش بالای مهاجرت ۰۱۱.
  */
-
-const schema = z
-  .object({
-    // ⚠️ `z.enum` روی همان ثابتی که CHECK دیتابیس از رویش نوشته شده — پس
-    // فهرست در یک جا زندگی می‌کند و تست تطابقش با SQL را می‌سنجد.
-    eventType: z.enum(ACTIVITY_EVENT_TYPES),
-    entityId: z.string().trim().min(1).max(64).nullish(),
-    metadata: z.record(z.string(), z.unknown()).nullish(),
-  })
-  /* ⚠️ `.strict()` — هر کلیدِ ناشناخته رد می‌شود.
-     بدونِ آن، `{"eventType":"login","userId":"…"}` با ۲۰۰ برمی‌گشت و
-     فرستنده هیچ‌وقت نمی‌فهمید که `userId` نادیده گرفته شده. */
-  .strict();
 
 export const POST = withRoute("/api/v1/activity", async (request: Request) => {
   try {
@@ -68,7 +54,7 @@ export const POST = withRoute("/api/v1/activity", async (request: Request) => {
       return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }
 
-    const body = await readJson(request, schema);
+    const body = await readJson(request, activityRequestSchema);
     if (!body.ok) return body.response;
 
     const result = await recordActivity({

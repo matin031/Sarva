@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { adminListTeacherRequests } from "@/lib/admin/teacher-actions";
 import { AdminAccessDenied, loadAdminData } from "@/components/admin/AdminGate";
-import TeacherRequestsPanel from "@/components/admin/TeacherRequestsPanel";
+import TeacherAdminTabs from "@/components/admin/TeacherAdminTabs";
 
 /**
  * مدیریت درخواست دبیران — بند ۷.
@@ -14,7 +14,7 @@ import TeacherRequestsPanel from "@/components/admin/TeacherRequestsPanel";
  */
 
 export const metadata: Metadata = {
-  title: "مدیریت درخواست دبیران",
+  title: "مدیریت دبیران",
   robots: { index: false, follow: false },
 };
 
@@ -24,8 +24,11 @@ export default async function Page() {
   const result = await loadAdminData(() => adminListTeacherRequests({ status: "pending" }));
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
 
+  /* ⚠️ فقط صفِ درخواست‌ها از سرور می‌آید. فهرستِ دبیرانِ فعال در تبِ دوم و
+     در کلاینت خوانده می‌شود — بیشترِ دفعات این صفحه برای رسیدگی به صف باز
+     می‌شود و کوئریِ آن تب هزینه‌ای است که آن دفعات نباید داده شود. */
   return (
-    <TeacherRequestsPanel
+    <TeacherAdminTabs
       initialRequests={result.data.requests}
       initialTotal={result.data.total}
       initialPending={result.data.pendingCount}

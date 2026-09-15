@@ -21,10 +21,25 @@ import { randomUUID } from "node:crypto";
 
 import { execute, query, queryOne } from "@/lib/db";
 import { submitTeacherRequest } from "@/lib/teacher/requests";
-import { getLatestTeacherRequest } from "@/lib/teacher/requests";
+import { getLatestTeacherRequest, getTeacherAccountState } from "@/lib/teacher/requests";
 import { listMyVerificationHistory } from "@/lib/teacher/verification-log";
 import { findOrCreateSchool } from "@/lib/teacher/schools";
-import { createClass, joinClassByCode, teacherCanSeeStudent } from "@/lib/teacher/classes";
+import {
+  createClass,
+  joinClassByCode,
+  listStudentClasses,
+  teacherCanSeeStudent,
+} from "@/lib/teacher/classes";
+// ⚠️ همان توابعی که Server Actionهای `lib/admin/teacher-directory.ts` صدا
+// می‌زنند — آن فایل `requireAdmin()` دارد و بیرونِ Next اجرا نمی‌شود.
+import { getTeacherSupportView, listTeacherDirectory } from "@/lib/teacher/directory";
+// ⚠️ همان عددها و همان کلیدی که اکشن‌های ادمین به کار می‌برند.
+import {
+  TEACHER_REVIEW_LIMIT,
+  TEACHER_REVOKE_LIMIT,
+  adminWriteGate,
+  adminWriteKey,
+} from "@/lib/admin/teacher-limits";
 import { getStudentForTeacher } from "@/lib/teacher/analytics";
 import { createFeedback, listStudentFeedback } from "@/lib/teacher/feedback";
 import { listRequestHistory } from "@/lib/teacher/verification-log";
@@ -680,6 +695,311 @@ async function main() {
     null,
     "ثبتِ خودِ کاربر نامِ ادمین ندارد",
   );
+
+  /* ── دیدِ دانش‌آموز بعد از لغوِ دبیر ──────────────────────────── */
+  section("دانش‌آموزِ دبیرِ لغوشده");
+
+  /* ⚠️ چرا این بخش لازم است: لغو عمداً هیچ‌چیزِ کلاس را حذف نمی‌کند، پس
+     از دیدِ دانش‌آموز هیچ ستونی عوض نمی‌شود و کارت کاملاً عادی می‌ماند.
+     تنها نشانه `users.role` است — و اگر کوئریِ دانش‌آموز آن را نخواند،
+     او تا ابد فکر می‌کند کسی کارش را می‌بیند. */
+  const pupilClasses = await listStudentClasses(pupil.id);
+  const pupilCard = pupilClasses.find((c) => c.id === revClass.id);
+  truthy(pupilCard, "کلاس هنوز در فهرستِ دانش‌آموز هست (حذف نشد)");
+  is(pupilCard?.teacherActive, false, "⚠️ دانش‌آموز می‌بیند دبیر دیگر فعال نیست");
+  is(pupilCard?.isActive, true, "و کلاس بایگانیِ دروغین نشده است");
+  is(pupilCard?.status, "active", "و عضویتش هنوز فعال است");
+
+  /* ── نمای عملیاتیِ ادمین ──────────────────────────────────────── */
+  section("نمای عملیاتیِ ادمین — فهرستِ دبیران");
+
+  const dir1 = await listTeacherDirectory({ search: TAG, limit: 50 });
+  const ids1 = new Set(dir1.teachers.map((t) => t.id));
+
+  is(ids1.has(user.id), true, "دبیرِ تأییدشده در فهرست هست");
+  /* ⚠️ مهم‌ترین بررسیِ این بخش: مبنا `users.role` است و نه پروندهٔ
+     `approved`. اگر روزی کسی کوئری را به `teacher_requests` ببندد،
+     فهرستِ «دبیران فعال» پر می‌شود از کسانی که دیگر دبیر نیستند. */
+  is(ids1.has(revokee.id), false, "⚠️ دبیرِ لغوشده در فهرست نیست");
+  is(ids1.has(racer.id), false, "و دبیرِ لغوشدهٔ دوم هم نه");
+  is(ids1.has(teacher2.id), false, "کاربری که فقط به مدرسه وصل است، دبیر شمرده نمی‌شود");
+  is(ids1.has(adminId), false, "و مدیر هم دبیر شمرده نمی‌شود");
+
+  const userRow = dir1.teachers.find((t) => t.id === user.id);
+  truthy(userRow?.approvedAt, "تاریخِ تأیید خوانده شد");
+  is(userRow?.hasTeacherPlus, true, "و اشتراکِ دبیری‌اش فعال دیده می‌شود");
+  /* ⚠️ صفرِ واقعی و نه صفرِ ساختگی: این دبیر واقعاً کلاسی نساخته. */
+  is(userRow?.classCount, 0, "دبیرِ بدونِ کلاس، صفر کلاس دارد");
+  is(userRow?.studentCount, 0, "و صفر دانش‌آموز");
+  is(userRow?.schools.includes("دبیرستان نمونهٔ آزمون"), true, "مدرسه‌اش هم آمد");
+
+  /* ⚠️ مرزِ حریمِ خصوصی، روی خروجیِ سریال‌شده و نه روی نامِ فیلدها.
+  
+     کد ملی و کلیدِ سندِ کارگزینی فقط به بررسیِ *خودِ درخواست* تعلق دارند،
+     جایی که مدیر باید سند را با هویت تطبیق دهد. فهرستِ عملیاتی چنین
+     کاری نمی‌کند و نباید آن‌ها را حمل کند — نه در یک فیلد و نه در
+     گوشه‌ای که یک `select *` ی روزی اضافه کند. */
+  const dirJson = JSON.stringify(dir1);
+  is(dirJson.includes("0499370899"), false, "⚠️ کد ملی در فهرستِ دبیران نیست");
+  is(dirJson.includes(`${TAG}-first.pdf`), false, "⚠️ کلیدِ سندِ کارگزینی هم نیست");
+
+  const dirNone = await listTeacherDirectory({ search: "zzz-no-such-teacher-zzz" });
+  is(dirNone.teachers.length, 0, "جست‌وجوی بی‌نتیجه، فهرستِ خالی می‌دهد");
+  is(dirNone.total, 0, "و total هم صفر است");
+
+  /* ── نمای پشتیبانی: کلاس‌های یک دبیر ──────────────────────────── */
+  section("نمای پشتیبانی — کلاس‌های دبیر");
+
+  /* ⚠️ عمداً روی دبیرِ **لغوشده**: تیکتِ پشتیبانی دقیقاً وقتی باز می‌شود
+     که چیزی خراب است، و اگر این نما فقط دبیرانِ سالم را نشان دهد، در
+     همان لحظه‌ای که لازم است کار نمی‌کند. */
+  const support = await getTeacherSupportView(revokee.id);
+  truthy(support, "نمای پشتیبانیِ دبیرِ لغوشده هم باز می‌شود");
+  const supportClass = support?.classes.find((c) => c.id === revClass.id);
+  truthy(supportClass, "کلاسش دیده می‌شود");
+  is(supportClass?.joinEnabled, false, "⚠️ «عضوگیری بسته» درست گزارش شد");
+  is(supportClass?.isActive, true, "و «بایگانی‌نشده» هم درست");
+  is(supportClass?.memberCount, 1, "شمارِ اعضای فعال درست است");
+  is(supportClass?.schoolName, "دبیرستان نمونهٔ آزمون", "نامِ مدرسه آمد");
+
+  /* ⚠️ حساس‌ترین بررسیِ کلِ این نما.
+
+     کدِ عضویت نباید از سرور بیرون بیاید — نه در یک فیلد، نه در یک
+     فیلدِ فراموش‌شده، نه در هیچ گوشه‌ای از پاسخ. بررسی روی *کلِ*
+     خروجیِ سریال‌شده است و نه روی نامِ فیلدها، چون یک `select *` ی که
+     روزی اضافه شود، از بررسیِ اسمیِ فیلدها رد می‌شد. */
+  const supportJson = JSON.stringify(support);
+  is(
+    supportJson.includes(revClass.joinCode),
+    false,
+    "⚠️ کدِ عضویتِ کلاس در خروجیِ پشتیبانی نیست",
+  );
+  is(supportJson.includes(pupil.id), false, "⚠️ و شناسهٔ هیچ دانش‌آموزی هم نیست");
+
+  is(await getTeacherSupportView(randomUUID()), null, "کاربرِ ناموجود null می‌دهد");
+
+  /* ── درخواستِ دوباره بعد از لغو ───────────────────────────────── */
+  section("درخواستِ دوبارهٔ دبیری بعد از لغو");
+
+  /* ⚠️ چرا این چرخه باید آزمون داشته باشد: پروندهٔ قدیمی عمداً `approved`
+     می‌ماند و ایندکسِ «حداکثر یک پروندهٔ باز» هم سرِ جایش است. کافی بود
+     یکی از آن دو با هم قاطی شوند تا کسی که دسترسی‌اش لغو شده، برای همیشه
+     از درخواستِ دوباره محروم بماند — بدونِ هیچ پیامِ روشنی. */
+  const stateAfterRevoke = await getTeacherAccountState(revokee);
+  is(stateAfterRevoke.state, "none", "فرمِ درخواست دوباره برایش باز است");
+
+  const reapply = await submitTeacherRequest({
+    user: revokee,
+    nationalId: "0499370899",
+    provinceId: PROVINCE,
+    cityId: CITY,
+    school: "دبیرستان نمونهٔ آزمون",
+    document: doc("reapply"),
+  });
+  is(reapply.ok, true, "درخواستِ تازه ثبت شد");
+  if (!reapply.ok) {
+    bad("ادامهٔ چرخهٔ درخواستِ دوباره", reapply.error);
+    return;
+  }
+  is(reapply.request.status, "pending", "و در انتظارِ بررسی است");
+
+  const oldRequestStill = await queryOne<{ status: string }>(
+    "select status from teacher_requests where id = ?",
+    [revokeeRequest!.id],
+  );
+  is(oldRequestStill?.status, "approved", "پروندهٔ قبلی دست‌نخورده «تأییدشده» ماند");
+
+  const revokeeRequestCount = await queryOne<{ n: number }>(
+    "select count(*) as n from teacher_requests where user_id = ?",
+    [revokee.id],
+  );
+  is(revokeeRequestCount?.n, 2, "حالا دو پرونده دارد: یکی تاریخی، یکی باز");
+
+  const reapproved = await approveTeacherRequest(reapply.request.id, adminId);
+  is(reapproved.kind, "approved", "تأییدِ دوباره انجام شد");
+
+  const roleBack = await queryOne<{ role: string }>("select role from users where id = ?", [
+    revokee.id,
+  ]);
+  is(roleBack?.role, "teacher", "نقشِ دبیر برگشت");
+
+  /* ⚠️ اشتراکِ تازه ساخته می‌شود و ردیفِ لغوشده «رستاخیز» نمی‌کند: اگر
+     `grantTeacherPlus` روزی فیلترِ `revoked_at is null` را از دست بدهد،
+     یک تأییدِ تازه می‌توانست ردیفِ لغوشده را دوباره زنده کند و ردِ لغو
+     را از تاریخ پاک کند. */
+  const entsBack = await query<{ revoked_at: string | null }>(
+    "select revoked_at from plus_entitlements where user_id = ? and source = 'teacher_verified'",
+    [revokee.id],
+  );
+  is(entsBack.length, 2, "دو ردیفِ اشتراکِ دبیری هست: قبلی و تازه");
+  is(entsBack.filter((e) => e.revoked_at === null).length, 1, "دقیقاً یکی فعال است");
+  is(entsBack.filter((e) => e.revoked_at !== null).length, 1, "و ردیفِ لغوشده لغوشده ماند");
+
+  /* ⚠️ و اشتراکِ خریداری‌شده هنوز دست‌نخورده است — نه لغو شده و نه
+     دوباره ساخته شده. */
+  const purchaseStill = await queryOne<{ revoked_at: string | null }>(
+    "select revoked_at from plus_entitlements where id = ?",
+    [purchaseId],
+  );
+  is(purchaseStill?.revoked_at, null, "اشتراکِ خریداری‌شده در کلِ چرخه دست‌نخورده ماند");
+
+  /* ⚠️ کلاس‌ها **باز نمی‌شوند**. تأیید هیچ‌وقت `teacher_classes` را دست
+     نمی‌زند، و این عمدی است: دبیر باید خودش تصمیم بگیرد کلاسِ قدیمی‌اش
+     دوباره عضو بگیرد یا نه. باز کردنِ خودکار یعنی کدی که ماه‌ها جایی
+     پخش شده، بی‌خبر دوباره کار کند. */
+  const classAfterReapproval = await queryOne<{ join_enabled: number }>(
+    "select join_enabled from teacher_classes where id = ?",
+    [revClass.id],
+  );
+  is(
+    Number(classAfterReapproval?.join_enabled),
+    0,
+    "⚠️ تأییدِ دوباره عضوگیریِ کلاسِ قدیمی را خودکار باز نمی‌کند",
+  );
+
+  is(
+    await teacherCanSeeStudent(revokee.id, pupil.id),
+    true,
+    "دسترسی‌اش به دانش‌آموزِ همان کلاس برگشت",
+  );
+
+  const pupilAfter = (await listStudentClasses(pupil.id)).find((c) => c.id === revClass.id);
+  is(pupilAfter?.teacherActive, true, "و دانش‌آموز دوباره دبیرِ فعال می‌بیند");
+
+  /* ── شمارشِ یکتا و صفحه‌بندی ──────────────────────────────────── */
+  section("شمارشِ یکتا و صفحه‌بندیِ فهرست");
+
+  /* ⚠️ یک دانش‌آموز در دو کلاسِ یک دبیر باید **یک نفر** شمرده شود. بدونِ
+     `count(distinct …)` عددِ «۲۴ دانش‌آموز» برای کلاسی که ۱۲ نفر در دو
+     گروه دارد نوشته می‌شد — عددی که هیچ‌کس نمی‌فهمید از کجا آمده. */
+  const secondClass = await createClass({
+    teacherId: revokee.id,
+    schoolId: school.id,
+    name: `${TAG} کلاسِ دوم`,
+    grade: "12",
+  });
+  is(
+    (await joinClassByCode(pupil.id, secondClass.joinCode)).ok,
+    true,
+    "همان دانش‌آموز عضوِ کلاسِ دوم شد",
+  );
+
+  const dir2 = await listTeacherDirectory({ search: TAG, limit: 50 });
+  const revokeeRow = dir2.teachers.find((t) => t.id === revokee.id);
+  truthy(revokeeRow, "دبیرِ تأییدشدهٔ دوباره به فهرست برگشت");
+  is(revokeeRow?.classCount, 2, "دو کلاس دارد");
+  is(revokeeRow?.studentCount, 1, "⚠️ ولی یک دانش‌آموزِ یکتا");
+  is(revokeeRow?.hasTeacherPlus, true, "و اشتراکِ دبیری‌اش دوباره فعال است");
+
+  /* ⚠️ حالا دقیقاً دو دبیرِ آزمونی وجود دارد، پس صفحه‌بندی واقعاً سنجیده
+     می‌شود و نه روی یک فهرستِ تک‌ردیفی. */
+  is(dir2.total, 2, "فهرست دو دبیرِ آزمونی دارد");
+
+  const dirPage = await listTeacherDirectory({ search: TAG, limit: 1 });
+  is(dirPage.teachers.length, 1, "صفحهٔ یک‌ردیفی یک ردیف برگرداند");
+  /* ⚠️ `total` باید کلِ نتیجه باشد و نه اندازهٔ صفحه — وگرنه دکمهٔ «نمایش
+     بیشتر» هیچ‌وقت ظاهر نمی‌شود. */
+  is(dirPage.total, 2, "ولی total همان تعدادِ کلِ نتیجه است");
+
+  const dirNext = await listTeacherDirectory({ search: TAG, limit: 1, offset: 1 });
+  is(dirNext.teachers.length, 1, "صفحهٔ دوم هم یک ردیف دارد");
+  is(
+    dirNext.teachers[0]?.id !== dirPage.teachers[0]?.id,
+    true,
+    "و ردیفِ صفحهٔ اول را تکرار نمی‌کند",
+  );
+
+  const revokeeEmail = await queryOne<{ email: string }>("select email from users where id = ?", [
+    revokee.id,
+  ]);
+  const searchByEmail = await listTeacherDirectory({ search: revokeeEmail!.email });
+  is(searchByEmail.teachers.length, 1, "جست‌وجو با ایمیل دقیقاً یک نفر می‌دهد");
+  is(searchByEmail.teachers[0]?.id, revokee.id, "و همان نفرِ درست است");
+
+  /* ── شمارشِ واقعیِ کوئری‌ها ───────────────────────────────────── */
+  section("شمارشِ کوئری — اثباتِ نبودِ N+1");
+
+  /* ⚠️ چرا این بخش با «نگاه کردن به کد» جایگزین نمی‌شود:
+
+     N+1 از یک حلقهٔ صریح در کد نمی‌آید — آن را همه می‌بینند. از یک کوئریِ
+     کمکیِ بی‌آزار می‌آید که کسی شش ماه بعد «فقط برای همین یک فیلد» داخلِ
+     `map` می‌گذارد. تنها چیزی که آن را می‌گیرد، شمردنِ *واقعیِ* دستورهاست.
+
+     `Com_select` شمارندهٔ خودِ سرور است، پس رهگیریِ درایور یا mock در کار
+     نیست: هر SELECT ای که به MariaDB برسد شمرده می‌شود، از هر لایه‌ای که
+     آمده باشد. */
+  async function countSelects(run: () => Promise<unknown>): Promise<number> {
+    const read = async () => {
+      const row = await queryOne<{ Value: string }>(
+        "show global status like 'Com_select'",
+      );
+      return Number(row?.Value ?? 0);
+    };
+    /* ⚠️ خودِ `show status` هم یک رفت‌وبرگشت است ولی `Com_select` را بالا
+       نمی‌برد (در `Com_show_status` شمرده می‌شود)، پس در عدد نمی‌نشیند. */
+    const before = await read();
+    await run();
+    return (await read()) - before;
+  }
+
+  const selectsOne = await countSelects(() => listTeacherDirectory({ search: TAG, limit: 1 }));
+  const selectsMany = await countSelects(() => listTeacherDirectory({ search: TAG, limit: 50 }));
+
+  is(selectsOne, 2, "فهرستِ یک‌ردیفی دقیقاً دو کوئری می‌زند (ردیف‌ها + مدرسه‌ها)");
+  /* ⚠️ قلبِ این بخش: تعدادِ کوئری با تعدادِ دبیران عوض نمی‌شود. */
+  is(selectsMany, 2, "⚠️ فهرستِ کامل هم دقیقاً دو کوئری می‌زند");
+  is(selectsMany, selectsOne, "یعنی شمارِ کوئری مستقل از تعدادِ ردیف‌هاست");
+
+  /* ⚠️ و همین قاعده برای نمای پشتیبانی: دبیرِ دوکلاسه نباید دو کوئریِ
+     اضافه بزند. */
+  const selectsSupport = await countSelects(() => getTeacherSupportView(revokee.id));
+  is(selectsSupport, 2, "نمای پشتیبانی هم دو کوئری است (خودِ دبیر + کلاس‌ها)");
+
+  /* ⚠️ فهرستِ کلاس‌های دانش‌آموز هم یک کوئری است و نه «یکی برای هر کلاس»؛
+     `teacherActive` از همان `join` ی می‌آید که از قبل برای نامِ دبیر بود. */
+  const selectsStudent = await countSelects(() => listStudentClasses(pupil.id));
+  is(selectsStudent, 1, "فهرستِ کلاس‌های دانش‌آموز یک کوئری است");
+
+  /* ── سقفِ نرخِ نوشتن‌های مدیریتی ───────────────────────────────── */
+  section("سقفِ نرخِ نوشتن‌های مدیریتی");
+
+  /* ⚠️ چرا این آزمون روی خودِ `adminWriteGate` است و نه روی Server Action:
+     آن اکشن‌ها با `requireAdmin()` شروع می‌شوند که `cookies()` می‌خواند و
+     بیرونِ Next اجرا نمی‌شود. گارد همان‌جا می‌ماند؛ چیزی که اینجا سنجیده
+     می‌شود، خودِ شمارنده است — با همان ثابت‌ها و همان کلیدی که اکشن
+     می‌فرستد و نه رونوشتی از آن‌ها. */
+  const limiterAdmin = randomUUID();
+  const otherAdmin = randomUUID();
+
+  /* سطلِ لغو: ده تلاش مجاز، یازدهمی نه. */
+  let deniedAt = 0;
+  for (let i = 1; i <= TEACHER_REVOKE_LIMIT + 1; i++) {
+    const message = await adminWriteGate(limiterAdmin, "revoke");
+    if (message !== null && deniedAt === 0) deniedAt = i;
+  }
+  is(deniedAt, TEACHER_REVOKE_LIMIT + 1, `لغو دقیقاً بعد از ${TEACHER_REVOKE_LIMIT} بار بسته شد`);
+
+  const denial = await adminWriteGate(limiterAdmin, "revoke");
+  truthy(denial, "و بعدش هم بسته می‌ماند");
+  /* ⚠️ پیام باید بگوید چقدر صبر کند، وگرنه مدیر فقط دوباره می‌زند. */
+  truthy(denial?.includes("ثانیه"), "پیامِ رد، زمانِ انتظار را می‌گوید");
+
+  /* ⚠️ مهم‌ترین بررسیِ این بخش: سطلِ «رسیدگی» با سطلِ «لغو» یکی نیست.
+     اگر یکی بودند، یک بعدازظهرِ عادیِ رسیدگی به صف، دکمهٔ لغو را هم
+     می‌بست — و برعکس، ده لغو کلِ کارِ مدیر را قفل می‌کرد. */
+  is(await adminWriteGate(limiterAdmin, "review"), null, "ولی سطلِ رسیدگی همچنان باز است");
+
+  /* ⚠️ و سهمیه به ازای هر مدیر است: بسته شدنِ یکی، بقیه را نمی‌بندد. */
+  is(await adminWriteGate(otherAdmin, "revoke"), null, "مدیرِ دیگر سهمیهٔ خودش را دارد");
+
+  is(
+    adminWriteKey(limiterAdmin, "revoke") !== adminWriteKey(limiterAdmin, "review"),
+    true,
+    "کلیدِ دو سطل از هم جداست",
+  );
+  truthy(TEACHER_REVIEW_LIMIT > TEACHER_REVOKE_LIMIT, "سقفِ رسیدگی از سقفِ لغو بازتر است");
+
+  await execute("delete from rate_limits where `key` like 'admin-teacher-%'");
 
   /* ── پاک‌سازی ──────────────────────────────────────────────────── */
   section("پاک‌سازی");

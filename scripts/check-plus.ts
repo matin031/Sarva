@@ -329,21 +329,40 @@ async function main(): Promise<void> {
   /* ── ۹. مرزِ زمانی ────────────────────────────────────────────────── */
   section("۹) مرزِ بازه: starts_at <= now < ends_at");
   {
+    /* ⚠️ زمان‌ها از **ساعتِ نود** می‌آیند و نه از `now(6)`.
+    
+       این دو بند دقیقاً مرزِ یک‌ثانیه‌ای را می‌سنجند، و `getPlusStatusFor`
+       آن مرز را با `new Date()` — یعنی ساعتِ نود — می‌سنجد. تا دیروز
+       fixture با `now(6)` نوشته می‌شد: ساعتِ *سرورِ دیتابیس*. روی هر
+       سروری که `time_zone` اش UTC نباشد، آن دو ساعت به اندازهٔ همان
+       اختلاف از هم فاصله دارند و حاشیهٔ یک‌ثانیه‌ای هیچ شانسی ندارد.
+    
+       روی این ماشینِ توسعه (MariaDB با `time_zone = SYSTEM` روی وقتِ
+       تهران) اختلاف ۱۲۶۰۰ ثانیه بود، پس ردیفی که «یک ثانیه پیش تمام
+       شده» بود، از دیدِ برنامه سه‌ونیم ساعت *آینده* می‌نشست و بررسی
+       می‌افتاد. در داکر اتفاق نمی‌افتاد، چون آنجا
+       `--default-time-zone=+00:00` ست است (docker-compose.yml) — یعنی
+       یک بررسیِ سبز که فقط روی یک پیکربندی سبز بود.
+    
+       ⚠️ و این تغییرِ معماریِ زمان نیست: `Date` از نود دقیقاً همان چیزی
+       است که خودِ برنامه در این ستون می‌نویسد (درایور با `timezone: "Z"`
+       آن را UTC می‌فرستد). fixture حالا مثلِ برنامه می‌نویسد، پس چیزی
+       را می‌سنجد که واقعاً اتفاق می‌افتد. */
+    const DAY = 86_400_000;
+
     const future = await makeUser("future");
     await execute(
       `insert into plus_entitlements (id, user_id, source, starts_at, ends_at)
-       values (?, ?, 'manual_grant',
-               date_add(now(6), interval 1 day), date_add(now(6), interval 30 day))`,
-      [randomUUID(), future],
+       values (?, ?, 'manual_grant', ?, ?)`,
+      [randomUUID(), future, new Date(Date.now() + DAY), new Date(Date.now() + 30 * DAY)],
     );
     ok("دسترسیِ آینده هنوز فعال نیست", !(await getPlusStatusFor(future)).isActive);
 
     const edge = await makeUser("edge");
     await execute(
       `insert into plus_entitlements (id, user_id, source, starts_at, ends_at)
-       values (?, ?, 'manual_grant',
-               date_sub(now(6), interval 30 day), date_sub(now(6), interval 1 second))`,
-      [randomUUID(), edge],
+       values (?, ?, 'manual_grant', ?, ?)`,
+      [randomUUID(), edge, new Date(Date.now() - 30 * DAY), new Date(Date.now() - 1000)],
     );
     ok("لحظهٔ پایان دیگر دسترسی نیست", !(await getPlusStatusFor(edge)).isActive);
   }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { query, queryOne, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { enumArg, optionalTextArg, uuidArg } from "@/lib/api/action-input";
+import { adminWriteGate } from "@/lib/admin/teacher-limits";
 import { recordAudit } from "@/lib/admin/audit";
 import { notify } from "@/lib/plus/notifications";
 import { locationLabel } from "@/lib/geo";
@@ -213,6 +214,9 @@ export async function adminApproveTeacherRequest(requestId: string): Promise<Act
   const admin = await requireAdmin();
   const id = uuidArg(requestId, "شناسهٔ درخواست نامعتبر است.");
 
+  const throttled = await adminWriteGate(admin.id, "review");
+  if (throttled) return { ok: false, errors: [throttled] };
+
   /* ⚠️ خودِ تراکنش در `lib/teacher/review.ts` است و نه اینجا.
      دلیلش قابلِ آزمون بودن است: این تابع با `requireAdmin()` شروع می‌شود
      که `cookies()` می‌خواند، پس بیرونِ یک درخواستِ Next اصلاً اجرا
@@ -332,6 +336,11 @@ async function settleRequest(
       errors: [`${copy.noteLabel} را بنویسید (دستِ‌کم ۵ نویسه). کاربر همین متن را می‌بیند.`],
     };
   }
+
+  /* ⚠️ بعد از اعتبارسنجیِ متن و نه پیش از آن: یک تایپِ کوتاه نباید سهمیه را
+     بسوزاند. چیزی که شمرده می‌شود، تلاشی است که واقعاً می‌نویسد. */
+  const throttled = await adminWriteGate(admin.id, "review");
+  if (throttled) return { ok: false, errors: [throttled] };
 
   const outcome = await transaction(async (tx) => {
     const row = await tx.queryOne<{
@@ -492,6 +501,9 @@ export async function adminRevokeTeacher(
   if (id === admin.id) {
     return { ok: false, errors: ["نمی‌توانید دسترسی حساب خودتان را تغییر دهید."] };
   }
+
+  const throttled = await adminWriteGate(admin.id, "revoke");
+  if (throttled) return { ok: false, errors: [throttled] };
 
   const outcome = await revokeTeacher(id);
 

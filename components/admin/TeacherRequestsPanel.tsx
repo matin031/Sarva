@@ -121,10 +121,14 @@ export default function TeacherRequestsPanel({
   };
 
   return (
-    <div dir="rtl" className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold">مدیریت درخواست دبیران</h1>
+          {/* ⚠️ `h2` و نه `h1`: از وقتی این نما داخلِ تب نشسته، عنوانِ صفحه
+              بالاتر در `TeacherAdminTabs` است و دو `h1` روی یک صفحه، ساختارِ
+              عنوان‌ها را برای صفحه‌خوان بی‌معنا می‌کند. `dir="rtl"` هم به
+              همان دلیل از اینجا برداشته شد و روی لفافهٔ بیرونی است. */}
+          <h2 className="font-bold">درخواست‌های دبیری</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {pendingCount > 0
               ? `${pendingCount.toLocaleString("fa-IR")} درخواست در انتظار بررسی`
@@ -141,6 +145,7 @@ export default function TeacherRequestsPanel({
             setSearch(e.target.value);
             load({ search: e.target.value });
           }}
+          aria-label="جست‌وجو در درخواست‌های دبیری"
           placeholder="جست‌وجو با نام، ایمیل، کد ملی یا مدرسه…"
           className="min-h-11 w-full max-w-xs flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
         />

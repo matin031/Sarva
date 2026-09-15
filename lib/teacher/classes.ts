@@ -197,6 +197,7 @@ export async function listStudentClasses(studentId: string): Promise<StudentClas
     is_active: boolean;
     joined_at: string;
     status: "active" | "blocked";
+    teacher_role: string;
   }>(
     /* ⚠️ `join_code` عمداً در این select نیست.
        دانش‌آموزِ عضو نیازی به کد ندارد، و برگرداندنش یعنی هر عضوی
@@ -209,8 +210,16 @@ export async function listStudentClasses(studentId: string): Promise<StudentClas
        گذاشته باید بفهمد چه شده. اگر کلاس بی‌توضیح ناپدید می‌شد، با کد
        دوباره امتحان می‌کرد و پیامِ «نمی‌توانی» می‌گرفت بدونِ اینکه بداند
        چرا. */
+    /* ⚠️ `t.role` هم خوانده می‌شود.
+
+       لغوِ دبیری کلاس‌ها را عمداً دست‌نخورده می‌گذارد — سابقه پاک نمی‌شود —
+       پس از دیدِ دانش‌آموز هیچ چیزی عوض نمی‌شد و کلاس همان‌طور عادی به نظر
+       می‌رسید، در حالی که دیگر هیچ‌کس پشتش نیست. `join` روی `users` از قبل
+       برای نامِ دبیر وجود داشت، پس این ستون هیچ کوئری یا هیچ اتصالی اضافه
+       نمی‌کند. */
     `select c.id, c.name, c.grade, s.name as school_name,
-            t.full_name as teacher_name, c.is_active, m.joined_at, m.status
+            t.full_name as teacher_name, t.role as teacher_role,
+            c.is_active, m.joined_at, m.status
        from class_members m
        join teacher_classes c on c.id = m.class_id
        join schools s on s.id = c.school_id
@@ -231,6 +240,7 @@ export async function listStudentClasses(studentId: string): Promise<StudentClas
     isActive: r.is_active,
     joinedAt: r.joined_at,
     status: r.status,
+    teacherActive: r.teacher_role === "teacher",
   }));
 }
 

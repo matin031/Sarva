@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ClipboardCopy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent } from "@/components/UI/kit/card";
+import InvitePanel from "@/components/UI/panel/teacher/InvitePanel";
 import { fa, jalali } from "@/lib/panel/format";
 import { GRADE_LABEL } from "@/lib/profile/schemas";
 import {
+  teacherAllowRejoin,
   teacherRemoveMember,
-  teacherRotateJoinCode,
   teacherSetJoinEnabled,
 } from "@/lib/teacher/actions";
 import type { ClassMember, TeacherClass } from "@/lib/teacher/types";
@@ -26,11 +26,13 @@ import type { ClassMember, TeacherClass } from "@/lib/teacher/types";
 export default function ClassDetail({
   klass,
   initialMembers,
+  qrSvg,
 }: {
   klass: TeacherClass;
   initialMembers: ClassMember[];
+  /** QRِ لینکِ دعوت — سمتِ سرور ساخته شده. */
+  qrSvg: string;
 }) {
-  const [joinCode, setJoinCode] = useState(klass.joinCode);
   /* ⚠️ این کلید به `join_enabled` وصل است و نه `is_active`.
   
      تا مهاجرت ۰۱۴ یک ستون بودند و همین دکمه `is_active` را عوض می‌کرد —
@@ -39,10 +41,22 @@ export default function ClassDetail({
      می‌گویند و بایگانیِ کلاس یک اقدامِ جداست. */
   const [joinOpen, setJoinOpen] = useState(klass.joinEnabled);
   const [members, setMembers] = useState(initialMembers);
+  const [search, setSearch] = useState("");
+  /** شناسهٔ دانش‌آموزی که دبیر روی «خارج کردن»ش زده و هنوز تأیید نکرده. */
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const active = members.filter((m) => m.status === "active");
+  /* ⚠️ خارج‌شده‌ها جدا نشان داده می‌شوند و نه قاطیِ اعضا: تنها کاری که
+     دبیر با آن‌ها دارد «اجازهٔ بازگشت» است، و بودنشان وسطِ فهرست فقط
+     شمارشِ کلاس را گیج می‌کرد. */
+  const blocked = members.filter((m) => m.status === "blocked");
+
+  const needle = search.trim().toLowerCase();
+  const shown = needle
+    ? active.filter((m) => (m.fullName ?? "").toLowerCase().includes(needle))
+    : active;
 
   const run = (action: () => Promise<{ ok: boolean; errors?: string[] }>, after: () => void) => {
     setError(null);
@@ -58,47 +72,7 @@ export default function ClassDetail({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── کد عضویت ────────────────────────────────────────────────── */}
-      <Card data-tone="gold">
-        <CardContent className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-bold">کد عضویت کلاس</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-              این کد را به دانش‌آموزانت بده تا در پنل خودشان وارد کنند. هر کسی که کد را داشته
-              باشد می‌تواند عضو شود، پس اگر جایی پخش شد کد تازه بگیر.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <CopyableCode code={joinCode} />
-            {/* ⚠️ این یکی از helperِ `run` استفاده نمی‌کند: کدِ تازه در
-                *پاسخِ* اکشن می‌آید و باید همان لحظه روی صفحه بنشیند. `run`
-                فقط موفقیت/شکست را می‌داند و مقدارِ بازگشتی را دور می‌ریزد —
-                یعنی دبیر تا رفرشِ بعدی همان کدِ سوخته را می‌دید و به کلاس
-                می‌داد. */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => {
-                setError(null);
-                startTransition(async () => {
-                  const result = await teacherRotateJoinCode(klass.id);
-                  if (!result.ok) {
-                    setError(result.errors.join("\n"));
-                    return;
-                  }
-                  setJoinCode(result.data.joinCode);
-                });
-              }}
-            >
-              <RefreshCw aria-hidden />
-              کد تازه
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <InvitePanel classId={klass.id} initialCode={klass.joinCode} initialQr={qrSvg} />
 
       {/* ── عضوگیری ─────────────────────────────────────────────────── */}
       <Card>
@@ -140,17 +114,37 @@ export default function ClassDetail({
       {/* ── اعضا ────────────────────────────────────────────────────── */}
       <Card>
         <CardContent className="flex flex-col gap-4">
-          <h2 className="font-bold">
-            دانش‌آموزان <span className="text-muted-foreground">({fa(active.length)})</span>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-bold">
+              دانش‌آموزان <span className="text-muted-foreground">({fa(active.length)})</span>
+            </h2>
+
+            {/* ⚠️ جست‌وجو فقط وقتی می‌آید که واقعاً لازم باشد. در کلاسِ
+                هشت‌نفره یک فیلدِ خالی فقط شلوغی است؛ در کلاسِ چهل‌نفره
+                تنها راهِ پیدا کردنِ یک نفر است. */}
+            {active.length > 12 && (
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="جست‌وجوی نام…"
+                aria-label="جست‌وجو در دانش‌آموزان"
+                className="w-full rounded-xl border border-border bg-transparent px-3 py-1.5 text-[13px] outline-none focus:border-primary sm:w-56"
+              />
+            )}
+          </div>
 
           {active.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              هنوز کسی عضو نشده. کد عضویت را به دانش‌آموزانت بده.
+              هنوز کسی عضو نشده. کد یا لینک دعوت را به دانش‌آموزانت بده.
+            </p>
+          ) : shown.length === 0 ? (
+            <p className="py-4 text-center text-[13px] text-muted-foreground">
+              دانش‌آموزی با این نام پیدا نشد.
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-border">
-              {active.map((member) => (
+              {shown.map((member) => (
                 <li
                   key={member.studentId}
                   className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
@@ -166,36 +160,67 @@ export default function ClassDetail({
                     </p>
                   </div>
 
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/panel/teacher/class/${klass.id}/student/${member.studentId}`}>
                         عملکرد
                       </Link>
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={pending}
-                      onClick={() =>
-                        run(
-                          () => teacherRemoveMember(klass.id, member.studentId),
-                          () =>
-                            setMembers((prev) =>
-                              prev.map((m) =>
-                                m.studentId === member.studentId
-                                  /* ⚠️ `blocked` و نه `removed`: از مهاجرت ۰۱۴ به
-                                     بعد، بیرون گذاشتنِ دبیر یعنی بلاک — و
-                                     همان چیزی است که سرور نوشته. */
-                                  ? { ...m, status: "blocked" as const }
-                                  : m,
-                              ),
-                            ),
-                        )
-                      }
-                    >
-                      حذف
-                    </Button>
+
+                    {removing === member.studentId ? (
+                      /* ⚠️ تأییدِ درون‌ردیفی: «حذف» پیامدِ واقعی دارد
+                         (دانش‌آموز اعلان می‌گیرد و تا اجازهٔ دبیر برنمی‌گردد)
+                         و نباید با یک کلیکِ تصادفی انجام شود. */
+                      <span className="flex items-center gap-1.5 text-[12px]">
+                        <span className="text-muted-foreground">مطمئنی؟</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () => teacherRemoveMember(klass.id, member.studentId),
+                              () => {
+                                setMembers((prev) =>
+                                  prev.map((m) =>
+                                    m.studentId === member.studentId
+                                      ? /* ⚠️ `blocked` و نه `removed`: از
+                                           مهاجرت ۰۱۴ به بعد، بیرون گذاشتنِ
+                                           دبیر یعنی بلاک — همان چیزی که
+                                           سرور نوشته. */
+                                        { ...m, status: "blocked" as const }
+                                      : m,
+                                  ),
+                                );
+                                setRemoving(null);
+                              },
+                            )
+                          }
+                        >
+                          بله
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => setRemoving(null)}
+                        >
+                          نه
+                        </Button>
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() => setRemoving(member.studentId)}
+                      >
+                        خارج کردن
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -203,33 +228,54 @@ export default function ClassDetail({
           )}
         </CardContent>
       </Card>
+
+      {/* ── خارج‌شده‌ها ──────────────────────────────────────────────── */}
+      {blocked.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-col gap-3">
+            <div>
+              <h2 className="font-bold">
+                خارج‌شده‌ها <span className="text-muted-foreground">({fa(blocked.length)})</span>
+              </h2>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                این‌ها را خودت از کلاس خارج کرده‌ای و با کد برنمی‌گردند. اگر اجازه بدهی،
+                می‌توانند دوباره با کد عضو شوند.
+              </p>
+            </div>
+
+            <ul className="flex flex-col divide-y divide-border">
+              {blocked.map((member) => (
+                <li
+                  key={member.studentId}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <p className="truncate text-[13px]">{member.fullName ?? "بدون نام"}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() =>
+                      run(
+                        () => teacherAllowRejoin(klass.id, member.studentId),
+                        () =>
+                          /* ⚠️ ردیف از فهرست بیرون می‌رود و به «اعضا» هم
+                             اضافه نمی‌شود: اجازه، خودش عضو نمی‌کند —
+                             دانش‌آموز باید خودش دوباره با کد بیاید. */
+                          setMembers((prev) =>
+                            prev.filter((m) => m.studentId !== member.studentId),
+                          ),
+                      )
+                    }
+                  >
+                    اجازهٔ بازگشت
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
-  );
-}
-
-function CopyableCode({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        // بافتِ ناامن (http روی IP محلی) اصلاً `clipboard` ندارد؛ کد روی
-        // صفحه هست و دستی هم می‌شود برداشت.
-        navigator.clipboard
-          ?.writeText(code)
-          .then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          })
-          .catch(() => {});
-      }}
-      className="inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/[0.03] px-4 py-2 font-mono text-lg tracking-[0.3em] transition-colors hover:border-muted-foreground/50"
-      aria-label={`کپی کد عضویت ${code}`}
-    >
-      <span dir="ltr">{code}</span>
-      <ClipboardCopy aria-hidden className="size-4 text-muted-foreground" />
-      {copied && <span className="font-sans text-xs text-primary">کپی شد</span>}
-    </button>
   );
 }

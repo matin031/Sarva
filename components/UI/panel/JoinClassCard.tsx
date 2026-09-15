@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { LogIn, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent } from "@/components/UI/kit/card";
@@ -28,8 +28,15 @@ import styles from "./panel-design.module.css";
  * ⚠️ و مرحلهٔ اول **هیچ چیزی نمی‌نویسد** — نه ردیفی، نه اعلانی. کسی که فقط
  * می‌خواست ببیند کلاس چیست، عضو نمی‌شود.
  */
-export default function JoinClassCard({ onJoined }: { onJoined: () => void }) {
-  const [code, setCode] = useState("");
+export default function JoinClassCard({
+  onJoined,
+  initialCode = null,
+}: {
+  onJoined: () => void;
+  /** کدی که از لینکِ دعوت آمده. */
+  initialCode?: string | null;
+}) {
+  const [code, setCode] = useState(initialCode ?? "");
   const [preview, setPreview] = useState<ClassPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -66,6 +73,22 @@ export default function JoinClassCard({ onJoined }: { onJoined: () => void }) {
       onJoined();
     });
   };
+
+  /* ⚠️ کدی که از لینکِ دعوت آمده، **یک بار** پیش‌نمایش می‌گیرد.
+  
+     `useRef` لازم است و نه یک وابستگیِ ساده: بدونِ آن، هر رندرِ دوباره
+     (مثلاً وقتی کاربر چیزی تایپ می‌کند) پیش‌نمایش را دوباره می‌گرفت و
+     سقفِ نرخ را بی‌دلیل می‌سوزاند.
+  
+     ⚠️ و فقط **پیش‌نمایش** — نه عضویت. لینکِ دعوت نباید کسی را با یک
+     کلیک عضو کند؛ همان کارتِ تأیید باید دیده شود. */
+  const autoLookedUp = useRef(false);
+  useEffect(() => {
+    if (!initialCode || autoLookedUp.current) return;
+    autoLookedUp.current = true;
+    lookUp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
 
   return (
     <Card data-tone="mint">

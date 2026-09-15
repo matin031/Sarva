@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 import StudentClasses from "@/components/UI/panel/StudentClasses";
 import { listStudentClasses } from "@/lib/teacher/classes";
+import { JOIN_PARAM, invitePath } from "@/lib/teacher/invite";
+import { normalizeJoinCode } from "@/lib/teacher/join-code";
 import { listMyViewers } from "@/lib/teacher/views";
 import { listStudentFeedback } from "@/lib/teacher/feedback";
 import { FEEDBACK_CATEGORY_LABEL } from "@/lib/teacher/feedback-rules";
@@ -27,9 +29,31 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  /* ⚠️ کدِ دعوت از نشانی خوانده و **همین‌جا** یکدست می‌شود.
+  
+     اگر خام به کامپوننت می‌رفت، کاربری که لینک را از یک پیام‌رسان کپی
+     کرده (با فاصله یا حروفِ کوچک) کدِ درستش رد می‌شد. و الگو هم سنجیده
+     می‌شود تا هر رشتهٔ دلخواهی از نشانی وارد فرم نشود. */
+  const raw = (await searchParams)[JOIN_PARAM];
+  const candidate = normalizeJoinCode(typeof raw === "string" ? raw : "");
+  const inviteCode = /^[A-Z2-9]{6,10}$/.test(candidate) ? candidate : null;
+
   const user = await getCurrentUser();
-  if (!user) redirect("/auth");
+  if (!user) {
+    /* ⚠️ کد باید از ورود سالم رد شود.
+    
+       بدونِ `returnTo`، دانش‌آموزی که روی لینکِ دعوت زده پس از ورود به
+       صفحهٔ خانه می‌رفت و هیچ‌وقت نمی‌فهمید کدش کجا رفت. مسیر از
+       `safeReturnTo` رد می‌شود و فقط چون در فهرستِ سفید است پذیرفته
+       می‌شود — نه چون از نشانی آمده. */
+    const back = inviteCode ? invitePath(inviteCode) : "/panel/classes";
+    redirect(`/auth?returnTo=${encodeURIComponent(back)}`);
+  }
 
   const [classes, viewers, feedback] = await Promise.all([
     listStudentClasses(user.id),
@@ -51,7 +75,7 @@ export default async function Page() {
         tone="mint"
       />
 
-      <StudentClasses initial={classes} />
+      <StudentClasses initial={classes} inviteCode={inviteCode} />
 
       {/* ── بازخوردهای دبیر ─────────────────────────────────────────
           ⚠️ `id="feedback"` همان لنگری است که لینکِ اعلان به آن می‌آید

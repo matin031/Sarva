@@ -53,3 +53,26 @@ test("ورودیِ نامعتبر به مقصد پیش‌فرض می‌رسد", 
 test("hash کنار گذاشته می‌شود", () => {
   assert.equal(safeReturnTo("/panel/analysis#mistakes"), "/panel/analysis");
 });
+
+/**
+ * لینکِ دعوتِ کلاس — `/panel/classes?join=CODE`.
+ *
+ * ⚠️ بدونِ این مسیر در فهرستِ سفید، دانش‌آموزی که روی لینکِ دعوت می‌زند و
+ * وارد نیست، پس از ورود به صفحهٔ خانه می‌رفت و کد را گم می‌کرد.
+ */
+test("مسیرِ کلاس‌ها با پارامترِ دعوت حفظ می‌شود", () => {
+  assert.equal(safeReturnTo("/panel/classes?join=AB3K9P"), "/panel/classes?join=AB3K9P");
+  assert.equal(safeReturnTo("/panel/classes"), "/panel/classes");
+});
+
+/** ⚠️ ولی باز شدنِ یک مسیر نباید بقیه را باز کند. */
+test("گشودنِ مسیرِ کلاس‌ها چیزِ دیگری را باز نکرد", () => {
+  for (const evil of [
+    "//evil.example/panel/classes",
+    "https://evil.example/panel/classes",
+    "/panel/classes-evil",
+    "/admin/panel/classes",
+  ]) {
+    assert.equal(safeReturnTo(evil), DEFAULT_AFTER_LOGIN, `«${evil}» نباید مجاز باشد`);
+  }
+});

@@ -39,6 +39,14 @@ const ALLOWED_PREFIXES = [
   "/panel/analysis",
   "/panel/home",
   "/panel/bookmarks",
+  /* ⚠️ برای لینکِ دعوتِ کلاس (`/panel/classes?join=…`).
+  
+     بدونِ این، دانش‌آموزی که روی لینکِ دعوت می‌زند و وارد نیست، پس از ورود
+     به صفحهٔ خانه می‌رفت و **کد را گم می‌کرد** — و هیچ‌وقت نمی‌فهمید چرا.
+  
+     پرس‌وجوی `?join=` در `safeReturnTo` حفظ می‌شود (فقط hash حذف می‌شود)،
+     پس کد از ورود سالم رد می‌شود. */
+  "/panel/classes",
   "/payment/result",
 ] as const;
 

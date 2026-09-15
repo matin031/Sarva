@@ -18,7 +18,14 @@ import type { StudentClass } from "@/lib/teacher/types";
  * تازه است و نه تماشای فهرست.
  */
 
-export default function StudentClasses({ initial }: { initial: StudentClass[] }) {
+export default function StudentClasses({
+  initial,
+  inviteCode,
+}: {
+  initial: StudentClass[];
+  /** کدی که از لینکِ دعوت آمده — فرم را از قبل پر می‌کند. */
+  inviteCode?: string | null;
+}) {
   const [classes, setClasses] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
@@ -47,6 +54,7 @@ export default function StudentClasses({ initial }: { initial: StudentClass[] })
           کلاس باشد: کاری که آدم را به این صفحه می‌آورد، معمولاً وارد کردنِ
           یک کدِ تازه است و نه تماشای فهرست. */}
       <JoinClassCard
+        initialCode={inviteCode ?? null}
         onJoined={() => {
           /* ⚠️ صفحه از نو خوانده می‌شود و فهرست دستی به‌روز نمی‌شود: اکشن
              فقط نامِ کلاس را برمی‌گرداند و نه کلِ ردیف (دبیر، مدرسه، پایه).

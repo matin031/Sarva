@@ -22,6 +22,7 @@ import {
   type ClassPreview,
 } from "./classes";
 import { NO_SUCH_CODE } from "./membership";
+import { inviteQrSvg } from "./invite";
 import type { School, TeacherClass } from "./types";
 
 /**
@@ -148,16 +149,27 @@ export async function teacherSetClassActive(
   return { ok: true, data: null };
 }
 
-/** کدِ تازه برای کلاس — وقتی کدِ قبلی جایی پخش شده. */
-export async function teacherRotateJoinCode(classId: string): Promise<ActionResult<{ joinCode: string }>> {
+/**
+ * کدِ تازه برای کلاس — وقتی کدِ قبلی جایی پخش شده.
+ *
+ * ⚠️ QRِ تازه در همین پاسخ برمی‌گردد و نه با یک رفت‌وبرگشتِ دیگر.
+ *
+ * بدونِ آن، دبیر پس از چرخاندنِ کد یک QRِ **سوخته** روی صفحه می‌دید تا
+ * رفرشِ بعدی — و ممکن بود همان را به کلاس نشان دهد. کدِ روی صفحه از همان
+ * اول به همین دلیل در پاسخ برمی‌گشت؛ QR هم همان‌جاست.
+ */
+export async function teacherRotateJoinCode(
+  classId: string,
+): Promise<ActionResult<{ joinCode: string; qrSvg: string }>> {
   const teacher = await requireTeacher();
   const id = uuidArg(classId, "شناسهٔ کلاس نامعتبر است.");
 
   const code = await rotateJoinCode(teacher.id, id);
   if (!code) return invalid(["کلاس پیدا نشد."]);
 
+  revalidatePath("/panel/teacher");
   revalidatePath(`/panel/teacher/class/${id}`);
-  return { ok: true, data: { joinCode: code } };
+  return { ok: true, data: { joinCode: code, qrSvg: inviteQrSvg(code) } };
 }
 
 /**

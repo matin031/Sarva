@@ -8,6 +8,7 @@ import ClassDetail from "@/components/UI/panel/teacher/ClassDetail";
 import ClassAnalytics from "@/components/UI/panel/teacher/ClassAnalytics";
 import { getTeacherClass, listClassMembers } from "@/lib/teacher/classes";
 import { getClassDashboard } from "@/lib/teacher/analytics";
+import { inviteQrSvg } from "@/lib/teacher/invite";
 import { GRADE_LABEL } from "@/lib/profile/schemas";
 
 /**
@@ -69,7 +70,14 @@ export default async function Page({ params }: { params: Promise<{ classId: stri
         tone="mint"
       />
 
-      <ClassDetail klass={klass} initialMembers={members} />
+      {/* ⚠️ QR سمتِ سرور ساخته می‌شود و نه در مرورگر: کتابخانه‌اش کوچک
+          است ولی بردنش به باندلِ کلاینت یعنی همهٔ بازدیدکننده‌های پنل
+          هزینه‌اش را می‌دهند، برای چیزی که فقط دبیر می‌بیند. */}
+      <ClassDetail
+        klass={klass}
+        initialMembers={members}
+        qrSvg={inviteQrSvg(klass.joinCode)}
+      />
       {dashboard && (
         <div className="mt-6">
           <ClassAnalytics dashboard={dashboard} />

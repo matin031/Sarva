@@ -289,9 +289,13 @@ function ClassCard({
 function ClassList({ classes }: { classes: TeacherClass[] }) {
   if (classes.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        هنوز کلاسی نساخته‌ای.
-      </p>
+      <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+        <p className="font-medium">اولین کلاست را بساز</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+          مدرسه را انتخاب کن، نام و پایهٔ کلاس را بنویس، و کد عضویتی که سروا می‌سازد را به
+          دانش‌آموزانت بده.
+        </p>
+      </div>
     );
   }
 
@@ -309,7 +313,7 @@ function ClassList({ classes }: { classes: TeacherClass[] }) {
               </div>
               {!klass.isActive && (
                 <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-                  بسته
+                  بایگانی
                 </span>
               )}
             </div>
@@ -319,6 +323,14 @@ function ClassList({ classes }: { classes: TeacherClass[] }) {
               <span className="text-muted-foreground">
                 {fa(klass.memberCount)} دانش‌آموز
               </span>
+              {/* ⚠️ «عضوگیری بسته» با «بایگانی» یکی نیست — دو ستونِ جدا از
+                  مهاجرت ۰۱۴. نشانِ مشترک یعنی دبیر نداند کدام را باید باز
+                  کند. */}
+              {!klass.joinEnabled && klass.isActive && (
+                <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  عضوگیری بسته
+                </span>
+              )}
             </div>
 
             <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">

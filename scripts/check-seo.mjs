@@ -25,6 +25,7 @@ const PAGES = [
   { path: "/doroos/yazdahom/%DB%B1", kind: "dupe", label: "درس با رقمِ فارسی", canonicalOf: "/doroos/yazdahom/1" },
   { path: "/game", kind: "public", label: "کهکشان بازی‌ها" },
   { path: "/game/grammar-circuit", kind: "public", label: "بازی مدار دستور" },
+  { path: "/game/role-hunt", kind: "public", label: "بازی شکار نقش‌ها" },
   { path: "/game/aruz-bridge", kind: "public", label: "بازی پل وزن" },
   { path: "/game/ninja", kind: "public", label: "بازی نینجا" },
   { path: "/game/vocab", kind: "public", label: "بازی واژه‌یاب" },

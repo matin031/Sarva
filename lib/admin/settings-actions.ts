@@ -62,19 +62,23 @@ export async function adminAdapterStatus(): Promise<AdapterStatus> {
       label:
         SETTING_SPECS["sms.driver"].options?.find((o) => o.value === sms.driver)?.label ??
         sms.driver,
-      // «سالم» یعنی واقعاً می‌تواند پیامک بفرستد. حالت mock عمداً سالم حساب
+      // «سالم» یعنی واقعاً می‌تواند کدِ ورود بفرستد. حالت mock عمداً سالم حساب
       // نمی‌شود، وگرنه یک تیک سبز به مدیر می‌گوید پیامک کار می‌کند در حالی که
       // هیچ پیامکی نمی‌رود.
-      healthy: sms.implemented && sms.driver !== "mock" && sms.hasApiKey && sms.hasSender,
+      //
+      // ⚠️ «شمارهٔ خط» در این شرط نیست: مسیرِ کدِ ورود (Verify) خودش خط را
+      // انتخاب می‌کند و نبودنش جلوی ورودِ کاربران را نمی‌گیرد. اگر اینجا
+      // می‌ماند، کارت برای سایتی که کاملاً سالم کار می‌کند قرمز می‌شد.
+      healthy: sms.implemented && sms.driver !== "mock" && sms.hasApiKey && sms.hasTemplateId,
       note:
         sms.driver === "mock"
-          ? "هیچ پیامکی ارسال نمی‌شود. بعد از خرید پنل پیامک، سرویس را در بخش «پیامک» انتخاب کنید."
+          ? "هیچ پیامکی ارسال نمی‌شود. برای فعال کردن، در بخش «پیامک» سرویس SMS.ir را انتخاب کنید."
           : !sms.implemented
-            ? "این سرویس هنوز در سایت پیاده‌سازی نشده — فعلاً پیامکی ارسال نمی‌شود."
+            ? "سرویسِ ذخیره‌شده شناخته نشد — فعلاً پیامکی ارسال نمی‌شود. در بخش «پیامک» دوباره انتخاب کنید."
             : !sms.hasApiKey
               ? "کلید API وارد نشده."
-              : !sms.hasSender
-                ? "شمارهٔ فرستنده وارد نشده."
+              : !sms.hasTemplateId
+                ? "شناسهٔ قالب کد ورود وارد نشده (یا عدد نیست)."
                 : "آمادهٔ ارسال.",
     },
     storage: {
@@ -112,11 +116,27 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
     return { ok: false, errors: ["گزینهٔ انتخاب‌شده معتبر نیست."] };
   }
 
-  if (key === "sms.base_url" && !/^https:\/\/[^\s]+$/.test(trimmed)) {
-    return { ok: false, errors: ["آدرس سرویس باید با https:// شروع شود."] };
+  /* ⚠️ شناسهٔ قالب باید عدد باشد. SMS.ir مقدارِ غیرعددی را رد می‌کند و نتیجه‌اش
+     «کد ارسال نمی‌شود و معلوم نیست چرا» است — پس همین‌جا جلویش گرفته می‌شود و
+     نه سه هفته بعد در لاگِ سرور.
+
+     ارقامِ فارسی هم قبول است و به لاتین تبدیل می‌شود، چون مدیر این عدد را از
+     پنلِ فارسیِ SMS.ir کپی می‌کند و همان‌جا «۴۱۴۰۲۶» نوشته شده. */
+  let toStore = trimmed;
+  if (key === "sms.template_id") {
+    toStore = trimmed.replace(/[۰-۹٠-٩]/g, (d) => {
+      const code = d.charCodeAt(0);
+      return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+    });
+    if (!/^\d+$/.test(toStore) || Number(toStore) <= 0) {
+      return {
+        ok: false,
+        errors: ["شناسهٔ قالب باید یک عدد باشد — همان عددی که پنل SMS.ir کنار قالب نشان می‌دهد."],
+      };
+    }
   }
 
-  await setSetting(key, trimmed, admin.id);
+  await setSetting(key, toStore, admin.id);
 
   await recordAudit({
     actor: admin,
@@ -126,7 +146,7 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
     summary: `تنظیم «${SETTING_SPECS[key].label}» تغییر کرد`,
     // مقدار عمداً فرستاده می‌شود ولی redactMetadata کلیدهای حساس (api_key و
     // مانندش) را پنهان می‌کند — پس آدرس ایمیل در لاگ می‌آید و کلید پیامک نه.
-    metadata: { [key]: trimmed },
+    metadata: { [key]: toStore },
   });
 
   revalidatePath("/admin/settings");

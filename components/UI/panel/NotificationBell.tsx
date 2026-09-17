@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { apiGet, apiPatch } from "@/lib/api/client";
-import { fa, relativeDay } from "@/lib/panel/format";
+import { fa, jalali, relativeDay } from "@/lib/panel/format";
+import { useReducedMotion } from "@/lib/perf/use-perf";
+import { cn } from "@/lib/cn";
 import type { PlusNotification } from "@/lib/plus/types";
 
 /**
@@ -29,6 +32,21 @@ import type { PlusNotification } from "@/lib/plus/types";
  *     قطعیِ شبکه دقیقاً شبیهِ «اعلانی نداری» دیده می‌شود.
  *   • **در حالِ خواندن** — چون فهرست صفحه‌بندی می‌شود و صفحهٔ دوم زمان
  *     می‌برد.
+ *
+ * =============================================================================
+ * ⚠️ و سه چیزی که با «زیاد شدنِ اعلان‌ها» اضافه شد
+ * =============================================================================
+ *
+ * ۱. **اسکلتِ کارت ثابت است.** سرتیتر و پاورقی *بیرونِ* ناحیهٔ اسکرول‌اند.
+ *    پیش از این دکمهٔ «اعلان‌های قدیمی‌تر» داخلِ همان ناحیه بود، یعنی با هر
+ *    بار فشردنش پایین‌تر می‌رفت و کاربر باید دنبالش می‌گشت.
+ *
+ * ۲. **گروه‌بندیِ روزانه.** یک فهرستِ شصت‌ردیفیِ یکدست قابلِ پیمایش نیست.
+ *    سرتیترِ چسبانِ «امروز / دیروز / …» موقعِ اسکرول می‌گوید کجاییم.
+ *
+ * ۳. **سقفِ بارگذاری.** هر «قدیمی‌تر» بیست ردیف اضافه می‌کند و بدونِ سقف،
+ *    کاربری که ده بار بزند سیصد ردیف در حافظه و در DOM دارد — روی موبایل
+ *    کاملاً محسوس. سقف صریح است و پاورقی هم می‌گوید چرا ایستاده.
  */
 
 type Page = {
@@ -39,6 +57,15 @@ type Page = {
 };
 
 const KEY = ["panel", "notifications"] as const;
+
+/**
+ * بیشترین اعلانی که همزمان در کارت می‌ماند.
+ *
+ * ⚠️ سه صفحه. عددِ بزرگ‌تر فقط DOM را سنگین می‌کند: کسی که دنبالِ اعلانی از
+ * دو ماه پیش است، با فشردنِ پیاپیِ یک دکمه پیدایش نمی‌کند — آن کار یک
+ * صفحهٔ جدا با جست‌وجو می‌خواهد و نه یک فهرستِ بلندتر.
+ */
+const MAX_LOADED = 60;
 
 export default function NotificationBell() {
   const queryClient = useQueryClient();
@@ -69,7 +96,14 @@ export default function NotificationBell() {
       if (!result.ok) throw new Error(result.errors.join(" "));
       return result.data.marked;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+    /* ⚠️ اینجا هم به‌روزرسانیِ محلی و بعد تازه‌سازی، مثلِ `markOne`.
+       بدونِ آن، بینِ پاسخِ سرور و رسیدنِ کوئریِ تازه، همهٔ ردیف‌ها هنوز
+       «خوانده‌نشده» دیده می‌شدند و کاربر دوباره روی دکمه می‌زد. */
+    onSuccess: () => {
+      const now = new Date().toISOString();
+      setPages((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: now })));
+      queryClient.invalidateQueries({ queryKey: KEY });
+    },
   });
 
   const markOne = useMutation({
@@ -110,6 +144,25 @@ export default function NotificationBell() {
 
   const unread = data?.unread ?? 0;
   const hasMore = data?.hasMore ?? false;
+  const atCap = pages.length >= MAX_LOADED;
+
+  /* ⚠️ گروه‌بندی بر اساسِ *برچسبِ* روز و نه خودِ تاریخ.
+
+     `relativeDay` برای هر چیزِ قدیمی‌تر از یک ماه، تاریخِ کاملِ شمسی
+     می‌دهد — پس گروه‌ها خودبه‌خود «امروز»، «دیروز»، «۳ روز پیش»، و بعد
+     تاریخ‌های جدا می‌شوند، بی‌آنکه قاعدهٔ دومی لازم باشد.
+
+     ترتیب از خودِ فهرست می‌آید (تازه‌ترین اول) و `Map` آن را نگه می‌دارد. */
+  const groups = useMemo(() => {
+    const map = new Map<string, PlusNotification[]>();
+    for (const item of pages) {
+      const label = relativeDay(item.createdAt);
+      const bucket = map.get(label);
+      if (bucket) bucket.push(item);
+      else map.set(label, [item]);
+    }
+    return [...map.entries()];
+  }, [pages]);
 
   return (
     <div className="relative">
@@ -141,10 +194,21 @@ export default function NotificationBell() {
 
           {/* ⚠️ روی موبایل تمامِ عرض منهای حاشیه، روی دسکتاپ یک پنلِ ثابت.
               بدونِ `max-w`, این کارت روی گوشیِ ۳۶۰ پیکسلی از صفحه بیرون
-              می‌زد. */}
-          <div className="absolute end-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
-            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <h2 className="text-[13px] font-bold">اعلان‌ها</h2>
+              می‌زد.
+
+              ⚠️ و `flex-col`: سرتیتر و پاورقی ارتفاعِ خودشان را می‌گیرند و
+              فقط فهرست کشیده می‌شود. پیش از این همه‌چیز در یک جریان بود و
+              دکمهٔ «قدیمی‌تر» با هر بارگذاری پایین‌تر می‌رفت. */}
+          <div className="absolute end-0 z-50 mt-2 flex w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <h2 className="flex items-center gap-1.5 text-[13px] font-bold">
+                اعلان‌ها
+                {unread > 0 && (
+                  <span className="panel-num rounded-full bg-primary/12 px-1.5 text-[11px] font-bold text-primary">
+                    {fa(unread)}
+                  </span>
+                )}
+              </h2>
               {unread > 0 && (
                 <button
                   type="button"
@@ -158,7 +222,7 @@ export default function NotificationBell() {
               )}
             </div>
 
-            <div className="max-h-[min(28rem,70vh)] overflow-y-auto">
+            <div className="sarva-scroll max-h-[min(28rem,70vh)] flex-1 overflow-y-auto overscroll-contain">
               {isPending ? (
                 <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">
                   <Loader2 aria-hidden className="mx-auto mb-2 size-4 animate-spin" />
@@ -183,23 +247,45 @@ export default function NotificationBell() {
                   هنوز اعلانی نداری.
                 </p>
               ) : (
-                <ul className="flex flex-col divide-y divide-border">
-                  {pages.map((n) => (
-                    <li key={n.id}>
-                      <NotificationRow
-                        notification={n}
-                        onRead={() => {
-                          if (!n.readAt) markOne.mutate(n.id);
-                        }}
-                        onNavigate={() => setOpen(false)}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                groups.map(([label, items]) => (
+                  <section key={label}>
+                    {/* ⚠️ `sticky` روی سرتیترِ روز: در فهرستِ شصت‌ردیفی،
+                        همیشه معلوم است که اعلانِ زیرِ دست مالِ چه روزی
+                        است — بی‌آنکه لازم باشد کاربر تا بالا اسکرول کند. */}
+                    <h3 className="sticky top-0 z-10 border-b border-border/60 bg-surface/95 px-4 py-1.5 text-[11px] font-bold text-muted-foreground backdrop-blur-sm">
+                      {label}
+                    </h3>
+                    <ul className="flex flex-col divide-y divide-border">
+                      {items.map((n) => (
+                        <li key={n.id}>
+                          <NotificationRow
+                            notification={n}
+                            pending={markOne.isPending && markOne.variables === n.id}
+                            onRead={() => {
+                              if (!n.readAt) markOne.mutate(n.id);
+                            }}
+                            onNavigate={() => setOpen(false)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))
               )}
+            </div>
 
-              {hasMore && pages.length > 0 && (
-                <div className="border-t border-border p-3">
+            {/* ── پاورقی: بیرونِ ناحیهٔ اسکرول ────────────────────────── */}
+            {pages.length > 0 && (hasMore || atCap) && (
+              <div className="shrink-0 border-t border-border p-3">
+                {atCap ? (
+                  /* ⚠️ صریح می‌گوید چرا ایستاده. یک دکمهٔ غیرفعالِ
+                     بی‌توضیح، خواننده را به این نتیجه می‌رساند که چیزی
+                     خراب است. */
+                  <p className="text-center text-[12px] leading-relaxed text-muted-foreground">
+                    {fa(MAX_LOADED)} اعلانِ اخیر نشان داده شد. برای دیدنِ قدیمی‌ترها،
+                    اول همین‌ها را خوانده‌شده کن.
+                  </p>
+                ) : (
                   <button
                     type="button"
                     onClick={loadMore}
@@ -208,9 +294,9 @@ export default function NotificationBell() {
                   >
                     {loadingMore ? "در حال خواندن…" : "اعلان‌های قدیمی‌تر"}
                   </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -220,17 +306,20 @@ export default function NotificationBell() {
 
 function NotificationRow({
   notification,
+  pending,
   onRead,
   onNavigate,
 }: {
   notification: PlusNotification;
+  /** درخواستِ «خوانده شد» برای همین ردیف در راه است. */
+  pending: boolean;
   onRead: () => void;
   onNavigate: () => void;
 }) {
   const unread = notification.readAt === null;
 
   const body = (
-    <div className="flex items-start gap-2.5 px-4 py-3 text-right">
+    <div className="flex items-start gap-2.5 py-3 pe-2 ps-4 text-right">
       {/* نقطهٔ «خوانده‌نشده» — رنگ به‌تنهایی کافی نیست، پس جایِ ثابت هم
           می‌گیرد تا فهرست نلرزد. */}
       <span
@@ -245,38 +334,133 @@ function NotificationRow({
           </p>
         )}
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {relativeDay(notification.createdAt)}
+          <time dateTime={notification.createdAt} title={jalali(notification.createdAt)}>
+            {relativeDay(notification.createdAt)}
+          </time>
           {unread && <span className="sr-only"> — خوانده نشده</span>}
         </p>
       </div>
     </div>
   );
 
-  /* ⚠️ `href` از سرور می‌آید و CHECK دیتابیس تضمین می‌کند مسیرِ داخلی است
-     (`^/[^/\\]`). پس یک اعلان نمی‌تواند کاربر را به بیرون بفرستد، حتی اگر
-     روزی ردیفی از راهِ دیگری نوشته شود. */
-  if (notification.href) {
-    return (
-      <Link
-        href={notification.href}
-        onClick={() => {
-          onRead();
-          onNavigate();
-        }}
-        className="block w-full transition-colors hover:bg-foreground/[0.03]"
-      >
-        {body}
-      </Link>
-    );
-  }
+  /* ⚠️ دکمهٔ تیک **کنارِ** لینک می‌نشیند و نه داخلش.
+
+     یک `<button>` داخلِ یک `<a>` هم HTMLِ نامعتبر است و هم در عمل خراب:
+     کلیک روی دکمه لینک را هم فعال می‌کند، پس «خوانده شد» زدن کاربر را از
+     پنل بیرون می‌برد. به همین دلیل ردیف یک `flex` است با دو فرزندِ خواهر. */
+  return (
+    <div className="flex items-stretch transition-colors hover:bg-foreground/[0.03]">
+      {notification.href ? (
+        <Link
+          href={notification.href}
+          onClick={() => {
+            onRead();
+            onNavigate();
+          }}
+          className="min-w-0 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          {body}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onRead}
+          className="min-w-0 flex-1 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          {body}
+        </button>
+      )}
+
+      {unread && (
+        <MarkReadButton
+          pending={pending}
+          onClick={onRead}
+          label={`«${notification.title}» را خوانده‌شده کن`}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * دکمهٔ «خوانده شد» — یک تیکِ گِرد که کشیده می‌شود.
+ *
+ * ⚠️ چرا انیمیشن اینجا کارِ تزئین نیست: این دکمه چیزی را عوض می‌کند که
+ * *خودش* بلافاصله ناپدید می‌شود (ردیف خوانده می‌شود و دکمه می‌رود). بدونِ
+ * یک لحظه بازخورد، کاربر نمی‌داند کلیکش گرفت یا لغزید — و دوباره می‌زند،
+ * این بار روی ردیفِ دیگری که بالا آمده.
+ *
+ * ⚠️ `pathLength` و نه `opacity`: تیک *کشیده* می‌شود، پس چشم مسیرِ حرکت را
+ * دنبال می‌کند و می‌فهمد چه اتفاقی افتاد. یک محوشدنِ ساده همان اطلاعات را
+ * نمی‌دهد.
+ *
+ * ⚠️ و `useReducedMotion` جدی گرفته می‌شود: با آن روشن، تیک بدونِ هیچ
+ * حرکتی می‌آید. حذفِ کلِ بازخورد غلط بود — کاربری که حرکت را خاموش کرده،
+ * نخواسته «ندانم چه شد».
+ */
+function MarkReadButton({
+  pending,
+  onClick,
+  label,
+}: {
+  pending: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  const reduced = useReducedMotion();
 
   return (
     <button
       type="button"
-      onClick={onRead}
-      className="block w-full transition-colors hover:bg-foreground/[0.03] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      aria-label={label}
+      disabled={pending}
+      onClick={onClick}
+      className={cn(
+        "group/mark my-auto me-2 grid size-7 shrink-0 place-items-center rounded-full",
+        "border border-border/70 text-muted-foreground",
+        "transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary",
+        "outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "disabled:cursor-default disabled:opacity-60",
+      )}
     >
-      {body}
+      <AnimatePresence mode="wait" initial={false}>
+        {pending ? (
+          <motion.span
+            key="pending"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0 : 0.12 }}
+          >
+            <Loader2 aria-hidden className="size-3.5 animate-spin" />
+          </motion.span>
+        ) : (
+          <motion.svg
+            key="check"
+            aria-hidden
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3.5"
+            initial={{ scale: reduced ? 1 : 0.6 }}
+            animate={{ scale: 1 }}
+            exit={{ opacity: 0 }}
+            /* فنرِ کوتاه و بی‌پرش — دکمه باید سریع به نظر برسد و نه بازیگوش. */
+            transition={{ type: "spring", stiffness: 520, damping: 26 }}
+            whileTap={reduced ? undefined : { scale: 0.85 }}
+          >
+            <motion.path
+              d="M4.5 12.5 9.5 17.5 19.5 6.5"
+              initial={{ pathLength: reduced ? 1 : 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: reduced ? 0 : 0.28, ease: "easeOut" }}
+            />
+          </motion.svg>
+        )}
+      </AnimatePresence>
     </button>
   );
 }

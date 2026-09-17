@@ -130,7 +130,7 @@ export default function MobileDrawer({ open, onClose, title, children }: MobileD
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3">{children}</div>
+        <div className="sarva-scroll flex-1 overflow-y-auto overscroll-contain p-3">{children}</div>
       </div>
 
       <style>{`

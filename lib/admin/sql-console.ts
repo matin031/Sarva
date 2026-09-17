@@ -19,6 +19,7 @@ import {
   type SqlRunMode,
 } from "@/lib/admin/sql-constants";
 import { inspectSql } from "@/lib/admin/sql-guard";
+import type { AuthUser } from "@/lib/auth/types";
 
 /**
  * کنسول SQL پنل مدیریت.
@@ -414,7 +415,12 @@ async function runOneStatement(
 // ---------------------------------------------------------------------------
 
 async function audit(
-  admin: { id: string; email: string; fullName: string | null; role: "student" | "admin"; emailVerified: boolean; isBanned: boolean; createdAt: string },
+  /* ⚠️ `AuthUser` و نه یک شکلِ دست‌نویسِ تکراری.
+     نسخهٔ قبل همان فیلدها را اینجا دوباره تایپ کرده بود، و لحظه‌ای که
+     `AuthUser` دو فیلدِ تازه گرفت (`phone`/`phoneVerified`) این امضا از آن
+     واگرا شد و پنج خطای کامپایل داد. ارجاع به نوعِ اصلی یعنی دفعهٔ بعد
+     خودبه‌خود هم‌گام می‌ماند. */
+  admin: AuthUser,
   sql: string,
   mode: SqlRunMode,
   committed: boolean,

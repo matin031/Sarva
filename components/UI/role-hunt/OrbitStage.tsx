@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import { ROLE_HUNT_CONFIG } from "@/lib/role-hunt/config";
 import type { RoleHuntLine, RoleHuntRound, RoleHuntToken } from "@/lib/role-hunt/types";
+import { STAR_PATH } from "./star";
 
 /**
  * صحنهٔ بازی: مصراع و مدارِ واژه‌ها.
@@ -14,10 +15,10 @@ import type { RoleHuntLine, RoleHuntRound, RoleHuntToken } from "@/lib/role-hunt
  *
  * ⚠️ هیچ فریمی از این کامپوننت رد نمی‌شود.
  *
- * حرکت کاملاً در CSS است (`role-hunt.css` → `rh-spin` / `rh-spin-back`) و
- * React فقط زاویهٔ شروعِ هر واژه را یک بار به‌صورتِ `animation-delay` می‌نویسد.
- * پس رندرِ دوبارهٔ این درخت — که با hover و با بازخوردِ پاسخ اتفاق می‌افتد —
- * روی حرکت هیچ اثری ندارد: نه می‌پراندش و نه از نو شروعش می‌کند.
+ * حرکت کاملاً در CSS است (`rh-spin` / `rh-spin-back`) و React فقط زاویهٔ
+ * شروعِ هر واژه را یک بار به‌صورتِ `animation-delay` می‌نویسد. پس رندرِ
+ * دوبارهٔ این درخت — که با hover و با بازخوردِ پاسخ اتفاق می‌افتد — روی
+ * حرکت هیچ اثری ندارد: نه می‌پراندش و نه از نو شروعش می‌کند.
  *
  * ⚠️ چرا `animation-delay`ِ منفی و نه `animation-timeline` یا JS:
  * تأخیرِ منفی یعنی «انگار این انیمیشن از قبل شروع شده بود». هر واژه سهمِ
@@ -25,6 +26,14 @@ import type { RoleHuntLine, RoleHuntRound, RoleHuntToken } from "@/lib/role-hunt
  * آنکه لازم باشد کسی موقعیتشان را حساب کند — و چون هر سه لایه یک
  * `--rh-delay` را به ارث می‌برند، چرخش و چرخشِ معکوس همیشه هم‌فازند.
  */
+
+/** نقطه‌های ریزِ روی مدار: سهمِ هر کدام از دور، و لحنشان. */
+const DOTS: { share: number; tone?: "gold"; speed: number }[] = [
+  { share: 0.12, speed: 1 },
+  { share: 0.37, tone: "gold", speed: 1.45 },
+  { share: 0.63, speed: 0.78 },
+  { share: 0.88, tone: "gold", speed: 1.2 },
+];
 
 /**
  * شمارهٔ رخداد برای واژه‌های تکراری.
@@ -55,13 +64,42 @@ function occurrenceLabels(tokens: readonly RoleHuntToken[]): Map<string, string>
 function tokenState(
   tokenId: string,
   round: RoleHuntRound,
-  answered: { tokenId: string; isCorrect: boolean } | null,
+  answered: { tokenId: string | null; isCorrect: boolean } | null,
 ): "correct" | "wrong" | "reveal" | undefined {
   if (!answered) return undefined;
   if (tokenId === answered.tokenId) return answered.isCorrect ? "correct" : "wrong";
   // پاسخِ درست فقط وقتی رو می‌شود که کاربر اشتباه زده باشد.
   if (!answered.isCorrect && tokenId === round.correctTokenId) return "reveal";
   return undefined;
+}
+
+/**
+ * قابِ گُلِ هشت‌پر. `preserveAspectRatio="none"` تا با واژهٔ بلند کشیده شود.
+ *
+ * ⚠️ `style` صریحاً رد می‌شود و این یک ریزه‌کاریِ الکی نیست: صفحهٔ معرفی
+ * زاویهٔ هر ستاره را با یک متغیّرِ CSS (`--rh-a`) می‌دهد. نسخهٔ اول این prop
+ * را نمی‌گرفت، پس هیچ زاویه‌ای اعمال نمی‌شد و هر هشت ستاره روی مرکزِ صفحه
+ * روی هم می‌افتادند — یعنی یک ستارهٔ بی‌ربط وسطِ متنِ معرفی.
+ */
+export function StarShape({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={STAR_PATH} />
+    </svg>
+  );
 }
 
 function VerseLine({
@@ -99,13 +137,16 @@ export default function OrbitStage({
   hoveredTokenId,
   onHover,
   onSelect,
+  locked = false,
 }: {
   round: RoleHuntRound;
   /** پاسخِ همین دور، اگر داده شده. تا وقتی `null` است، ستاره‌ها فعال‌اند. */
-  answered: { tokenId: string; isCorrect: boolean } | null;
+  answered: { tokenId: string | null; isCorrect: boolean } | null;
   hoveredTokenId: string | null;
   onHover: (tokenId: string | null) => void;
   onSelect: (tokenId: string) => void;
+  /** بازی قفل است (گوشیِ عمودی) — هیچ ستاره‌ای نباید پاسخ بگیرد. */
+  locked?: boolean;
 }) {
   const labels = occurrenceLabels(round.orbit);
   const count = round.orbit.length;
@@ -137,6 +178,32 @@ export default function OrbitStage({
           یکی شود و تابلو وسطِ حلقه بنشیند. بدونِ آن، یک عنصر نمی‌توانست
           هم‌زمان هر دو نقش را بازی کند. دلیلِ کاملش بالای `role-hunt.css`. */}
       <div className="rh-orbit-field">
+        {/* خودِ مسیر. بدونِ آن، واژه‌ها «شناور» به نظر می‌رسند. */}
+        <div className="rh-ring" aria-hidden="true">
+          
+        </div>
+
+        {/* نقطه‌های ریز — فقط برای زنده نگه داشتنِ حسِ حرکت. */}
+        <div className="rh-orbit" aria-hidden="true">
+          {DOTS.map((dot, index) => (
+            <div
+              key={index}
+              className="rh-orbit-item"
+              style={
+                {
+                  "--rh-duration": `${(ROLE_HUNT_CONFIG.orbitSeconds / dot.speed).toFixed(2)}s`,
+                  "--rh-delay": `${(-dot.share * ROLE_HUNT_CONFIG.orbitSeconds).toFixed(2)}s`,
+                  "--rh-angle": `${dot.share}turn`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="rh-orbit-arm">
+                <span className="rh-dot" data-tone={dot.tone} />
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="rh-orbit">
           {round.orbit.map((token, index) => {
             const share = index / count;
@@ -161,7 +228,7 @@ export default function OrbitStage({
                       type="button"
                       className="rh-token"
                       data-state={state}
-                      disabled={answered !== null}
+                      disabled={answered !== null || locked}
                       onPointerEnter={() => onHover(token.id)}
                       onPointerLeave={() => onHover(null)}
                       onFocus={() => onHover(token.id)}
@@ -169,7 +236,8 @@ export default function OrbitStage({
                       onClick={() => onSelect(token.id)}
                       aria-label={labels.get(token.id) ?? token.text}
                     >
-                      {token.text}
+                      <StarShape className="rh-token-shape" />
+                      <span className="rh-token-text">{token.text}</span>
                       {state && (
                         /* ⚠️ نشانه، و نه فقط رنگ. */
                         <span className="rh-token-mark" aria-hidden="true">

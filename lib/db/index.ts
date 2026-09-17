@@ -490,6 +490,15 @@ export function triggerAssertionMessage(err: unknown): string | null {
   return (err as { sqlMessage?: string }).sqlMessage ?? null;
 }
 
+/* ⚠️ `isMissingTable` و `missingTableName` در `./errors` هستند و نه اینجا.
+
+   تنها دلیلش این است که این فایل `server-only` است و آزمون‌های
+   `node --test` نمی‌توانند واردش کنند. آن دو تابع هیچ اتصالی به دیتابیس
+   ندارند — فقط یک عدد و یک رشته را می‌خوانند — و بررسیِ همیشه-غلطی که
+   جایشان بود، دقیقاً همان چیزی بود که یک آزمونِ ارزان می‌گرفتش.
+   (همان استدلالِ بالای `lib/sms/smsir.ts`.) */
+export { isMissingTable, missingTableName } from "./errors";
+
 // ---------------------------------------------------------------------------
 // اجرا
 // ---------------------------------------------------------------------------

@@ -34,6 +34,12 @@ export const POST = withRoute("/api/v1/auth/verify-email", async (request: Reque
 
     if (user.emailVerified) return ok({ verified: true, alreadyVerified: true });
 
+    // ⚠️ بدونِ ایمیل، کدی هم صادر نشده. همان پیامِ مسیرِ ارسال، تا کاربر دو
+    // جواب متفاوت برای یک وضعیت نگیرد.
+    if (!user.email) {
+      return fail("این حساب ایمیل ندارد. از تنظیمات حساب، ایمیل اضافه کنید.", 400);
+    }
+
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;
 

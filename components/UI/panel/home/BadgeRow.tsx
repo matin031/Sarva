@@ -15,11 +15,11 @@ export default function BadgeRow({ badges }: { badges: Badge[] }) {
   return (
     <section>
       <div className="mb-4">
-        <h2 className="text-lg font-bold">نشان‌های تو</h2>
+        <h2 className="text-lg font-bold">نشان‌ها</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {earned === 0
-            ? "اولین نشانت یک تمرین با تو فاصله دارد"
-            : `${["", "یک", "دو", "سه", "چهار"][earned] ?? earned} نشان گرفته‌ای`}
+            ? "هنوز نشانی نگرفته‌ای — نزدیک‌ترینش با چند تمرین می‌آید."
+            : `${["", "یک", "دو", "سه", "چهار"][earned] ?? earned} نشان از چهار تا`}
         </p>
       </div>
 

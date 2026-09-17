@@ -59,7 +59,7 @@ export default function QuestionIndex({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.32, ease: EASE }}
-            className="fixed inset-x-3 top-1/2 z-[95] mx-auto max-h-[78vh] max-w-lg -translate-y-1/2 overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-2xl"
+            className="sarva-scroll fixed inset-x-3 top-1/2 z-[95] mx-auto max-h-[78vh] max-w-lg -translate-y-1/2 overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-2xl"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>

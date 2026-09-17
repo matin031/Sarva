@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { GraduationCap, UserRound } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent } from "@/components/UI/kit/card";
 import { Field, Input } from "@/components/UI/kit/field";
-import { Select } from "@/components/UI/kit/select";
+import { AnimatedSelect } from "@/components/UI/kit/animated-select";
 import { apiPatch } from "@/lib/api/client";
 import { refreshCurrentUser, useCurrentUser } from "@/lib/auth/use-current-user";
 import type { AuthUser } from "@/lib/auth/types";
@@ -17,6 +17,7 @@ import {
   GRADES,
   GRADE_LABEL,
   profileSchema,
+  usableCityId,
   type ProfileFormValues,
   type ProfileInput,
 } from "@/lib/profile/schemas";
@@ -46,7 +47,7 @@ import AvatarField from "./AvatarField";
  * (`multipart` در برابر JSON). `AvatarField` خودش ذخیره می‌کند.
  */
 
-/** ⚠️ `undefined` و نه `""` برای `<select>`های اختیاری — `""` را شِما به
+/** ⚠️ `undefined` و نه `""` برای انتخابگرهای اختیاری — `""` را شِما به
  *  `null` تبدیل می‌کند و همان چیزی است که سرور «پاک کن» می‌فهمد. هر دو
  *  درست کار می‌کنند، ولی یکدست بودنشان یعنی مقدارِ اولیه و مقدارِ پاک‌شده
  *  از یک جنس‌اند. */
@@ -55,7 +56,15 @@ function initialValues(user: AuthUser): ProfileFormValues {
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     provinceId: user.provinceId,
-    cityId: user.cityId,
+    /* ⚠️ `usableCityId` و نه مستقیم `user.cityId`.
+
+       فهرستِ مکان‌ها از «شهرستان» به «شهر» رفت و ۸۶ شناسهٔ قدیمی دیگر در
+       فهرست نیستند. اگر یکی از آن‌ها خام وارد فرم می‌شد، کاربر در یک بن‌بست
+       می‌افتاد: انتخابگر «انتخاب کنید» نشان می‌داد (چون گزینه‌ای با آن
+       مقدار نیست) ولی همان مقدار موقعِ ذخیره فرستاده و رد می‌شد — خطایی
+       زیرِ فیلدی که خالی به نظر می‌رسید. چراییِ کامل کنارِ خودِ تابع در
+       `lib/profile/schemas.ts`. */
+    cityId: usableCityId(user.provinceId, user.cityId),
     school: user.school,
     grade: user.grade,
     desiredRole: user.desiredRole,
@@ -90,6 +99,26 @@ export default function ProfileForm() {
   // تازهٔ پنجاه‌تایی می‌ساخت و کلِ `<select>` دوباره رندر می‌شد.
   const cities = useMemo(() => citiesOf(provinceId), [provinceId]);
   const desiredRole = useWatch({ control: form.control, name: "desiredRole" });
+
+  /* ⚠️ هم نقشِ *تأییدشده* و هم نقشِ *انتخاب‌شده*.
+
+     دبیرِ تأییدشده اصلاً `RoleChoice` را نمی‌بیند (بالای آن کامپوننت
+     توضیح داده شده)، پس `desiredRole` برایش هر چیزی می‌تواند باشد — حتی
+     `student`، اگر حسابش از آن راه شروع شده بود. تکیه کردن به یکی از این
+     دو، برای نیمی از دبیرها فیلد را نگه می‌داشت. */
+  const hideGrade = user?.role === "teacher" || desiredRole === "teacher";
+
+  /* ⚠️ مقدارِ پایه همزمان با پنهان شدنِ فیلد پاک می‌شود.
+
+     `PATCH /profile` کلِ پروفایل را می‌نویسد و نه فقط فیلدهای دیده‌شده، پس
+     یک پایهٔ جامانده در state بی‌صدا ذخیره می‌شد. `shouldDirty` هم لازم
+     است، وگرنه اگر کاربر فقط نقش را عوض کند و ذخیره بزند، همان مقدارِ
+     قدیمی می‌ماند. */
+  useEffect(() => {
+    if (hideGrade && form.getValues("grade")) {
+      form.setValue("grade", null, { shouldDirty: true });
+    }
+  }, [hideGrade, form]);
 
   const save = useMutation({
     mutationFn: async (data: ProfileInput) => {
@@ -164,51 +193,61 @@ export default function ProfileForm() {
               />
             </Field>
 
-            <Field label="استان" htmlFor="province" error={errors.provinceId?.message}>
-              <Select
-                id="province"
-                aria-invalid={!!errors.provinceId}
-                {...form.register("provinceId", {
-                  // ⚠️ عوض شدنِ استان، شهر را پاک می‌کند.
-                  //
-                  // بدونِ این، کسی که «تهران / شهریار» را انتخاب کرده و بعد
-                  // استان را به «فارس» عوض می‌کند، یک ردیفِ «فارس /
-                  // شهریار» می‌سازد — که هم شِما ردش می‌کند و هم
-                  // `users_city_under_province_check` در دیتابیس. پیامِ
-                  // خطا درست بود ولی کاربر نمی‌فهمید چرا، چون `<select>`
-                  // شهر ظاهراً خالی شده بود.
-                  onChange: () => form.setValue("cityId", null),
-                })}
-              >
-                <option value="">— انتخاب کنید —</option>
-                {PROVINCES.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            {/* ⚠️ این سه تا با `Controller` وصل می‌شوند و نه `register`:
+                `AnimatedSelect` یک `<select>`ِ بومی نیست، پس نه `ref` را
+                می‌شود به آن داد و نه `event.target.value` را از آن خواند. */}
+            <Controller
+              control={form.control}
+              name="provinceId"
+              render={({ field }) => (
+                <Field label="استان" htmlFor="province" error={errors.provinceId?.message}>
+                  <AnimatedSelect
+                    id="province"
+                    heading="استان"
+                    placeholder="انتخاب کنید"
+                    invalid={!!errors.provinceId}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    options={PROVINCES.map((item) => ({ value: item.id, label: item.name }))}
+                    onValueChange={(v) => {
+                      field.onChange(v);
+                      /* ⚠️ عوض شدنِ استان، شهر را پاک می‌کند.
 
-            <Field
-              label="شهر"
-              htmlFor="city"
-              error={errors.cityId?.message}
-              hint={provinceId ? undefined : "اول استان را انتخاب کن."}
-            >
-              <Select
-                id="city"
-                disabled={!provinceId}
-                aria-invalid={!!errors.cityId}
-                {...form.register("cityId")}
-              >
-                <option value="">— انتخاب کنید —</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                         بدونِ این، کسی که «تهران / شهریار» را انتخاب کرده
+                         و بعد استان را به «فارس» عوض می‌کند، یک ردیفِ
+                         «فارس / شهریار» می‌سازد — که هم شِما ردش می‌کند و
+                         هم `users_city_under_province_check` در دیتابیس. */
+                      form.setValue("cityId", null);
+                    }}
+                  />
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="cityId"
+              render={({ field }) => (
+                <Field
+                  label="شهر"
+                  htmlFor="city"
+                  error={errors.cityId?.message}
+                  hint={provinceId ? undefined : "اول استان را انتخاب کن."}
+                >
+                  <AnimatedSelect
+                    id="city"
+                    heading="شهر"
+                    placeholder="انتخاب کنید"
+                    disabled={!provinceId}
+                    invalid={!!errors.cityId}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    options={cities.map((item) => ({ value: item.id, label: item.name }))}
+                    onValueChange={field.onChange}
+                  />
+                </Field>
+              )}
+            />
 
             <Field label="مدرسه" htmlFor="school" error={errors.school?.message}>
               <Input
@@ -219,16 +258,39 @@ export default function ProfileForm() {
               />
             </Field>
 
-            <Field label="پایهٔ تحصیلی" htmlFor="grade" error={errors.grade?.message}>
-              <Select id="grade" aria-invalid={!!errors.grade} {...form.register("grade")}>
-                <option value="">— انتخاب کنید —</option>
-                {GRADES.map((g) => (
-                  <option key={g} value={g}>
-                    {GRADE_LABEL[g]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            {/* ⚠️ «پایهٔ تحصیلی» فقط برای دانش‌آموز معنا دارد.
+
+                دبیر پایهٔ تحصیلی ندارد؛ پایه چیزی است که او *درس می‌دهد* و
+                جایش در خودِ کلاس است (`teacher_classes.grade`)، چون یک دبیر
+                می‌تواند همزمان دهم و یازدهم داشته باشد. پرسیدنش در پروفایل
+                هم بی‌معنا بود و هم گمراه‌کننده: دبیری که «دهم» را می‌زد فکر
+                می‌کرد کلاس‌هایش را دارد تعیین می‌کند.
+
+                ⚠️ و پاک کردنِ مقدارِ قبلی لازم است و نه فقط پنهان کردنِ
+                فیلد. `PATCH /profile` کلِ پروفایل را می‌نویسد (توضیحش بالای
+                همین فایل)، پس یک پایهٔ جامانده در state بی‌صدا ذخیره
+                می‌شد — و بعداً اگر کاربر به «دانش‌آموز» برمی‌گشت، پایه‌ای
+                می‌دید که یادش نمی‌آمد انتخاب کرده باشد. */}
+            {!hideGrade && (
+              <Controller
+                control={form.control}
+                name="grade"
+                render={({ field }) => (
+                  <Field label="پایهٔ تحصیلی" htmlFor="grade" error={errors.grade?.message}>
+                    <AnimatedSelect
+                      id="grade"
+                      heading="پایهٔ تحصیلی"
+                      placeholder="انتخاب کنید"
+                      invalid={!!errors.grade}
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      options={GRADES.map((g) => ({ value: g, label: GRADE_LABEL[g] }))}
+                      onValueChange={field.onChange}
+                    />
+                  </Field>
+                )}
+              />
+            )}
           </div>
 
           <RoleChoice

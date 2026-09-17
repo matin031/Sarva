@@ -108,7 +108,7 @@ lib/auth/        JWT، هش رمز، سشن، requireUser/requireAdmin
 lib/api/         پاسخ‌های استاندارد HTTP، محدودیت نرخ، کلاینت مرورگر
 lib/storage/     آداپتر ذخیرهٔ فایل  (STORAGE_DRIVER)
 lib/mail/        آداپتر ایمیل         (MAIL_DRIVER)
-lib/sms/         آداپتر پیامک         (SMS_DRIVER)
+lib/sms/         آداپتر پیامک SMS.ir    (SMS_DRIVER)
 lib/settings/    تنظیمات قابل‌ویرایش از پنل (دیتابیس → env)
 lib/observability/  لاگر، شناسهٔ درخواست، پاک‌سازی داده‌های حساس
 lib/site/        محتوای قابل‌ویرایش سایت (اعلان، حامیان)

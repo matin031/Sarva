@@ -7,6 +7,8 @@ import { TICKET_CATEGORY_LABEL } from "@/lib/plus/labels";
 import type { TicketCategory } from "@/lib/plus/types";
 import { MessageCircle, Plus } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
+import { AnimatedSelect } from "@/components/UI/kit/animated-select";
+import { Field, Input } from "@/components/UI/kit/field";
 import styles from "@/components/UI/panel/panel-design.module.css";
 
 /**
@@ -72,7 +74,7 @@ export default function NewTicketForm({
         onClick={() => setOpen(true)}
         className={styles.composerTrigger}
       >
-        <span className="flex items-center gap-3"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span><span><span className="block text-sm font-bold">یک گفت‌وگوی تازه شروع کنیم</span><span className="mt-1 block text-xs text-muted-foreground">سؤالت را بنویس؛ از همین‌جا پیگیری‌اش کن.</span></span></span>
+        <span className="flex items-center gap-3"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span><span><span className="block text-sm font-bold">تیکت تازه</span><span className="mt-1 block text-xs text-muted-foreground">موضوع را بنویس؛ پاسخ همین‌جا و در ایمیلت می‌آید.</span></span></span>
         <Plus aria-hidden className="size-5 shrink-0 text-primary" />
       </button>
     );
@@ -80,22 +82,22 @@ export default function NewTicketForm({
 
   return (
     <form onSubmit={submit} data-panel-card="" className={`${styles.formCard} space-y-4`}>
-      <h2 className="flex items-center gap-3 font-bold"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span>گفت‌وگوی تازه</h2>
+      <h2 className="flex items-center gap-3 font-bold"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span>تیکت تازه</h2>
 
-      <label className="block text-sm">
-        <span className="text-muted-foreground">موضوع</span>
-        <select
+      {/* ⚠️ سقفِ عرض دارد. «موضوع» پنج گزینهٔ کوتاه است و یک کنترلِ
+          تمام‌عرض در کارتِ ۱۴۰۰ پیکسلی، فقط فاصلهٔ خالی تولید می‌کند. */}
+      <Field label="موضوع" htmlFor="ticket-category" className="max-w-xs">
+        <AnimatedSelect
+          id="ticket-category"
+          heading="موضوع گفت‌وگو"
           value={category}
-          onChange={(e) => setCategory(e.target.value as TicketCategory)}
-          className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2"
-        >
-          {(Object.keys(TICKET_CATEGORY_LABEL) as TicketCategory[]).map((key) => (
-            <option key={key} value={key}>
-              {TICKET_CATEGORY_LABEL[key]}
-            </option>
-          ))}
-        </select>
-      </label>
+          options={(Object.keys(TICKET_CATEGORY_LABEL) as TicketCategory[]).map((key) => ({
+            value: key,
+            label: TICKET_CATEGORY_LABEL[key],
+          }))}
+          onValueChange={(v) => setCategory(v as TicketCategory)}
+        />
+      </Field>
 
       {/* ⚠️ تفکیکِ صریح با «گزارش محتوا»: اگر این گفته نشود، صفِ پشتیبانی پر
           می‌شود از گزارشِ غلطِ یک سؤال و صفِ ویراستار خالی می‌ماند. */}
@@ -107,50 +109,56 @@ export default function NewTicketForm({
         </p>
       )}
 
-      <label className="block text-sm">
-        <span className="text-muted-foreground">عنوان</span>
-        <input
+      <Field
+        label="عنوان"
+        htmlFor="ticket-subject"
+        hint={`${subject.length.toLocaleString("fa-IR")} از ۱۶۰ نویسه`}
+      >
+        <Input
+          id="ticket-subject"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           maxLength={160}
           required
-          className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2"
-          placeholder="خیلی کوتاه بنویس چه شده"
+          placeholder="در یک جمله: چه شده؟"
         />
-      </label>
+      </Field>
 
-      <label className="block text-sm">
-        <span className="text-muted-foreground">توضیح</span>
+      <Field
+        label="توضیح"
+        htmlFor="ticket-message"
+        hint={`${message.length.toLocaleString("fa-IR")} از ۴۰۰۰ نویسه`}
+      >
         <textarea
+          id="ticket-message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           maxLength={4000}
           required
           rows={5}
-          className="mt-1 w-full resize-y rounded-xl border border-border bg-background px-3 py-2"
-          placeholder="هرچه به فهمیدن ماجرا کمک می‌کند"
+          className="w-full resize-y rounded-xl border border-border bg-background/40 px-4 py-3 text-sm leading-relaxed transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 hover:border-muted-foreground/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:outline-none"
+          placeholder="چه کار کردی، چه انتظار داشتی، و چه دیدی؟"
         />
-        <span className="mt-1 block text-left text-[11px] text-muted-foreground">
-          {message.length.toLocaleString("fa-IR")} / ۴۰۰۰
-        </span>
-      </label>
+      </Field>
 
       {orders.length > 0 && (
-        <label className="block text-sm">
-          <span className="text-muted-foreground">سفارش مرتبط (اختیاری)</span>
-          <select
+        <Field label="سفارش مرتبط (اختیاری)" htmlFor="ticket-order" className="max-w-sm">
+          <AnimatedSelect
+            id="ticket-order"
+            heading="کدام سفارش؟"
+            placeholder="بدون سفارش"
             value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2"
-          >
-            <option value="">— بدون سفارش —</option>
-            {orders.map((order) => (
-              <option key={order.id} value={order.id}>
-                {order.orderNumber} — {order.planTitle}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={[
+              { value: "", label: "بدون سفارش" },
+              ...orders.map((order) => ({
+                value: order.id,
+                label: order.orderNumber,
+                description: order.planTitle,
+              })),
+            ]}
+            onValueChange={setOrderId}
+          />
+        </Field>
       )}
 
       {errors.length > 0 && (
@@ -162,19 +170,13 @@ export default function NewTicketForm({
       )}
 
       <div className="flex gap-2">
-        <Button
-          type="submit"
-          disabled={busy}
-          aria-busy={busy}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
-        >
+        {/* ⚠️ کلاس‌های دستی برداشته شدند. `Button` خودش ارتفاع، شعاع،
+            رنگ و حالتِ disabled را دارد؛ نوشتنِ دوباره‌شان فقط این دو دکمه را
+            از بقیهٔ پنل جدا می‌کرد (ارتفاعِ ۳۸ در برابرِ ۴۴). */}
+        <Button type="submit" disabled={busy} aria-busy={busy}>
           {busy ? "در حال ارسال…" : "ارسال تیکت"}
         </Button>
-        <Button variant="outline"
-          type="button"
-          onClick={() => setOpen(false)}
-          className="rounded-xl border border-border px-4 py-2 text-sm"
-        >
+        <Button variant="outline" type="button" disabled={busy} onClick={() => setOpen(false)}>
           انصراف
         </Button>
       </div>

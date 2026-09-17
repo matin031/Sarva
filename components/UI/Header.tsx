@@ -19,14 +19,16 @@ const learningLinks = [
   { title: "کلاب", href: "/sarvaclub", icon: MessageSquare },
 ];
 
-export default function Header({ compact = false }: { compact?: boolean }) {
+export default function Header({ compact = false, previewPlus = false }: { compact?: boolean; previewPlus?: boolean }) {
   const { user } = useCurrentUser();
   const { plus } = usePlusSummary();
+  // Only the development showcase may display Plus without a database connection.
+  const plusVisible = plus.state !== "off" || (process.env.NODE_ENV === "development" && previewPlus);
   const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
   const plusTitle = plus.state === "expired" || plus.state === "revoked" ? "تمدید پلاس" : "سروا پلاس";
   const links = [
     ...learningLinks,
-    plus.state === "off"
+    !plusVisible
       ? { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 }
       : { title: plusTitle, href: plusHref, icon: SarvaStar },
   ];
@@ -44,7 +46,7 @@ export default function Header({ compact = false }: { compact?: boolean }) {
       <div className={styles.actions}>
         {!compact && (
           <>
-            {plus.state !== "off" && <Link href={plusHref} className={styles.plusLink}>{plusTitle}</Link>}
+            {plusVisible && <Link href={plusHref} className={styles.plusLink}>{plusTitle}</Link>}
             <Menu.Root dir="rtl" modal={false}>
               <Menu.Trigger className={styles.menuTrigger}>
                 فهرست <ChevronDown size={16} aria-hidden />

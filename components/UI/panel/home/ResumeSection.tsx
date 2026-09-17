@@ -23,9 +23,9 @@ export default function ResumeSection({ items }: { items: ResumeItem[] }) {
         <div className={styles.sectionHeading}>
           <span className={styles.sectionIcon}><Play aria-hidden className="size-4" /></span>
           <div>
-          <h2 className="text-base font-bold">از همین‌جا ادامه بده</h2>
+          <h2 className="text-base font-bold">ادامهٔ تمرین</h2>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
-            بر پایهٔ آخرین تمرین‌های خودت
+            بر پایهٔ آخرین تمرین‌هایت
           </p>
           </div>
         </div>

@@ -138,7 +138,7 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
         dir="rtl"
         className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-muted-foreground"
       >
-        ...در حال بارگذاری
+        در حال بارگذاری…
       </div>
     );
   }

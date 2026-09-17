@@ -23,18 +23,25 @@
 .topAction { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid var(--border); border-radius: 12px; font-size: 12px; background: color-mix(in oklch, var(--card) 65%, transparent); color: var(--muted-foreground); transition: color 150ms, border-color 150ms; }
 .topAction:hover { color: var(--primary); border-color: var(--primary); }
 .content { gap: 28px; padding-top: 28px; padding-bottom: 48px; }
-.hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 30px 34px; border: 1px solid #58c3b942; border-radius: 26px; background: radial-gradient(ellipse at 12% 80%, #247b744f, transparent 55%), linear-gradient(115deg, #102d38, #105556); color: #f0fcf9; box-shadow: 0 16px 40px #004a4510; }
-.hero::before { content: ""; position: absolute; width: 340px; height: 340px; left: -90px; top: -100px; border: 1px solid #94e5cb19; border-radius: 50%; box-shadow: 0 0 0 45px #94e5cb08, 0 0 0 90px #94e5cb06; pointer-events: none; }
+/* ⚠️ رنگ‌های هاردکد (#102d38، #c2f0d9، …) از اینجا رفتند.
+
+   سروا یک کلیدِ پالت دارد که کلِ سایت را رنگ می‌زند — ولی این یک کادر
+   هر پالتی را نادیده می‌گرفت و فیروزه‌ای می‌ماند: درست در بالای صفحهٔ
+   خانه، بزرگ‌ترین عنصرِ صفحه، تنها چیزی بود که به بقیهٔ سایت شباهت
+   نداشت. حالا همه‌اش `--primary`، `--gold` و `--card` است. */
+.hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 30px 34px; border: 1px solid color-mix(in oklch, var(--primary) 26%, var(--border)); border-radius: 24px; background: radial-gradient(ellipse at 12% 110%, color-mix(in oklch, var(--gold) 12%, transparent), transparent 60%), linear-gradient(118deg, color-mix(in oklch, var(--primary) 10%, var(--card)), color-mix(in oklch, var(--primary) 22%, var(--card))); box-shadow: 0 4px 0 color-mix(in oklch, var(--primary) 13%, transparent), 0 14px 34px #00000010; }
+.hero::before { content: ""; position: absolute; width: 340px; height: 340px; inset-inline-start: -90px; top: -100px; border: 1px solid color-mix(in oklch, var(--primary) 16%, transparent); border-radius: 50%; box-shadow: 0 0 0 45px color-mix(in oklch, var(--primary) 5%, transparent), 0 0 0 90px color-mix(in oklch, var(--primary) 3%, transparent); pointer-events: none; }
 .heroCopy { position: relative; z-index: 1; max-width: 620px; }
-.eyebrow { display: flex; align-items: center; gap: 7px; margin-bottom: 14px; color: #9ce1d2; font-size: 11px; font-weight: 500; }
-.hero h1 { font-size: clamp(24px, 2.4vw, 34px); font-weight: 750; }
-.heroDescription { margin-top: 10px; font-size: 12px; color: #c1dad8; max-width: 540px; }
-.heroButton { display: inline-flex; align-items: center; gap: 12px; margin-top: 22px; padding: 10px 18px; border-radius: 11px; background: #c2f0d9; color: #124a43; font-size: 12px; font-weight: 700; transition: background 150ms, transform 150ms; }
-.heroButton:hover { background: #e2ffef; transform: translateY(-2px); }
-.heroArt { position: relative; display: grid; place-items: center; width: 168px; height: 168px; flex-shrink: 0; border: 1px solid #b5e5d53b; border-radius: 50%; margin-inline-end: 16px; background: #b0f5d807; box-shadow: inset 0 0 45px #a1e9cb08; }
-.heroArt::before { content: ""; position: absolute; inset: 13px; border: 1px dashed #b5e5d533; border-radius: 50%; }
-.heroArt span { font-family: var(--font-naskh), serif; color: #c6e9d5; font-size: 70px; transform: rotate(-12deg); }
-.heroArt svg { position: absolute; top: 11px; right: 16px; color: #d6c48f; background: #16464a; padding: 4px; width: 29px; height: 29px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 13px; padding: 4px 11px 4px 9px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--primary) 24%, transparent); background: color-mix(in oklch, var(--primary) 10%, transparent); color: var(--primary); font-size: 11px; font-weight: 600; }
+.hero h1 { font-size: clamp(23px, 2.3vw, 31px); font-weight: 700; text-wrap: balance; overflow-wrap: anywhere; }
+.heroDescription { margin-top: 10px; font-size: 13px; line-height: 1.85; color: var(--muted-foreground); max-width: 540px; }
+.heroButton { margin-top: 22px; }
+/* ⚠️ این بلوک پیش‌تر چهار قاعده بود که سه‌تایش پایین‌تر در همین
+   فایل خنثی می‌شدند (`border: none`، `::before { display: none }`، …) —
+   یعنی چهار رنگِ هاردکدِ فیروزه‌ای که هیچ‌وقت دیده نمی‌شدند و
+   فقط خواندنِ فایل را سخت می‌کردند. الان یک قاعده است. */
+.heroArt { position: relative; display: grid; place-items: center; flex-shrink: 0; margin-inline-end: 8px; }
+.heroArt .buddy { width: 172px; height: 172px; }
 .workspace { display: grid; gap: 24px; align-items: start; }
 .shell :global([data-panel-card]) { border-radius: 20px; background: color-mix(in oklch, var(--card) 91%, transparent); border-color: color-mix(in oklch, var(--primary) 8%, var(--border)); box-shadow: 0 5px 22px #00000004; }
 .stats { gap: 16px; }
@@ -50,13 +57,11 @@
 .areaLink { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); transition: color 150ms; }
 .areaLink:last-child { border-bottom: 0; padding-bottom: 0; }
 .areaLink:hover { color: var(--primary); }
-.areaLink > span { width: 44px; height: 44px; }
 .areaArrow { margin-inline-start: auto; color: var(--muted-foreground); flex-shrink: 0; }
 .shell :is(a, button):focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
 @media (min-width: 1280px) { .workspace { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); } }
 @media (max-width: 767px) {
   .hero { padding: 25px 22px; border-radius: 21px; }
-  .heroArt { display: none; }
   .content { gap: 22px; padding-top: 20px; }
   .topbar { height: 68px; }
   .stats > :global([data-panel-card]) { min-height: auto; }
@@ -74,9 +79,17 @@
 .shell [data-tone="gold"] { --panel-tone: var(--panel-gold); }
 .buddy { width: 166px; height: 166px; flex-shrink: 0; overflow: visible; transform: rotate(-5deg); transition: transform 250ms ease; }
 .buddySmall { width: 106px; height: 106px; }
-.pageHeader { display: flex; align-items: center; gap: 24px; padding: 26px 30px; border: 1px solid color-mix(in oklch, var(--panel-tone) 23%, var(--border)); border-radius: 28px 28px 12px 28px; background: linear-gradient(110deg, color-mix(in oklch, var(--panel-tone) 4%, var(--card)), color-mix(in oklch, var(--panel-tone) 12%, var(--card))); }
+/* ⚠️ همان شعاع، همان حاشیه و همان سایهٔ ۴ پیکسلیِ `[data-panel-card]`.
+   گوشهٔ نامتقارن (`28px 28px 12px 28px`) رفت: در کلِ سایت هیچ سطحِ
+   دیگری چنین نبود و همین باعث می‌شد سرصفحه به صفحه نچسبد. */
+.pageHeader { display: flex; align-items: center; gap: 22px; padding: 22px 26px; border: 1px solid color-mix(in oklch, var(--panel-tone) 22%, var(--border)); border-radius: 24px; background: linear-gradient(112deg, color-mix(in oklch, var(--panel-tone) 5%, var(--card)), color-mix(in oklch, var(--panel-tone) 13%, var(--card))); box-shadow: 0 4px 0 color-mix(in oklch, var(--panel-tone) 11%, transparent), 0 8px 22px #00000004; }
 .pageHeader:hover .buddy { transform: rotate(3deg) translateY(-3px); }
-.pageEyebrow { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; color: var(--panel-tone); font-size: 11px; font-weight: 600; }
+.pageEyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; color: var(--panel-tone); font-size: 11px; font-weight: 600; }
+.pageEyebrowDot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+/* ⚠️ `overflow-wrap: anywhere` تا یک واژهٔ بلندِ فارسی یا یک آدرس،
+   سرصفحه را از کادر بیرون نزند. */
+.pageTitle { font-size: clamp(20px, 1.9vw, 26px); font-weight: 700; text-wrap: balance; overflow-wrap: anywhere; }
+.pageArt { flex-shrink: 0; }
 .pageStack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .practiceStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .practiceStat { padding: 22px; }
@@ -89,10 +102,7 @@
 .navLink[aria-current="page"] { box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 10%, transparent); }
 .navLink:nth-child(2n) .navIcon { background: color-mix(in oklch, var(--gold) 11%, transparent); }
 .sectionIcon { border-radius: 13px 13px 8px 13px; transform: rotate(-5deg); box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 9%, transparent); }
-.heroArt { border: none; background: none; box-shadow: none; }
-.heroArt::before { display: none; }
-.heroArt .buddy { position: static; width: 178px; height: 178px; background: none; padding: 0; }
-.heroButton, .resumeCta { border-radius: 14px; box-shadow: 0 3px 0 #002e302b; }
+.resumeCta { border-radius: 14px; box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 16%, transparent); }
 .emptyState { display: flex; flex-direction: column; align-items: center; padding: 28px 22px; text-align: center; border: 1px dashed color-mix(in oklch, var(--primary) 28%, var(--border)); border-radius: 24px; background: color-mix(in oklch, var(--primary) 3%, var(--card)); }
 .emptyState .buddy { width: 88px; height: 88px; margin-bottom: 10px; }
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: start; gap: 24px; }
@@ -100,8 +110,8 @@
 .formIntro h2 { font-size: 16px; font-weight: 700; }
 .formIntro p { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
 .formCard { padding: 24px; border: 1px solid var(--border); border-radius: 24px; background: var(--card); }
-.shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { border-radius: 14px; background-color: color-mix(in oklch, var(--primary) 3%, var(--card)); }
-.shell :is(input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 44px; }
+.shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, [aria-haspopup="listbox"]) { border-radius: 14px; background-color: color-mix(in oklch, var(--primary) 3%, var(--card)); }
+.shell :is(input:not([type="checkbox"]):not([type="radio"]), select, [aria-haspopup="listbox"]) { min-height: 44px; }
 .shell :is(input, select, textarea):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .shell :global([data-panel-button="default"]), .shell :global([data-panel-button="push"]) { border-radius: 14px; box-shadow: 0 3px 0 var(--primary-deep); }
 .shell :global([data-panel-button]):active { transform: translateY(2px); box-shadow: none; }
@@ -130,8 +140,8 @@
   .practiceStats { gap: 12px; }
   .formGrid, .recordGrid { grid-template-columns: minmax(0,1fr); }
   .message { max-width: 96%; padding: 16px; }
-  .heroArt { display: grid; width: 72px; height: 90px; margin: 0; }
-  .heroArt .buddy { width: 90px; height: 90px; }
+  .heroArt { display: grid; margin: 0; }
+  .heroArt .buddy { width: 88px; height: 88px; }
   .hero { gap: 8px; }
   .hero h1 { font-size: 23px; }
   .detailsGrid { grid-template-columns: minmax(0,1fr); }

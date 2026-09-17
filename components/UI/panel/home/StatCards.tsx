@@ -90,16 +90,32 @@ export default function StatCards({
       </Card>
 
       {/* ── دقتِ کل ── */}
+      {/* ⚠️ با صفر پاسخ، حلقه «۰٪» نمی‌نویسد بلکه خالی می‌ماند — همان
+          قاعدهٔ `AreaCards`: صفرِ دقت، یک قضاوت دربارهٔ کسی است که هنوز
+          چیزی امتحان نکرده. */}
       <Card className="flex items-center gap-4 p-5">
-        <StatRing percent={accuracy} className="size-20 shrink-0" />
+        <StatRing
+          percent={accuracy}
+          ready={total > 0}
+          label={total > 0 ? `دقت کل: ${accuracy} درصد` : "هنوز پاسخی ثبت نشده"}
+          className="size-20 shrink-0"
+        />
         <div className="min-w-0">
           <p className="text-[13px] text-muted-foreground">دقت در همهٔ بخش‌ها</p>
-          <p className="panel-num mt-0.5 text-sm">
-            {fa(correct)} از {fa(total)} پاسخ درست
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            روی هر پاسخی که تا امروز داده‌ای حساب شده است.
-          </p>
+          {total > 0 ? (
+            <>
+              <p className="panel-num mt-0.5 text-sm">
+                {fa(correct)} از {fa(total)} پاسخ درست
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                روی همهٔ پاسخ‌هایت حساب شده، نه فقط تمرین‌های اخیر.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              هنوز پاسخی ثبت نشده. با اولین تمرین، این عدد پر می‌شود.
+            </p>
+          )}
         </div>
       </Card>
 

@@ -1,5 +1,6 @@
 import { AuthError } from "@/lib/auth/types";
 import { InvalidInputError } from "@/lib/api/action-input";
+import { isMissingTable } from "@/lib/db/errors";
 
 /** Wraps an async data-loading call for an admin page: runs it, and on
  *  failure (requireAdmin() throwing, most commonly) returns a plain-
@@ -13,15 +14,25 @@ import { InvalidInputError } from "@/lib/api/action-input";
  *  has no business seeing, and a stack of it is a map for someone probing.
  *  Anything unrecognised now gets a generic line and the real error goes to the
  *  server log, where it belongs. */
-/** خطای «جدول وجود ندارد» پستگرس. کدِ SQLSTATE بررسی می‌شود و نه متنِ پیام،
- *  چون متن با زبان و نسخهٔ سرور عوض می‌شود. */
+/* ⚠️ اینجا تا امروز یک بررسیِ ماندهٔ پستگرس بود و **هیچ‌وقت کار نمی‌کرد**:
+ *
+ *       (error as { code?: unknown }).code === "42P01"
+ *
+ *   `42P01` یک SQLSTATEِ پستگرس است. این پروژه سال‌هاست روی MySQL/MariaDB
+ *   است و آن‌ها برای همان وضعیت `errno = 1146` (`ER_NO_SUCH_TABLE`) می‌دهند.
+ *   پس شاخهٔ زیر هرگز اجرا نمی‌شد و خطا تا آخر بالا می‌رفت.
+ *
+ *   هزینه‌اش روی هاست دیده شد: `mysql-migrations/008_aruz_rapid.sql` اجرا
+ *   نشده بود و صفحهٔ `/admin/games` به‌جای یک پیامِ اقدام‌پذیر، ۵۰۰ می‌داد —
+ *   چهار بار در لاگِ production، با این متن:
+ *
+ *       Error: Table 'wybtjehi_sarva.aruz_rapid_questions' doesn't exist
+ *       route: /admin/games   ER_NO_SUCH_TABLE   digest: 3103076856
+ *
+ *   ⚠️ دقیقاً همان چیزی که `AGENTS.md` دربارهٔ «ارجاع‌های کهنهٔ پستگرس»
+ *   هشدار می‌دهد: چیزی که *شبیهِ* یک دستورِ زنده است ولی مرده است. */
 function isUndefinedTable(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "42P01"
-  );
+  return isMissingTable(error);
 }
 
 export async function loadAdminData<T>(
@@ -50,8 +61,15 @@ export async function loadAdminData<T>(
         // کارِ انجام‌نشده است — و عنوانِ اشتباه، خواننده را دنبالِ مشکلی
         // می‌فرستد که وجود ندارد.
         title: "دیتابیس به‌روز نیست",
+        /* ⚠️ دو محیط و دو دستورِ متفاوت، و هر دو باید نوشته شوند.
+           روی ماشینِ توسعه `npm run db:migrate` جواب می‌دهد؛ روی هاستِ
+           اشتراکی اصلاً ترمینالی در کار نیست و کار با phpMyAdmin انجام
+           می‌شود. نوشتنِ فقط یکی یعنی نیمی از خوانندگان دنبالِ چیزی
+           می‌گردند که در محیطشان وجود ندارد.
+
+           نامِ جدول عمداً نمی‌آید — همان دلیلِ بالا. */
         message:
-          "بخشی از جدول‌های دیتابیس هنوز ساخته نشده‌اند. «npm run db:migrate» را اجرا کنید و دوباره این صفحه را باز کنید.",
+          "بخشی از جدول‌های دیتابیس هنوز ساخته نشده‌اند. روی سرور: فایل sarva-database-update.sql را در phpMyAdmin وارد کنید. روی سیستم خودتان: «npm run db:migrate» را اجرا کنید. بعد دوباره این صفحه را باز کنید.",
       };
     }
 

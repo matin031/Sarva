@@ -26,6 +26,30 @@ const naskh = Noto_Naskh_Arabic({
   display: "swap",
 });
 
+/* مربّع — قلمِ عنوان‌هایِ پنل.
+
+   ⚠️ فقط متغیّرش اینجا تعریف می‌شود و هیچ عنصری در سایت خودبه‌خود آن را
+   نمی‌گیرد: مصرفِ واقعی‌اش یک قاعده در `globals.css` است که فقط زیرِ
+   `.panel-scope` را هدف می‌گیرد. وزیرمتن قلمِ متنِ روانِ کلِ سایت
+   می‌ماند و مربّع فقط به عنوان‌ها حالت می‌دهد — یک قلمِ نمایشی در
+   متنِ دوازده پیکسلی خوانایی را پایین می‌آورد.
+
+   ⚠️ `display: "swap"` عمدی است: عنوان باید با وزیرمتن دیده شود و بعد
+   جایش را بدهد، نه اینکه تا رسیدنِ فایل نادیده بماند. */
+const morabba = localFont({
+  src: [
+    { path: "./fonts/morabba/Morabba-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/morabba/Morabba-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/morabba/Morabba-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/morabba/Morabba-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-morabba",
+  display: "swap",
+  /* همان وزیرمتن، تا جایگزینیِ قلم طولِ عنوان را نپراند. */
+  fallback: ["Vazirmatn", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
+
 /* پفک — قلمِ بازیگوشِ ناحیهٔ بازی‌ها.
 
    ⚠️ عمداً «قلمِ سایت» نمی‌شود و هیچ عنصری خودبه‌خود نمی‌گیردش. پفک یک قلمِ
@@ -113,6 +137,25 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
+  /* ⚠️ نه `openGraph.images` دارد و نه `twitter.images` — و این عمدی است.
+
+     تا امروز هر دو به `/opengraph-image` اشاره می‌کردند: یک Route با
+     `runtime = "edge"` که در هر درخواست فونت را از گوگل می‌گرفت و تصویر
+     را می‌ساخت. لاگِ production سی‌وسه بار این را ثبت کرده بود:
+
+         Error: failed to pipe response
+             at pipeToNodeResponse (…/server/pipe-readable.js:135:37)
+             at async NextNodeServer.runEdgeFunction (…)
+         route: /opengraph-image/route
+
+     یعنی هر کسی لینکِ سایت را در پیام‌رسان می‌فرستاد، پیش‌نمایشِ
+     خالی می‌گرفت. حالا تصویر یک PNGِ ثابت است که `npm run seo:og`
+     می‌سازد و در `app/opengraph-image.png` و `app/twitter-image.png` می‌نشیند.
+
+     ⚠️ نوشتنِ `images` در همین شیء جلویِ قراردادِ فایلی را می‌گیرد —
+     مقدارِ صریح برنده است. پس نبودنش لازم است، وگرنه Next تگِ
+     تصویر را از آن دو فایل نمی‌سازد و به مسیری اشاره می‌کند که
+     دیگر وجود ندارد (همان Route حذف شده). */
   openGraph: {
     title: siteTitle,
     description: siteDescription,
@@ -120,20 +163,11 @@ export const metadata: Metadata = {
     siteName: "سروا",
     locale: "fa_IR",
     type: "website",
-    images: [
-      {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "سروا | آموزش وزن شعر فارسی",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
-    images: ["/opengraph-image"],
   },
 };
 
@@ -170,7 +204,7 @@ export default function RootLayout({
       /* پالتِ پیش‌فرض در HTMLِ سرور؛ اسکریپتِ اولِ <body> اگر کاربر چیزِ
          دیگری انتخاب کرده باشد، پیش از اولین رنگ‌آمیزی عوضش می‌کند. */
       data-palette={DEFAULT_PALETTE}
-      className={`${vazirmatn.variable} ${naskh.variable} ${pofak.variable} h-full antialiased dark`}
+      className={`${vazirmatn.variable} ${naskh.variable} ${morabba.variable} ${pofak.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
          mismatch nobody can act on. This suppresses the warning for this one

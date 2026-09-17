@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
 :root {
   /* Persian-inspired light theme - Warm cream, turquoise, lapis blue, soft gold */
   --background: oklch(0.97 0.01 85); /* Warm cream */
@@ -3254,6 +3270,25 @@ html[data-quality="low"] [class*="backdrop-blur"] {
   line-height: 1.4;
 }
 
+/* مربّع — قلمِ عنوان‌هایِ پنل، و فقط عنوان‌ها.
+
+   ⚠️ عمداً روی `body` ننشسته. مربّع یک قلمِ نمایشی است با دورهایِ
+   بسته و کنتراستِ بالای ضخامت، که در تیتر عالی است و در متنِ ۱۲ پیکسلی
+   خسته‌کننده. متن، دکمه و ورودی‌ها وزیرمتن می‌مانند.
+
+   ⚠️ و عددها هم نه: رقمِ مربّع عرضِ ثابت ندارد، پس یک شمارندهٔ
+   متحرک (۹۹٪ → ۱۰۰٪) را جابه‌جا می‌کند. `.panel-num` صریحاً برمی‌گرداند
+   به وزیرمتن، حتی وقتی داخلِ یک عنوان باشد. */
+.panel-scope :is(h1, h2, h3, .panel-display) {
+  font-family: var(--font-morabba), var(--font-sans);
+  letter-spacing: 0;
+}
+
+.panel-scope .panel-num,
+.panel-scope :is(h1, h2, h3) .panel-num {
+  font-family: var(--font-sans);
+}
+
 /* هر جا عدد در ستون روی هم می‌نشیند (KPI، کارنامه‌ها، محورِ نمودار). */
 .panel-num {
   font-variant-numeric: tabular-nums;
@@ -3286,6 +3321,36 @@ html[data-quality="low"] [class*="backdrop-blur"] {
    کجا نه: مصراع و بیت، پاراگرافِ توضیح، متنِ درسنامه، تحلیل، جدول، تنظیمات،
    فرم و هر پیامِ سیستمیِ جدی. */
 
+/* =============================================================================
+   ⚠️ سه قلم، سه کار — و هیچ‌کدام جای دیگری را نمی‌گیرد
+   =============================================================================
+
+   پروژه سه قلمِ نمایشی دارد و پخش کردنِ بی‌قاعده‌شان بدتر از استفاده نکردن
+   است. تقسیمِ کار:
+
+     پفک (`.game-display`)  → لحظه‌های *بازیگوش*: نامِ بازی، «آفرین!»،
+                              امتیاز، رکورد، نقشی که رو می‌شود، دکمهٔ شروع.
+                              چیزی که اگر با وزیرمتن نوشته شود، «اداری»
+                              به نظر می‌رسد.
+
+     مربّع (`.game-title`)   → تیترهای *ساختاری* داخلِ بازی: «تنظیمات بازی»،
+                              «این‌ها را بشناس»، «هنوز آماده نیست». این‌ها
+                              اعلامِ شادی نیستند، اعلامِ *جای* کاربرند — و
+                              پفک آن‌ها را شوخی جلوه می‌دهد.
+
+     نسخ (`.game-verse`)     → فقط شعر. خطِ قرمز.
+
+     وزیرمتن                → هر چیزِ دیگری: توضیح، گام‌ها، برچسب، عدد.
+
+   ⚠️ عدد هیچ‌وقت با پفک یا مربّع نوشته نمی‌شود (`.game-num`) — رقم‌هایشان
+   عرضِ ثابت ندارند و شمارنده در هر تغییرِ رقم می‌پرد. */
+
+/* تیترِ ساختاریِ داخلِ بازی — مربّع، همان قلمِ عنوان‌های پنل. */
+.game-title {
+  font-family: var(--font-morabba), var(--font-sans);
+  letter-spacing: 0;
+}
+
 /* قلمِ نمایشیِ بازی‌ها. */
 .game-display {
   font-family: var(--font-pofak), var(--font-sans);
@@ -3298,7 +3363,8 @@ html[data-quality="low"] [class*="backdrop-blur"] {
    می‌پرد — همان چیزی که `.panel-num` برای مربّع حلش کرد. اگر `.game-num`
    داخلِ یک `.game-display` بنشیند، صریحاً برمی‌گردد به وزیرمتن. */
 .game-num,
-.game-display .game-num {
+.game-display .game-num,
+.game-title .game-num {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
 }

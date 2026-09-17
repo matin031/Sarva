@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { Sparkles, ArrowLeft, Sprout } from "lucide-react";
+import { Sparkles, ArrowLeft } from "lucide-react";
 import styles from "./panel-design.module.css";
 import SarvaBuddy from "./SarvaBuddy";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { CoolMode } from "@/components/UI/kit/cool-mode";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/UI/kit/card";
 import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
 import AreaCards from "@/components/UI/panel/home/AreaCards";
 import BadgeRow from "@/components/UI/panel/home/BadgeRow";
 import ResumeSection from "@/components/UI/panel/home/ResumeSection";
 import StatCards from "@/components/UI/panel/home/StatCards";
-import { fa, relativeDay } from "@/lib/panel/format";
+import { fa, jalaliLong, relativeDay } from "@/lib/panel/format";
 import {
   bucketsFromDayCounts,
   correctFromDayCounts,
@@ -75,13 +77,21 @@ export default function HomePanel({
     null,
   );
 
+  /* ⚠️ روی سرور حساب می‌شود و صفحه `force-dynamic` است، پس تاریخ در
+     کش گیر نمی‌کند. `jalaliLong` هم منطقهٔ تهران را صریح می‌دهد، پس
+     سرورِ UTC هم همان روزی را می‌نویسد که کاربر در ایران می‌بیند. */
+  const today = jalaliLong(new Date().toISOString());
+
   return (
     <>
       {/* ── خوش‌آمد ───────────────────────────────────────────────────── */}
       <header className={styles.hero}>
         <div className={styles.heroCopy}>
-        <p className={styles.eyebrow}><Sprout aria-hidden className="size-4" /> هر روز، یک قدم به دانستن نزدیک‌تر</p>
-        <h1>درود، {name}</h1>
+        {/* ⚠️ این خط پیش‌تر «هر روز، یک قدم به دانستن نزدیک‌تر» بود —
+            جمله‌ای که هیچ خبری نداشت و هر روزِ سال درست بود. تاریخِ
+            امروز دست‌کم یک چیزِ واقعی است. */}
+        <p className={styles.eyebrow}>{today}</p>
+        <h1>سلام {name}</h1>
         <p className={styles.heroDescription}>
           {/* ⚠️ ترتیبِ این شرط‌ها مهم است: بدونِ گروه‌بندیِ روز، `lastAt`
               همیشه null است — و پیامِ «اولین تمرینت از همین‌جا شروع می‌شود»
@@ -89,28 +99,43 @@ export default function HomePanel({
               پس اول وضعیتِ روزها سنجیده می‌شود و بعد خودِ تاریخ. */}
           {!daysUsable ? (
             total > 0 ? (
-              <>تا حالا {fa(total)} تمرین انجام داده‌ای.</>
+              <>تا اینجا {fa(total)} تمرین ثبت کرده‌ای.</>
             ) : (
-              <>خوش آمدی. اولین تمرینت از همین‌جا شروع می‌شود.</>
+              <>هنوز تمرینی ثبت نکرده‌ای. از همین دکمه شروع کن.</>
             )
           ) : lastAt ? (
             streak > 0 ? (
               <>
-                آخرین تمرینت {relativeDay(lastAt)} بود و{" "}
-                <span className="font-semibold text-[#d6eac0]">{fa(streak)} روز</span> است
-                زنجیره‌ات را نبریده‌ای.
+                آخرین تمرینت {relativeDay(lastAt)} بود؛{" "}
+                <span className="panel-num font-semibold text-primary">{fa(streak)} روز</span>{" "}
+                پشت سر هم تمرین کرده‌ای.
               </>
             ) : (
-              <>آخرین تمرینت {relativeDay(lastAt)} بود — امروز دوباره شروع کن.</>
+              <>آخرین تمرینت {relativeDay(lastAt)} بود. یک تمرینِ امروز، زنجیره را دوباره راه می‌اندازد.</>
             )
           ) : (
-            <>خوش آمدی. اولین تمرینت از همین‌جا شروع می‌شود.</>
-          )}
-          {memberSince && (
-            <span> — عضو از {relativeDay(memberSince)}</span>
+            <>هنوز تمرینی ثبت نکرده‌ای. از همین دکمه شروع کن.</>
           )}
         </p>
-        <Link href="/game" className={styles.heroButton}>بریم سراغ یادگیری <ArrowLeft aria-hidden className="size-4" /></Link>
+        {/* ⚠️ «عضو از …» از وسطِ جملهٔ بالا درآمد. آنجا با یک خط تیره به
+            جمله‌ای چسبیده بود که ربطی به آن نداشت. */}
+        {memberSince && (
+          <p className="mt-1.5 text-[12px] text-muted-foreground/75">
+            عضو از {relativeDay(memberSince)}
+          </p>
+        )}
+        {/* دکمهٔ اصلیِ پنل — همان Shiny Buttonی که در صفحهٔ خانهٔ سایت
+            هست، پس دو دکمهٔ «شروع» در دو جای سایت یک شکل‌اند. Cool Mode هم
+            فقط روی همین یک دکمه می‌نشیند: جلوهٔ جشن، اگر همه‌جا باشد، دیگر
+            جشن نیست. */}
+        <CoolMode options={{ glyphs: ["✦", "✧", "❋", "۱", "۰"], count: 22 }}>
+          <ShinyButton asChild className={styles.heroButton}>
+            <Link href="/game">
+              شروع تمرین
+              <ArrowLeft aria-hidden className="size-4" />
+            </Link>
+          </ShinyButton>
+        </CoolMode>
         </div>
         <div className={styles.heroArt}><SarvaBuddy /></div>
       </header>
@@ -165,9 +190,9 @@ export default function HomePanel({
       {/* ── روندِ سی روز ─────────────────────────────────────────────── */}
       <Card className="bg-surface/60">
         <CardHeader>
-          <CardTitle>پیشرفت تو در ۳۰ روز گذشته</CardTitle>
+          <CardTitle>۳۰ روز گذشته</CardTitle>
           <CardDescription>
-            هر ستون یک روز است؛ بخشِ پررنگ همان‌قدر که درست بوده.
+            هر ستون یک روز است؛ بخشِ پررنگ، پاسخ‌های درست.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -189,7 +214,7 @@ export default function HomePanel({
           <Link href="/panel/bookmarks" className="text-primary underline-offset-[6px] hover:underline">
             {fa(bookmarks)} مورد نشان‌شده
           </Link>{" "}
-          داری — بیت‌ها و واژه‌هایی که خواسته‌ای دوباره ببینی.
+          داری.
         </p>
       )}
     </>

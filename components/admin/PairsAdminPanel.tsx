@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import {
   MEMORY_GRADES,
-  MEMORY_MAX_PAIRS,
+  MEMORY_ROUND_PAIRS,
   MEMORY_TERMS,
   memoryGridColumns,
+  memoryRoundSizes,
   type MemoryGrade,
   type MemoryTerm,
 } from "@/lib/literary-pairs";
@@ -19,8 +20,9 @@ import {
 } from "@/lib/admin/pairs-actions";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { useFocusedRow } from "@/components/admin/useFocusedRow";
+import ImageUploadField from "@/components/admin/ImageUploadField";
 
-type Draft = { id?: string; work: string; author: string };
+type Draft = { id?: string; work: string; author: string; image: string };
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -86,6 +88,7 @@ export default function PairsAdminPanel({
         term,
         work: draft.work,
         author: draft.author,
+        image: draft.image,
       });
       if (res.ok) {
         setDraft(null);
@@ -133,9 +136,16 @@ export default function PairsAdminPanel({
     });
   };
 
-  const dealt = Math.min(pairs.length, MEMORY_MAX_PAIRS);
-  const columns = memoryGridColumns(dealt * 2);
+  /* ⚠️ پنل همان حسابی را می‌کند که خودِ بازی.
+     دانش‌آموز دیگر «یک دورِ تصادفی» بازی نمی‌کند: کلِ دسته به دست‌های کوتاه
+     افراز می‌شود و او همه را پشتِ هم می‌زند. پس عددی که مدیر اینجا می‌بیند
+     باید *همان* باشد، وگرنه پیش‌نمایشِ چیدمان چیزی را نشان می‌دهد که هرگز
+     روی صفحه نمی‌آید. */
+  const roundSizes = memoryRoundSizes(pairs.length);
+  const biggestRound = roundSizes.length > 0 ? Math.max(...roundSizes) : 0;
+  const columns = memoryGridColumns(biggestRound * 2);
   const termTitle = MEMORY_TERMS.find((t) => t.id === term)?.title ?? "";
+  const withImage = pairs.filter((p) => p.image).length;
 
   return (
     <div dir="rtl" className="mx-auto max-w-3xl px-4 py-6">
@@ -208,17 +218,31 @@ export default function PairsAdminPanel({
           </p>
         ) : (
           <p className="text-muted-foreground">
-            <span className="font-bold text-foreground">{fa(pairs.length)}</span> جفت ={" "}
-            <span className="font-bold text-foreground">{fa(pairs.length * 2)}</span> کارت.
-            {pairs.length > MEMORY_MAX_PAIRS && (
+            <span className="font-bold text-foreground">{fa(pairs.length)}</span> جفت ثبت
+            شده و <span className="font-bold text-foreground">{fa(withImage)}</span> تا از
+            آن‌ها تصویر دارد.{" "}
+            {roundSizes.length > 1 ? (
+              <>
+                دانش‌آموز این آزمون را در{" "}
+                <span className="font-bold text-foreground">{fa(roundSizes.length)} دست</span>{" "}
+                بازی می‌کند ({roundSizes.map((n) => fa(n)).join(" + ")} جفت). هیچ اثری دو
+                بار نمی‌آید؛ دست‌ها روی هم کلِ آزمون‌اند.
+              </>
+            ) : (
+              <>یک دست است: {fa(biggestRound * 2)} کارت روی زمین.</>
+            )}{" "}
+            هر دست حداکثر {fa(MEMORY_ROUND_PAIRS)} جفت — یعنی{" "}
+            {fa(MEMORY_ROUND_PAIRS * 2)} کارت — تا زمین حجیم نشود. چیدمانِ بزرگ‌ترین
+            دست: {fa(columns.base)} ستون روی موبایل و {fa(columns.wide)} ستون روی صفحهٔ
+            بزرگ، هر ردیف کامل.
+            {withImage < pairs.length && (
               <>
                 {" "}
-                در هر دور {fa(MEMORY_MAX_PAIRS)} جفت به‌قید قرعه چیده می‌شود، پس
-                بقیه هدر نمی‌روند و هر بار بازی متفاوت است.
+                <span className="text-gold-ink">
+                  جفت‌های بی‌تصویر در صفحهٔ مرور با یک کتابِ تزئینی نشان داده می‌شوند.
+                </span>
               </>
-            )}{" "}
-            چیدمان: {fa(columns.base)} ستون روی موبایل و {fa(columns.wide)} ستون روی
-            صفحهٔ بزرگ.
+            )}
           </p>
         )}
       </div>
@@ -247,6 +271,15 @@ export default function PairsAdminPanel({
               />
             </label>
           </div>
+
+          <div className="mt-3">
+            <ImageUploadField
+              label="تصویر پدیدآورنده"
+              hint="همانی که دانش‌آموز پیش از شروع بازی مرور می‌کند. تصویرِ بدونِ پس‌زمینه (png شفاف) بهترین نتیجه را می‌دهد."
+              value={draft.image}
+              onChange={(image) => setDraft({ ...draft, image })}
+            />
+          </div>
           <div className="mt-4 flex gap-2">
             <button
               onClick={save}
@@ -266,16 +299,40 @@ export default function PairsAdminPanel({
       ) : bulk !== null ? (
         <div className="mb-5 rounded-2xl border border-primary/40 bg-primary/5 p-4">
           <h3 className="mb-1 font-bold">افزودن گروهی</h3>
+
+          {/* الگو به‌جای توضیح: سه ستون، با همان جداکننده‌ای که باید تایپ شود.
+              ستونِ سومِ تصویر بعداً اضافه شد و تا وقتی فقط در متن توضیح داده
+              می‌شد، کسی که فهرستش را از اکسل کپی می‌کرد آن را جا می‌انداخت. */}
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs">
+            <span className="rounded-md bg-gold/15 px-2 py-1 font-bold text-gold-ink">اثر</span>
+            <span dir="ltr" className="text-muted-foreground">|</span>
+            <span className="rounded-md bg-primary/15 px-2 py-1 font-bold text-primary">
+              پدیدآورنده
+            </span>
+            <span dir="ltr" className="text-muted-foreground">|</span>
+            <span className="rounded-md bg-muted px-2 py-1 font-bold text-muted-foreground">
+              نشانی تصویر
+            </span>
+            <span className="text-[11px] text-muted-foreground">— ستون سوم اختیاری است</span>
+          </div>
+
           <p className="mb-3 text-xs text-muted-foreground">
-            هر خط یک جفت: اول نام اثر، بعد یک جداکننده، بعد نام پدیدآورنده.
-            جداکننده می‌تواند <span dir="ltr">|</span> یا خط تیره باشد.
+            بین <span className="font-bold text-foreground">اثر</span> و{" "}
+            <span className="font-bold text-foreground">پدیدآورنده</span> هر جداکننده‌ای
+            کار می‌کند: <span dir="ltr">|</span> یا خط تیره یا tab. ولی پیش از{" "}
+            <span className="font-bold text-foreground">نشانی تصویر</span> فقط{" "}
+            <span dir="ltr">|</span> یا tab — چون خودِ نشانی پر از خط تیره است. نشانی را
+            از همان دکمهٔ آپلودِ بالا بگیرید یا یک لینک <span dir="ltr">http(s)</span>
+            بگذارید.
           </p>
           <textarea
             value={bulk}
             onChange={(e) => setBulk(e.target.value)}
             rows={7}
             className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm leading-7"
-            placeholder={"کویر | علی شریعتی\nچشمهایش - بزرگ علوی\nسووشون | سیمین دانشور"}
+            placeholder={
+              "کویر | علی شریعتی\nچشمهایش - بزرگ علوی\nسووشون | سیمین دانشور | /uploads/pair-images/daneshvar.png"
+            }
           />
           <div className="mt-4 flex gap-2">
             <button
@@ -296,7 +353,7 @@ export default function PairsAdminPanel({
       ) : (
         <div className="mb-5 flex flex-wrap gap-2">
           <button
-            onClick={() => setDraft({ work: "", author: "" })}
+            onClick={() => setDraft({ work: "", author: "", image: "" })}
             className="min-h-11 rounded-xl bg-primary px-5 font-bold text-primary-foreground transition-all hover:brightness-90"
           >
             + افزودن جفت
@@ -330,6 +387,18 @@ export default function PairsAdminPanel({
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
                 {fa(i + 1)}
               </span>
+              {/* تصویر همان‌جا در ردیف دیده می‌شود: «کدام جفت هنوز نگاره ندارد»
+                  سؤالی است که با نگاه کردن جواب می‌گیرد، نه با باز کردنِ فرم. */}
+              <span className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/40">
+                {p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt="" className="absolute inset-0 size-full object-contain p-0.5" />
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center text-base opacity-40" aria-hidden>
+                    🖼️
+                  </span>
+                )}
+              </span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <span className="rounded-lg bg-gold/15 px-3 py-1.5 text-sm font-bold">
                   {p.work}
@@ -358,7 +427,9 @@ export default function PairsAdminPanel({
               ) : (
                 <div className="flex shrink-0 gap-1">
                   <button
-                    onClick={() => setDraft({ id: p.id, work: p.work, author: p.author })}
+                    onClick={() =>
+                      setDraft({ id: p.id, work: p.work, author: p.author, image: p.image })
+                    }
                     className="min-h-9 rounded-lg border border-border px-3 text-sm hover:border-primary/50"
                   >
                     ویرایش

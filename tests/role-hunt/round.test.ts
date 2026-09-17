@@ -52,15 +52,22 @@ function healthy(overrides: Partial<GrammarCircuitQuestion> = {}) {
 
 /* ── ساختِ دور ────────────────────────────────────────────────────────────── */
 
-test("مدار فقط واژه‌های دارای نقشِ تأییدشده را می‌گیرد", () => {
+test("کلِ مصراع در مدار می‌چرخد و نه فقط واژه‌های سوکت‌دار", () => {
   const round = buildRoleHuntRound(healthy());
   assert.ok(round);
   assert.deepEqual(
     round.orbit.map((t) => t.id),
-    ["t3", "t5", "t6"],
+    ["t1", "t2", "t3", "t4", "t5", "t6"],
   );
-  // «یکی» نقشِ تأییدشده ندارد؛ نبودش در مدار عمدی است.
-  assert.ok(!round.orbit.some((t) => t.text === "یکی"));
+  // «یکی» سوکت ندارد ولی می‌چرخد — حواس‌پرت‌کن است، نه غایب.
+  assert.ok(round.orbit.some((t) => t.text === "یکی"));
+});
+
+test("«نقشِ تأییدشده دارد یا نه» روی هر واژه علامت می‌خورد", () => {
+  const round = buildRoleHuntRound(healthy());
+  assert.ok(round);
+  const confirmed = round.orbit.filter((t) => t.hasConfirmedRole).map((t) => t.id);
+  assert.deepEqual(confirmed, ["t3", "t5", "t6"]);
 });
 
 test("نقشِ هدف و پاسخِ درست از خودِ پرسش می‌آیند و با هم جورند", () => {
@@ -85,30 +92,23 @@ test("جمله‌های درسنامه دور نمی‌سازند — این ب�
   assert.equal(buildRoleHuntRound(healthy({ type: "sentence" })), null);
 });
 
-test("مدارِ کم‌گزینه رد می‌شود", () => {
+test("مصراعِ کم‌واژه رد می‌شود", () => {
   const q = question([
     { id: "t1", text: "الف", roles: ["subject"] },
-    { id: "t2", text: "ب", roles: ["object"] },
-    { id: "t3", text: "پ", sep: "" },
+    { id: "t2", text: "ب", sep: "" },
   ]);
   assert.ok(MIN_ORBIT_TOKENS > 2);
   assert.equal(buildRoleHuntRound(q), null);
 });
 
-test("مدارِ بیش از حد شلوغ رد می‌شود", () => {
-  const roles = [
-    "subject",
-    "object",
-    "verb",
-    "predicate",
-    "complement",
-    "adverb",
-    "adjective",
-    "possessive",
-  ];
-  assert.ok(roles.length > MAX_ORBIT_TOKENS);
+test("مصراعِ بیش از حد بلند رد می‌شود", () => {
+  const n = MAX_ORBIT_TOKENS + 1;
   const q = question(
-    roles.map((role, i) => ({ id: `t${i}`, text: `w${i}`, roles: [role] })),
+    Array.from({ length: n }, (_, i) => ({
+      id: `t${i}`,
+      text: `w${i}`,
+      roles: i === 0 ? ["subject"] : undefined,
+    })),
   );
   assert.equal(buildRoleHuntRound(q), null);
 });
@@ -213,9 +213,17 @@ test("پاسخِ غلط", () => {
   assert.equal(resolveRoleHuntAnswer(q, other.id)?.isCorrect, false);
 });
 
-test("واژه‌ای بیرونِ مدار اصلاً پاسخ نیست — نه درست و نه غلط", () => {
-  // «یکی» روی صفحه نبوده؛ ثبتِ آن به‌عنوان یک اشتباه، تحلیل را آلوده می‌کرد.
-  assert.equal(resolveRoleHuntAnswer(healthy(), "t2"), null);
+test("واژهٔ بی‌سوکت قابلِ انتخاب است و غلط شمرده می‌شود", () => {
+  /* ⚠️ «یکی» حالا روی مدار هست، پس انتخابش یک پاسخِ واقعی است. بهایش در
+     `round.ts` نوشته شده: اگر واژه‌ای که سوکت ندارد در واقع همان نقش را
+     داشته باشد، اینجا «غلط» ثبت می‌شود. */
+  const resolved = resolveRoleHuntAnswer(healthy(), "t2");
+  assert.ok(resolved);
+  assert.equal(resolved.isCorrect, false);
+  assert.equal(resolved.chosenToken.text, "یکی");
+});
+
+test("شناسه‌ای که در مصراع نیست هیچ پاسخی نمی‌سازد", () => {
   assert.equal(resolveRoleHuntAnswer(healthy(), "does-not-exist"), null);
 });
 

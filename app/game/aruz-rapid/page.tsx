@@ -3,6 +3,7 @@ import { absoluteUrl } from "@/lib/seo/site";
 import { breadcrumbList } from "@/lib/seo/jsonld";
 import JsonLd from "@/components/seo/JsonLd";
 import RapidAruzGame from "@/components/UI/aruz-rapid/RapidAruzGame";
+import { loadRapidAruzQuestions } from "@/lib/aruz-rapid/content";
 
 export const metadata: Metadata = {
   /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
@@ -20,7 +21,13 @@ export const metadata: Metadata = {
  * 100dvh و بدونِ هیچ اسکرولی باشد. راهِ خروج و تأییدش داخلِ خودِ بازی است
  * (نوارِ بالای بازی، و لینکِ بازگشت در صفحهٔ آغاز و نتیجه).
  */
-export default function Page() {
+// مصراع‌ها از پنل مدیریت می‌آیند؛ یک صفحهٔ کش‌شده یعنی مدیری که تغییرش را
+// نمی‌بیند.
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const { questions } = await loadRapidAruzQuestions();
+
   /* این بازی GameShell ندارد (توضیح بالا)، پس مسیرِ صفحه را خودش اعلام
      می‌کند تا مثلِ بقیهٔ بازی‌ها breadcrumb داشته باشد. */
   return (
@@ -32,7 +39,7 @@ export default function Page() {
           { name: "تقطیعِ سریع", path: "/game/aruz-rapid" },
         ])}
       />
-      <RapidAruzGame />
+      <RapidAruzGame questions={questions} />
     </>
   );
 }

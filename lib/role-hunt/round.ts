@@ -17,23 +17,26 @@ import type {
  * آزمودنی باشد.
  *
  * =============================================================================
- * ⚠️ چرا فقط واژه‌های *دارای نقش* دورِ مصراع می‌چرخند
+ * ⚠️ همهٔ واژه‌های مصراع در مدار می‌چرخند
  * =============================================================================
  *
- * وسوسه‌انگیز بود که همهٔ واژه‌های مصراع در مدار بگردند — مدارِ شلوغ‌تر
- * قشنگ‌تر است. ولی آن بازی well-posed نیست، و دلیلش را خودِ محتوا می‌گوید.
- * در یکی از رکوردهای دهم، نویسنده نوشته:
+ * نسخهٔ اول فقط واژه‌هایی را می‌چرخاند که در «مدارِ دستور» سوکت دارند —
+ * یعنی نقششان تأیید شده. استدلالش این بود که واژهٔ بی‌سوکت لزوماً بی‌نقش
+ * نیست؛ در یکی از رکوردهای دهم، نویسنده صریح نوشته:
  *
  *     «یکی» با وجود صفت شمارشی بودن عمداً وارد Slotها نشده …
  *
- * یعنی واژه‌ای که سوکت ندارد، لزوماً بی‌نقش نیست؛ فقط دربارهٔ آن سؤالی
- * پرسیده نشده. اگر چنین واژه‌ای در مدار بچرخد و نقشِ هدف «صفت» باشد،
- * دانش‌آموزی که «یکی» را می‌زند جوابِ درستی داده و ما «غلط» ثبت می‌کنیم —
- * و بدتر: همان غلط به تحلیلِ نقش‌هایش می‌رود.
+ * ولی نتیجه‌اش یک مصراعِ نصفه بود: از هفت واژه، سه‌تا می‌چرخید و بقیه فقط
+ * در متن بودند — که هم بازی را آسان می‌کرد و هم عجیب به نظر می‌رسید.
  *
- * پس مدار دقیقاً همان مجموعه‌ای است که «مدارِ دستور» هم سوکت برایشان
- * می‌گذارد: واژه‌هایی که نقششان *تأیید شده* است. هر گزینهٔ غلط، از روی داده
- * غلط است و نه از روی سکوتِ داده.
+ * حالا مدار کاملِ مصراع است. `hasConfirmedRole` روی هر توکن می‌ماند تا
+ * معلوم باشد کدام واژه نقشِ *تأییدشده* دارد و کدام فقط حواس‌پرت‌کن است.
+ *
+ * ⚠️ و بهایش را باید صریح نوشت: واژه‌ای که سوکت ندارد ممکن است در واقع
+ * همان نقشِ هدف را داشته باشد و ما «غلط» ثبت کنیم. صافیِ «نقشِ هدف باید
+ * دقیقاً یک دارنده داشته باشد» این ریسک را کم می‌کند ولی صفر نمی‌کند.
+ * راهِ واقعیِ بستنش این است که بانکِ «مدارِ دستور» برای هر واژه سوکت
+ * بگذارد — که کارِ محتواست، نه کارِ این فایل.
  *
  * =============================================================================
  * ⚠️ چرا نقشِ هدف *از خودِ پرسش* درمی‌آید و نه از کلاینت
@@ -52,8 +55,13 @@ import type {
 /** کمینهٔ واژه‌های مدار. زیرِ سه‌تا، بازی به حدس زدن تبدیل می‌شود. */
 export const MIN_ORBIT_TOKENS = 3;
 
-/** بیشینهٔ واژه‌های مدار — کرانِ چیدمان، نه کرانِ محتوا. */
-export const MAX_ORBIT_TOKENS = 7;
+/**
+ * بیشینهٔ واژه‌های مدار — کرانِ چیدمان، نه کرانِ محتوا.
+ *
+ * ⚠️ از ۷ به ۱۲ رسید، چون حالا کلِ مصراع می‌چرخد و نه فقط واژه‌های
+ * سوکت‌دار. اندازه‌گیریِ بانک: بلندترین مصراعِ واجدِ شرایط ۱۱ واژه دارد.
+ */
+export const MAX_ORBIT_TOKENS = 12;
 
 /** فقط شعر. جمله‌های درسنامه مدار نمی‌گیرند؛ این بازی دربارهٔ مصراع است. */
 const ALLOWED_TYPES = new Set(["hemistich", "verse"]);
@@ -120,18 +128,71 @@ function toLines(tokens: readonly RoleHuntToken[], separators: readonly string[]
  * اول «آیا اصلاً شعر است»، بعد «آیا مدار به اندازهٔ کافی گزینه دارد»، و
  * آخر «آیا نقشی هست که پاسخش *یکتا* باشد».
  */
-export function buildRoleHuntRound(question: GrammarCircuitQuestion): RoleHuntRound | null {
-  if (!ALLOWED_TYPES.has(question.type)) return null;
+/**
+ * چرا یک پرسش به بازی نمی‌رسد.
+ *
+ * ⚠️ این برای پنلِ مدیریت است و نه برای بازی. نویسندهٔ محتوا باید بتواند
+ * بفهمد چرا مصراعی که نوشته در «شکار نقش‌ها» دیده نمی‌شود — وگرنه تنها
+ * بازخوردش «نیست» است و هیچ راهی برای درست کردنش ندارد.
+ */
+export type RoleHuntRejection =
+  | "not_poetry"
+  | "too_few_words"
+  | "too_many_words"
+  | "no_unique_role";
+
+export const ROLE_HUNT_REJECTION_LABEL: Record<RoleHuntRejection, string> = {
+  not_poetry: "جمله است و نه مصراع",
+  too_few_words: "واژه‌های مصراع کم‌اند",
+  too_many_words: "مصراع بلندتر از ظرفیتِ مدار است",
+  no_unique_role: "هیچ نقشی نیست که فقط یک واژه داشته باشد",
+};
+
+export type RoleHuntEligibility =
+  | { ok: true; round: RoleHuntRound }
+  | { ok: false; reason: RoleHuntRejection; detail: string };
+
+/**
+ * سنجشِ واجدِ شرایط بودن — با دلیل.
+ *
+ * ⚠️ `buildRoleHuntRound` خودش روی همین می‌نشیند و نه برعکس. اگر دو
+ * پیاده‌سازی می‌بود، روزی پنل می‌گفت «این مصراع سالم است» و بازی نشانش
+ * نمی‌داد — و هیچ‌کس نمی‌فهمید کدام راست می‌گوید.
+ */
+export function explainRoleHuntEligibility(
+  question: GrammarCircuitQuestion,
+): RoleHuntEligibility {
+  if (!ALLOWED_TYPES.has(question.type)) {
+    return {
+      ok: false,
+      reason: "not_poetry",
+      detail: `نوعِ این پرسش «${question.type}» است؛ این بازی فقط مصراع و بیت می‌گیرد.`,
+    };
+  }
 
   const tokens: RoleHuntToken[] = question.tokens.map((t) => ({
     id: t.id,
     text: t.text,
     separatorAfter: t.separatorAfter,
-    orbiting: Boolean(t.roleSlot),
+    hasConfirmedRole: Boolean(t.roleSlot),
   }));
 
-  const orbit = tokens.filter((t) => t.orbiting);
-  if (orbit.length < MIN_ORBIT_TOKENS || orbit.length > MAX_ORBIT_TOKENS) return null;
+  // کلِ مصراع می‌چرخد — نه فقط واژه‌هایی که سوکت دارند.
+  const orbit = tokens;
+  if (orbit.length < MIN_ORBIT_TOKENS) {
+    return {
+      ok: false,
+      reason: "too_few_words",
+      detail: `${orbit.length} واژه دارد و کمینه ${MIN_ORBIT_TOKENS} لازم است.`,
+    };
+  }
+  if (orbit.length > MAX_ORBIT_TOKENS) {
+    return {
+      ok: false,
+      reason: "too_many_words",
+      detail: `${orbit.length} واژه دارد و بیشینه ${MAX_ORBIT_TOKENS} در مدار جا می‌شود.`,
+    };
+  }
 
   /* چند واژهٔ مدار هر نقش را می‌پذیرند. `Set` به‌ازای هر سوکت، چون یک سوکت
      می‌تواند یک کلید را دو بار فهرست کرده باشد و آن نباید دو بار شمرده شود. */
@@ -157,22 +218,42 @@ export function buildRoleHuntRound(question: GrammarCircuitQuestion): RoleHuntRo
     .map(([key, ids]) => ({ key, tokenId: ids[0]! }))
     .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {
+    const shared = [...holders.entries()].filter(([, ids]) => ids.length > 1).length;
+    return {
+      ok: false,
+      reason: "no_unique_role",
+      detail: holders.size === 0
+        ? "هیچ واژه‌ای نقشِ تأییدشده ندارد."
+        : shared > 0
+          ? `${shared} نقش بیش از یک دارنده دارد، پس پاسخ یکتا نیست.`
+          : "نقش‌های موجود در کاتالوگِ متعارف نیستند.",
+    };
+  }
 
   const seed = question.sourceId ?? question.id;
   const picked = candidates[stableHash(seed) % candidates.length]!;
 
   return {
-    questionId: question.id,
-    sourceId: question.sourceId ?? null,
-    grade: (question.grade as GradeKey | undefined) ?? null,
-    lesson: question.lesson ?? null,
-    lines: toLines(tokens, question.tokens.map((t) => t.separatorAfter)),
-    orbit,
-    roleKey: picked.key,
-    roleLabel: grammarRoleLabel(picked.key),
-    correctTokenId: picked.tokenId,
+    ok: true,
+    round: {
+      questionId: question.id,
+      sourceId: question.sourceId ?? null,
+      grade: (question.grade as GradeKey | undefined) ?? null,
+      lesson: question.lesson ?? null,
+      lines: toLines(tokens, question.tokens.map((t) => t.separatorAfter)),
+      orbit,
+      roleKey: picked.key,
+      roleLabel: grammarRoleLabel(picked.key),
+      correctTokenId: picked.tokenId,
+    },
   };
+}
+
+/** پرسشِ «مدارِ دستور» → دورِ «شکار نقش‌ها»، یا `null` اگر واجد شرایط نیست. */
+export function buildRoleHuntRound(question: GrammarCircuitQuestion): RoleHuntRound | null {
+  const result = explainRoleHuntEligibility(question);
+  return result.ok ? result.round : null;
 }
 
 /**

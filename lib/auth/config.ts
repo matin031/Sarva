@@ -1,21 +1,19 @@
 import "server-only";
+import { parseDuration } from "./duration";
 
 /** پیکربندی احراز هویت — همه از محیط، هیچ‌چیز هاردکد. */
 
 export const ACCESS_COOKIE = "sarva_at";
 export const REFRESH_COOKIE = "sarva_rt";
 
-/** «15m» / «30d» / «3600» → ثانیه. */
-export function parseDuration(input: string | undefined, fallbackSeconds: number): number {
-  if (!input) return fallbackSeconds;
-  const match = /^(\d+)\s*([smhd])?$/i.exec(input.trim());
-  if (!match) {
-    console.warn(`[auth] مدت نامعتبر «${input}» — از پیش‌فرض ${fallbackSeconds}s استفاده شد.`);
-    return fallbackSeconds;
-  }
-  const unit = (match[2] ?? "s").toLowerCase() as "s" | "m" | "h" | "d";
-  return Number(match[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[unit];
-}
+/* ⚠️ `parseDuration` در `./duration` است و نه اینجا.
+
+   تنها دلیلش این است که این فایل `server-only` است و آزمون‌های
+   `node --test` نمی‌توانند واردش کنند. آن تابع هیچ اتصالی به سرور ندارد —
+   یک رشته می‌گیرد و یک عدد می‌دهد — ولی مدتِ ورودِ کاربر را همان تعیین
+   می‌کند، و «سی روز وارد می‌ماند» چیزی است که باید آزمون داشته باشد.
+   (همان استدلالِ `lib/db/errors.ts`.) */
+export { parseDuration } from "./duration";
 
 export function accessTtlSeconds(): number {
   return parseDuration(process.env.AUTH_ACCESS_TTL, 15 * 60);

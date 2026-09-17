@@ -6,8 +6,7 @@ import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { withRoute } from "@/lib/api/route";
 import { maskPhone, normalizePhone } from "@/lib/auth/phone";
 import { issuePhoneOtp } from "@/lib/auth/phone-otp";
-import { sendSmsPattern } from "@/lib/sms";
-import { getSetting } from "@/lib/settings";
+import { sendOtpSms } from "@/lib/sms";
 import { logger } from "@/lib/observability";
 
 /**
@@ -91,12 +90,12 @@ export const POST = withRoute("/api/v1/auth/phone/send-code", async (request: Re
     const issued = await issuePhoneOtp(phone, "phone_verify", meta.ip);
     if (!issued.ok) return fail(issued.error, issued.retryAfterSeconds ? 429 : 400);
 
-    /* با **الگو** و نه متنِ آزاد — همان دلیلِ مسیرِ ورود: خطِ خدماتی متنِ
-       دلخواه نمی‌پذیرد و متنِ آزاد یا رد می‌شود یا از خطِ تبلیغاتی می‌رود. */
-    const template = (await getSetting("sms.pattern")) || "SarvaLogin";
+    /* با **قالبِ تأییدشده** و نه متنِ آزاد — همان دلیلِ مسیرِ ورود: خطِ
+       خدماتی متنِ دلخواه نمی‌پذیرد و متنِ آزاد یا رد می‌شود یا از خطِ
+       تبلیغاتی می‌رود. شناسهٔ قالب تنظیمِ سایت است و `lib/sms` خودش می‌خواندش. */
 
     try {
-      await sendSmsPattern({ to: phone, template, tokens: [issued.code] });
+      await sendOtpSms({ to: phone, code: issued.code });
     } catch (err) {
       /* ⚠️ کدِ صادرشده عمداً باطل نمی‌شود: ممکن است پیامک رفته باشد و فقط
          پاسخِ سرویس گم شده باشد. باطل کردنش یعنی کاربری که کد را روی

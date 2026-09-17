@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROLE_HUNT_CONFIG } from "@/lib/role-hunt/config";
+import { playRoleHuntSound } from "@/lib/role-hunt/audio";
 
 /**
  * نمایشگرِ دیجیتالیِ نقش — `٭٭٭` تا «قید».
@@ -47,9 +48,19 @@ function scramble(label: string, revealed: number, tick: number): string {
 export default function RoleDecoder({
   roleLabel,
   reduced,
+  paused = false,
 }: {
   roleLabel: string;
   reduced: boolean;
+  /**
+   * بازی قفل است (گوشیِ عمودی).
+   *
+   * ⚠️ رمزگشا باید *یخ بزند* و نه اینکه بی‌صدا تمام شود. `tick` حالتِ همین
+   * کامپوننت است و کامپوننت unmount نمی‌شود، پس با برداشتنِ زمان‌سنج مقدارش
+   * سرِ جایش می‌ماند و با باز شدنِ قفل از همان‌جا ادامه می‌دهد — نه از صفر
+   * و نه با پریدن به نقشِ کامل.
+   */
+  paused?: boolean;
 }) {
   const steps = Math.max(2, Math.round(ROLE_HUNT_CONFIG.decoderMs / ROLE_HUNT_CONFIG.decoderStepMs));
   const [tick, setTick] = useState(0);
@@ -65,21 +76,29 @@ export default function RoleDecoder({
   useEffect(() => {
     /* حرکتِ کمتر: هیچ رمزگشایی، پس هیچ زمان‌سنجی هم نصب نمی‌شود. */
     if (reduced) return;
+    // قفل: زمان‌سنج نصب نمی‌شود و `tick` دست‌نخورده می‌ماند.
+    if (paused) return;
 
+    /* ⚠️ صدا از دلِ همان حلقه می‌آید و نه از یک افکتِ جدا: تیک باید دقیقاً
+       هم‌زمان با جا افتادنِ نویسه باشد، وگرنه به‌جای «رمزگشایی» یک صدای
+       بی‌ربط شنیده می‌شود. */
     timer.current = window.setInterval(() => {
       setTick((current) => {
         if (current >= steps) {
           if (timer.current !== null) window.clearInterval(timer.current);
           return steps;
         }
-        return current + 1;
+        const next = current + 1;
+        if (next >= steps) playRoleHuntSound("reveal");
+        else if (next % 3 === 0) playRoleHuntSound("tick");
+        return next;
       });
     }, ROLE_HUNT_CONFIG.decoderStepMs);
 
     return () => {
       if (timer.current !== null) window.clearInterval(timer.current);
     };
-  }, [reduced, steps]);
+  }, [reduced, paused, steps]);
 
   /* ⚠️ `reduced` اینجا هم خوانده می‌شود و نه فقط در افکت: اگر کاربر وسطِ
      بازی «حرکتِ کمتر» را روشن کند، افکت زمان‌سنج را برمی‌دارد و شمارنده هر
@@ -97,17 +116,22 @@ export default function RoleDecoder({
           خواندنِ «٭ق٭» با صفحه‌خوان هیچ معنایی ندارد و در هر گام یک اعلام
           تازه می‌ساخت. پس نویسه‌های متحرک از دسترسِ آن پنهان‌اند و یک متنِ
           مخفیِ زنده، نقشِ کامل را یک بار اعلام می‌کند. */}
-      <span className="rh-decoder-value game-display" aria-hidden="true">
-        {[...shown].map((glyph, index) => (
-          <span
-            key={index}
-            className="rh-glyph"
-            data-scrambled={!settled && index >= revealed}
-            style={{ "--rh-glyph-index": index } as React.CSSProperties}
-          >
-            {glyph}
-          </span>
-        ))}
+      {/* ⚠️ یک گرهِ متنیِ واحد، و نه یک span به‌ازای هر نویسه.
+
+          نسخهٔ اول هر نویسه را جدا می‌کرد تا فقط نویسه‌های رمزگشایی‌نشده
+          بلرزند. روی متنِ لاتین بی‌خطر است و روی فارسی فاجعه: خطِ فارسی
+          *متصل* است و شکلِ هر حرف به همسایه‌هایش بستگی دارد. با span جدا،
+          مرورگر هر حرف را «تنها» می‌گیرد و «قید» روی صفحه می‌شود «ق ی د» —
+          دقیقاً همان چیزی که در بازی دیده شد.
+
+          پس لرزش روی *کلِ* جعبه می‌نشیند و نه روی تک‌تکِ حروف. کمی کمتر
+          دقیق است و بی‌نهایت خواناتر. */}
+      <span
+        className="rh-decoder-value game-display"
+        data-scrambling={settled ? undefined : "true"}
+        aria-hidden="true"
+      >
+        {shown}
       </span>
 
       <span className="sr-only" aria-live="polite">

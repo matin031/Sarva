@@ -21,7 +21,7 @@ export default function ReceiptView({ order }: { order: PlusOrderDetail; }) {
         </Link>
       </nav>
 
-      <div className="print:hidden"><PanelPageHeader title="جزئیات خریدت" description="اطلاعات سفارش و رسید قابل چاپ، برای وقتی که به آن نیاز داری." tone="lilac" /></div>
+      <div className="print:hidden"><PanelPageHeader title="جزئیات سفارش" description="اطلاعات پرداخت و رسیدِ قابلِ چاپ." tone="lilac" art={false} /></div>
 
       {/* ── رسید ─────────────────────────────────────────────────── */}
       <section

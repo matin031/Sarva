@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpLeft } from "lucide-react";
 import styles from "../panel-design.module.css";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
 import { fa, scoreColor } from "@/lib/panel/format";
 import { AREA_GLYPH, AREA_TITLE } from "@/lib/panel/derive";
 import type { BookmarkArea, PanelOverview } from "@/lib/panel/types";
@@ -12,6 +13,9 @@ import type { BookmarkArea, PanelOverview } from "@/lib/panel/types";
  * برعکسِ `StatRing` در بالای صفحه. تفاوتشان عمدی است و در خودِ StatRing هم
  * نوشته شده: بالا یک *هویت* است («دقتِ تو»)، اینجا یک *قضاوت* («این بخش
  * چطور است») و رنگ باید همان را بگوید.
+ *
+ * ⚠️ گرادیانِ حلقه از رنگِ نمره به همان رنگِ روشن‌تر می‌رود و نه به رنگِ
+ * برند — وگرنه حلقهٔ ۳۰٪ نوکش سبز می‌شد و پیامِ رنگ را پس می‌گرفت.
  */
 export default function AreaCards({ overview }: { overview: PanelOverview }) {
   const { counts, exams } = overview;
@@ -19,13 +23,11 @@ export default function AreaCards({ overview }: { overview: PanelOverview }) {
 
   return (
     <section className={styles.areas}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold">مسیرهای یادگیری تو</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            کارنامه و نتیجهٔ تمرین‌ها، به تفکیک هر بخش
-          </p>
-        </div>
+      <div className="mb-4">
+        <h2 className="text-base font-bold">بخش‌های تمرین</h2>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          کارنامهٔ هر بخش، جدا از بقیه
+        </p>
       </div>
 
       <div className="flex flex-col">
@@ -40,12 +42,23 @@ export default function AreaCards({ overview }: { overview: PanelOverview }) {
               : 0;
 
           return (
-            <Link
-              key={area}
-              href={`/panel/${area}`}
-              className={styles.areaLink}
-            >
-              <Ring percent={has ? percent : null} glyph={AREA_GLYPH[area]} />
+            <Link key={area} href={`/panel/${area}`} className={styles.areaLink}>
+              {/* ⚠️ وقتی هنوز داده‌ای نیست، گلیفِ بخش می‌آید و نه یک حلقهٔ
+                  صفردرصد — «صفر» را به کسی نسبت می‌دهد که هنوز چیزی امتحان
+                  نکرده است. */}
+              <AnimatedCircularProgress
+                value={percent}
+                ready={has}
+                glyph={AREA_GLYPH[area]}
+                color={has ? [scoreColor(percent), scoreColor(Math.min(100, percent + 18))] : undefined}
+                valueColor={has ? scoreColor(percent) : undefined}
+                label={
+                  has
+                    ? `${AREA_TITLE[area]}: ${percent} درصد`
+                    : `${AREA_TITLE[area]}: بدون تمرین`
+                }
+                className="size-14"
+              />
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold">{AREA_TITLE[area]}</p>
                 <p className="panel-num text-[12.5px] text-muted-foreground">
@@ -64,49 +77,5 @@ export default function AreaCards({ overview }: { overview: PanelOverview }) {
         })}
       </div>
     </section>
-  );
-}
-
-/** حلقهٔ کوچکِ کنارِ نامِ بخش. وقتی هنوز داده‌ای نیست، گلیفِ بخش را نشان
- *  می‌دهد — یک حلقهٔ صفردرصد، «صفر» را به کاربر نسبت می‌دهد در حالی که
- *  او هنوز چیزی امتحان نکرده. */
-function Ring({ percent, glyph }: { percent: number | null; glyph: string }) {
-  const r = 43;
-  const c = 2 * Math.PI * r;
-
-  if (percent === null) {
-    return (
-      <span
-        aria-hidden
-        className="grid size-14 shrink-0 place-items-center rounded-2xl border border-border/70 bg-foreground/5 text-xl"
-      >
-        {glyph}
-      </span>
-    );
-  }
-
-  return (
-    <span className="relative size-14 shrink-0">
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
-        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="10" className="stroke-border" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - percent / 100)}
-          stroke={scoreColor(percent)}
-        />
-      </svg>
-      <span
-        className="panel-num absolute inset-0 grid place-items-center text-sm font-bold"
-        style={{ color: scoreColor(percent) }}
-      >
-        {fa(percent)}٪
-      </span>
-    </span>
   );
 }

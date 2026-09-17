@@ -3,45 +3,38 @@ import "server-only";
 import { execute } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { logger } from "@/lib/observability";
+import { normalizeSmsDriver } from "./driver";
+import { SmsIrAdapter, parseTemplateId } from "./smsir";
+import type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult } from "./types";
 
 /**
- * ارسال پیامک، پشت یک واسط.
+ * ارسال پیامک، پشتِ یک واسط.
  *
- * امروز هیچ بخشی از سایت پیامک نمی‌فرستد و درایور پیش‌فرض mock است.
+ * سرویسِ واقعی **SMS.ir** است و تنها سرویسِ واقعی هم همان است. `mock` فقط یک
+ * حالت است و نه یک سرویس: «پیامک خاموش» — برای توسعه و برای وقتی که مدیر
+ * عمداً ارسال را قطع کرده.
  *
- * ⚠️ تغییر مهم نسبت به نسخهٔ قبلی: پیکربندی از **lib/settings** خوانده می‌شود
- * و نه مستقیم از process.env. یعنی وقتی پنل پیامک خریداری شد، راه‌اندازی‌اش
- * «وارد کردن کلید در /admin/settings» است — نه ویرایش .env روی سرور و
- * ری‌استارت کانتینر. متغیرهای محیطی همچنان کار می‌کنند، ولی به‌عنوان مقدارِ
- * پیش‌فرض (getSetting اول دیتابیس را می‌بیند و بعد env را).
+ * ⚠️ پیکربندی از **lib/settings** خوانده می‌شود و نه مستقیم از `process.env`.
+ * یعنی راه‌اندازی «وارد کردنِ کلید در ‎/admin/settings‎» است و نه «ویرایشِ
+ * ‎.env‎ روی سرور و ری‌استارتِ کانتینر». متغیرهای محیطی همچنان کار می‌کنند،
+ * ولی به‌عنوان مقدارِ پیش‌فرض (getSetting اول دیتابیس را می‌بیند و بعد env).
  *
- * پیامد فنی‌اش این است که smsAdapter() حالا async است: خواندن تنظیم یک کوئری
- * دیتابیس است (با کش یک‌دقیقه‌ای). چون تنها مصرف‌کننده‌اش sendSms است، این
- * تغییر جای دیگری را لمس نمی‌کند.
+ * پیامدِ فنی‌اش این است که `smsAdapter()` async است: خواندنِ تنظیم یک کوئریِ
+ * دیتابیس است (با کشِ یک‌دقیقه‌ای).
  */
 
-export type SmsMessage = {
-  to: string;
-  body: string;
-};
+export type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult };
 
-export interface SmsAdapter {
-  readonly name: string;
-  send(message: SmsMessage): Promise<{ providerMessageId: string | null }>;
-}
-
-// ------------------------------------------------------------------ mock --
+// -------------------------------------------------------------------- mock --
 
 class MockSmsAdapter implements SmsAdapter {
   readonly name = "mock";
 
-  async send(message: SmsMessage): Promise<{ providerMessageId: string | null }> {
-    // ⚠️ متن پیامک عمداً چاپ *نمی‌شود*.
-    //
-    // نسخهٔ قبلی کل بدنه را در لاگ می‌نوشت، که موقع mock بی‌ضرر به نظر می‌رسید
-    // — ولی اولین مصرف‌کنندهٔ واقعیِ این واسط «ورود با کد پیامکی» است، و آن
-    // یعنی کدهای یک‌بارمصرف در `docker compose logs` می‌نشستند. شمارهٔ گیرنده
-    // هم بریده می‌شود.
+  async send(message: SmsMessage): Promise<SmsSendResult> {
+    // ⚠️ متنِ پیامک عمداً چاپ *نمی‌شود* و شمارهٔ گیرنده هم نه. یک نسخهٔ قدیمی
+    // کلِ بدنه را لاگ می‌کرد؛ موقعِ mock بی‌ضرر به نظر می‌رسید، ولی
+    // مصرف‌کنندهٔ اصلیِ این واسط «ورود با کدِ پیامکی» است و آن یعنی کدهای
+    // یک‌بارمصرف در `docker compose logs` می‌نشستند.
     logger.debug("پیامک آزمایشی (ارسال واقعی انجام نشد)", {
       event: "sms.send.mocked",
       sms_driver: this.name,
@@ -49,158 +42,202 @@ class MockSmsAdapter implements SmsAdapter {
     });
     return { providerMessageId: null };
   }
-}
 
-// ---------------------------------------------------- سرویس‌های واقعی --
-
-// ------------------------------------------------------------------ نجوا --
-
-/** آدرسِ پیش‌فرضِ وب‌سرویسِ نجوا. با تنظیمِ `sms.base_url` قابلِ جایگزینی است. */
-const NAJVA_ENDPOINT = "https://email.najva.com/v1/sms/transactional_sms/";
-
-/**
- * نجوا (najva.com) — وب‌سرویسِ پیامکِ تراکنشی.
- *
- *   POST https://email.najva.com/v1/sms/transactional_sms/
- *   najva-token: najvasmskey-<کلید>
- *   { "sms_content": "...", "sender": "...", "mobile": "09..." }
- *
- * ⚠️ این کد **با سرویسِ واقعی آزمایش نشده است.** حساب هست ولی فرستادنِ یک
- * پیامکِ واقعی برای تست، هم هزینه دارد و هم به یک شمارهٔ واقعی می‌رود. پس
- * شکلِ درخواست از مستنداتِ نجوا آمده و نه از دیدنِ پاسخِ زنده. اولین ارسالِ
- * واقعی را در ‎/admin/activity‎ دنبال کنید؛ اگر ساختارِ پاسخ فرق داشت،
- * `providerMessageId` خالی می‌ماند ولی ارسال از کار نمی‌افتد.
- */
-class NajvaSmsAdapter implements SmsAdapter {
-  readonly name = "najva";
-
-  constructor(
-    private readonly apiKey: string,
-    private readonly sender: string,
-    private readonly endpoint: string,
-  ) {}
-
-  async send(message: SmsMessage): Promise<{ providerMessageId: string | null }> {
-    /* ⚠️ نجوا کلید را با پیشوندِ `najvasmskey-` می‌خواهد. چون کلیدی که پنل
-       نشان می‌دهد گاهی با پیشوند و گاهی بدونِ آن کپی می‌شود، اینجا فقط وقتی
-       اضافه می‌شود که نباشد — وگرنه `najvasmskey-najvasmskey-…` می‌ساختیم و
-       خطای احراز هویت می‌گرفتیم که دلیلش از پیام معلوم نمی‌شد. */
-    const token = this.apiKey.startsWith("najvasmskey-")
-      ? this.apiKey
-      : `najvasmskey-${this.apiKey}`;
-
-    const response = await fetch(this.endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "najva-token": token,
-      },
-      body: JSON.stringify({
-        sms_content: message.body,
-        sender: this.sender,
-        mobile: message.to,
-      }),
-      signal: AbortSignal.timeout(15_000),
+  async sendOtp(message: SmsOtpMessage): Promise<SmsSendResult> {
+    logger.debug("کدِ پیامکی آزمایشی (ارسال واقعی انجام نشد)", {
+      event: "sms.send.mocked",
+      sms_driver: this.name,
+      sms_kind: "otp",
+      // ⚠️ نه خودِ کد و نه شماره — فقط اینکه کدی ساخته شده بود.
+      code_length: message.code.length,
     });
-
-    const raw = await response.text().catch(() => "");
-
-    if (!response.ok) {
-      /* ⚠️ پاسخ بریده می‌شود چون در sms_log می‌نشیند و ممکن است خودِ متنِ
-         پیامک — یعنی کدِ یک‌بارمصرف — را بازتاب دهد. */
-      throw new Error(`نجوا پاسخ ${response.status} داد: ${raw.slice(0, 300)}`);
-    }
-
-    /* شناسهٔ پیام برای پیگیری. اگر نبود، ارسال موفق بوده و فقط پیگیری‌اش
-       سخت‌تر است — پس دلیلی برای throw نیست. */
-    let providerMessageId: string | null = null;
-    try {
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const id = data.id ?? data.message_id ?? data.sms_id;
-      if (typeof id === "string" || typeof id === "number") providerMessageId = String(id);
-    } catch {
-      /* پاسخ JSON نبود؛ مهم نیست، وضعیت ۲xx بوده. */
-    }
-
-    return { providerMessageId };
+    return { providerMessageId: null };
   }
 }
 
-// ---------------------------------------------------- سرویس‌های واقعی --
+// ------------------------------------------------------------------ انتخاب --
 
 /**
- * سرویس‌هایی که واقعاً پیاده‌سازی شده‌اند.
+ * آداپترِ فعال، بر اساسِ تنظیمات.
  *
- * ⚠️ قاعده همان است که از اول بود: نامی که اینجا نیست، در پنل انتخاب‌شدنی
- * هست ولی به mock برمی‌گردد و یک هشدار در لاگ می‌نشیند — یعنی مدیر در
- * ‎/admin/activity‎ می‌بیند که پیامک نرفته، به‌جای اینکه سکوت را «رفت» فرض
- * کند. کاوه‌نگار و ملی‌پیامک هنوز نوشته نشده‌اند چون حسابشان را نداریم.
+ * ⚠️ هیچ‌کدام از حالت‌های «پیکربندیِ ناقص» throw نمی‌کنند و همه به mock
+ * برمی‌گردند. دلیلش همان است که از اول بود: نبودِ یک کلید نباید سایت را از
+ * کار بیندازد. در عوض هر کدام یک هشدارِ صریح در لاگ می‌گذارند و کارتِ وضعیتِ
+ * ‎/admin/settings‎ هم دقیقاً می‌گوید چه چیزی کم است — وگرنه «پیامک نمی‌رود و
+ * معلوم نیست چرا» تبدیل به یک روز کارِ تلف‌شده می‌شود.
  */
-const IMPLEMENTED_DRIVERS = new Set(["mock", "najva"]);
-
-// --------------------------------------------------------------- انتخاب --
-
 export async function smsAdapter(): Promise<SmsAdapter> {
-  const driver = ((await getSetting("sms.driver")) ?? "mock").toLowerCase();
+  const configured = await getSetting("sms.driver");
+  const driver = normalizeSmsDriver(configured);
 
-  if (!IMPLEMENTED_DRIVERS.has(driver)) {
-    // عمداً throw نمی‌کند: اگر کسی سرویسی را انتخاب کند که هنوز پیاده‌سازی
-    // نشده، سایت نباید از کار بیفتد. پیامک نرفتن بهتر از سایت بالا نیامدن است.
-    logger.warn("سرویس پیامک هنوز پیاده‌سازی نشده؛ از حالت غیرفعال استفاده شد", {
+  if (driver === null) {
+    logger.warn("سرویس پیامکِ ناشناخته در تنظیمات؛ از حالت غیرفعال استفاده شد", {
       event: "sms.driver.unimplemented",
-      sms_driver: driver,
+      sms_driver: configured ?? "(خالی)",
     });
     return new MockSmsAdapter();
   }
 
-  if (driver === "najva") {
-    const [apiKey, sender, baseUrl] = await Promise.all([
-      getSetting("sms.api_key"),
-      getSetting("sms.sender"),
-      getSetting("sms.base_url"),
-    ]);
+  if (driver === "mock") return new MockSmsAdapter();
 
-    /* ⚠️ نبودِ کلید به mock برمی‌گردد و throw نمی‌کند — همان منطقِ بالا.
-       کسی که در پنل «نجوا» را انتخاب کرده ولی هنوز کلید نگذاشته، نباید
-       ورودِ کاربرها را بشکند. هشدار در ‎/admin/activity‎ دیده می‌شود. */
-    if (!apiKey || !sender) {
-      logger.warn("نجوا انتخاب شده ولی کلید یا شمارهٔ فرستنده ثبت نشده؛ پیامک ارسال نشد", {
-        event: "sms.driver.misconfigured",
-        sms_driver: driver,
-        has_api_key: Boolean(apiKey),
-        has_sender: Boolean(sender),
-      });
-      return new MockSmsAdapter();
-    }
+  const [apiKey, templateId, sender] = await Promise.all([
+    getSetting("sms.api_key"),
+    getSetting("sms.template_id"),
+    getSetting("sms.sender"),
+  ]);
 
-    return new NajvaSmsAdapter(apiKey, sender, baseUrl || NAJVA_ENDPOINT);
+  if (!apiKey) {
+    logger.warn("SMS.ir انتخاب شده ولی کلید API ثبت نشده؛ پیامک ارسال نشد", {
+      event: "sms.driver.misconfigured",
+      sms_driver: driver,
+      // ⚠️ خودِ کلید هرگز لاگ نمی‌شود — فقط «هست یا نیست».
+      has_api_key: false,
+    });
+    return new MockSmsAdapter();
   }
 
-  return new MockSmsAdapter();
+  let template: number;
+  try {
+    template = parseTemplateId(templateId);
+  } catch (err) {
+    logger.warn("شناسهٔ قالبِ SMS.ir درست نیست؛ پیامک ارسال نشد", {
+      event: "sms.driver.misconfigured",
+      sms_driver: driver,
+      err,
+    });
+    return new MockSmsAdapter();
+  }
+
+  /* ⚠️ شمارهٔ خط برای کدِ ورود لازم **نیست**: مسیرِ Verify خودش خطِ خدماتیِ
+     حساب را انتخاب می‌کند. فقط پیامکِ متنِ آزاد به آن نیاز دارد، و اگر ثبت
+     نشده باشد همان‌جا صریح خطا می‌دهد. */
+  const lineNumber = sender && /^\d+$/.test(sender.trim()) ? Number(sender.trim()) : null;
+
+  return new SmsIrAdapter(apiKey, template, lineNumber);
 }
 
-/** آیا پیامک واقعاً پیکربندی شده؟ — برای نمایش وضعیت در پنل تنظیمات. */
+// -------------------------------------------------------------- کدِ ورود --
+
+/**
+ * ارسالِ کدِ یک‌بارمصرف با قالبِ تأییدشده + ثبت در `sms_log`.
+ *
+ * ⚠️ چرا مسیرِ جدا از `sendSms`: این دو در سرویس دو endpointِ متفاوت‌اند، دو
+ * جور محدودیت دارند و دو جور خطا می‌دهند. خطِ خدماتی متنِ آزاد نمی‌پذیرد و
+ * متنِ آزادِ حاویِ کد یا رد می‌شود یا از خطِ تبلیغاتی می‌رود — که هم غیرمجاز
+ * است و هم دیرتر می‌رسد.
+ *
+ * ⚠️ و آنچه در `sms_log` ثبت می‌شود **خودِ کد را ندارد**. نوشتنش در جدول یعنی
+ * هر کسی که دسترسیِ خواندنِ دیتابیس دارد می‌تواند واردِ حساب‌ها شود.
+ */
+export async function sendOtpSms(message: SmsOtpMessage): Promise<void> {
+  const adapter = await smsAdapter();
+  const startedAt = performance.now();
+  const logBody = "[کد یک‌بارمصرف]";
+
+  try {
+    const result = await adapter.sendOtp(message);
+    const durationMs = Math.round(performance.now() - startedAt);
+    logger.info("کد پیامکی ارسال شد", {
+      event: "sms.send.succeeded",
+      sms_driver: adapter.name,
+      sms_kind: "otp",
+      // شناسهٔ پیام نه راز است و نه شخصی؛ تنها راهِ پیگیری در پنلِ سرویس است.
+      provider_message_id: result.providerMessageId,
+      duration_ms: durationMs,
+    });
+    /* ⚠️ `duration_ms` در جدول هم نوشته می‌شود و نه فقط در لاگ.
+
+       سؤالی که این ستون برایش اضافه شد: «کد با ده دقیقه تأخیر می‌رسد —
+       از ماست یا از سرویس؟» لاگِ هاستِ اشتراکی می‌چرخد و می‌رود، و اولین
+       سؤال همیشه دربارهٔ چیزی است که *دیروز* افتاده.
+
+       این عدد **مدتِ رفت‌وبرگشتِ HTTP** است و نه زمانِ رسیدنِ پیامک. اگر
+       کوچک باشد و پیامک دیر برسد، تأخیر در صفِ سرویس یا اپراتور است.
+       (`npm run sms:latency` همین را گزارش می‌کند.) */
+    await execute(
+      `insert into sms_log (id, to_number, body, provider, status, provider_message_id, duration_ms)
+       values (?, ?, ?, ?, 'sent', ?, ?)`,
+      [randomUUID(), message.to, logBody, adapter.name, result.providerMessageId, durationMs],
+    );
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - startedAt);
+    logger.error("ارسال کد پیامکی ناموفق بود", {
+      event: "sms.send.failed",
+      err,
+      sms_driver: adapter.name,
+      sms_kind: "otp",
+      duration_ms: durationMs,
+    });
+
+    /* ⚠️ مدت برای ردیفِ شکست‌خورده هم ثبت می‌شود و شاید مهم‌تر باشد:
+       «خطا بعد از ۳۰ ثانیه» یک timeout است و «خطا بعد از ۲۰۰ میلی‌ثانیه»
+       یک ردِ منطقی (اعتبار تمام شده، قالبِ غلط). دو مشکلِ کاملاً متفاوت که
+       بدونِ این عدد یک‌شکل دیده می‌شوند. */
+    await execute(
+      `insert into sms_log (id, to_number, body, provider, status, error, duration_ms)
+       values (?, ?, ?, ?, 'failed', ?, ?)`,
+      [
+        randomUUID(),
+        message.to,
+        logBody,
+        adapter.name,
+        (err as Error).message.slice(0, 500),
+        durationMs,
+      ],
+    ).catch(() => {});
+
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("sms", err, "ارسال کد پیامکی");
+
+    throw err;
+  }
+}
+
+// ------------------------------------------------------------------ وضعیت --
+
+/** آیا پیامک واقعاً پیکربندی شده؟ — برای نمایشِ وضعیت در پنلِ تنظیمات. */
 export async function smsStatus(): Promise<{
+  /** مقدارِ متعارف، یا همان چیزی که ذخیره شده اگر ناشناخته باشد. */
   driver: string;
+  /** درایورِ شناخته‌شده و پیاده‌سازی‌شده است؟ */
   implemented: boolean;
   hasApiKey: boolean;
+  hasTemplateId: boolean;
+  /** فقط برای پیامکِ متنِ آزاد لازم است و نه برای کدِ ورود. */
   hasSender: boolean;
 }> {
-  const driver = ((await getSetting("sms.driver")) ?? "mock").toLowerCase();
+  const configured = await getSetting("sms.driver");
+  const driver = normalizeSmsDriver(configured);
+  const [apiKey, templateId, sender] = await Promise.all([
+    getSetting("sms.api_key"),
+    getSetting("sms.template_id"),
+    getSetting("sms.sender"),
+  ]);
+
+  let templateOk = false;
+  try {
+    parseTemplateId(templateId);
+    templateOk = true;
+  } catch {
+    templateOk = false;
+  }
+
   return {
-    driver,
-    implemented: IMPLEMENTED_DRIVERS.has(driver),
-    hasApiKey: Boolean(await getSetting("sms.api_key")),
-    hasSender: Boolean(await getSetting("sms.sender")),
+    driver: driver ?? (configured ?? "").trim(),
+    implemented: driver !== null,
+    hasApiKey: Boolean(apiKey),
+    hasTemplateId: templateOk,
+    hasSender: Boolean(sender),
   };
 }
 
+// --------------------------------------------------------------- متنِ آزاد --
+
 /**
- * ارسال + ثبت در sms_log.
+ * ارسالِ پیامکِ متنِ آزاد + ثبت در `sms_log`.
  *
- * لاگ در دیتابیس است و نه فقط در stdout، چون وقتی سرویس واقعی آمد اولین سؤال
- * همیشه «آیا پیامک رفت؟» است — و لاگ کانتینر تا آن موقع چرخیده و رفته.
+ * لاگ در دیتابیس است و نه فقط در stdout، چون اولین سؤال همیشه «آیا پیامک
+ * رفت؟» است — و لاگِ کانتینر تا آن موقع چرخیده و رفته.
  */
 export async function sendSms(message: SmsMessage): Promise<void> {
   const adapter = await smsAdapter();
@@ -208,31 +245,41 @@ export async function sendSms(message: SmsMessage): Promise<void> {
 
   try {
     const result = await adapter.send(message);
+    const durationMs = Math.round(performance.now() - startedAt);
     logger.info("پیامک ارسال شد", {
       event: "sms.send.succeeded",
       sms_driver: adapter.name,
-      duration_ms: Math.round(performance.now() - startedAt),
+      provider_message_id: result.providerMessageId,
+      duration_ms: durationMs,
     });
     await execute(
-      `insert into sms_log (id, to_number, body, provider, status, provider_message_id)
-       values (?, ?, ?, ?, 'sent', ?)`,
-      [randomUUID(), message.to, message.body, adapter.name, result.providerMessageId],
+      `insert into sms_log (id, to_number, body, provider, status, provider_message_id, duration_ms)
+       values (?, ?, ?, ?, 'sent', ?, ?)`,
+      [randomUUID(), message.to, message.body, adapter.name, result.providerMessageId, durationMs],
     );
   } catch (err) {
+    const durationMs = Math.round(performance.now() - startedAt);
     logger.error("ارسال پیامک ناموفق بود", {
       event: "sms.send.failed",
       err,
       sms_driver: adapter.name,
-      duration_ms: Math.round(performance.now() - startedAt),
+      duration_ms: durationMs,
     });
 
     await execute(
-      `insert into sms_log (id, to_number, body, provider, status, error)
-       values (?, ?, ?, ?, 'failed', ?)`,
-      [randomUUID(), message.to, message.body, adapter.name, (err as Error).message.slice(0, 500)],
+      `insert into sms_log (id, to_number, body, provider, status, error, duration_ms)
+       values (?, ?, ?, ?, 'failed', ?, ?)`,
+      [
+        randomUUID(),
+        message.to,
+        message.body,
+        adapter.name,
+        (err as Error).message.slice(0, 500),
+        durationMs,
+      ],
     ).catch(() => {});
 
-    // تا در /admin/activity دیده شود — sms_log فقط تاریخچه است، این هشدار است.
+    // تا در ‎/admin/activity‎ دیده شود — `sms_log` فقط تاریخچه است، این هشدار است.
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("sms", err, "ارسال پیامک");
 

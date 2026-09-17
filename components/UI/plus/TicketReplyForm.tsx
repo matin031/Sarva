@@ -5,6 +5,7 @@ import { useState } from "react";
 import { closeTicket, replyToTicket } from "@/lib/plus/support-actions";
 import styles from "@/components/UI/panel/panel-design.module.css";
 import { Button } from "@/components/UI/kit/button";
+import { Field } from "@/components/UI/kit/field";
 
 /**
  * پاسخ در یک تیکت.
@@ -13,6 +14,20 @@ import { Button } from "@/components/UI/kit/button";
  * تأیید سرور یعنی کاربری که پیامش نرسیده، فکر می‌کند رسیده — و در یک تیکتِ
  * پرداخت، همین یعنی روزها انتظار برای پاسخی که هیچ‌وقت خواسته نشده. پیام
  * وقتی نشان داده می‌شود که سرور ثبتش کرده باشد.
+ *
+ * ── سه چیزی که اینجا درست شد ───────────────────────────────────────────────
+ *
+ * ۱. **یک `}` اضافه در رشتهٔ کلاس‌ها**: ``className={`${styles.formCard}
+ *    space-y-4}`}`` — آن آکولادِ آخر داخلِ *متن* بود و نه در JSX، پس کلاسِ
+ *    واقعی `space-y-4}` می‌شد و Tailwind هیچ قاعده‌ای برایش نداشت. یعنی
+ *    فاصلهٔ عمودیِ کلِ فرم بی‌صدا از بین رفته بود: برچسب، جعبهٔ متن و
+ *    دکمه‌ها همه به هم چسبیده بودند.
+ *
+ * ۲. **«ببند» حالا تأیید می‌خواهد.** بستنِ تیکت از سمتِ کاربر برگشت ندارد و
+ *    دکمه‌اش درست کنارِ «ارسال» بود. یک کلیکِ اشتباه، گفت‌وگوی پرداختش را
+ *    می‌بست و چاره‌اش ساختنِ تیکتِ تازه بود.
+ *
+ * ۳. **ظاهرِ جعبهٔ متن و دکمه‌ها** از خودِ پنل می‌آید و نه از کلاس‌های دستی.
  */
 export default function TicketReplyForm({
   ticketId,
@@ -24,12 +39,16 @@ export default function TicketReplyForm({
   const router = useRouter();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
   if (closed) {
     return (
-      <p className="glass rounded-2xl p-4 text-center text-sm text-muted-foreground">
-        این تیکت بسته شده است. اگر باز هم مشکلی هست، تیکت تازه بساز.
+      <p
+        data-panel-card=""
+        className="rounded-2xl border border-border/70 p-4 text-center text-sm text-muted-foreground"
+      >
+        این گفت‌وگو بسته شده. اگر باز هم مشکلی هست، یک تیکت تازه بزن.
       </p>
     );
   }
@@ -58,22 +77,28 @@ export default function TicketReplyForm({
     const result = await closeTicket(ticketId);
     if (!result.ok) setErrors(result.errors);
     setBusy(false);
+    setConfirmClose(false);
     router.refresh();
   }
 
   return (
-    <form onSubmit={send} data-panel-card="" className={`${styles.formCard} space-y-4}`}>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">پاسخ تو</span>
+    <form onSubmit={send} data-panel-card="" className={`${styles.formCard} space-y-4`}>
+      <Field
+        label="پاسخ تو"
+        htmlFor="ticket-reply"
+        hint={`${body.length.toLocaleString("fa-IR")} از ۴۰۰۰ نویسه`}
+      >
         <textarea
+          id="ticket-reply"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={4}
           maxLength={4000}
           required
-          className="mt-1 w-full resize-y rounded-xl border border-border bg-background px-3 py-2"
+          placeholder="جواب یا توضیح تازه‌ات را اینجا بنویس."
+          className="w-full resize-y rounded-xl border border-border bg-background/40 px-4 py-3 text-sm leading-relaxed transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 hover:border-muted-foreground/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:outline-none"
         />
-      </label>
+      </Field>
 
       {errors.length > 0 && (
         <ul role="alert" className="space-y-1 text-xs text-destructive">
@@ -83,24 +108,47 @@ export default function TicketReplyForm({
         </ul>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
-          disabled={busy}
-          aria-busy={busy}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
-        >
-          {busy ? "در حال ارسال…" : "ارسال"}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* ⚠️ `!body.trim()` و نه فقط `required`: دکمه‌ای که کلیک می‌شود و
+            بعد مرورگر می‌گوید «این فیلد لازم است»، یک رفت‌وبرگشتِ اضافه است
+            وقتی می‌شد از اول غیرفعال بود. */}
+        <Button type="submit" disabled={busy || !body.trim()} aria-busy={busy}>
+          {busy ? "در حال ارسال…" : "ارسال پاسخ"}
         </Button>
-        <Button variant="outline"
-          data-preview-write=""
-          type="button"
-          onClick={finish}
-          disabled={busy}
-          className="rounded-xl border border-border px-4 py-2 text-sm disabled:opacity-60"
-        >
-          مشکلم حل شد، ببند
-        </Button>
+
+        {confirmClose ? (
+          <span className="flex flex-wrap items-center gap-2 rounded-xl border border-gold/40 bg-gold/[0.08] px-3 py-1.5 text-[13px]">
+            بستن این گفت‌وگو؟
+            <Button
+              data-preview-write=""
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={busy}
+              onClick={finish}
+            >
+              بله، ببند
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => setConfirmClose(false)}
+            >
+              پشیمان شدم
+            </Button>
+          </span>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setConfirmClose(true)}
+          >
+            مشکلم حل شد، ببند
+          </Button>
+        )}
       </div>
     </form>
   );

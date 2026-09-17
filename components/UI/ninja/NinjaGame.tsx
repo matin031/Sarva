@@ -179,9 +179,17 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto my-10 sm:my-16">
+    /* ⚠️ `overflow-x: clip` یک گاردِ آخر است و نه راه‌حلِ یک اشکالِ مشخص.
+       صحنهٔ برش ده‌ها عنصرِ `absolute` دارد که موقعیتشان از فیزیکِ زمانِ
+       اجرا می‌آید؛ یکی‌شان که چند پیکسل بیرون بزند، کلِ صفحه اسکرولِ افقی
+       می‌گیرد — و روی گوشی بدترین نوعِ اشکال است، چون کاربر فکر می‌کند
+       چیزی آن بیرون هست. `clip` برخلافِ `hidden` ظرفِ اسکرول نمی‌سازد و
+       محورِ عمودی را دست نمی‌زند. */
+    <div className="container max-w-4xl mx-auto my-10 overflow-x-clip sm:my-16">
       {(screen === "study" || screen === "slicing") && (
-        <div className="mb-4 flex items-center justify-between px-1">
+        /* ⚠️ `flex-wrap`: نوارِ جان‌ها و امتیاز روی گوشیِ باریک به‌جای
+           پهن‌تر کردنِ ظرف، به خطِ دوم می‌رود. */
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
           {/* جان‌ها. هر قلبِ ازدست‌رفته یک بار می‌تپد و بعد خاکستری می‌ماند —
               `key` روی وضعیتِ پر/خالی است تا انیمیشن دقیقاً در لحظهٔ از دست
               رفتن اجرا شود، نه در هر رندر. */}

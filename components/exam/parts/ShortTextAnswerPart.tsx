@@ -6,7 +6,7 @@ type ShortTextAnswerContent = {
   type: "short-text-answer";
   stimulus?: import("@/lib/exam/content-schemas").RichPassage;
   questionText: string;
-  inputVariant?: "single-line" | "textarea";
+  inputVariant?: "single-line" | "textarea" | "word";
   displayVariant?: "default" | "list-item";
 };
 
@@ -18,7 +18,12 @@ type Props = {
 };
 
 export default function ShortTextAnswerPart({ content, value, onChange, disabled }: Props) {
-  const isTextarea = content.inputVariant === "textarea";
+  const variant = content.inputVariant ?? "single-line";
+  const isTextarea = variant === "textarea";
+  // A one-word answer gets a one-word box. The width is the whole message
+  // here: a full-width input in front of «نام آرایه را بنویسید» invites a
+  // sentence, which the answer key would then mark wrong.
+  const isWord = variant === "word";
 
   return (
     <div dir="rtl" className="flex flex-col gap-3 text-right">
@@ -46,9 +51,11 @@ export default function ShortTextAnswerPart({ content, value, onChange, disabled
           disabled={disabled}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="پاسخ خود را بنویسید..."
-          className="min-h-11 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-base outline-none
-            placeholder:text-muted-foreground focus:border-primary disabled:opacity-60"
+          placeholder={isWord ? "یک واژه" : "پاسخ خود را بنویسید..."}
+          className={`min-h-11 rounded-xl border border-border bg-card px-3 py-2.5 text-base outline-none
+            placeholder:text-muted-foreground focus:border-primary disabled:opacity-60 ${
+              isWord ? "w-44 max-w-full text-center font-semibold" : "w-full"
+            }`}
         />
       )}
     </div>

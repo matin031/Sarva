@@ -8,6 +8,7 @@ import { getPlusStatus } from "@/lib/plus/entitlement";
 import { isPlusEnabled, purchaseTerms } from "@/lib/plus/config";
 import { formatRials } from "@/lib/plus/money";
 import { fa, jalaliLong } from "@/lib/panel/format";
+import { formatPhone } from "@/lib/auth/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +67,16 @@ export default async function Page({
         <Row label="مدت" value={`${fa(offer.durationDays)} روز`} />
         <Row label="مبلغ" value={formatRials(offer.amountRials)} strong />
         {/* حسابی که اشتراک روی آن فعال می‌شود — تا کسی که دو حساب دارد
-            اشتباهی برای حسابِ دیگر نخرد. */}
-        <Row label="فعال‌سازی برای" value={user.email} />
+            اشتباهی برای حسابِ دیگر نخرد.
+
+            ⚠️ کاربرِ ثبت‌نام‌کرده با موبایل ایمیل ندارد، پس شناسه‌اش شماره
+            است. شماره به شکلِ خواندنی نشان داده می‌شود و نه `989…` که در
+            دیتابیس ذخیره شده — کاربر باید در یک نگاه بفهمد حسابِ خودش است. */}
+        <Row
+          label="فعال‌سازی برای"
+          value={user.email ?? formatPhone(user.phone) ?? "—"}
+          ltr={!user.email}
+        />
         <Row label="تمدید خودکار" value="ندارد — پیش‌پرداخت است" />
 
         {status.state === "active" && (
@@ -104,11 +113,37 @@ export default async function Page({
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+/**
+ * ⚠️ `ltr` برای مقدارهایی که چند پارهٔ عددی دارند — مثلاً شمارهٔ موبایل.
+ *
+ * `formatPhone` «0912 345 6789» می‌دهد: سه گروهِ رقم با فاصلهٔ خنثی در
+ * میان. داخلِ یک صفحهٔ راست‌به‌چپ، الگوریتمِ دوسویهٔ یونیکد آن
+ * فاصله‌ها را راست‌به‌چپ حساب می‌کند و ترتیبِ گروه‌ها وارونه دیده
+ * می‌شود: «6789 345 0912». رقم‌های داخلِ هر گروه درست‌اند، پس خرابی
+ * به چشم نمی‌آید مگر اینکه کاربر شمارهٔ خودش را نشناسد — و دقیقاً
+ * همین در فرمِ ورود گزارش شد.
+ *
+ * این صفحه هم همین را نشان می‌دهد و بیراهه بدتر است: «فعال‌سازی برای»
+ * جایی است که کاربر پیش از پرداخت مطمئن می‌شود حسابِ خودش است.
+ */
+function Row({
+  label,
+  value,
+  strong,
+  ltr,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  ltr?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className={`text-left ${strong ? "text-base font-extrabold" : "font-medium"}`}>
+      <span
+        dir={ltr ? "ltr" : undefined}
+        className={`text-left ${strong ? "text-base font-extrabold" : "font-medium"}`}
+      >
         {value}
       </span>
     </div>

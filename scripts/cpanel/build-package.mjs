@@ -39,7 +39,7 @@
  */
 
 import { cp, mkdir, rm, writeFile, readFile, stat, readdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -108,6 +108,168 @@ if (!existsSync(join(ROOT, ".next", "static"))) {
   console.error("\n.next/static نیست. `npm run build` را دوباره اجرا کنید.\n");
   process.exit(1);
 }
+
+// -----------------------------------------------------------------------------
+//  ⚠️ نگهبان: بسته نباید از یک .next کهنه ساخته شود
+// -----------------------------------------------------------------------------
+//
+//  بالاتر توضیح داده شد که این اسکریپت عمداً خودش build نمی‌کند. پیامدش این
+//  است که وقتی `npm run build` شکست بخورد — یا اصلاً زده نشود — همین‌جا با
+//  کمالِ میل همان .next ساعت‌ها پیش بسته‌بندی می‌شود و هیچ‌چیز هم نمی‌گوید:
+//  zip ساخته می‌شود، همه‌چیز سبز است، و چیزی که روی هاست بالا می‌آید کدِ
+//  دیروز است. (همین در توضیحاتِ tsconfig.json هم ثبت شده است.)
+//
+//  پس زمانِ .next/BUILD_ID با تازه‌ترین فایلِ سورس سنجیده می‌شود.
+const STALE_SOURCE_DIRS = ["app", "components", "lib", "scripts", "mysql-migrations"];
+const STALE_SOURCE_FILES = ["next.config.ts", "package.json", "tsconfig.json"];
+const STALE_SKIP = new Set([".git", ".next", "node_modules", "deploy", "r3f-skills"]);
+
+async function newestSource() {
+  let newest = { at: 0, file: null };
+  const see = async (full) => {
+    const at = (await stat(full)).mtimeMs;
+    if (at > newest.at) newest = { at, file: relative(ROOT, full) };
+  };
+  const walk = async (dir) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (STALE_SKIP.has(entry.name)) continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else await see(full);
+    }
+  };
+  for (const dir of STALE_SOURCE_DIRS) {
+    if (existsSync(join(ROOT, dir))) await walk(join(ROOT, dir));
+  }
+  for (const file of STALE_SOURCE_FILES) {
+    if (existsSync(join(ROOT, file))) await see(join(ROOT, file));
+  }
+  return newest;
+}
+
+{
+  const buildId = join(ROOT, ".next", "BUILD_ID");
+  const builtAt = existsSync(buildId) ? (await stat(buildId)).mtimeMs : 0;
+  const newest = await newestSource();
+
+  if (builtAt === 0 || newest.at > builtAt) {
+    console.error(
+      [
+        "",
+        "⛔ بستهٔ آپلود از یک build کهنه ساخته می‌شد.",
+        "",
+        `      آخرین build:   ${builtAt ? new Date(builtAt).toLocaleString("en-GB") : "(BUILD_ID نیست)"}`,
+        `      تازه‌ترین سورس: ${newest.file ? `${new Date(newest.at).toLocaleString("en-GB")}  —  ${newest.file}` : "?"}`,
+        "",
+        "  یعنی .next موجود این تغییر را ندارد و بسته کدِ قدیمی را می‌برد.",
+        "",
+        "  اول این را بزنید:   npm run build",
+        "  بعد دوباره:         npm run host:build",
+        "",
+        "  (اگر واقعاً عمدی است: HOST_BUILD_ALLOW_STALE=true)",
+        "",
+      ].join("\n"),
+    );
+    if (process.env.HOST_BUILD_ALLOW_STALE !== "true") process.exit(1);
+  } else {
+    say(`  build تازه است: ${new Date(builtAt).toLocaleString("en-GB")}`);
+  }
+}
+
+// -----------------------------------------------------------------------------
+//  ⚠️ نگهبان: آدرسِ سایتی که در همین بیلد جاگذاری شده
+// -----------------------------------------------------------------------------
+//
+//  این بررسی با یک خرابیِ واقعی و کاملاً خاموش اضافه شد.
+//
+//  `NEXT_PUBLIC_*` را Next در زمانِ **build** داخلِ کد جاگذاری می‌کند — هم در
+//  باندلِ مرورگر و هم در کدِ سرور. این بسته روی ماشینِ توسعه ساخته می‌شود و
+//  `.env.local` کنارش نشسته، با NEXT_PUBLIC_SITE_URL=http://localhost:3000 — پس همان
+//  رشته *داخلِ بسته* به هاست می‌رفت و مقدارِ درستِ `.env`ِ روی هاست هیچ‌وقت
+//  خوانده نمی‌شد. روی سایتِ زنده نتیجه‌اش این بود:
+//
+//      GET /robots.txt   ->  Sitemap: http://localhost:3000/sitemap.xml
+//      GET /sitemap.xml  ->  <loc>http://localhost:3000</loc>   (every page)
+//
+//  و لینکِ دعوتی که دبیر کپی می‌کرد: http://localhost:3000/panel/classes?join=...
+//
+//  ⚠️ `lib/seo/site.ts` حالا در production خودش localhost را رد می‌کند، پس
+//  این لایهٔ دوم است و نه تنها نگهبان. ولی لازم است: نگهبانِ آن فایل
+//  بی‌صدا به دامنهٔ پیش‌فرض برمی‌گردد، و این‌جا *پیش از* آپلود می‌گوید
+//  چه چیزی در بسته نشسته است.
+const buildEnv = (() => {
+  /* ⚠️ دقیقاً همان ترتیبی که Next در یک بیلدِ production می‌خواند،
+     از پرزورترین به کم‌زورترین:
+
+         .env.production.local  >  .env.local  >  .env.production  >  .env
+
+     ⚠️ نسخهٔ اولِ این نگهبان فقط دو تای آخر را می‌دید و همین
+     خودش یک باگ بود: روشِ درستِ رفعِ این مشکل گذاشتنِ
+     `.env.production.local` است (تا `npm run dev` همچنان localhost ببیند)، و
+     نگهبانی که آن فایل را نمی‌خواند، دقیقاً روی بیلدِ *درست*
+     خطا می‌داد. */
+  for (const name of [".env.production.local", ".env.local", ".env.production", ".env"]) {
+    const file = join(ROOT, name);
+    if (!existsSync(file)) continue;
+    const text = readFileSync(file, "utf8");
+    // آخرین تعریف برنده است — هر دو فایل این متغیر را دو بار دارند.
+    let found = null;
+    for (const line of text.split(/\r?\n/)) {
+      const m = /^\s*NEXT_PUBLIC_SITE_URL\s*=\s*(.*)$/.exec(line);
+      if (m) found = m[1].trim().replace(/^["']|["']$/g, "");
+    }
+    if (found) return { value: found, from: name };
+  }
+  return { value: "", from: null };
+})();
+
+const LOCAL_HOST_RE =
+  /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/i;
+
+if (!buildEnv.value) {
+  console.error(
+    [
+      "",
+      "NEXT_PUBLIC_SITE_URL is not set in .env or .env.local.",
+      "",
+      "  It is inlined at build time, so setting it on the host has no effect.",
+      "  Set:  NEXT_PUBLIC_SITE_URL=https://sarvaedu.ir",
+      "  Then: npm run build   and   npm run host:build",
+      "",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
+{
+  let bakedHost = "";
+  try {
+    bakedHost = new URL(buildEnv.value).hostname;
+  } catch {
+    bakedHost = "";
+  }
+  if (!bakedHost || LOCAL_HOST_RE.test(bakedHost)) {
+    console.error(
+      [
+        "",
+        `NEXT_PUBLIC_SITE_URL in ${buildEnv.from} is "${buildEnv.value}".`,
+        "",
+        "  That value is already baked into this build and would ship to the host:",
+        "  sitemap, robots, canonical URLs and the class invite link all point at it.",
+        "",
+        "  Fix:  NEXT_PUBLIC_SITE_URL=https://sarvaedu.ir",
+        "  Then: npm run build   and   npm run host:build",
+        "",
+        "  (For a deliberately local package: HOST_BUILD_ALLOW_LOCAL_URL=true)",
+        "",
+      ].join("\n"),
+    );
+    if (process.env.HOST_BUILD_ALLOW_LOCAL_URL !== "true") process.exit(1);
+  } else {
+    say(`  site origin baked into the build: ${buildEnv.value}  (from ${buildEnv.from})`);
+  }
+}
+
 
 step("پاک کردن بستهٔ قبلی");
 await rm(OUT, { recursive: true, force: true });
@@ -192,10 +354,144 @@ await cp(join(ROOT, "public"), join(OUT, "public"), { recursive: true });
 step("فایل شروع برای cPanel");
 await cp(join(ROOT, "cpanel-app.js"), join(OUT, "app.js"));
 
-step("اسکریپت ساخت حساب مدیر");
-await mkdir(join(OUT, "scripts", "mysql"), { recursive: true });
-await cp(join(ROOT, "scripts", "seed-admin.mjs"), join(OUT, "scripts", "seed-admin.mjs"));
-await cp(join(ROOT, "scripts", "mysql", "script-db.mjs"), join(OUT, "scripts", "mysql", "script-db.mjs"));
+// --- ابزارهای عملیاتیِ بعد از Deploy ----------------------------------------
+//
+// ⚠️ این بخش قبلاً فقط `seed-admin.mjs` و `script-db.mjs` را می‌برد، و روی
+// هاست دقیقاً همین کم آورد: `npm run db:seed-exams` اجرا نمی‌شد چون نه
+// `scripts/seed-exams.ts` در بسته بود و نه پوشهٔ `lib/exam/seed-data/`.
+//
+// ⚠️ و فهرستِ دستیِ فایل‌ها همان اشتباه را دوباره می‌سازد: هر بار که یکی از
+// این اسکریپت‌ها یک import تازه بگیرد، بسته دوباره ناقص می‌شود و خرابی‌اش
+// فقط *روی هاست* دیده می‌شود.
+//
+// پس به‌جای فهرست، از خودِ اسکریپت‌ها شروع می‌کنیم و importهایشان را دنبال
+// می‌کنیم — همان بستنی که Next برای سایت می‌کند، اینجا برای ابزارها.
+const TOOL_ENTRIES = [
+  "scripts/seed-admin.mjs",        // db:seed-admin
+  "scripts/seed-exams.ts",         // db:seed-exams
+  "scripts/validate-exam-seeds.ts",// exam:validate
+  "scripts/sms-latency.ts",        // sms:latency
+  "scripts/sms-diagnose.mjs",      // عیب‌یابیِ SMS.ir
+  "scripts/migrate.mjs",           // db:migrate
+  "scripts/db-check.mjs",          // db:check
+  "scripts/check-timezone.mjs",    // db:check-tz
+  "scripts/mysql/check-snippets.ts",// db:check-snippets
+  "scripts/check-audio.mjs",       // db:check-audio
+  // بقیهٔ seedها — همان‌هایی که یک نصبِ تازه بدونشان خالی بالا می‌آید.
+  "scripts/seed-plus-plans.ts",      // db:seed-plus
+  "scripts/seed-grammar-circuit.ts", // db:seed-grammar-circuit
+  "scripts/seed-aruz.ts",            // db:seed-aruz
+  "scripts/seed-aruz-bridge.mjs",    // db:seed-aruz-bridge
+];
+
+// پوشه‌هایی که کامل می‌روند، حتی اگر همین امروز هیچ importی به آن‌ها نباشد:
+// یک فایلِ آزمونِ تازه در seed-data یا یک migration تازه باید در بسته باشد
+// پیش از آنکه کدی صدایش بزند.
+const TOOL_DIRS = [
+  "scripts/mysql",        // script-db، type-map، split-sql، index-overrides
+  "lib/exam/seed-data",   // خودِ آزمون‌ها
+  "mysql-migrations",     // برای db:migrate و برای خواندنِ دستی
+];
+
+// tsconfig لازم است: اسکریپت‌ها با `@/lib/...` import می‌کنند و tsx مسیرِ
+// این نام مستعار را فقط از `compilerOptions.paths` همین فایل می‌فهمد.
+const TOOL_FILES = ["tsconfig.json"];
+
+const LOCAL_EXTS = ["", ".ts", ".tsx", ".mts", ".mjs", ".js", ".json",
+  "/index.ts", "/index.tsx", "/index.mjs", "/index.js"];
+
+function resolveLocal(spec, fromFile) {
+  let base;
+  if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
+  else if (spec.startsWith(".")) base = join(dirname(fromFile), spec);
+  else return null; // بستهٔ npm — جای دیگری رسیدگی می‌شود
+  for (const ext of LOCAL_EXTS) {
+    const candidate = base + ext;
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      /* نیست — بعدی */
+    }
+  }
+  return null;
+}
+
+// ⚠️ این جست‌وجو متنی است و نه نحوی، پس داخلِ توضیحات و رشته‌ها هم می‌افتد.
+// یک بار `lib/admin/sql-guard.ts` در توضیحش نوشته بود
+// `prepare s from 'delete from admin_audit_log'` و همان رشته به‌عنوانِ نامِ
+// یک بستهٔ npm سر از خروجی درآورد. مسیرِ واقعیِ import هیچ‌وقت فاصله ندارد.
+const looksLikeSpecifier = (spec) => /^[@\w][\w@./-]*$/.test(spec);
+
+// نامِ بسته از مسیرِ import:  mysql2/promise -> mysql2 ،  @a/b/c -> @a/b
+const packageOf = (spec) =>
+  spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+
+const IMPORT_RES = [
+  /\bfrom\s*["']([^"']+)["']/g,      // import x from "y" / export { x } from "y"
+  /\bimport\s+["']([^"']+)["']/g,     // import "y"
+  /\bimport\s*\(\s*["']([^"']+)["']/g,// await import("y")
+  /\brequire\s*\(\s*["']([^"']+)["']/g,
+];
+
+/** از فایل‌های ورودی شروع می‌کند و هر سورسِ محلیِ قابلِ رسیدن را کپی می‌کند. */
+async function copySourceClosure(entries) {
+  const seen = new Set();
+  const bare = new Set();
+  const queue = [];
+  const missing = [];
+
+  for (const entry of entries) {
+    const full = join(ROOT, entry);
+    if (existsSync(full)) queue.push(full);
+    else missing.push(entry);
+  }
+
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+
+    const target = join(OUT, relative(ROOT, file));
+    await mkdir(dirname(target), { recursive: true });
+    await cp(file, target);
+
+    if (/\.(ts|tsx|mts|mjs|js)$/.test(file)) {
+      const text = await readFile(file, "utf8");
+      for (const re of IMPORT_RES) {
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          const spec = m[1];
+          if (spec.startsWith("node:")) continue;
+          const local = resolveLocal(spec, file);
+          if (local) queue.push(local);
+          else if (!spec.startsWith(".") && !spec.startsWith("@/") && looksLikeSpecifier(spec))
+            bare.add(packageOf(spec));
+        }
+      }
+    }
+  }
+  return { count: seen.size, bare, missing };
+}
+
+step("ابزارهای عملیاتیِ بعد از Deploy و سورسی که لازم دارند");
+const closure = await copySourceClosure(TOOL_ENTRIES);
+say(`  ${closure.count} فایل سورس (از ${TOOL_ENTRIES.length} اسکریپت و importهایشان)`);
+if (closure.missing.length > 0) {
+  // ⚠️ هشدار است و نه خطا: ممکن است اسکریپتی عمداً حذف شده باشد. ولی دیده
+  // شدنش لازم است، چون package.json داخل بسته هم آن را نخواهد داشت.
+  say(`  ⚠️ در پروژه نبودند: ${closure.missing.join("، ")}`);
+}
+
+for (const dir of TOOL_DIRS) {
+  if (!existsSync(join(ROOT, dir))) continue;
+  await cp(join(ROOT, dir), join(OUT, dir), { recursive: true });
+  const n = (await readdir(join(OUT, dir))).length;
+  say(`  ${dir}/ — ${n} مورد`);
+}
+for (const file of TOOL_FILES) {
+  if (existsSync(join(ROOT, file))) await cp(join(ROOT, file), join(OUT, file));
+}
 
 // --- وابستگی‌های همان اسکریپت -----------------------------------------------
 //
@@ -209,9 +505,25 @@ await cp(join(ROOT, "scripts", "mysql", "script-db.mjs"), join(OUT, "scripts", "
 // نیاز دارد.
 //
 // (@node-rs/argon2 خودش مانده، چون ماژول نیتیو است و جاسازی‌شدنی نیست.)
-step("وابستگی‌های اسکریپت مدیر (mysql2 و زیرمجموعه‌هایش)");
-const copied = await copyDependencyClosure(["mysql2"], join(ROOT, "node_modules"), join(OUT, "node_modules"));
-say(`  ${copied} بسته کپی شد`);
+// ⚠️ ولی هر بسته‌ای را نمی‌شود از اینجا کپی کرد.
+//
+// این بسته روی ویندوز ساخته می‌شود و هاست لینوکس است. هر بسته‌ای که باینریِ
+// نیتیو دارد، نسخهٔ *ویندوزیِ* آن در node_modules ما نشسته و بردنش روی هاست
+// یعنی یک ماژولِ خراب که با «invalid ELF header» می‌افتد — بدتر از نبودنش.
+//
+// tsx از همین دسته است (esbuild را با باینریِ هر سکو می‌آورد). پس tsx کپی
+// *نمی‌شود* و به‌جایش در package.json بسته می‌آید تا دکمهٔ «Run NPM Install»
+// روی cPanel نسخهٔ لینوکسی‌اش را بگیرد. پایین‌تر همین کار انجام می‌شود.
+const NATIVE = new Set(["tsx", "esbuild", "sharp", "@node-rs/argon2", "next"]);
+
+step("وابستگی‌های npmِ ابزارها");
+const vendorable = [...closure.bare].filter((name) => !NATIVE.has(name)).sort();
+const skipped = [...closure.bare].filter((name) => NATIVE.has(name)).sort();
+const copied = await copyDependencyClosure(vendorable, join(ROOT, "node_modules"), join(OUT, "node_modules"));
+say(`  از ${vendorable.join("، ") || "—"} در مجموع ${copied} بسته کپی شد`);
+if (skipped.length > 0) {
+  say(`  با npm install روی هاست می‌آیند (نیتیو): ${skipped.join("، ")}`);
+}
 
 step("فایل SQL دیتابیس");
 const sqlBuild = spawnSync(process.execPath, [join(HERE, "make-sql.mjs")], { stdio: "inherit" });
@@ -267,17 +579,50 @@ await cp(join(ROOT, "docs", "cpanel", "README-HOST.md"), join(OUT, "README-HOST.
 
 // --- package.json مخصوص هاست ------------------------------------------------
 //
-// ⚠️ خروجی standalone یک package.json با وابستگی‌های خالی دارد. cPanel از
-// همین می‌خواند و اگر دکمهٔ «Run NPM Install» زده شود، هیچ کاری نمی‌کند —
-// که دقیقاً همان چیزی است که می‌خواهیم، چون node_modules از قبل کامل است.
+// ⚠️ اینجا `scripts` قبلاً با `{ start }` *جایگزین* می‌شد — و همین باعث شد
+// روی هاست `npm run db:seed-exams` بگوید «Missing script». فایلِ اسکریپت هم
+// نبود، ولی حتی با بودنش هم راهی برای صدا زدنش نمی‌ماند.
 //
-// فقط `start` اضافه می‌شود تا اگر کسی از خط فرمان اجرا کرد هم کار کند.
+// حالا هر اسکریپتی که فایلش *واقعاً در همین بسته هست* نگه داشته می‌شود و
+// بقیه می‌روند. این خودش یک بررسی است: اسکریپتی که فایلش جا مانده باشد، در
+// package.json هم نمی‌ماند، پس «Missing script» روی هاست دیگر ابهام ندارد.
 const pkgPath = join(OUT, "package.json");
 const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
 pkg.name = "sarva";
-pkg.scripts = { start: "node app.js" };
 pkg.engines = { node: ">=20.9.0" };
+
+// مسیرهای فایلی که در متنِ یک دستورِ npm آمده‌اند (scripts/... یا lib/...).
+const scriptFiles = (command) =>
+  [...command.matchAll(/(?:^|\s)((?:scripts|lib)\/[\w./-]+)/g)].map((m) => m[1]);
+
+const kept = { start: "node app.js" };
+const dropped = [];
+for (const [name, command] of Object.entries(pkg.scripts ?? {})) {
+  const files = scriptFiles(command);
+  // دستورهای بدونِ فایل (dev، build، lint، ...) روی هاست معنا ندارند.
+  if (files.length === 0) continue;
+  if (files.every((f) => existsSync(join(OUT, f)))) kept[name] = command;
+  else dropped.push(name);
+}
+pkg.scripts = kept;
+
+// ⚠️ و tsx باید در `dependencies` باشد، نه `devDependencies`.
+//
+// نیمی از این دستورها با tsx اجرا می‌شوند، و tsx بالاتر عمداً کپی نشد (باینریِ
+// esbuild ویندوزی است). راهِ رسیدنش به هاست فقط «Run NPM Install» است — و آن
+// دکمه اگر NODE_ENV=production باشد devDependencies را نصب نمی‌کند. پس به
+// dependencies منتقل می‌شود تا در هر دو حالت بیاید.
+const TOOL_RUNTIME = ["tsx"];
+pkg.dependencies ??= {};
+for (const name of TOOL_RUNTIME) {
+  const version = pkg.dependencies[name] ?? pkg.devDependencies?.[name];
+  if (version) pkg.dependencies[name] = version;
+  delete pkg.devDependencies?.[name];
+}
+
 await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+say(`  scripts در بسته: ${Object.keys(kept).join("، ")}`);
+if (dropped.length > 0) say(`  بدونِ فایل در بسته و حذف شد: ${dropped.join("، ")}`);
 
 // --- اندازه‌گیری ------------------------------------------------------------
 async function dirSize(dir) {

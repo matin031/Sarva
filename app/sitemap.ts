@@ -103,6 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "jasoos",
     "ninja",
     "pairs",
+    "role-hunt",
     "vocab",
   ]) {
     entries.push({

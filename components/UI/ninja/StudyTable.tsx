@@ -35,7 +35,7 @@ function StudyTable({
         <span className="mb-3 inline-block rounded-full bg-primary/20 px-3 py-1 text-xs font-bold text-primary sm:text-sm">
           مرحله {roundNumber} از {totalRounds}
         </span>
-        <h2 className="mb-2 text-xl font-bold sm:text-3xl">
+        <h2 className="game-title mb-2 text-xl font-bold sm:text-3xl">
           این‌ها را بشناس: «<span className="text-primary">{round.category}</span>»
         </h2>
         <p className="mx-auto mb-6 max-w-xl text-sm text-muted-foreground sm:text-base">

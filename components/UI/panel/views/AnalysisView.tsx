@@ -19,7 +19,7 @@ trend: Awaited<ReturnType<typeof getProgressTrend>>;
 }) {
   return (
     <>
-      <PanelPageHeader title="قدم بعدی‌ات را پیدا کنیم" description="برنامه‌ای از دل پاسخ‌های خودت؛ چند تمرین کوچک برای بهتر شدن." eyebrow="برنامهٔ من" tone="gold" />
+      <PanelPageHeader title="برنامهٔ من" description="چند تمرینِ کوتاه، انتخاب‌شده از روی جاهایی که بیشتر اشتباه زده‌ای." tone="gold" />
 
       {/* ── امروز برای تو ─────────────────────────────────────────── */}
       <section data-panel-card="" data-tone="gold" className="rounded-3xl border border-gold/25 p-5 sm:p-6">

@@ -28,9 +28,17 @@ export type PartGradeResult = {
 
 export function normalizeFa(s: string): string {
   return s
+    // ⚠️ نیم‌فاصله پیش از جمع‌کردنِ فاصله‌ها به فاصله تبدیل می‌شود، نه بعدش.
+    //
+    // کلیدِ پاسخ «به‌کارگیری» می‌نویسد و دانش‌آموز «به کارگیری» تایپ می‌کند —
+    // دو رشتهٔ متفاوت که یک پاسخ‌اند. همان قراردادی که
+    // lib/plus/skill-buckets.ts هم دارد.
+    .replace(/\u200c/g, " ")
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/[ً-ْـ]/g, "") // Arabic diacritics + tatweel
+    // اعراب و کشیده، به‌علاوهٔ همزهٔ روی «ه» (U+0654) که فقط در «خانهٔ» و
+    // «میرزادهٔ» می‌آید و کسی آن را تایپ نمی‌کند.
+    .replace(/[ً-ْٔـ]/g, "")
     .replace(/ي/g, "ی")
     .replace(/ك/g, "ک")
     .replace(/[،,.؛;؟?!»«"']/g, "")

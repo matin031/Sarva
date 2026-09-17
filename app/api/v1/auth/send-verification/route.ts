@@ -21,6 +21,13 @@ export const POST = withRoute("/api/v1/auth/send-verification", async (request: 
       return ok({ alreadyVerified: true });
     }
 
+    /* ⚠️ کاربری که با موبایل ثبت‌نام کرده ایمیل ندارد و اینجا کاری برایش
+       نیست. پیش از nullable شدنِ `email` این حالت ممکن نبود؛ حالا هست و
+       بی‌پاسخ گذاشتنش یعنی یک `undefined` که تا داخلِ ارسالِ ایمیل می‌رفت. */
+    if (!user.email) {
+      return fail("این حساب ایمیل ندارد. از تنظیمات حساب، ایمیل اضافه کنید.", 400);
+    }
+
     const { ip } = requestMeta(request);
     const issued = await issueOtp(user.email, "signup_verify", ip);
 

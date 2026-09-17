@@ -18,18 +18,24 @@
 
      دورترین نقطهٔ یک ستاره `شعاع + نصفِ عرضِ ستاره` است، و صحنه دقیقاً همان
      را در خودش جا می‌دهد؛ پس هیچ ستاره‌ای بیرون نمی‌زند و هیچ اسکرولِ افقی
-     ساخته نمی‌شود. تابلو هم فقط تا نوارِ آزادِ میانِ دو ستارهٔ چپ و راست پهن
-     می‌شود، پس هیچ‌وقت زیرِ مدار نمی‌رود.
+     ساخته نمی‌شود.
 
      ⚠️ `--rh-duration` را خودِ کامپوننت از `ROLE_HUNT_CONFIG.orbitSeconds`
-     می‌نویسد؛ مقدارِ اینجا فقط پشتوانه است تا شیوه‌نامه به‌تنهایی هم درست
-     باشد. */
-  --rh-token-min: clamp(3.9rem, 15.5vw, 5.75rem);
+     می‌نویسد؛ مقدارِ اینجا فقط پشتوانه است. */
+  /* اندازهٔ *مربعِ* ستاره. واژه داخلش می‌نشیند و در صورت لزوم دو خط می‌شود. */
+  --rh-token-min: clamp(3.6rem, 14vw, 5rem);
   --rh-duration: 17s;
-  /* شعاعِ گوشی. تابلو اینجا بالای مدار است و مرکزِ مدار خالی، پس شعاع فقط
-     باید مدار را داخلِ عرضِ صفحه نگه دارد و نه بیشتر. */
-  --rh-radius: clamp(6.5rem, 29vw, 9.5rem);
+  --rh-radius: clamp(7rem, 31vw, 10rem);
   --rh-reach: calc(var(--rh-radius) + var(--rh-token-min) / 2 + 0.5rem);
+
+  /* رنگِ خطِ ستاره و مدار. یک متغیّر، تا تغییرِ لحن یک‌جا انجام شود. */
+  /* ⚠️ کششِ افقیِ مدار. ۱ یعنی دایره؛ بزرگ‌تر یعنی بیضیِ پهن.
+     فقط در حالتِ افقیِ گوشی از ۱ بیشتر می‌شود — توضیحِ کامل پایین‌تر. */
+  --rh-kx: 1;
+
+  --rh-line: color-mix(in oklch, var(--color-primary) 62%, transparent);
+  --rh-line-soft: color-mix(in oklch, var(--color-primary) 16%, transparent);
+  --rh-glow: color-mix(in oklch, var(--color-primary) 45%, transparent);
 
   position: relative;
   isolation: isolate;
@@ -41,30 +47,39 @@
      چون کاربر فکر می‌کند چیزی آن بیرون هست و دنبالش می‌گردد.
 
      `hidden` هم این را می‌گرفت، ولی یک ظرفِ اسکرول می‌ساخت و محورِ عمودی را
-     `auto` می‌کرد — یعنی `position: sticky`ِ هر چیزی داخلش از کار می‌افتاد.
-     `clip` فقط می‌بُرد و محورِ دیگر `visible` می‌ماند. */
+     `auto` می‌کرد. `clip` فقط می‌بُرد و محورِ دیگر `visible` می‌ماند. */
   overflow-x: clip;
 }
 
-/* پس‌زمینه: ذره‌های شناور + دو هالهٔ بسیار کم‌رنگ.
-   ⚠️ «بسیار» عمدی است. این بازی روی خوانا بودنِ یک مصراع ایستاده؛ هر چیزی
-   که پشتش بدرخشد مستقیماً از کنتراستِ همان مصراع کم می‌کند. */
+/* ───────────────────────────── پس‌زمینه ───────────────────────────── */
+
+/* ⚠️ نقشِ هندسیِ تکرارشوندهٔ سایت روی این صفحه برداشته شده
+   (`components/SiteChrome.tsx`). دلیلش این نیست که زشت است — روی بقیهٔ سایت
+   خوب کار می‌کند — بلکه این است که یک بافتِ پرتکرار دقیقاً همان چیزی را
+   می‌خورد که این صفحه رویش ایستاده: یک مدارِ نازک و یک مصراع.
+
+   جایش یک هالهٔ مرکزی است که چشم را به مرکز می‌برد، و ذره‌های بسیار کم‌رنگ. */
+/* ⚠️ `fixed` و `inset: 0` — یعنی کلِ دیدگاه، نه جعبهٔ بازی.
+
+   نسخهٔ قبلی `absolute` بود و داخلِ `.rh-root` می‌نشست؛ و `.rh-root` یک
+   `container max-w-3xl` است. نتیجه دقیقاً همان چیزی بود که در عکس دیده شد:
+   یک مستطیلِ کم‌رنگ وسطِ صفحه و دو طرفش خالی. پس‌زمینه باید *صفحه* باشد و
+   نه یک کارت. */
 .rh-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  border-radius: 1.75rem;
   background:
     radial-gradient(
-      ellipse at 50% 18%,
-      color-mix(in oklch, var(--color-primary) 10%, transparent),
-      transparent 62%
+      circle at 50% 42%,
+      color-mix(in oklch, var(--color-primary) 13%, transparent),
+      transparent 38%
     ),
     radial-gradient(
-      ellipse at 50% 100%,
-      color-mix(in oklch, var(--color-gold) 6%, transparent),
-      transparent 55%
+      ellipse 80% 60% at 50% 45%,
+      color-mix(in oklch, var(--color-primary) 6%, transparent),
+      transparent 70%
     );
 }
 
@@ -84,12 +99,9 @@
 
    حلقه‌ای که تابلو را در بر بگیرد، شعاعِ ~۱۵۰px می‌خواهد؛ عرضِ موجود فقط
    ~۱۳۵px می‌دهد. یعنی روی گوشی یا ستاره می‌رود روی متن، یا متن آن‌قدر
-   کوچک می‌شود که خوانده نشود. هر دو، همان چیزی را خراب می‌کنند که کلِ بازی
-   رویش ایستاده.
+   کوچک می‌شود که خوانده نشود.
 
-   پس زیرِ ۴۰rem: تابلو بالا، مدار پایین با مرکزِ خالی. هیچ‌چیز از بازی کم
-   نمی‌شود — همان واژه‌ها، همان چرخش، همان لمس — فقط دیگر دورِ متن نمی‌گردند.
-   بالای ۴۰rem (اندازه‌گیری‌شده: از آنجا به بعد هندسه جواب می‌دهد) تابلو
+   پس زیرِ ۴۰rem: تابلو بالا، مدار پایین با مرکزِ خالی. بالای ۴۰rem تابلو
    می‌رود وسطِ مدار.
    ============================================================================= */
 
@@ -102,43 +114,79 @@
   width: 100%;
 }
 
-/* جعبه‌ای که مدار در آن می‌چرخد. روی گوشی جای خودش را در ستون می‌گیرد؛
-   روی صفحهٔ بزرگ روی تابلو می‌افتد. */
 .rh-orbit-field {
   position: relative;
   width: min(100%, calc(2 * var(--rh-reach)));
   height: calc(2 * var(--rh-reach));
 }
 
-/* ⚠️ مرکزِ خالیِ مدار روی گوشی یک حلقهٔ بسیار کم‌رنگ می‌گیرد.
-   بدونِ آن، حلقه‌ای از واژه‌ها دورِ هیچ می‌چرخید و مثلِ یک اشتباهِ چیدمان
-   به نظر می‌رسید. با آن، «مدار» خوانده می‌شود. روی صفحهٔ بزرگ که تابلو
-   وسط می‌نشیند، برداشته می‌شود. */
-.rh-orbit-field::before {
-  content: "";
+/* ⚠️ خودِ مدار دیده می‌شود، و این تصمیمِ اصلیِ این صفحه است.
+   نسخهٔ اول حلقه‌ای نداشت و واژه‌ها «شناور» به نظر می‌رسیدند — مثلِ چند
+   دکمهٔ رهاشده در فضا. یک خطِ نازک کافی است تا چشم مسیر را بخواند و
+   حرکت معنا پیدا کند. */
+.rh-ring {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: calc(2 * var(--rh-radius));
+  width: calc(2 * var(--rh-radius) * var(--rh-kx));
   height: calc(2 * var(--rh-radius));
   translate: -50% -50%;
-  border-radius: 999px;
-  border: 1px dashed color-mix(in oklch, var(--color-primary) 16%, transparent);
+  /* ⚠️ `50%` و نه `999px`.
+     روی یک جعبهٔ پهن و کوتاه، شعاعِ ثابتِ بزرگ یک *مستطیلِ گرد* می‌سازد و
+     نه بیضی — همان «مسیرِ مسابقه»ای که در عکسِ موبایل دیده شد. درصد،
+     شعاع را با هر دو بُعد می‌سنجد و بیضیِ واقعی می‌دهد. */
+  border-radius: 50%;
+  border: 1px solid var(--rh-line-soft);
+  pointer-events: none;
 }
 
-/* یک نقطه در مرکزِ جعبه. همهٔ چرخش‌ها حولِ همین است. */
+/* ⚠️ اینجا قبلاً یک «کمانِ چرخان» بود: حلقه‌ای با دو ضلعِ رنگی که می‌چرخید.
+   روی دایره خوب بود و روی بیضیِ حالتِ افقی فاجعه — `border-radius` روی یک
+   جعبهٔ بسیار پهن و کوتاه به یک سوئیشِ مورب تبدیل می‌شد که از یک گوشهٔ
+   صفحه تا گوشهٔ دیگر کشیده می‌شد. همان خطِ عجیبِ عکسِ موبایل.
+
+   حذف شد. مدار یک خطِ نازکِ ساده است و بس. */
+
+/* =============================================================================
+   ⚠️ مدارِ بیضوی — چطور بدونِ کج شدنِ واژه‌ها
+   =============================================================================
+
+   روی گوشیِ افقی صفحه پهن است و کوتاه: ۸۴۴×۳۹۰. یک مدارِ *دایره‌ای* که در
+   ارتفاع جا شود، شعاعش حدودِ ۱۰۰ پیکسل می‌ماند — و تابلوی مصراع در
+   دویست پیکسل جا نمی‌شود. ولی عرض فراوان است. پس مدار باید بیضی شود.
+
+   ترفند یک `scaleX` است روی ظرفِ مدار، و یک `scaleX` معکوس روی خودِ ستاره.
+   چرا جواب می‌دهد: تبدیلِ کلِ زنجیره این است —
+
+       scaleX(k) · rotate(θ) · translateX(r) · rotate(−θ) · scaleX(1/k)
+
+   بخشِ *خطیِ* این ضرب برابرِ `scaleX(k)·I·scaleX(1/k)` یعنی همانی است (دو
+   چرخش همدیگر را می‌خورند)، پس ستاره نه کج می‌شود و نه پهن. ولی بخشِ
+   *انتقالی* از `scaleX(k)` رد می‌شود و به `(k·r·cosθ, r·sinθ)` می‌رسد —
+   که تعریفِ یک بیضی است.
+
+   ⚠️ معکوس روی خودِ `.rh-token` نشسته و نه روی یک لایهٔ تازه، چون آن عنصر
+   از `translate` و `scale`ِ جداگانه استفاده می‌کند و `transform`ش آزاد
+   است. یک `div` کمتر به‌ازای هر واژه.
+   ============================================================================= */
 .rh-orbit {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 0;
   height: 0;
+  transform: scaleX(var(--rh-kx));
 }
 
 @media (min-width: 40rem) {
   .rh-root {
     /* از اینجا به بعد تابلو داخلِ حلقه می‌نشیند، پس حلقه باید بزرگ شود. */
-    --rh-radius: clamp(12rem, 34vw, 15rem);
+    /* ⚠️ شعاع از *ارتفاع* هم کران می‌گیرد و نه فقط عرض.
+
+       با ۲۰rem تابلو پهن می‌شد ولی کلِ مدار ۷۳۶ پیکسل ارتفاع می‌خواست و
+       روی نمایشگرِ ۹۰۰ پیکسلی — بعد از هدر — پایینِ حلقه از صفحه می‌زد
+       بیرون و یک ستاره نصفه می‌ماند. `min` با `vh` این را می‌بندد. */
+    --rh-radius: min(clamp(11rem, 26vw, 16.5rem), 33vh);
   }
 
   .rh-stage {
@@ -155,10 +203,6 @@
     width: auto;
     height: auto;
   }
-
-  .rh-orbit-field::before {
-    content: none;
-  }
 }
 
 /* ⚠️ چرا سه لایه برای یک واژه
@@ -171,9 +215,7 @@
    وارونه خوانده می‌شد — و متن، مهم‌تر از شکلِ ستاره است.
 
    ⚠️ و هیچ‌کدامشان به React کاری ندارند: دو `animation` روی `transform`، که
-   مرورگر روی لایهٔ ترکیب اجرا می‌کند. هیچ فریمی از JavaScript رد نمی‌شود،
-   پس حرکت نه با رندرِ دوبارهٔ کامپوننت می‌لرزد و نه با کارِ سنگینِ نخِ
-   اصلی. */
+   مرورگر روی لایهٔ ترکیب اجرا می‌کند. هیچ فریمی از JavaScript رد نمی‌شود. */
 .rh-orbit-item {
   position: absolute;
   top: 0;
@@ -197,10 +239,8 @@
 /* ⚠️ این لایه هم باید ۰×۰ بماند و این ریزه‌کاری کلِ ترفند را نگه می‌دارد.
    `transform-origin` پیش‌فرض «مرکزِ خودِ جعبه» است؛ اگر این لایه جعبهٔ
    واقعیِ واژه را می‌گرفت، چرخشِ معکوس حولِ مرکزِ *واژه* انجام می‌شد و نه
-   حولِ نقطه‌ای که بازو روی دایره نشانده — یعنی دقیقاً همدیگر را خنثی
-   نمی‌کردند و واژه دورِ خودش هم می‌چرخید. با جعبهٔ صفر، مرکزِ آن همان
-   نقطهٔ روی دایره است. خودِ واژه با `translate: -50% -50%` روی همان نقطه
-   وسط‌چین می‌شود. */
+   حولِ نقطه‌ای که بازو روی دایره نشانده. با جعبهٔ صفر، مرکزِ آن همان
+   نقطهٔ روی دایره است. */
 .rh-upright {
   position: absolute;
   top: 0;
@@ -232,100 +272,159 @@
   }
 }
 
+/* ───────────────────── نقطه‌های کوچکِ روی مدار ───────────────────── */
+
+/* ⚠️ تزئین نیستند، حسِ حرکت را می‌سازند.
+   ستاره‌ها آرام می‌روند (۱۷ ثانیه)، پس اگر تنها چیزِ متحرکِ صفحه بودند،
+   مدار ساکن به نظر می‌رسید. این نقطه‌ها با سرعت‌های متفاوت می‌چرخند و
+   مسیر را «زنده» نشان می‌دهند، بی‌آنکه چیزی برای خواندن اضافه کنند. */
+.rh-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0.4rem;
+  height: 0.4rem;
+  translate: -50% -50%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--rh-glow);
+}
+
+.rh-dot[data-tone="gold"] {
+  background: var(--color-gold);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--color-gold) 50%, transparent);
+}
+
 /* ───────────────────────────── ستارهٔ واژه ───────────────────────────── */
 
+/* =============================================================================
+   ⚠️ ستاره واقعاً ستاره است و نه یک نشانِ کوچک کنارِ متن
+   =============================================================================
+
+   نسخهٔ اول یک مستطیلِ گرد بود با یک ستارهٔ ریز پشتِ متن. کار می‌کرد و
+   هیچ‌چیزش غلط نبود — ولی هویتی نداشت: شبیهِ یک دکمهٔ معمولی بود که اتفاقی
+   روی دایره نشسته. نقش‌مایهٔ خاتم وقتی معنا دارد که خودش قابِ واژه باشد.
+
+   شکل با SVG کشیده می‌شود و نه `clip-path`، و دلیلش سه چیز است:
+
+     • خطِ ستاره باید *دیده* شود. `clip-path` فقط می‌بُرد؛ حاشیه نمی‌دهد.
+     • با `vector-effect: non-scaling-stroke` ضخامتِ خط در هر اندازه‌ای
+       یکسان می‌ماند، حتی وقتی ستاره برای یک واژهٔ بلند کشیده شود.
+     • ناحیهٔ لمس همان دکمهٔ مستطیلی می‌ماند و نه پره‌های ستاره — یعنی
+       هویتِ بصری بدونِ هزینهٔ دسترس‌پذیری.
+
+   ⚠️ `preserveAspectRatio="none"` عمدی است. واژه‌های این بانک از دو نویسه
+   («ز») تا چهارده («تیره‌بختی‌هاست») اند. ستارهٔ مربعی یا واژهٔ بلند را
+   بیرون می‌انداخت یا آن‌قدر بزرگ می‌شد که مدار را می‌خورد. کشیده‌شدنِ
+   محدود — حداکثر حدودِ ۱:۱٫۷ — هنوز ستاره خوانده می‌شود. */
 .rh-token {
   position: absolute;
   top: 0;
   left: 0;
   display: grid;
   place-items: center;
+  /* ⚠️ مربع تا جای ممکن، و حداکثر یک‌ونیم برابر برای واژهٔ بلند.
+
+     دو افراط هر دو آزموده شدند و هر دو بد بودند:
+
+       • جعبهٔ کاملاً آزاد → ستاره با هر واژه کشیده می‌شد و پره‌ها نابرابر.
+       • مربعِ سفت        → «سوگند» داخلِ ستاره جا نمی‌شد و از پایینش
+                            می‌زد بیرون.
+
+     حالا عرض از محتوا می‌آید ولی بینِ ۱ و ۱٫۵ برابرِ ارتفاع قفل است.
+     کششِ تا ۱٫۵ روی یک ستارهٔ هشت‌پر هنوز ستاره خوانده می‌شود، و واژهٔ
+     بلندتر از آن داخلِ همان جعبه به خطِ دوم می‌رود. */
+  width: max-content;
   min-width: var(--rh-token-min);
-  min-height: 2.75rem;
-  padding: 0.5rem 0.85rem;
+  max-width: calc(var(--rh-token-min) * 1.5);
+  height: var(--rh-token-min);
+  padding: 0.35rem 0.8rem;
   /* فاصله‌ای که مرکزِ ستاره را روی خودِ دایره می‌نشاند. */
   translate: -50% -50%;
-  border-radius: 0.9rem;
-  border: 1px solid color-mix(in oklch, var(--color-primary) 38%, transparent);
-  background: color-mix(in oklch, var(--color-card) 88%, transparent);
+  border: 0;
+  background: none;
   color: var(--color-foreground);
-  font-size: clamp(0.82rem, 3.1vw, 0.95rem);
+  font-size: clamp(0.74rem, 2.7vw, 0.88rem);
   font-weight: 700;
-  line-height: 1.35;
-  white-space: nowrap;
+  line-height: 1.25;
+  /* واژهٔ بلند در دو خط می‌شکند و جعبه را پهن نمی‌کند. */
+  overflow-wrap: anywhere;
   cursor: pointer;
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease,
-    scale 180ms ease;
+  /* خنثی‌سازیِ کششِ بیضی. در حالتِ دایره‌ای (‎--rh-kx: 1‎) بی‌اثر است. */
+  transform: scaleX(calc(1 / var(--rh-kx)));
+  transition: scale 200ms ease, color 200ms ease;
 }
 
-/* ⚠️ نشانِ ستاره یک لایهٔ *پشتِ* متن است و نه قابِ آن.
-   نسخهٔ اول واقعاً ستارهٔ هشت‌پر بود (`clip-path`) و دو مشکل داشت: واژهٔ
-   بلند از پره‌ها می‌زد بیرون، و ناحیهٔ لمسِ مفید روی گوشی به مرکزِ ستاره
-   محدود می‌شد. حالا هدفِ لمس یک مستطیلِ کامل است و ستاره فقط نقش‌مایه‌ای
-   است که پشتِ آن دیده می‌شود — همان هویتِ بصری، بدونِ هزینهٔ دسترس‌پذیری. */
-.rh-token::before {
-  content: "";
+/* خودِ شکل — زیرِ متن، هم‌اندازهٔ دکمه. */
+.rh-token-shape {
   position: absolute;
-  inset-inline-start: 0.4rem;
-  top: 50%;
-  translate: 0 -50%;
-  width: 0.7rem;
-  height: 0.7rem;
-  opacity: 0.5;
-  background: currentColor;
-  clip-path: polygon(
-    50% 0%,
-    61% 35%,
-    98% 35%,
-    68% 57%,
-    79% 91%,
-    50% 70%,
-    21% 91%,
-    32% 57%,
-    2% 35%,
-    39% 35%
-  );
-  color: var(--color-primary);
-  transition: opacity 180ms ease;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.rh-token-shape path {
+  fill: color-mix(in oklch, var(--color-background) 82%, transparent);
+  stroke: var(--rh-line);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 200ms ease, filter 200ms ease;
+  filter: drop-shadow(0 0 5px color-mix(in oklch, var(--color-primary) 20%, transparent));
+}
+
+/* متن روی شکل. `relative` لازم است تا بالای SVG بنشیند. */
+.rh-token-text {
+  position: relative;
+  z-index: 1;
 }
 
 .rh-token:hover,
 .rh-token:focus-visible {
-  border-color: color-mix(in oklch, var(--color-primary) 78%, transparent);
-  background: color-mix(in oklch, var(--color-primary) 12%, var(--color-card));
-  box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-primary) 30%, transparent);
-  scale: 1.05;
+  scale: 1.07;
+}
+
+.rh-token:hover .rh-token-shape path,
+.rh-token:focus-visible .rh-token-shape path {
+  stroke: var(--color-primary);
+  filter: drop-shadow(0 0 9px var(--rh-glow));
 }
 
 .rh-token:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 3px;
+  outline: none;
 }
 
-.rh-token:hover::before,
-.rh-token:focus-visible::before {
-  opacity: 1;
+.rh-token:focus-visible .rh-token-shape path {
+  stroke-width: 2.5;
+}
+
+.rh-token[data-state="correct"] .rh-token-shape path {
+  stroke: var(--color-primary);
+  stroke-width: 2.5;
+  fill: color-mix(in oklch, var(--color-primary) 20%, var(--color-background));
+  filter: drop-shadow(0 0 14px var(--rh-glow));
 }
 
 .rh-token[data-state="correct"] {
-  border-color: var(--color-primary);
-  background: color-mix(in oklch, var(--color-primary) 22%, var(--color-card));
   animation: rh-pulse 420ms ease-out;
 }
 
+.rh-token[data-state="wrong"] .rh-token-shape path {
+  stroke: var(--color-destructive);
+  stroke-width: 2.5;
+  fill: color-mix(in oklch, var(--color-destructive) 16%, var(--color-background));
+}
+
 .rh-token[data-state="wrong"] {
-  border-color: var(--color-destructive);
-  background: color-mix(in oklch, var(--color-destructive) 16%, var(--color-card));
   animation: rh-shake 320ms ease-in-out;
 }
 
 /* پاسخِ درست، وقتی کاربر اشتباه زده. */
-.rh-token[data-state="reveal"] {
-  border-color: var(--color-primary);
-  border-style: dashed;
+.rh-token[data-state="reveal"] .rh-token-shape path {
+  stroke: var(--color-primary);
+  stroke-dasharray: 5 4;
 }
 
 .rh-token[disabled] {
@@ -337,8 +436,9 @@
    از هم تشخیص نمی‌دهند و این بازی برای کلاسِ دبیرستان است. */
 .rh-token-mark {
   position: absolute;
-  top: -0.45rem;
-  inset-inline-end: -0.45rem;
+  top: 0;
+  inset-inline-end: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   width: 1.25rem;
@@ -360,10 +460,10 @@
 
 @keyframes rh-pulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 55%, transparent);
+    filter: drop-shadow(0 0 0 var(--rh-glow));
   }
   100% {
-    box-shadow: 0 0 0 14px transparent;
+    filter: drop-shadow(0 0 18px transparent);
   }
 }
 
@@ -388,15 +488,25 @@
   /* روی گوشی تابلو بالای مدار است و می‌تواند تمامِ عرض را بگیرد؛ تنها
      کرانش خوانایی است. کرانِ هندسی در حالتِ بزرگ اضافه می‌شود. */
   max-width: min(100%, 30rem);
-  padding: clamp(0.85rem, 3.5vw, 1.5rem) clamp(1rem, 4vw, 1.75rem);
+  padding: clamp(1rem, 4vw, 1.75rem) clamp(1.1rem, 4.5vw, 2rem);
   border-radius: 1.25rem;
-  border: 1px solid color-mix(in oklch, var(--color-border) 90%, transparent);
-  background: color-mix(in oklch, var(--color-card) 92%, transparent);
+  border: 1px solid var(--rh-line-soft);
+  background: color-mix(in oklch, var(--color-background) 72%, transparent);
+  box-shadow:
+    inset 0 0 40px color-mix(in oklch, var(--color-primary) 5%, transparent),
+    0 0 30px color-mix(in oklch, var(--color-background) 60%, transparent);
   text-align: center;
 }
 
 .rh-verse-line {
-  font-size: clamp(1.05rem, 4.4vw, 1.5rem);
+  /* کفِ اندازه عمداً زیرِ ۱rem است: روی گوشیِ ۳۲۰ پیکسلی، نوارِ آزادِ میانِ
+     دو ستاره باریک می‌شود و یک مصراعِ بلند با قلمِ بزرگ‌تر به چهار خط
+     می‌رفت — که از خودِ کوچک شدنِ قلم بدتر می‌خواند. */
+  /* ⚠️ سقف از ۱٫۴۵ به ۱٫۲۵ آمد. بیست‌وپنج نویسه در ۲۳ پیکسل حدودِ ۳۸۰
+     پیکسل عرض می‌خواهد و تابلو آن‌قدر پهن نمی‌شود؛ در ۲۰ پیکسل حدودِ ۳۱۰
+     می‌خواهد و جا می‌شود. خوانایی هم سرِ جایش است — این متنِ درشتِ وسطِ
+     صفحه است و نه یک زیرنویس. */
+  font-size: clamp(0.98rem, 4.4vw, 1.25rem);
   font-weight: 500;
 }
 
@@ -406,7 +516,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 /* ⚠️ کرانِ عرضِ تابلو وقتی داخلِ حلقه می‌نشیند، به *شعاع* بسته است و نه به
@@ -417,15 +527,20 @@
    اعدادِ واقعیِ بانک (اندازه‌گیری‌شده، نه حدس): بلندترین مصراع ۵۴ نویسه و
    بلندترین واژه ۱۴ نویسه («تیره‌بختی‌هاست»). با تابلویی هم‌اندازهٔ شعاع،
    بدترین حالت در ۶۴۰ حدودِ ۲۱۵ می‌خواهد و ۲۱۷ دارد، و در ۷۶۸ به بالا
-   ۲۲۵ می‌خواهد و ۲۴۰ دارد.
-
-   ⚠️ ضریب قبلاً ۱٫۱۵ بود و همان‌جا می‌شکست: تابلوی پهن‌تر یعنی هم نصفِ‌عرضِ
-   بیشتر و هم — چون متن در عرضِ کمتری می‌پیچد — ارتفاعِ کمتر، ولی جملهٔ اول
-   سریع‌تر رشد می‌کند. نتیجه‌اش این بود که در ۶۴۰ ستاره از گوشهٔ تابلو رد
-   می‌شد و چون تابلو `z-index` دارد، یک ثانیه غیرقابلِ کلیک می‌ماند. */
+   ۲۲۵ می‌خواهد و ۲۴۰ دارد. */
 @media (min-width: 40rem) {
   .rh-panel {
-    max-width: min(30rem, var(--rh-radius));
+    /* ⚠️ عرض از *محتوا* می‌آید و نه یک عددِ ثابت.
+
+       با عرضِ ثابت، مصراعِ کوتاه یک تابلوی بی‌دلیل پهن می‌گرفت و مصراعِ
+       بلند دو خط می‌شد. حالا تابلو دقیقاً به اندازهٔ متن است تا وقتی به
+       سقف برسد — پس «چارپا روی خاک هیاهو می‌کند و» در یک خط می‌ماند و
+       «بخند؛ زیرا خندهٔ تو» تابلوی جمع‌وجور می‌گیرد.
+
+       سقف همان نامساویِ فاصله است: ۱٫۶ برابرِ شعاع، چون ستاره مربع و
+       کوچک است و نصفِ عرضش ثابت می‌ماند. */
+    width: max-content;
+    max-width: min(34rem, calc(var(--rh-radius) * 1.6));
   }
 }
 
@@ -446,21 +561,21 @@
     top: 15%;
     height: 70%;
     width: 1px;
-    background: color-mix(in oklch, var(--color-border) 100%, transparent);
+    background: var(--rh-line-soft);
   }
 }
 
 /* رخدادِ متناظرِ واژه‌ای که کاربر رویش است. */
 .rh-word {
   border-radius: 0.35rem;
-  padding-inline: 0.1rem;
+  padding-inline: 0.15rem;
   transition:
     background-color 160ms ease,
     color 160ms ease;
 }
 
 .rh-word[data-active="true"] {
-  background: color-mix(in oklch, var(--color-primary) 22%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 24%, transparent);
   color: var(--color-foreground);
 }
 
@@ -472,20 +587,42 @@
 
 /* ───────────────────────────── رمزگشای نقش ───────────────────────────── */
 
+/* ⚠️ پلاکِ هشت‌ضلعی و نه یک حباب گرد.
+   گوشه‌های پخ‌شده همان زبانِ هندسیِ ستاره‌هاست؛ یک کپسولِ گرد کنارِ آن‌ها
+   مثلِ چیزی از یک صفحهٔ دیگر به نظر می‌رسید. دو نقطهٔ طلایی دو طرف، همان
+   نقطه‌های روی مدارند — تکرارِ عمدیِ یک نقش‌مایه، نه تزئینِ تازه. */
 .rh-decoder {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
-  min-height: 3.1rem;
-  padding: 0.4rem 1.15rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklch, var(--color-primary) 32%, transparent);
-  background: color-mix(in oklch, var(--color-primary) 8%, var(--color-card));
+  min-height: 2.9rem;
+  padding: 0.45rem 2.2rem;
+  border: 1px solid var(--rh-line);
+  /* ⚠️ گوشهٔ گرد و نه `clip-path` هشت‌ضلعی.
+
+     نسخهٔ قبلی گوشه‌ها را با `clip-path` پخ می‌کرد. مشکل این است که
+     `clip-path` *خودِ حاشیه* را هم می‌بُرد: چهار قطعهٔ کوتاه از خط باقی
+     می‌ماند و پلاک به‌جای یک قابِ بسته، دو خطِ عمودیِ سرگردان در چپ و راست
+     نشان می‌داد — که در عکس مثلِ یک اشکالِ رندر دیده می‌شد.
+
+     یک گوشهٔ گرد همان حسِ آرام را می‌دهد و حاشیه‌اش کامل می‌ماند. */
+  border-radius: 0.7rem;
+  background: color-mix(in oklch, var(--color-background) 80%, transparent);
+  box-shadow: 0 0 22px color-mix(in oklch, var(--color-primary) 12%, transparent);
+}
+
+.rh-decoder::before {
+  inset-inline-start: 0.85rem;
+}
+
+.rh-decoder::after {
+  inset-inline-end: 0.85rem;
 }
 
 .rh-decoder-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-size: 0.78rem;
   color: var(--color-muted-foreground);
 }
 
@@ -496,25 +633,18 @@
      می‌برد، و نسبتِ آن رنگ روی کارت در پالتِ پیش‌فرض ۴٫۲۹:۱ است
      (اندازه‌گیریِ `npm run check:contrast`). قاعدهٔ WCAG برای متنِ معمولی
      ۴٫۵:۱ می‌خواهد و برای «متنِ درشت» ۳:۱ — و «درشت» یعنی ضخیم و دستِ‌کم
-     ۱۸٫۶۶ پیکسل. با کفِ ۱٫۱۵rem (۱۸٫۴px) این متن روی گوشیِ باریک یک مو
-     زیرِ آن حد می‌افتاد و به شرطِ ۴٫۵ برمی‌گشت، که پالت برآورده نمی‌کند.
-     ۱٫۲rem = ۱۹٫۲px آن را قطعی بالای حدِ «درشت» می‌برد. */
-  font-size: clamp(1.2rem, 5vw, 1.6rem);
+     ۱۸٫۶۶ پیکسل. ۱٫۲rem = ۱۹٫۲px آن را قطعی بالای حدِ «درشت» می‌برد. */
+  font-size: clamp(1.2rem, 5vw, 1.5rem);
   font-weight: 700;
   color: var(--color-primary);
 }
 
-/* هر نویسه جدا، تا فقط همان‌هایی که هنوز رمزگشایی نشده‌اند بلرزند. */
-.rh-glyph {
-  display: inline-block;
-  min-width: 0.55ch;
-}
-
-.rh-glyph[data-scrambled="true"] {
-  animation: rh-jitter 180ms steps(2, end) infinite;
-  animation-delay: calc(var(--rh-glyph-index, 0) * -37ms);
+/* ⚠️ لرزش روی کلِ جعبه است و نه روی تک‌تکِ حروف — چون خطِ فارسی متصل
+   است و جدا کردنِ حروف شکلشان را می‌شکند. توضیحِ کامل در `RoleDecoder`. */
+.rh-decoder-value[data-scrambling="true"] {
+  animation: rh-jitter 200ms steps(2, end) infinite;
   opacity: 0.85;
-  filter: blur(0.35px);
+  filter: blur(0.4px);
 }
 
 @keyframes rh-jitter {
@@ -529,6 +659,58 @@
   }
 }
 
+/* ───────────────────────────── مهلتِ پاسخ ───────────────────────────── */
+
+.rh-decoder-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+/* ⚠️ نوارِ مهلت با `transform` کوچک می‌شود و نه با `width`.
+   `width` هر فریم چیدمان را دوباره حساب می‌کند؛ `scaleX` روی لایهٔ ترکیب
+   می‌ماند و چهار ثانیه را بدونِ یک فریمِ افتاده می‌رود. */
+.rh-timer {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transform-origin: right;
+  animation: rh-countdown var(--rh-answer, 4s) linear forwards;
+}
+
+/* با قفلِ گوشیِ عمودی، مهلت هم می‌ایستد — نه اینکه پشتِ پوشش بسوزد. */
+.rh-timer[data-paused="true"] {
+  animation-play-state: paused;
+}
+
+@keyframes rh-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ⚠️ در «حرکتِ کمتر» نوار حذف نمی‌شود — مهلت همچنان واقعی است و بازیکن
+   باید ببیندش. فقط به‌جای حرکتِ پیوسته، در همان مدت محو می‌شود. */
+@media (prefers-reduced-motion: reduce) {
+  .rh-timer {
+    animation: rh-countdown-fade var(--rh-answer, 4s) steps(4, end) forwards;
+  }
+
+  @keyframes rh-countdown-fade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.15;
+    }
+  }
+}
+
 /* ───────────────────────────── نوارِ وضعیت ───────────────────────────── */
 
 .rh-hud {
@@ -536,17 +718,17 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem 1.25rem;
+  gap: 0.5rem 0.9rem;
 }
 
 .rh-hud-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
-  padding: 0.25rem 0.75rem;
+  padding: 0.3rem 0.85rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in oklch, var(--color-border) 90%, transparent);
-  background: color-mix(in oklch, var(--color-card) 70%, transparent);
+  border: 1px solid var(--rh-line-soft);
+  background: color-mix(in oklch, var(--color-background) 60%, transparent);
   font-size: 0.78rem;
   color: var(--color-muted-foreground);
 }
@@ -554,6 +736,237 @@
 .rh-hud-chip b {
   font-size: 0.95rem;
   color: var(--color-foreground);
+}
+
+/* ───────────────────────────── صفحهٔ معرفی ───────────────────────────── */
+
+/* ⚠️ معرفی هم باید همان بازی باشد و نه یک صفحهٔ متنی.
+   نسخهٔ اول یک تیتر و دو پاراگراف و یک دکمه بود روی پس‌زمینهٔ خالی — هیچ
+   نشانی از اینکه پشتِ این دکمه چه چیزی هست. حالا همان مدار، ساکن و
+   کم‌رنگ، پشتِ تیتر می‌نشیند: بازیکن پیش از زدنِ دکمه می‌داند چه می‌بیند. */
+.rh-intro {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-block: clamp(2rem, 8vw, 4rem);
+}
+
+.rh-intro-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(30rem, 88vw);
+  height: min(30rem, 88vw);
+  translate: -50% -50%;
+  border-radius: 999px;
+  border: 1px solid var(--rh-line-soft);
+  pointer-events: none;
+}
+
+/* حلقهٔ درونیِ کم‌رنگ‌تر — عمق می‌دهد بی‌آنکه شلوغ کند. */
+.rh-intro-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in oklch, var(--color-primary) 9%, transparent);
+}
+
+/* ستاره‌های تزئینیِ معرفی — روی همان حلقه، ساکن. */
+.rh-intro-star {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.6rem;
+  height: 2.6rem;
+  translate: -50% -50%;
+  transform: rotate(var(--rh-a)) translateX(min(15rem, 44vw)) rotate(calc(var(--rh-a) * -1));
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rh-intro-star path {
+  fill: color-mix(in oklch, var(--color-background) 70%, transparent);
+  stroke: var(--rh-line-soft);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.rh-intro-content {
+  position: relative;
+  z-index: 1;
+  max-width: 26rem;
+  text-align: center;
+}
+
+
+/* =============================================================================
+   گوشیِ افقی — تنها حالتی که بازی روی گوشی در آن اجرا می‌شود
+   =============================================================================
+
+   شرط عمداً روی *ارتفاع* است و نه عرض: گوشیِ افقی ۸۴۴ پیکسل عرض دارد و با
+   شرطِ عرضی از تبلت جدا نمی‌شود. ارتفاعِ ۳۴rem (۵۴۴px) گوشیِ افقی (~۳۹۰) را
+   می‌گیرد و تبلتِ افقی (۷۶۸) را نه. `pointer: coarse` هم لپ‌تاپِ با پنجرهٔ
+   کوتاه را بیرون می‌گذارد.
+
+   بودجهٔ ارتفاع — اندازه‌گیری‌شده و نه حدس (نوار ۳۴ + HUD ۲۶ + رمزگشا ۴۲
+   + فاصله‌ها ۱۶ ≈ ۱۱۸px، و صحنه ۲×(شعاع + نصفِ ستاره + ۸)):
+
+       ۸۴۴×۳۹۰  →  صحنه ۲۵۰ + ۱۱۸ = ۳۶۸ ≤ ۳۹۰ ✓
+       ۶۶۷×۳۷۵  →  صحنه ۲۴۲ + ۱۱۸ = ۳۶۰ ≤ ۳۷۵ ✓
+       ۷۴۰×۳۶۰  →  صحنه ۲۳۵ + ۱۱۸ = ۳۵۳ ≤ ۳۶۰ ✓
+
+   ⚠️ ۲۴vh و نه ۲۶: با ۲۶ همین دو گوشیِ کوتاهِ آخر سرریز می‌کردند و مصراع
+   زیرِ لبهٔ صفحه می‌رفت — یعنی دقیقاً همان اسکرولی که این حالت برای نبودنش
+   ساخته شده.
+
+   عرضِ تابلو از شعاعِ *افقی* می‌آید: ۲٫۱ × ۸۶ ≈ ۱۸۱px حتی روی کوتاه‌ترین
+   گوشی — جای یک مصراعِ دو خطی. ======================================== */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 34rem) {
+  .rh-root {
+    /* ⚠️ شعاع از `vh` می‌آید و نه `vw`: قیدِ واقعی در این حالت ارتفاع است. */
+    --rh-radius: min(24vh, 8rem);
+    --rh-kx: 2.1;
+    --rh-token-min: clamp(2.6rem, 9vh, 3.6rem);
+
+    padding-block: 0.25rem;
+    /* iPhone افقی: نُچ در یکی از دو لبهٔ کناری است. */
+    padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+
+  /* ⚠️ همان چیدمانِ دسکتاپ و نه چیدمانِ ستونیِ گوشی: مصراع *وسطِ* مدار
+     می‌ماند. این کلِ دلیلِ اجباری بودنِ حالتِ افقی است. */
+  .rh-stage {
+    display: grid;
+    place-items: center;
+    width: min(100%, calc(2 * var(--rh-radius) * var(--rh-kx) + var(--rh-token-min)));
+    height: calc(2 * var(--rh-reach));
+    margin-inline: auto;
+  }
+
+  .rh-orbit-field {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+  }
+
+  .rh-panel {
+    /* کرانِ عرض از شعاعِ *افقی* می‌آید، چون بیضی آنجا پهن است. */
+    max-width: calc(var(--rh-radius) * var(--rh-kx));
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.9rem;
+  }
+
+  .rh-verse-line {
+    font-size: clamp(0.82rem, 3.4vh, 1.05rem);
+    line-height: 1.85;
+  }
+
+  .rh-token {
+    padding: 0.3rem 0.7rem;
+    font-size: clamp(0.62rem, 2.2vh, 0.78rem);
+    min-height: 2rem;
+  }
+
+  /* HUD یک ردیفِ فشرده: «دور ۳/۸ • درست ۱ • زنجیره ۱» */
+  .rh-hud {
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+  }
+
+  .rh-hud-chip {
+    padding: 0.1rem 0.5rem;
+    font-size: 0.66rem;
+  }
+
+  .rh-hud-chip b {
+    font-size: 0.78rem;
+  }
+
+  .rh-decoder {
+    min-height: 2.3rem;
+    padding: 0.2rem 1.7rem;
+  }
+
+  .rh-decoder-value {
+    /* ⚠️ اینجا از حدِ «متنِ درشتِ» WCAG پایین‌تر می‌رود، ولی رنگش هم عوض
+       می‌شود: روی این صفحه متنِ نقش `--color-foreground` است و نه
+       `--color-primary`، پس نسبتِ کنتراست بالای ۱۰:۱ می‌ماند. */
+    font-size: clamp(0.95rem, 3.6vh, 1.2rem);
+    color: var(--color-foreground);
+  }
+
+  .rh-backdrop {
+    inset: -0.5rem;
+  }
+}
+
+/* =============================================================================
+   قفلِ گوشیِ عمودی
+   ============================================================================= */
+
+/* ⚠️ `animation-play-state` و نه پنهان کردن یا برداشتنِ انیمیشن.
+   خواسته این بود که مدار *واقعاً* بایستد و با برگشت از همان‌جا ادامه دهد.
+   حذفِ انیمیشن موقعیت را به صفر برمی‌گرداند و کلِ مدار می‌پرید؛ `paused`
+   فریمِ جاری را نگه می‌دارد. */
+.rh-root[data-paused="true"] .rh-orbit-item,
+.rh-root[data-paused="true"] .rh-upright {
+  animation-play-state: paused;
+}
+
+.rh-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding:
+    max(1.25rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  background: color-mix(in oklch, var(--color-background) 94%, transparent);
+  backdrop-filter: blur(6px);
+  animation: rh-gate-in 220ms ease-out;
+}
+
+.rh-gate[data-reduced="true"] {
+  animation: none;
+}
+
+@keyframes rh-gate-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rh-gate-inner {
+  max-width: 18rem;
+  text-align: center;
+}
+
+.rh-gate-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-inline: auto;
+  color: var(--color-primary);
+}
+
+.rh-gate-title {
+  margin-top: 1.1rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.rh-gate-body {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.9;
+  color: var(--color-muted-foreground);
 }
 
 /* ───────────────────────────── حرکتِ کمتر ───────────────────────────── */
@@ -584,7 +997,7 @@
     animation: none;
   }
 
-  .rh-glyph[data-scrambled="true"] {
+  .rh-decoder-value[data-scrambling="true"] {
     animation: none;
     filter: none;
   }

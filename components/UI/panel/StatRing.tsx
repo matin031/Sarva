@@ -1,64 +1,35 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
-import { toFa } from "@/components/UI/CircularProgress";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
 
-const R = 44;
-const C = 2 * Math.PI * R;
-
-/** The headline percentages at the top of each panel page.
+/**
+ * حلقهٔ درصدِ بالای صفحه‌های پنل.
  *
- *  The ring fills to the value instead of sitting there as a full circle, and
- *  it is always the site's primary colour — the red→amber→green scale belongs
- *  to a single attempt's score, where "good or bad" is the point. Up here the
- *  number is an identity, not a verdict, and a summary that changes colour on
- *  you reads as an alarm. */
+ * حالا فقط یک پوسته روی `AnimatedCircularProgress` است. پیش از این خودش
+ * SVG می‌کشید و همان اشکالِ ۱۰۰٪ را داشت (توضیحش در همان فایل).
+ *
+ * ⚠️ رنگ عمداً همیشه گرادیانِ برند است و نه مقیاسِ قرمز→سبز. آن مقیاس مالِ
+ * `AreaCards` است، جایی که عدد یک *قضاوت* دربارهٔ یک بخش است. اینجا عدد
+ * «دقتِ تو»ست — یک هویت، نه یک نمره — و خلاصه‌ای که با هر پاسخ رنگ عوض
+ * کند، شبیه هشدار خوانده می‌شود.
+ */
 export default function StatRing({
   percent,
   ready = true,
+  label,
   className = "size-18 sm:size-22",
 }: {
   percent: number;
   ready?: boolean;
+  label?: string;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-  const p = Math.max(0, Math.min(100, percent));
-  const offset = C * (1 - p / 100);
-
   return (
-    <div className={`relative shrink-0 ${className}`}>
-      <svg viewBox="0 0 100 100" className=" size-full -rotate-90">
-        <circle
-          cx="50"
-          cy="50"
-          r={R}
-          fill="none"
-          strokeWidth="8"
-          className=" stroke-border"
-        />
-        {ready && (
-          <motion.circle
-            cx="50"
-            cy="50"
-            r={R}
-            fill="none"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={C}
-            className=" stroke-primary"
-            initial={{ strokeDashoffset: reduced ? offset : C }}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: reduced ? 0 : 1, ease: [0.4, 0, 0.2, 1] }}
-          />
-        )}
-      </svg>
-      {/* ⚠️ درصدِ فارسی «٪» است و نه «%». پیش از این این یک حلقه «۷۱%»
-          می‌نوشت در حالی که حلقه‌های کنارش «۸۴٪» — دو نویسهٔ متفاوت برای
-          یک چیز، در یک صفحه. */}
-      <span className="panel-num absolute inset-0 flex items-center justify-center text-xl font-bold sm:text-2xl">
-        {ready ? `${toFa(p)}٪` : "—"}
-      </span>
-    </div>
+    <AnimatedCircularProgress
+      value={percent}
+      ready={ready}
+      label={label}
+      className={className}
+    />
   );
 }

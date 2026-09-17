@@ -22,11 +22,13 @@ import type { Connection } from "mysql2/promise";
 import { connect } from "./mysql/script-db.mjs";
 import { farsi3Dey1401 } from "../lib/exam/seed-data/farsi3-1401-dey";
 import { farsi3Kherdad1403 } from "../lib/exam/seed-data/farsi3-1403-kherdad";
+import { olumFonoon3Mordad1405 } from "../lib/exam/seed-data/olum-fonoon3-1405-mordad";
 import type { SeedExam } from "../lib/exam/seed-data/seed-types";
 
 const exams: { examKey: string; exam: SeedExam }[] = [
   { examKey: "1403-kherdad", exam: farsi3Kherdad1403 },
   { examKey: "1401-dey", exam: farsi3Dey1401 },
+  { examKey: "olum-fonoon-1405-mordad", exam: olumFonoon3Mordad1405 },
 ];
 
 async function importExam(conn: Connection, examKey: string, exam: SeedExam) {

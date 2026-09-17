@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BadgeCheck, Clock, FileUp, FileWarning, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent } from "@/components/UI/kit/card";
 import { Field, Input } from "@/components/UI/kit/field";
-import { Select } from "@/components/UI/kit/select";
+import { AnimatedSelect } from "@/components/UI/kit/animated-select";
 import type { ApiResult } from "@/lib/api/client";
 import { PROVINCES, citiesOf } from "@/lib/geo";
 import { teacherRequestSchema, type TeacherRequestInput } from "@/lib/profile/schemas";
@@ -127,16 +127,28 @@ function StatusRow({ request }: { request: TeacherRequestView }) {
       {/* ⚠️ کد ملی پوشیده است، حتی در صفحهٔ خودِ کاربر. توضیحش کنارِ
           `maskNationalId` در `lib/profile/national-id.ts`. */}
       <Detail label="کد ملی" value={request.nationalIdMasked ?? "—"} />
-      <Detail label="شمارهٔ تأییدشده" value={request.phoneMasked ?? "—"} />
+      <Detail label="شمارهٔ تأییدشده" value={request.phoneMasked ?? "—"} ltr />
     </dl>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+/**
+ * ⚠️ `ltr` برای شمارهٔ موبایل لازم است و نه فقط زیباتر.
+ *
+ * `maskPhone` «0912 *** 6789» می‌دهد. داخلِ یک پنلِ راست‌به‌چپ،
+ * الگوریتمِ دوسویهٔ یونیکد «***» را خنثی می‌بیند، جهتِ پاراگراف را
+ * به آن می‌دهد، و دو گروهِ رقم جایِ هم را عوض می‌کنند: «6789 *** 0912».
+ *
+ * دبیر این‌جا دارد بررسی می‌کند که مدارکش با کدام شماره ثبت شده؛
+ * شمارهٔ وارونه یعنی پیام به پشتیبانی.
+ */
+function Detail({ label, value, ltr }: { label: string; value: string; ltr?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value}</dd>
+      <dd className="font-medium" dir={ltr ? "ltr" : undefined}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -363,41 +375,50 @@ function RequestForm({
               />
             </Field>
 
-            <Field label="استان محل تدریس" htmlFor="teach-province" error={errors.provinceId?.message}>
-              <Select
-                id="teach-province"
-                disabled={blocked}
-                aria-invalid={!!errors.provinceId}
-                {...form.register("provinceId", {
-                  // همان قاعدهٔ فرمِ پروفایل: استانِ تازه، شهرِ قبلی را
-                  // بی‌اعتبار می‌کند.
-                  onChange: () => form.setValue("cityId", ""),
-                })}
-              >
-                <option value="">— انتخاب کنید —</option>
-                {PROVINCES.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <Controller
+              control={form.control}
+              name="provinceId"
+              render={({ field }) => (
+                <Field label="استان محل تدریس" htmlFor="teach-province" error={errors.provinceId?.message}>
+                  <AnimatedSelect
+                    id="teach-province"
+                    heading="استان"
+                    placeholder="انتخاب کنید"
+                    disabled={blocked}
+                    invalid={!!errors.provinceId}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    options={PROVINCES.map((item) => ({ value: item.id, label: item.name }))}
+                    onValueChange={(v) => {
+                      field.onChange(v);
+                      // همان قاعدهٔ فرمِ پروفایل: استانِ تازه، شهرِ قبلی را
+                      // بی‌اعتبار می‌کند.
+                      form.setValue("cityId", "");
+                    }}
+                  />
+                </Field>
+              )}
+            />
 
-            <Field label="شهر محل تدریس" htmlFor="teach-city" error={errors.cityId?.message}>
-              <Select
-                id="teach-city"
-                disabled={blocked || !provinceId}
-                aria-invalid={!!errors.cityId}
-                {...form.register("cityId")}
-              >
-                <option value="">— انتخاب کنید —</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <Controller
+              control={form.control}
+              name="cityId"
+              render={({ field }) => (
+                <Field label="شهر محل تدریس" htmlFor="teach-city" error={errors.cityId?.message}>
+                  <AnimatedSelect
+                    id="teach-city"
+                    heading="شهر"
+                    placeholder="انتخاب کنید"
+                    disabled={blocked || !provinceId}
+                    invalid={!!errors.cityId}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    options={cities.map((item) => ({ value: item.id, label: item.name }))}
+                    onValueChange={field.onChange}
+                  />
+                </Field>
+              )}
+            />
 
             <Field
               label="مدرسه محل تدریس"

@@ -7,7 +7,6 @@ import type { Grade, GradeKey, Lesson, LessonRef } from "@/lib/doroos/types";
  * actually have them — an unknown lesson renders as «درس ۷» rather than an
  * invented name — and `ready` gates whether it is clickable yet.
  */
-
 export const LESSONS_PER_BOOK = 18;
 
 /**
@@ -23,14 +22,6 @@ export const LESSONS_PER_BOOK = 18;
  * جاوااسکریپت بتواند به عدد تبدیلش کند.
  */
 export function parseLessonNumber(raw: string): number | null {
-  // ⚠️ اول decode. Next پارامترِ مسیر را **کدشده** می‌دهد، نه رمزگشایی‌شده:
-  // برای `/doroos/yazdahom/۱` رشته‌ای که به اینجا می‌رسد `"%DB%B1"` است، نه
-  // `"۱"`. بدون این خط، نرمال‌سازیِ ارقام فارسیِ پایین هیچ‌وقت چیزی برای
-  // نرمال کردن پیدا نمی‌کرد.
-  //
-  // decodeURIComponent روی `%` تنها یا دنبالهٔ ناقص استثنا می‌دهد، و
-  // آدرس را کاربر می‌سازد — پس داخل try.
-
   let decoded: string;
 
   try {
@@ -39,18 +30,14 @@ export function parseLessonNumber(raw: string): number | null {
     return null;
   }
 
-  // ارقام فارسی (۰-۹، U+06F0..U+06F9) و عربی (٠-٩، U+0660..U+0669)
-  // هر دو پذیرفته می‌شوند.
   const normalized = decoded
     .trim()
     .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
     .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 
-  // فقط رقم — نه "1.5"، نه "1e2"، نه رشتهٔ خالی.
   if (!/^\d+$/.test(normalized)) return null;
 
   const n = Number(normalized);
-
   return Number.isInteger(n) ? n : null;
 }
 
@@ -69,7 +56,24 @@ export function isLessonInBook(number: number): boolean {
  * رابط به‌صورت خودکار «درس ۹»، «درس ۱۱» و ... نمایش می‌دهد.
  */
 const TITLES: Record<GradeKey, Record<number, string>> = {
-  dahom: {},
+  dahom: {
+    1: "چشمه",
+    2: "از آموختن، ننگ مدار",
+    3: "پاسداری از حقیقت",
+    5: "بیداد ظالمان",
+    6: "مهر و وفا",
+    7: "جمال و کمال",
+    8: "سفر به بصره",
+    9: "کلاس نقاشی",
+    10: "دریادلان صف‌شکن",
+    11: "خاک آزادگان",
+    12: "رستم و اشکبوس",
+    13: "گردآفرید",
+    14: "طوطی و بقال",
+    16: "خسرو",
+    17: "سپیده دم",
+    18: "عظمت نگاه",
+  },
 
   yazdahom: {
     1: "نیکی",
@@ -118,6 +122,25 @@ const TITLES: Record<GradeKey, Record<number, string>> = {
 const CONTENT: Partial<
   Record<GradeKey, Record<number, () => Promise<{ default: Lesson }>>>
 > = {
+  dahom: {
+    1: () => import("@/lib/doroos/content/dahom-01"),
+    2: () => import("@/lib/doroos/content/dahom-02"),
+    3: () => import("@/lib/doroos/content/dahom-03"),
+    5: () => import("@/lib/doroos/content/dahom-05"),
+    6: () => import("@/lib/doroos/content/dahom-06"),
+    7: () => import("@/lib/doroos/content/dahom-07"),
+    8: () => import("@/lib/doroos/content/dahom-08"),
+    9: () => import("@/lib/doroos/content/dahom-09"),
+    10: () => import("@/lib/doroos/content/dahom-10"),
+    11: () => import("@/lib/doroos/content/dahom-11"),
+    12: () => import("@/lib/doroos/content/dahom-12"),
+    13: () => import("@/lib/doroos/content/dahom-13"),
+    14: () => import("@/lib/doroos/content/dahom-14"),
+    16: () => import("@/lib/doroos/content/dahom-16"),
+    17: () => import("@/lib/doroos/content/dahom-17"),
+    18: () => import("@/lib/doroos/content/dahom-18"),
+  },
+
   yazdahom: {
     1: () => import("@/lib/doroos/content/yazdahom-01"),
     2: () => import("@/lib/doroos/content/yazdahom-02"),
@@ -157,14 +180,6 @@ const CONTENT: Partial<
   },
 };
 
-/**
- * Which lessons are ready, derived from the map above rather than listed
- * separately.
- *
- * The two used to be hand-kept lists and had drifted: lessons could be marked
- * ready even when no content module existed. Now readiness is derived directly
- * from CONTENT, so the list and the actual modules cannot disagree.
- */
 function readySet(grade: GradeKey): Set<number> {
   return new Set(Object.keys(CONTENT[grade] ?? {}).map(Number));
 }
@@ -190,14 +205,12 @@ export const GRADES: Grade[] = [
     book: "فارسی ۱",
     lessons: buildLessons("dahom"),
   },
-
   {
     key: "yazdahom",
     label: "یازدهم",
     book: "فارسی ۲",
     lessons: buildLessons("yazdahom"),
   },
-
   {
     key: "davazdahom",
     label: "دوازدهم",
@@ -221,14 +234,9 @@ export async function getLesson(
   if (!loader) return null;
 
   const mod = await loader();
-
   return mod.default;
 }
 
-/**
- * Every (grade, lesson) pair that has content — used to prerender exactly
- * the lesson pages that exist.
- */
 export function readyLessonParams(): {
   grade: string;
   lesson: string;
@@ -243,9 +251,6 @@ export function readyLessonParams(): {
   );
 }
 
-/**
- * Persian digits, for labels like «درس ۱۲».
- */
 export function faNum(n: number | string): string {
   return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }

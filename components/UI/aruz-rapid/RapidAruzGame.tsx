@@ -10,8 +10,12 @@ import {
   type FeedbackKind,
 } from "@/lib/aruz-rapid/machine";
 import { DEFAULT_RAPID_ARUZ_CONFIG, type RapidAruzConfig } from "@/lib/aruz-rapid/config";
-import { defaultRapidAruzSource, type RapidAruzQuestionSource } from "@/lib/aruz-rapid/source";
-import type { ScansionLength } from "@/lib/aruz-rapid/types";
+import {
+  LocalRapidAruzSource,
+  defaultRapidAruzSource,
+  type RapidAruzQuestionSource,
+} from "@/lib/aruz-rapid/source";
+import type { RapidAruzQuestion, ScansionLength } from "@/lib/aruz-rapid/types";
 import { immersiveMode } from "@/lib/immersive-mode";
 import { rapidAruzMountCount, useRapidAruzGame } from "./useRapidAruzGame";
 import { useRapidAruzLayout } from "./useRapidAruzLayout";
@@ -31,6 +35,14 @@ const IMMERSIVE_CLASS = "aruzr-immersive";
 type RapidAruzGameProps = {
   config?: RapidAruzConfig;
   source?: RapidAruzQuestionSource;
+  /**
+   * مصراع‌هایی که سرور آورده — از جدولِ `aruz_rapid_questions`.
+   *
+   * ⚠️ چرا آرایه و نه خودِ `source`: منبع یک *کلاس* است و از یک کامپوننتِ
+   * سروری به کلاینت رد نمی‌شود (سریالایز نمی‌شود). پس داده می‌آید و منبع
+   * همین‌جا ساخته می‌شود. نبودنش یعنی همان دادهٔ نمایشیِ قبلی.
+   */
+  questions?: RapidAruzQuestion[];
 };
 
 /** این بازی عمداً داخلِ `GameShell` نیست (توضیحش در `app/game/aruz-rapid`)،
@@ -46,9 +58,16 @@ export default function RapidAruzGame(props: RapidAruzGameProps) {
 
 function RapidAruzGameInner({
   config = DEFAULT_RAPID_ARUZ_CONFIG,
-  source = defaultRapidAruzSource,
+  source,
+  questions,
 }: RapidAruzGameProps) {
-  const game = useRapidAruzGame({ config, source });
+  /* منبع یک‌بار ساخته می‌شود و نه در هر رندر: خودش اعتبارسنجی را اجرا
+     می‌کند و ساختنِ دوباره‌اش یعنی همان کار در هر رندر. */
+  const resolvedSource = useMemo(
+    () => source ?? (questions ? new LocalRapidAruzSource(questions) : defaultRapidAruzSource),
+    [source, questions],
+  );
+  const game = useRapidAruzGame({ config, source: resolvedSource });
   const { state, paused, acceptsInput } = game;
   const layout = useRapidAruzLayout();
 

@@ -352,14 +352,45 @@ on duplicate key update
       {
         title: "جفت‌های ادبی — افزودن انبوه",
         description:
-          "grade: dahom | yazdahom | davazdahom — term: dey (دی) | khordad (خرداد). «اثر» در هر دسته یکتاست، پس on conflict می‌گذارد دوباره اجرا کنید بی‌آنکه تکراری بسازد.",
-        sql: `insert into memory_pairs (id, grade, term, work, author, sort_index)
+          "grade: dahom | yazdahom | davazdahom — term: dey (دی) | khordad (خرداد). «اثر» در هر دسته یکتاست، پس on conflict می‌گذارد دوباره اجرا کنید بی‌آنکه تکراری بسازد. ستون image نشانیِ نگارهٔ پدیدآورنده است — همان که دانش‌آموز پیش از شروع مرور می‌کند؛ رشتهٔ خالی یعنی «هنوز ندارد» و بازی به‌جایش یک جلدِ تزئینی می‌کشد.",
+        sql: `-- image: نشانیِ آپلودشده از پنل (/uploads/pair-images/…) یا یک لینکِ
+-- http(s). خالی گذاشتنش مجاز است، ولی ستون NOT NULL است پس '' بنویسید.
+insert into memory_pairs (id, grade, term, work, author, image, sort_index)
 values
-  (uuid(), 'dahom', 'dey', 'نام اثر یک', 'نام پدیدآورنده', 0),
-  (uuid(), 'dahom', 'dey', 'نام اثر دو', 'نام پدیدآورنده', 1)
+  (uuid(), 'dahom', 'dey', 'نام اثر یک', 'نام پدیدآورنده', '/uploads/pair-images/example.png', 0),
+  (uuid(), 'dahom', 'dey', 'نام اثر دو', 'نام پدیدآورنده', '', 1)
 on duplicate key update
   author     = values(author),
+  image      = values(image),
   sort_index = values(sort_index);`,
+      },
+      {
+        title: "کوتاه یا بلند؟ — افزودن انبوه",
+        description:
+          "هر ردیف یک مصراع. units یک آرایهٔ JSON است و ترتیبش همان ترتیبِ خواندنِ مصراع: هر عضو {display, length} با length برابرِ short یا long. متنِ مصراع یکتاست، پس on conflict می‌گذارد دوباره اجرا کنید بی‌آنکه تکراری بسازد. اگر هجاها با متنِ مصراع نمی‌خوانند (ادغامِ عروضی مثلِ «نَو اَز» ← «نَ» + «وَز»)، has_unit_overlap را ۱ بگذارید.",
+        sql: `-- ⚠️ همین کار از پنل هم می‌شود و آنجا هر هجا با یک کلیک کوتاه/بلند
+-- می‌شود: /admin/games/aruz-rapid ← «افزودن گروهی».
+-- اینجا فقط وقتی به‌کار می‌آید که فهرست را جای دیگری آماده کرده‌اید.
+insert into aruz_rapid_questions
+  (id, preview_text, units, meter, attribution, explanation,
+   has_unit_overlap, is_published, sort_index)
+values
+  (uuid(), 'تَوانا بُوَد هَر کِه دانا بُوَد',
+   json_array(
+     json_object('display', 'تَ',  'length', 'short'),
+     json_object('display', 'وا',  'length', 'long'),
+     json_object('display', 'نا',  'length', 'long'),
+     json_object('display', 'بُ',  'length', 'short'),
+     json_object('display', 'وَد', 'length', 'long')
+   ),
+   'فعولن فعولن فعولن فَعَل', 'فردوسی', null, 0, 1, 0)
+on duplicate key update
+  units            = values(units),
+  meter            = values(meter),
+  attribution      = values(attribution),
+  explanation      = values(explanation),
+  has_unit_overlap = values(has_unit_overlap),
+  is_published     = values(is_published);`,
       },
       {
         title: "نینجای دستور — نقش تازه با کلماتش",

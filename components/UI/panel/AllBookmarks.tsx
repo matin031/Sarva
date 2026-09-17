@@ -105,10 +105,10 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
   if (items.length === 0) {
     return (
       <div className={styles.emptyState}>
-        <SarvaBuddy small /><p className="font-semibold">گنجینه‌ات منتظر اولین نشان است</p>
+        <SarvaBuddy small /><p className="font-semibold">هنوز چیزی نشان نکرده‌ای</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-          هر جای سایت که دکمهٔ نشان را ببینی می‌توانی سؤال یا واژه‌ای را ذخیره کنی تا بعداً
-          همین‌جا پیدایش کنی.
+          سرِ هر سؤال، بیت یا واژه یک دکمهٔ نشان هست. هرچه با آن ذخیره کنی،
+          همین‌جا جمع می‌شود.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {(Object.keys(AREA_LABEL) as BookmarkArea[]).map((a) => (

@@ -9,7 +9,7 @@ import type { TicketSummary, PlusOrderSummary } from "@/lib/plus/types";
 export default function SupportView({ tickets, orders }: { tickets: TicketSummary[]; orders: { orders: PlusOrderSummary[] }; }) {
   return (
     <div dir="rtl" className={styles.pageStack}>
-      <PanelPageHeader title="اینجاییم تا کمکت کنیم" description="مشکل حساب، خرید یا تمرین؟ برایمان بنویس؛ گفت‌وگوها همین‌جا می‌مانند." tone="rose" />
+      <PanelPageHeader title="پشتیبانی" description="مشکل حساب، خرید یا تمرین — بنویس تا پیگیری کنیم. معمولاً همان روز جواب می‌دهیم." tone="rose" />
 
       <NewTicketForm
         orders={orders.orders.map((order) => ({
@@ -20,9 +20,12 @@ export default function SupportView({ tickets, orders }: { tickets: TicketSummar
       />
 
       {tickets.length === 0 ? (
-        <p className={styles.emptyState}>
-          هنوز گفت‌وگویی نداریم؛ هر وقت سؤالی داشتی، همین‌جا بنویس.
-        </p>
+        <div className={styles.emptyState}>
+          <p className="font-semibold">هنوز تیکتی نزده‌ای</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            هر گفت‌وگویی که شروع کنی همین‌جا می‌ماند و بعداً هم می‌توانی پیدایش کنی.
+          </p>
+        </div>
       ) : (
         <ul className="space-y-3">
           {tickets.map((ticket) => (

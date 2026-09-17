@@ -183,7 +183,6 @@ const TRACING_EXCLUDES = [
 ];
 
 const nextConfig: NextConfig = {
-  distDir: process.env.SARVA_MOTION_AUDIT === "1" ? ".next/motion-audit" : ".next",
   poweredByHeader: false,
 
   // خروجیِ خودبسنده برای داکر: به‌جای کلِ node_modules، فقط فایل‌هایی که

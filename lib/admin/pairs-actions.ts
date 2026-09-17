@@ -18,6 +18,8 @@ export type AdminMemoryPair = {
   id: string;
   work: string;
   author: string;
+  /** نشانیِ نگاره — رشتهٔ خالی یعنی این جفت هنوز نگاره‌ای ندارد. */
+  image: string;
   sortIndex: number;
 };
 
@@ -37,7 +39,38 @@ function readDeck(grade: string, term: string): { grade: MemoryGrade; term: Memo
   return { grade, term };
 }
 
-type PairRow = { id: string; work: string; author: string; sort_index: number };
+type PairRow = {
+  id: string;
+  work: string;
+  author: string;
+  image: string;
+  sort_index: number;
+};
+
+/** حداکثر طولِ نشانیِ نگاره — همان چیزی که ستونِ `image` جا می‌دهد. */
+const MAX_IMAGE_URL = 512;
+
+type ImageCheck = { ok: true; image: string } | { ok: false; error: string };
+
+/**
+ * نشانیِ نگاره را می‌پذیرد یا با دلیل رد می‌کند.
+ *
+ * ⚠️ فهرستِ سفیدِ طرح (`scheme`) اینجا تزئینی نیست. این رشته بی‌هیچ واسطه‌ای
+ * در `<img src>` می‌نشیند، و `javascript:` یا `data:text/html` در همان جا یک
+ * بردارِ اجرا است. پس فقط سه شکل پذیرفته می‌شود: خالی، مسیرِ نسبیِ خودِ سایت
+ * (`/uploads/…` که خروجیِ آپلود است)، و http(s) برای نگاره‌ای که جای دیگری
+ * میزبانی می‌شود.
+ */
+function readImage(value: string | undefined): ImageCheck {
+  const image = (value ?? "").trim();
+  if (!image) return { ok: true, image: "" };
+  if (image.length > MAX_IMAGE_URL) {
+    return { ok: false, error: `نشانی تصویر نباید بیشتر از ${MAX_IMAGE_URL} نویسه باشد.` };
+  }
+  if (image.startsWith("/") && !image.startsWith("//")) return { ok: true, image };
+  if (/^https?:\/\//i.test(image)) return { ok: true, image };
+  return { ok: false, error: "نشانی تصویر باید با / یا http(s):// شروع شود." };
+}
 
 /** جفت‌های یک دسته (پایه + نوبت)، به ترتیبی که مدیر چیده. */
 export async function pairsAdminList(
@@ -48,7 +81,7 @@ export async function pairsAdminList(
   const deck = readDeck(grade, term);
 
   const rows = await query<PairRow>(
-    `select id, work, author, sort_index
+    `select id, work, author, image, sort_index
        from memory_pairs
       where grade = ? and term = ?
       order by sort_index, work`,
@@ -59,6 +92,7 @@ export async function pairsAdminList(
     id: r.id,
     work: r.work,
     author: r.author,
+    image: r.image,
     sortIndex: r.sort_index,
   }));
 }
@@ -84,6 +118,8 @@ export type MemoryPairInput = {
   term: string;
   work: string;
   author: string;
+  /** نشانیِ نگاره؛ نبودنش یعنی «خالی»، نه «دست نزن». */
+  image?: string;
 };
 
 /** ساخت جفت تازه یا ویرایش جفت موجود. */
@@ -101,6 +137,9 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
     return { ok: false, error: "نام اثر و پدیدآورنده نباید بیشتر از ۱۲۰ نویسه باشد." };
   }
 
+  const picture = readImage(input.image);
+  if (!picture.ok) return { ok: false, error: picture.error };
+
   const where = `${memoryGradeTitle(input.grade)} — ${memoryTermTitle(input.term)}`;
 
   try {
@@ -108,9 +147,9 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
       const id = uuidArg(input.id, "شناسهٔ جفت نامعتبر است.");
       const updated = await execute(
         `update memory_pairs
-            set grade = ?, term = ?, work = ?, author = ?
+            set grade = ?, term = ?, work = ?, author = ?, image = ?
           where id = ?`,
-        [input.grade, input.term, work, author, id],
+        [input.grade, input.term, work, author, picture.image, id],
       );
       if (!updated) return { ok: false, error: "این جفت پیدا نشد." };
 
@@ -133,11 +172,20 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
         // ⚠️ جدولِ مشتق لازم است: MySQL اجازه نمی‌دهد زیرکوئریِ یک INSERT از
         // جدولِ مقصد بخواند (خطای ۱۰۹۳). و پارامترها تکرار می‌شوند چون در
         // MySQL هر ? یک جاست، بر خلاف $1 که چند بار می‌آمد.
-        `insert into memory_pairs (id, grade, term, work, author, sort_index)
-         select ?, ?, ?, ?, ?, coalesce(m, 0) + 1
+        `insert into memory_pairs (id, grade, term, work, author, image, sort_index)
+         select ?, ?, ?, ?, ?, ?, coalesce(m, 0) + 1
            from (select max(sort_index) as m from memory_pairs
                   where grade = ? and term = ?) t`,
-        [randomUUID(), input.grade, input.term, work, author, input.grade, input.term],
+        [
+          randomUUID(),
+          input.grade,
+          input.term,
+          work,
+          author,
+          picture.image,
+          input.grade,
+          input.term,
+        ],
       );
     });
 
@@ -168,6 +216,9 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
  * باشد — چون کسی که فهرستش را از Word یا اکسل کپی می‌کند، نمی‌داند ما کدام را
  * انتظار داریم.
  *
+ * ستونِ سومِ اختیاری هم پذیرفته می‌شود: نشانیِ نگارهٔ همان جفت — که بر خلاف دو
+ * ستونِ اول فقط با `|` یا tab جدا می‌شود.
+ *
  * خط‌های خراب باعث شکستِ کل عملیات نمی‌شوند؛ شمارشان برگردانده می‌شود تا پنل
  * دقیقاً بگوید چند خط رد شد و چرا.
  */
@@ -176,6 +227,20 @@ export type BulkAddResult =
   | { ok: false; error: string };
 
 const PAIR_SEPARATOR = /\s*(?:\||\t|—|–|←|<-|-{1,2})\s*/;
+
+/**
+ * نشانیِ نگاره، اگر در انتهای خط آمده باشد.
+ *
+ * ⚠️ این جداگانه و *پیش از* PAIR_SEPARATOR خوانده می‌شود، چون آن الگو روی خطِ
+ * تیره هم می‌شکند و یک نشانیِ واقعی پر از خط تیره است:
+ * `/uploads/pair-images/1770-9f2c-saadi.png` با آن الگو به چند تکه تبدیل
+ * می‌شد و کلِ خط «خوانده‌نشده» شمرده می‌شد.
+ *
+ * پس ستونِ سوم قاعدهٔ سخت‌گیرانه‌ترِ خودش را دارد: فقط `|` یا tab جدایش
+ * می‌کند، و باید *شبیهِ نشانی* باشد. هر چیز دیگری در انتهای خط، بخشی از نامِ
+ * پدیدآورنده است و نه نگاره.
+ */
+const TRAILING_IMAGE = /[|\t]\s*((?:\/|https?:\/\/)\S+)\s*$/i;
 
 export async function pairsAdminBulkAdd(input: {
   grade: string;
@@ -191,16 +256,26 @@ export async function pairsAdminBulkAdd(input: {
   if (lines.length === 0) return { ok: false, error: "متنی برای افزودن وارد نشده." };
   if (lines.length > 200) return { ok: false, error: "هر بار حداکثر ۲۰۰ خط." };
 
-  const parsed: { work: string; author: string }[] = [];
+  const parsed: { work: string; author: string; image: string }[] = [];
   let skipped = 0;
 
-  for (const line of lines) {
+  for (const raw of lines) {
+    const hit = TRAILING_IMAGE.exec(raw);
+    const picture = readImage(hit?.[1]);
+    // نشانیِ بدشکل فقط خطِ خودش را می‌سوزاند و نه کلِ فهرست را — همان رفتاری
+    // که بقیهٔ خطاهای این حلقه دارند.
+    if (!picture.ok) {
+      skipped++;
+      continue;
+    }
+
+    const line = hit ? raw.slice(0, hit.index) : raw;
     const parts = line.split(PAIR_SEPARATOR).map((p) => p.trim()).filter(Boolean);
     if (parts.length !== 2 || parts[0].length > 120 || parts[1].length > 120) {
       skipped++;
       continue;
     }
-    parsed.push({ work: parts[0], author: parts[1] });
+    parsed.push({ work: parts[0], author: parts[1], image: picture.image });
   }
 
   if (parsed.length === 0) {
@@ -230,10 +305,10 @@ export async function pairsAdminBulkAdd(input: {
         // خلاف INSERT IGNORE فقط نقضِ کلید یکتا را می‌بلعد و بقیهٔ خطاها را
         // بالا می‌فرستد.
         inserted += await tx.execute(
-          `insert into memory_pairs (id, grade, term, work, author, sort_index)
-           values (?, ?, ?, ?, ?, ?)
+          `insert into memory_pairs (id, grade, term, work, author, image, sort_index)
+           values (?, ?, ?, ?, ?, ?, ?)
            on duplicate key update work = work`,
-          [randomUUID(), input.grade, input.term, p.work, p.author, next],
+          [randomUUID(), input.grade, input.term, p.work, p.author, p.image, next],
         );
       }
       return inserted;

@@ -4,6 +4,8 @@ import Link from "next/link";
 import PanelPageHeader from "./PanelPageHeader";
 import PracticeSummary from "./PracticeSummary";
 import styles from "./panel-design.module.css";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { ArrowLeft } from "lucide-react";
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -66,7 +68,17 @@ export default function JasoosPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="جاسوس" description="کارآگاهِ جمله‌ها، سرنخ‌های پیشرفتت را مرور کن." tone="rose" action={<Link href="/game/jasoos" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PanelPageHeader title="جاسوس" description="دست‌هایی که بازی کرده‌ای و غلط‌هایی که بیشتر تکرار شده." tone="rose" action={
+        /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
+           دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
+           پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
+        <ShinyButton asChild>
+          <Link href="/game/jasoos">
+            بازی جاسوس
+            <ArrowLeft aria-hidden className="size-4" />
+          </Link>
+        </ShinyButton>
+      } />
       <PracticeSummary items={[{ label: "دقت در یافتن جاسوس", value: `${toFa(accuracy)}٪` }, { label: "پرونده‌های بررسی‌شده", value: toFa(total) }, { label: "بهترین دست", value: `${toFa(best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(streak(answers.map(a => a.answeredAt)))} روز` }]} />
 
       <PanelSection title="روند پیشرفت" icon="chart">

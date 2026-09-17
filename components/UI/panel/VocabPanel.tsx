@@ -4,6 +4,8 @@ import Link from "next/link";
 import PanelPageHeader from "./PanelPageHeader";
 import PracticeSummary from "./PracticeSummary";
 import styles from "./panel-design.module.css";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { ArrowLeft } from "lucide-react";
 
 import { useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
@@ -60,7 +62,17 @@ export default function VocabPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="واژه‌یاب" description="هر واژه، یک کشف کوچک؛ بیا ببین چقدر جلو آمده‌ای." tone="gold" action={<Link href="/game/vocab" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PanelPageHeader title="واژه‌یاب" description="واژه‌هایی که دیده‌ای و آن‌هایی که هنوز جا نیفتاده‌اند." tone="gold" action={
+        /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
+           دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
+           پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
+        <ShinyButton asChild>
+          <Link href="/game/vocab">
+            تمرین واژه‌یاب
+            <ArrowLeft aria-hidden className="size-4" />
+          </Link>
+        </ShinyButton>
+      } />
       <PracticeSummary items={[{ label: "دقت در واژه‌یاب", value: `${toFa(accuracy)}٪` }, { label: "واژه‌های پاسخ‌داده", value: toFa(total) }, { label: "بهترین دست", value: `${toFa(best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(streak(history.map(h => h.at)))} روز` }]} />
 
       <PanelSection title="روند پیشرفت" icon="chart">

@@ -71,17 +71,14 @@ export default async function Page({
 
   return (
     <>
-      {/* ⚠️ سربرگ و پاورقیِ *واقعی* پاس داده می‌شوند و نه چیزی ساده‌تر.
-          چیدمانی که باید امتحان شود دقیقاً همین است: هر دو داخلِ بستهٔ
-          ScrollSmoother. پیش‌نمایشی که آن‌ها را نداشته باشد، تنها چیزی را
-          که ممکن است بشکند امتحان نمی‌کند. */}
+      {/* Shared layout and border components keep the local preview representative. */}
       <PlusScrollPage
         reasons={PLUS_REASONS}
         cycle={PLUS_CYCLE}
         header={
           <>
             <AnnouncementBar />
-            <Header />
+            <Header previewPlus />
           </>
         }
         footer={<Footer />}
@@ -89,7 +86,7 @@ export default async function Page({
         markers={markers}
         showPath={showPath}
       />
-      <div className={styles.debugBar} dir="rtl">
+      {(markers || showPath) && <div className={styles.debugBar} dir="rtl">
         <span>دیباگ</span>
         <a href="?markers=1" data-on={markers && !showPath ? "1" : "0"}>
           markers
@@ -103,7 +100,7 @@ export default async function Page({
         <a href="?" data-on={!markers && !showPath ? "1" : "0"}>
           خاموش
         </a>
-      </div>
+      </div>}
     </>
   );
 }

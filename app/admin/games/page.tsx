@@ -5,6 +5,8 @@ import { pairsAdminCounts } from "@/lib/admin/pairs-actions";
 import { ninjaAdminOverview } from "@/lib/admin/ninja-actions";
 import { jasoosAdminList } from "@/lib/admin/jasoos-actions";
 import { gcAdminTotals } from "@/lib/admin/grammar-circuit-actions";
+import { aruzRapidAdminTotals } from "@/lib/admin/aruz-rapid-actions";
+import { roleHuntAdminTotals } from "@/lib/admin/role-hunt-actions";
 import { JASOOS_SUSPECT_COUNT } from "@/lib/jasoos-data";
 
 export const metadata: Metadata = {
@@ -18,11 +20,13 @@ export const dynamic = "force-dynamic";
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
 async function loadOverview() {
-  const [pairCounts, ninja, jasoos, circuit] = await Promise.all([
+  const [pairCounts, ninja, jasoos, circuit, rapid, roleHunt] = await Promise.all([
     pairsAdminCounts(),
     ninjaAdminOverview(),
     jasoosAdminList(),
     gcAdminTotals(),
+    aruzRapidAdminTotals(),
+    roleHuntAdminTotals(),
   ]);
 
   const pairTotal = Object.values(pairCounts).reduce((a, b) => a + b, 0);
@@ -44,13 +48,17 @@ async function loadOverview() {
       broken: brokenLevels,
     },
     circuit,
+    rapid,
+    roleHunt,
   };
 }
 
 export default async function Page() {
   const result = await loadAdminData(loadOverview);
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  const { pairs, ninja, jasoos, circuit } = result.data;
+  const { pairs, ninja, jasoos, circuit, rapid, roleHunt } = result.data;
+
+  const rejectedCount = Object.values(roleHunt.rejected).reduce((a, b) => a + b, 0);
 
   const cards = [
     {
@@ -90,6 +98,47 @@ export default async function Page() {
         circuit.total - circuit.published > 0
           ? `${fa(circuit.total - circuit.published)} پرسشِ منتشرنشده`
           : null,
+    },
+    {
+      href: "/admin/games/aruz-rapid",
+      title: "کوتاه یا بلند؟",
+      desc: "مصراع‌های تقطیع: متنِ اعراب‌گذاری‌شده و هجاهایش. هر هجا با یک کلیک کوتاه یا بلند می‌شود.",
+      /* ⚠️ «جدول نیست» با «خالی است» یکی نیست و نباید یک پیام بگیرند.
+
+         خالی بودن عادی است — بازی با دادهٔ نمایشی کار می‌کند و مدیر هر وقت
+         خواست مصراع اضافه می‌کند. ولی روی هاست جدول اصلاً ساخته نشده بود
+         (migration ۰۰۸ اجرا نشده) و آن را هیچ کاری از داخلِ پنل درست
+         نمی‌کند. اگر هر دو «هنوز خالی» می‌گرفتند، مدیر مصراع وارد می‌کرد و
+         ذخیره‌اش خطا می‌داد، بی‌آنکه بفهمد چرا. */
+      stat: rapid.missingTable
+        ? "جدولِ این بازی روی دیتابیس نیست"
+        : rapid.total === 0
+          ? "هنوز خالی — بازی با دادهٔ نمایشی"
+          : `${fa(rapid.published)} از ${fa(rapid.total)} مصراع منتشر شده`,
+      warn: rapid.missingTable
+        ? `فایل sarva-database-update.sql را در phpMyAdmin وارد کنید (جدولِ ${rapid.missingTable} ساخته نشده)`
+        : rapid.total > 0 && rapid.published === 0
+          ? "هیچ مصراعی منتشر نشده"
+          : rapid.total - rapid.published > 0
+            ? `${fa(rapid.total - rapid.published)} مصراعِ منتشرنشده`
+            : null,
+    },
+    {
+      href: "/admin/games/role-hunt",
+      title: "شکار نقش‌ها",
+      /* ⚠️ توضیح صریح می‌گوید بانکِ جدا ندارد. بدونِ این جمله، مدیر دنبالِ
+         «افزودنِ مصراع» می‌گردد و پیدایش نمی‌کند. */
+      desc: "بانکِ جدا ندارد؛ از مصراع‌های «مدار دستور» ساخته می‌شود. اینجا می‌بینی کدام مصراع به بازی می‌رسد و کدام نه — و چرا.",
+      stat: roleHunt.missingTable
+        ? "جدولِ پاسخ‌ها روی دیتابیس نیست"
+        : `${fa(roleHunt.eligible)} از ${fa(roleHunt.poetry)} مصراع وارد بازی می‌شود`,
+      warn: roleHunt.missingTable
+        ? `مهاجرتِ ۰۱۷ اجرا نشده (جدولِ ${roleHunt.missingTable})`
+        : roleHunt.eligible === 0
+          ? "هیچ مصراعی واجدِ شرایط نیست"
+          : rejectedCount > 0
+            ? `${fa(rejectedCount)} مصراع وارد بازی نمی‌شود`
+            : null,
     },
     {
       href: "/admin/vocab",

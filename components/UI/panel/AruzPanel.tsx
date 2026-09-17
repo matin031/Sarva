@@ -4,6 +4,8 @@ import Link from "next/link";
 import PanelPageHeader from "./PanelPageHeader";
 import PracticeSummary from "./PracticeSummary";
 import styles from "./panel-design.module.css";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { ArrowLeft } from "lucide-react";
 
 import { useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
@@ -75,7 +77,17 @@ export default function AruzPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="عروض سماعی" description="گوش‌هایت را به وزن شعر بسپار؛ مسیر پیشرفتت اینجاست." tone="lilac" action={<Link href="/aruz" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PanelPageHeader title="عروض سماعی" description="هر تمرینی که زده‌ای، با وزنی که تشخیص دادی و پاسخِ درست." tone="lilac" action={
+        /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
+           دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
+           پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
+        <ShinyButton asChild>
+          <Link href="/aruz">
+            تمرین عروض
+            <ArrowLeft aria-hidden className="size-4" />
+          </Link>
+        </ShinyButton>
+      } />
       <PracticeSummary items={[{ label: "دقت عروض سماعی", value: `${toFa(accuracy)}٪` }, { label: "پاسخ‌های تو", value: toFa(answered) }, { label: "بهترین عملکرد", value: `${toFa(summary.best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(days)} روز` }]} />
 
       <PanelSection title="روند پیشرفت" icon="chart">

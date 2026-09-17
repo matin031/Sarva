@@ -11,8 +11,12 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const subject = "farsi3"; // only subject in the bank today; add a field here once a second one ships
+  // ⚠️ subject نامِ *کتاب* است و نه نامِ درس: فارسیِ دوازدهم «farsi3» است و
+  // علوم و فنونِ دوازدهم «olum-fonoon3». صفحهٔ /exam هم با همین پیشوند
+  // درس‌ها را از هم جدا می‌کند، پس شمارهٔ کتاب باید با پایه بخواند.
+  const [subjectFamily, setSubjectFamily] = useState<"farsi" | "olum-fonoon">("farsi");
   const [grade, setGrade] = useState(12);
+  const subject = `${subjectFamily}${Math.min(3, Math.max(1, grade - 9))}`;
   const [title, setTitle] = useState("");
   const [examKey, setExamKey] = useState("");
   const [totalScore, setTotalScore] = useState(20);
@@ -63,7 +67,15 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
             placeholder="exam key (مثلاً 1404-kherdad) — در آدرس /exam/... استفاده می‌شود"
             className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
           />
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={subjectFamily}
+              onChange={(e) => setSubjectFamily(e.target.value as "farsi" | "olum-fonoon")}
+              className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              <option value="farsi">فارسی</option>
+              <option value="olum-fonoon">علوم و فنون ادبی</option>
+            </select>
             <input
               type="number"
               value={grade}
@@ -78,6 +90,9 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
               placeholder="نمرهٔ کل"
               className="min-h-11 w-28 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
             />
+            <span dir="ltr" className="text-xs text-muted-foreground">
+              subject: {subject}
+            </span>
           </div>
           {errors.length > 0 && (
             <div className="flex flex-col gap-1 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -118,7 +133,8 @@ export default function ExamListPanel({ initialExams }: { initialExams: ExamList
             >
               <span className="text-sm font-semibold">{exam.title}</span>
               <span className="text-xs text-muted-foreground">
-                {exam.examKey} · پایهٔ {exam.grade} · {exam.totalScore} نمره · ساخته‌شده در{" "}
+                {exam.examKey} · {exam.subject} · پایهٔ {exam.grade} · {exam.totalScore} نمره ·
+                ساخته‌شده در{" "}
                 {new Date(exam.createdAt).toLocaleDateString("fa-IR")}
               </span>
             </Link>

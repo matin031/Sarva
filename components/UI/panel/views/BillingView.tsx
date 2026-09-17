@@ -16,7 +16,7 @@ function statusTone(label: string): string {
 export default function BillingView({ orders, hasMore, unsettled, page }: { orders: PlusOrderSummary[]; hasMore: boolean; unsettled: number; page: number; }) {
   return (
     <div dir="rtl" className={styles.pageStack}>
-      <PanelPageHeader title="خریدهای من" description="همهٔ سفارش‌ها و رسیدها، مرتب و یک‌جا برای پیگیری تو." tone="lilac" />
+      <PanelPageHeader title="خریدهای من" description="سفارش‌ها، وضعیت پرداخت و رسیدِ هرکدام." tone="lilac" />
 
       {unsettled > 0 && (
         /* ⚠️ نوارِ «تکلیف روشن نیست». کاربری که صفحهٔ بانک را بسته، باید

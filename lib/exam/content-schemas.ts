@@ -81,7 +81,11 @@ const shortTextAnswer = z.object({
   type: z.literal("short-text-answer"),
   stimulus: richPassageSchema.optional(),
   questionText: z.string(),
-  inputVariant: z.enum(["single-line", "textarea"]).default("single-line"),
+  // 'word' = a narrow box sized for a single word (نام آرایه، یک واژه از بیت).
+  // A full-width input in front of a one-word answer reads as "write a
+  // sentence here" and the exam papers themselves draw a short blank, so the
+  // input has to say how much is being asked for.
+  inputVariant: z.enum(["single-line", "textarea", "word"]).default("single-line"),
   // 'list-item' = compact vertical row (used for the list-of-parallel-blanks
   // and multi-paraphrase-block container patterns); purely a layout hint.
   displayVariant: z.enum(["default", "list-item"]).default("default"),

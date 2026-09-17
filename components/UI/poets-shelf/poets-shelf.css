@@ -1,0 +1,351 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   قفسهٔ شاعران — لایهٔ DOM.
+   ═══════════════════════════════════════════════════════════════════════════
+
+   ⚠️ هیچ رنگِ ثابتی در این فایل نیست. هر رنگ یا خودِ یک توکنِ سرواست یا
+   ترکیبی از دو توکن. پس هشت پالت و دو تم، بدونِ یک خطِ اضافه، درست کار
+   می‌کنند — همان قاعده‌ای که `lib/poets-shelf/theme.ts` برای سمتِ WebGL
+   دنبال می‌کند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ps-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  width: 100%;
+}
+
+/* ── HUD ─────────────────────────────────────────────────────────────────── */
+
+.ps-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ps-hud__question {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  font-size: clamp(0.95rem, 2.4vw, 1.2rem);
+  color: var(--muted-foreground);
+}
+
+.ps-hud__author {
+  font-size: clamp(1.15rem, 3.4vw, 1.7rem);
+  font-weight: 800;
+  color: var(--primary);
+  /* ورودِ کوتاهِ پرسشِ تازه. `key` روی همین عنصر عوض می‌شود تا هر دور
+     دوباره اجرا شود. */
+  animation: ps-author-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ps-author-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+  }
+}
+
+.ps-hud__stats {
+  display: flex;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.ps-hud__stat {
+  min-width: 3.9rem;
+  padding: 0.3rem 0.55rem;
+  text-align: center;
+  border-radius: calc(var(--radius) * 0.62);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklch, var(--border) 62%, transparent);
+  transition: border-color 220ms ease, background-color 220ms ease;
+}
+
+/* زنجیرهٔ سه به بالا: یک تأکیدِ آرام، نه یک جشن. */
+.ps-hud__stat[data-hot] {
+  border-color: color-mix(in oklch, var(--gold) 55%, var(--border));
+  background: color-mix(in oklch, var(--gold) 12%, var(--surface-2));
+}
+
+.ps-hud__stat dt {
+  font-size: 0.66rem;
+  color: var(--muted-foreground);
+  letter-spacing: 0.02em;
+}
+
+.ps-hud__stat dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+/* ⚠️ ارتفاع *رزرو* می‌شود و نه هنگامِ نیاز اضافه. اگر ناحیهٔ بازخورد با
+   ظاهرشدنِ پیام جا می‌گرفت، کلِ بوم در لحظهٔ نتیجه چند پیکسل بالا و پایین
+   می‌پرید — دقیقاً در حساس‌ترین لحظهٔ بازی. */
+.ps-hud__feedback {
+  flex: 1 1 100%;
+  min-height: 1.6em;
+}
+
+.ps-hud__feedback-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  animation: ps-author-in 300ms ease-out;
+}
+
+.ps-hud__feedback-text[data-tone="correct"] {
+  color: var(--primary);
+}
+
+.ps-hud__feedback-text[data-tone="wrong"] {
+  color: var(--gold-ink);
+}
+
+.ps-hud__feedback-mark {
+  display: grid;
+  place-items: center;
+  width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  font-size: 0.78em;
+  color: var(--background);
+  background: currentcolor;
+}
+
+/* ── صحنه ────────────────────────────────────────────────────────────────── */
+
+.ps-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  /* ⚠️ نسبت‌ها با `frameFor` در `layout.ts` هماهنگ‌اند: آنجا برای هر نسبت
+     دوربین عقب می‌رود تا همهٔ کتاب‌ها در کادر بمانند. این سه نقطه‌شکن
+     همان بازه‌ای را می‌سازند که آنجا حساب شده (حدودِ ۰٫۸ تا ۱٫۸). */
+  aspect-ratio: 4 / 5;
+  /* سقفِ ارتفاع تا روی صفحه‌های کوتاه (گوشیِ افقی) از پرده بیرون نزند. */
+  max-height: calc(100dvh - 12rem);
+}
+
+@media (min-width: 640px) {
+  .ps-stage {
+    aspect-ratio: 3 / 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ps-stage {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+/* ── برچسبِ کتاب ─────────────────────────────────────────────────────────── */
+
+/* ظرفی که drei می‌سازد نباید جلوی کلیک روی کتاب‌ها را بگیرد؛ فقط خودِ دکمه
+   اشاره‌گر می‌گیرد. */
+.ps-label-wrapper {
+  pointer-events: none;
+}
+
+.ps-label {
+  pointer-events: auto;
+  display: block;
+  max-width: 9rem;
+  padding: 0.22em 0.72em;
+  font-family: inherit;
+  font-size: clamp(0.66rem, 1.5vw, 0.86rem);
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  color: var(--foreground);
+  /* ⚠️ پس‌زمینه نیمه‌شفاف است و نه تخت: عنوان باید روی دیوارِ آجری خوانده
+     شود ولی نباید به یک «کارتِ داشبورد» تبدیل شود. آنچه خوانایی می‌دهد
+     محوِ پشتِ آن است و نه یک سطحِ مات. */
+  background: color-mix(in oklch, var(--card) 62%, transparent);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transform: translateZ(0);
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ps-label:hover:not(:disabled),
+.ps-label:focus-visible {
+  background: color-mix(in oklch, var(--primary) 16%, var(--card));
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.ps-label:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.ps-label:disabled {
+  cursor: default;
+}
+
+/* حالت‌های نتیجه. رنگ *تنها* نشانه نیست — خودِ کتاب هم حرکت می‌کند و در
+   HUD یک نشانهٔ شکلی هست. */
+.ps-label[data-state="chosen"] {
+  border-color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 20%, var(--card));
+}
+
+.ps-label[data-state="cheer"] {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.ps-label[data-state="slam"] {
+  color: var(--background);
+  background: var(--gold-ink);
+  border-color: var(--gold-ink);
+}
+
+/* ── پردهٔ بارگذاری ──────────────────────────────────────────────────────── */
+
+.ps-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--background);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 420ms ease, visibility 0s linear 420ms;
+}
+
+.ps-veil[data-visible] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 260ms ease, visibility 0s;
+}
+
+.ps-veil__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.ps-veil__logo {
+  width: 3.4rem;
+  height: 4rem;
+  animation: ps-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes ps-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ps-veil__text {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted-foreground);
+}
+
+.ps-veil__bar {
+  position: relative;
+  width: 9rem;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.ps-veil__bar span {
+  position: absolute;
+  inset-block: 0;
+  width: 42%;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: ps-sweep 1.25s ease-in-out infinite;
+}
+
+/* ⚠️ در راست‌به‌چپ هم همین جهت درست است: نوار یک نشانگرِ نامعین است و نه
+   یک مقدار، پس رفت‌وبرگشتش معنایی ندارد که وارونه شود. */
+@keyframes ps-sweep {
+  0% {
+    inset-inline-start: -45%;
+  }
+  100% {
+    inset-inline-start: 100%;
+  }
+}
+
+/* ── نبودِ WebGL ─────────────────────────────────────────────────────────── */
+
+.ps-fallback {
+  padding: 2rem 1.2rem;
+  text-align: center;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* ── حرکتِ کم ────────────────────────────────────────────────────────────────
+
+   ⚠️ بازی خاموش نمی‌شود. اینجا فقط حرکتِ *تزئینیِ* DOM حذف می‌شود؛ دویدنِ
+   شخصیت، افتادنِ کتاب و خودِ نتیجه سرِ جایشان می‌مانند، چون آن‌ها پیامِ
+   بازی‌اند و نه زینتِ آن. سمتِ WebGL همین تصمیم را جداگانه می‌گیرد
+   (`reducedMotion` در `GameScene`). */
+@media (prefers-reduced-motion: reduce) {
+  .ps-hud__author,
+  .ps-hud__feedback-text {
+    animation: none;
+  }
+
+  .ps-veil__logo {
+    animation: none;
+    opacity: 1;
+  }
+
+  .ps-veil__bar span {
+    animation-duration: 2.4s;
+  }
+
+  .ps-label {
+    transition-duration: 1ms;
+  }
+
+  .ps-label:hover:not(:disabled),
+  .ps-label:focus-visible {
+    transform: none;
+  }
+}

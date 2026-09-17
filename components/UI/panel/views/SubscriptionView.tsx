@@ -8,7 +8,7 @@ import { PLUS_SOURCE_LABEL } from "@/lib/plus/labels";
 export default function SubscriptionView({ status, sellable, soonDays, recent, plusOn }: { status: PlusStatus; sellable: boolean; soonDays: number; recent: { orders: PlusOrderSummary[] }; plusOn: boolean; }) {
   return (
     <div dir="rtl" className={styles.pageStack}>
-      <PanelPageHeader title="سروا پلاس من" description="یک همراه بیشتر برای قدم‌های بعدی؛ وضعیت اشتراکت را اینجا ببین." tone="gold" />
+      <PanelPageHeader title="اشتراک سروا پلاس" description="وضعیت اشتراک، تاریخ پایان و تمدید." tone="gold" />
 
       {/* ── وضعیت ─────────────────────────────────────────────────── */}
       {status.state === "unavailable" ? (

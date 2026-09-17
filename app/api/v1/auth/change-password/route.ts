@@ -34,6 +34,14 @@ export const POST = withRoute("/api/v1/auth/change-password", async (request: Re
 
     const { currentPassword, newPassword } = body.data;
 
+    /* ⚠️ «تغییر رمز» برای حسابی که اصلاً رمز ندارد بی‌معنی است.
+       کاربری که با موبایل ثبت‌نام کرده نه ایمیل دارد و نه `password_hash` —
+       ورودش با کدِ یک‌بارمصرف است. پیش از nullable شدنِ `email` این حالت
+       وجود نداشت. */
+    if (!user.email) {
+      return fail("این حساب رمز عبور ندارد؛ ورود با کد پیامکی انجام می‌شود.", 400);
+    }
+
     // getCurrentUser عمداً هش را برنمی‌گرداند، پس اینجا دوباره خوانده می‌شود.
     const full = await findUserByEmail(user.email);
     if (!full) return fail("حساب کاربری پیدا نشد.", 404);

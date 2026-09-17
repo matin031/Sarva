@@ -1,0 +1,37 @@
+.button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 11px 30px;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+  color: var(--primary-foreground);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.8;
+  box-shadow: 0 3px 0 var(--primary-deep);
+  cursor: pointer;
+  transition: transform 180ms, box-shadow 180ms;
+}
+.button:hover { box-shadow: 0 4px 0 var(--primary-deep); transform: translateY(-1px); }
+.button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--primary-deep); }
+.button:focus-visible { outline: 3px solid var(--primary); outline-offset: 5px; }
+.button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.shine, .sweep, .border { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+.shine { overflow: hidden; }
+.sweep { background: linear-gradient(-75deg, transparent calc(var(--x) + 20%), color-mix(in srgb, var(--primary-foreground) 6%, transparent) calc(var(--x) + 30%), transparent calc(var(--x) + 45%)); }
+.border {
+  padding: 1px;
+  mask: linear-gradient(#000, #000) content-box exclude, linear-gradient(#000, #000);
+  background: linear-gradient(-75deg, transparent calc(var(--x) + 15%), var(--gold) calc(var(--x) + 30%), transparent calc(var(--x) + 55%));
+}
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+  .button:hover, .button:active { transform: none; }
+  .shine { display: none; }
+}

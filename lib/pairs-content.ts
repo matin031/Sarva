@@ -23,7 +23,13 @@ export type MemoryDeckData = {
   fromDatabase: boolean;
 };
 
-type PairRow = { grade: string; term: string; work: string; author: string };
+type PairRow = {
+  grade: string;
+  term: string;
+  work: string;
+  author: string;
+  image: string;
+};
 
 export async function loadMemoryDecks(): Promise<MemoryDeckData> {
   const decks = emptyMemoryDecks();
@@ -31,7 +37,7 @@ export async function loadMemoryDecks(): Promise<MemoryDeckData> {
   let rows: PairRow[];
   try {
     rows = await query<PairRow>(
-      `select grade, term, work, author
+      `select grade, term, work, author, image
          from memory_pairs
         order by grade, term, sort_index, work`,
     );
@@ -43,7 +49,7 @@ export async function loadMemoryDecks(): Promise<MemoryDeckData> {
 
   for (const r of rows) {
     if (!isMemoryGrade(r.grade) || !isMemoryTerm(r.term)) continue;
-    decks[r.grade][r.term].push({ work: r.work, author: r.author });
+    decks[r.grade][r.term].push({ work: r.work, author: r.author, image: r.image });
   }
 
   // ⚠️ fallback عمداً «همه یا هیچ» است.

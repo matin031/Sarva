@@ -1,0 +1,52 @@
+.eyebrow { color: var(--primary); font-size: 12px; font-weight: 700; }
+.parallax {
+  position: relative;
+  min-height: 920px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  margin-block: 50px;
+  padding: 170px 28px;
+}
+.capsules {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  /* Let whole capsules cross section boundaries over the shared page pattern. */
+}
+.capsuleTrack {
+  position: absolute;
+  left: clamp(12px, var(--x), calc(100% - var(--w) - 12px));
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+}
+.capsule {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  opacity: var(--depth);
+  background: linear-gradient(102deg, #138b9d 2%, #48c8c2 28%, #a1e7cf 65%, #d7e4ac 100%);
+  box-shadow: inset 1px 0 2px #d3fff24a;
+}
+.capsule[data-gold="true"] { background: linear-gradient(102deg, #137e8e 2%, #59b4ac 28%, #c6cf9a 65%, #e1c67b 100%); }
+.parallaxCopy { width: min(100%, 1060px); text-align: center; }
+.parallaxCopy h2 { font-size: clamp(44px, 7vw, 96px); line-height: 1.6; letter-spacing: -.04em; font-weight: 800; margin-top: 20px; }
+ .parallaxCopy h2 em { font-style: normal; color: color-mix(in srgb, var(--primary) 65%, var(--foreground)); }
+.parallaxCopy > p { max-width: 620px; margin: 30px auto 0; font-size: 16px; line-height: 2.2; color: var(--muted-foreground); text-wrap: pretty; }
+.subjects { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 35px; }
+.subjects span { padding: 10px 19px; border-radius: 30px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 12px; }
+
+@media (max-width: 699px) {
+  .parallax { min-height: 780px; padding: 160px 24px; margin-block: 35px; }
+  .parallaxCopy h2 { font-size: clamp(37px, 10vw, 64px); }
+  .parallaxCopy > p { font-size: 13px; line-height: 2.1; }
+  .parallaxCopy > p br { display: none; }
+  .capsuleTrack:not([data-mobile="true"]) { display: none; }
+  .capsuleTrack { width: calc(var(--w) * .65); height: calc(var(--h) * .72); }
+  .subjects { gap: 7px; }
+  .subjects span { font-size: 10px; padding: 8px 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .capsule { opacity: calc(var(--depth) * .55); } }

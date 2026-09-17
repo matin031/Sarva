@@ -4,12 +4,20 @@ import Link from "next/link";
 import PanelPageHeader from "./PanelPageHeader";
 import PracticeSummary from "./PracticeSummary";
 import styles from "./panel-design.module.css";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { ArrowLeft } from "lucide-react";
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 import PanelSection from "@/components/UI/panel/PanelSection";
 import { jalali, relativeDay, scoreColor } from "@/lib/panel/format";
+import {
+  STATUS_LABEL,
+  answerText,
+  readAttemptQuestions,
+  type StoredPart,
+} from "@/lib/exam/attempt-view";
 import type { ExamAttempt } from "@/lib/panel/types";
 
 /** Just enough of a paper to caption a stored result: the panel needs the
@@ -18,16 +26,13 @@ export type ExamPaper = {
   questions: { number: number; section: string; instruction: string }[];
 };
 
-/** One graded part, as `question_results` stores it. */
-type StoredPart = {
-  label?: string;
-  score?: number;
-  maxScore?: number;
-  status?: "correct" | "incorrect" | "partial" | "needs_review";
-  correctAnswerText?: string;
-  feedback?: string;
-  selfGrade?: boolean;
-};
+/* ⚠️ `StoredPart`، `STATUS_LABEL` و `answerText` از `lib/exam/attempt-view`
+   می‌آیند و دیگر اینجا تعریف نمی‌شوند.
+
+   دلیلش یک قابلیتِ تازه است: دبیر حالا می‌تواند همین کارنامه را ببیند
+   (`app/panel/teacher/.../exam/[attemptId]`). با دو تعریفِ جدا، روزی
+   دانش‌آموز «۱۴ از ۲۰» می‌دید و دبیرش «۱۳٫۵ از ۲۰» و هیچ‌کدام نمی‌فهمیدند
+   کدام درست است. */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -43,23 +48,6 @@ function kindOf(score: number, max: number): "full" | "partial" | "zero" | "none
   if (max <= 0) return "none";
   if (score >= max) return "full";
   return score > 0 ? "partial" : "zero";
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  correct: "درست",
-  incorrect: "نادرست",
-  partial: "نیمه‌درست",
-  needs_review: "خودارزیابی",
-};
-
-/** Render whatever the student put in that box. Answers come back from jsonb,
- *  so they can be a string, a picked index, or a list. */
-function answerText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (Array.isArray(value)) return value.map(answerText).filter(Boolean).join("، ");
-  return "";
 }
 
 /** One question of a past paper: what was asked, what the student answered and
@@ -219,7 +207,17 @@ export default function ExamPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="کارنامه‌های من" description="هر آزمون یک قدم رو به جلوست؛ نتیجه‌ها را با هم مرور کنیم." tone="mint" action={<Link href="/exam" className={styles.resumeCta}>بریم تمرین کنیم <span aria-hidden>←</span></Link>} />
+      <PanelPageHeader title="کارنامه‌های من" description="نتیجهٔ آزمون‌هایی که داده‌ای، از تازه‌ترین." tone="mint" action={
+        /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
+           دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
+           پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
+        <ShinyButton asChild>
+          <Link href="/exam">
+            شروع آزمون تازه
+            <ArrowLeft aria-hidden className="size-4" />
+          </Link>
+        </ShinyButton>
+      } />
       <PracticeSummary items={[{ label: "میانگین کارنامه‌ها", value: `${toFa(stats.average)}٪` }, { label: "آزمون‌های تو", value: toFa(stats.count) }, { label: "بهترین کارنامه", value: `${toFa(stats.best)}٪` }, { label: "آخرین آزمون", value: stats.lastAt ? relativeDay(stats.lastAt) : "هنوز شروع نکرده‌ای" }]} />
 
       <PanelSection
@@ -269,36 +267,18 @@ function AttemptCard({
     : 0;
   const color = scoreColor(percent);
 
-  const entries = useMemo(
+  /* ⚠️ همان تابعی که صفحهٔ دبیر هم صدا می‌زند — توضیحش بالای
+     `lib/exam/attempt-view.ts`. دو شکلِ ذخیره‌سازی (قدیمی `{score,max}` و
+     امروزی `{number,parts}`) هر دو آنجا هندل می‌شوند. */
+  const entries: Entry[] = useMemo(
     () =>
-      Object.entries(attempt.results)
-        .map(([key, v]) => {
-          const raw = v as unknown as {
-            score?: number;
-            max?: number;
-            number?: number;
-            parts?: StoredPart[];
-          };
-          const parts = Array.isArray(raw?.parts) ? raw.parts : [];
-          // older rows stored {score,max}; newer ones store the graded parts,
-          // so the totals are summed from whichever is actually there
-          const score = parts.length
-            ? parts.reduce((t, p) => t + Number(p.score ?? 0), 0)
-            : Number(raw?.score ?? 0);
-          const max = parts.length
-            ? parts.reduce((t, p) => t + Number(p.maxScore ?? 0), 0)
-            : Number(raw?.max ?? 0);
-          return {
-            key,
-            n: Number(raw?.number ?? key),
-            score,
-            max,
-            parts,
-          };
-        })
-        .sort((a, b) =>
-          Number.isFinite(a.n) && Number.isFinite(b.n) ? a.n - b.n : 0,
-        ),
+      readAttemptQuestions(attempt.results).map((q) => ({
+        key: q.key,
+        n: q.number,
+        score: q.score,
+        max: q.max,
+        parts: q.parts,
+      })),
     [attempt.results],
   );
 

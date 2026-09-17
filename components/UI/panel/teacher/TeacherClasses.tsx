@@ -6,7 +6,7 @@ import { ClipboardCopy, Plus, School as SchoolIcon, Users } from "lucide-react";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent } from "@/components/UI/kit/card";
 import { Field, Input } from "@/components/UI/kit/field";
-import { Select } from "@/components/UI/kit/select";
+import { AnimatedSelect } from "@/components/UI/kit/animated-select";
 import { GRADES, GRADE_LABEL } from "@/lib/profile/schemas";
 import { fa } from "@/lib/panel/format";
 import { teacherCreateClass, teacherCreateSchool } from "@/lib/teacher/actions";
@@ -223,19 +223,15 @@ function ClassCard({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="مدرسه" htmlFor="class-school">
-            <Select
+            <AnimatedSelect
               id="class-school"
+              heading="مدرسه"
+              placeholder="انتخاب کنید"
               value={schoolId}
               disabled={noSchools}
-              onChange={(e) => setSchoolId(e.target.value)}
-            >
-              <option value="">— انتخاب کنید —</option>
-              {schools.map((school) => (
-                <option key={school.id} value={school.id}>
-                  {school.name}
-                </option>
-              ))}
-            </Select>
+              options={schools.map((school) => ({ value: school.id, label: school.name }))}
+              onValueChange={setSchoolId}
+            />
           </Field>
 
           <Field label="نام کلاس" htmlFor="class-name">
@@ -249,18 +245,14 @@ function ClassCard({
           </Field>
 
           <Field label="پایه" htmlFor="class-grade">
-            <Select
+            <AnimatedSelect
               id="class-grade"
+              heading="پایه"
               value={grade}
               disabled={noSchools}
-              onChange={(e) => setGrade(e.target.value)}
-            >
-              {GRADES.map((g) => (
-                <option key={g} value={g}>
-                  {GRADE_LABEL[g]}
-                </option>
-              ))}
-            </Select>
+              options={GRADES.map((g) => ({ value: g, label: GRADE_LABEL[g] }))}
+              onValueChange={setGrade}
+            />
           </Field>
         </div>
 

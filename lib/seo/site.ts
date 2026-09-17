@@ -51,6 +51,23 @@ function normalize(raw: string): string | null {
 }
 
 /**
+ * میزبان‌هایی که فقط روی همان ماشین معنی دارند.
+ *
+ * `localhost`، لوپ‌بک، شبکهٔ خصوصی (10/8، 172.16/12، 192.168/16)، لینک‌لوکال،
+ * `*.local` و هر نامی که اصلاً نقطه ندارد (مثل نامِ کانتینرِ داکر).
+ */
+function isLocalHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
+  if (h === "[::1]" || h === "::1") return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true;
+  // نامِ بدونِ نقطه = نامِ داخلیِ شبکه، نه یک دامنهٔ عمومی.
+  return !h.includes(".");
+}
+
+/**
  * ریشهٔ آدرسِ سایت، بدونِ اسلشِ پایانی. مثلاً `https://www.sarvaedu.ir`.
  *
  * در بیلد و در زمانِ اجرا یک مقدار می‌دهد چون هر دو از همین متغیر می‌خوانند.
@@ -58,7 +75,44 @@ function normalize(raw: string): string | null {
  * canonicalهایشان به production اشاره نکند.
  */
 export function siteOrigin(): string {
-  return normalize(process.env.NEXT_PUBLIC_SITE_URL ?? "") ?? FALLBACK_ORIGIN;
+  const configured = normalize(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+  if (!configured) return FALLBACK_ORIGIN;
+
+  /* ⚠️ نگهبانِ «هیچ بیلدِ production حق ندارد localhost اعلام کند».
+
+     این نگهبان با یک خرابیِ واقعی اضافه شد و ماجرایش باید بماند:
+
+     `NEXT_PUBLIC_*` را Next در زمانِ **build** داخلِ کد جاگذاری می‌کند و نه
+     در زمانِ اجرا — هم در باندلِ مرورگر و هم در کدِ سرور. بستهٔ هاست روی
+     همین ماشینِ توسعه ساخته می‌شود و `.env.local` کنارش نشسته، با
+     `NEXT_PUBLIC_SITE_URL=http://localhost:3000`. پس آن رشته *داخلِ بسته*
+     به هاست می‌رفت و مقدارِ درستِ `.env`ِ روی هاست هیچ‌وقت خوانده نمی‌شد.
+
+     نتیجه‌اش خاموش بود و نه یک خطا. روی خودِ سایتِ زنده:
+
+         GET /robots.txt   →  Sitemap: http://localhost:3000/sitemap.xml
+         GET /sitemap.xml  →  <loc>http://localhost:3000</loc>  (هر صفحه)
+
+     یعنی گوگل برای کلِ سایت آدرسی را می‌خواند که وجودِ خارجی ندارد، هر
+     `canonical` به همان‌جا اشاره می‌کرد، و لینکِ دعوتِ کلاس که دبیر کپی
+     می‌کرد `http://localhost:3000/panel/classes?join=…` بود.
+
+     ⚠️ چرا کدی و نه فقط «مقدارِ .env را درست کن»: چون فراموش کردنِ آن
+     مقدار هیچ نشانهٔ بیرونی ندارد. یک بیلدِ production که خودش را
+     localhost معرفی کند *هرگز* درست نیست، پس همین‌جا رد می‌شود.
+
+     در dev دست‌نخورده می‌ماند — آنجا localhost دقیقاً همان چیزی است که
+     باید باشد. و برای کسی که عمداً یک بیلدِ production را روی شبکهٔ محلی
+     اجرا می‌کند، `ALLOW_LOCAL_SITE_URL=true` راهِ فرار است. */
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_LOCAL_SITE_URL !== "true" &&
+    isLocalHost(new URL(configured).hostname)
+  ) {
+    return FALLBACK_ORIGIN;
+  }
+
+  return configured;
 }
 
 /**
@@ -90,23 +144,6 @@ export function isNoindexEnvironment(): boolean {
 }
 
 /* ─────────────────────── آدرس برای لینک‌های ایمیل ─────────────────────── */
-
-/**
- * میزبان‌هایی که فقط روی همان ماشین معنی دارند.
- *
- * `localhost`، لوپ‌بک، شبکهٔ خصوصی (10/8، 172.16/12، 192.168/16)، لینک‌لوکال،
- * `*.local` و هر نامی که اصلاً نقطه ندارد (مثل نامِ کانتینرِ داکر).
- */
-function isLocalHost(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
-  if (h === "[::1]" || h === "::1") return true;
-  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
-  if (/^169\.254\./.test(h)) return true;
-  // نامِ بدونِ نقطه = نامِ داخلیِ شبکه، نه یک دامنهٔ عمومی.
-  return !h.includes(".");
-}
 
 /**
  * ریشهٔ آدرس برای لینک‌هایی که **داخلِ ایمیل** می‌روند.

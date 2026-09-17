@@ -15,7 +15,7 @@ export default async function Page() {
 
   return (
     <div className="relative z-20 flex flex-col gap-6">
-      <PanelPageHeader title="گنجینهٔ کوچک تو" description="بیت‌ها، واژه‌ها و سؤال‌هایی که برای دوباره دیدن کنار گذاشته‌ای." eyebrow="نشان‌شده‌ها" tone="gold" />
+      <PanelPageHeader title="نشان‌شده‌ها" description="بیت‌ها، واژه‌ها و سؤال‌هایی که کنار گذاشته‌ای تا دوباره ببینی." tone="gold" />
 
       <AllBookmarks initial={bookmarks} />
     </div>

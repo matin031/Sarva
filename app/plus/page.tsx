@@ -35,15 +35,8 @@ export const metadata: Metadata = {
  * همان روز می‌فهمد چیزی که خریده وجود ندارد. متنشان در
  * `components/UI/plus/scroll/plus-content.ts` است.
  *
- * ── چرا سربرگ و پاورقی از اینجا پاس داده می‌شوند ──────────────────────────
- * این صفحه ScrollSmoother دارد و ScrollSmoother باید *تنها* اسکرول‌کنندهٔ
- * صفحه باشد: بستهٔ محتوا به کادرِ دید `fixed` می‌شود. هرچه بیرونِ آن بماند
- * اسکرول نمی‌شود. پس `SiteChrome` برای این مسیر کنار می‌رود و سربرگ و
- * پاورقی *درونِ* همان بسته رندر می‌شوند. جزئیاتِ کامل کنارِ شرطِ همین مسیر در
- * `components/SiteChrome.tsx`.
- *
- * ⚠️ و این تنها صفحه‌ای است که ScrollSmoother می‌گیرد. هیچ صفحهٔ دیگری از
- * سایت — نه خانه، نه پنل، نه بازی‌ها — رفتار اسکرولش عوض نمی‌شود.
+ * Header and footer are composed inside the Plus page so its background and
+ * scroll journey share a single layout. Scrolling uses the native document.
  */
 export default async function Page() {
   // ⚠️ وقتی مالک پلاس را از پنل خاموش کرده، این صفحه اصلاً وجود ندارد. اگر

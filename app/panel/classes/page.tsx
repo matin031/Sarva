@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
-import { Card, CardContent } from "@/components/UI/kit/card";
 import StudentClasses from "@/components/UI/panel/StudentClasses";
 import { listStudentClasses } from "@/lib/teacher/classes";
 import { JOIN_PARAM, invitePath } from "@/lib/teacher/invite";
 import { normalizeJoinCode } from "@/lib/teacher/join-code";
 import { listMyViewers } from "@/lib/teacher/views";
 import ClassPrivacyCard from "@/components/UI/panel/ClassPrivacyCard";
+import StudentFeedbackList from "@/components/UI/panel/StudentFeedbackList";
 import { listStudentFeedback } from "@/lib/teacher/feedback";
-import { FEEDBACK_CATEGORY_LABEL } from "@/lib/teacher/feedback-rules";
-import { jalali } from "@/lib/panel/format";
 
 /**
  * کلاس‌های من — سمتِ دانش‌آموز.
@@ -77,36 +75,7 @@ export default async function Page({
 
       <StudentClasses initial={classes} inviteCode={inviteCode} />
 
-      {/* ── بازخوردهای دبیر ─────────────────────────────────────────
-          ⚠️ `id="feedback"` همان لنگری است که لینکِ اعلان به آن می‌آید
-          (`/panel/classes#feedback`). عوض کردنش یعنی هر اعلانِ قدیمی به
-          بالای صفحه می‌رسد و کاربر خودش باید دنبالش بگردد. */}
-      {feedback.length > 0 && (
-        <Card id="feedback" className="mt-4 scroll-mt-24">
-          <CardContent className="flex flex-col gap-3 py-4">
-            <h2 className="font-bold">بازخورد دبیران</h2>
-            <ul className="flex flex-col divide-y divide-border">
-              {feedback.map((f) => (
-                <li key={f.id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[13px] font-semibold">
-                      {f.teacherName ?? "دبیر"}
-                    </span>
-                    <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-[11px]">
-                      {FEEDBACK_CATEGORY_LABEL[f.category]}
-                    </span>
-                    <span className="panel-num text-[11px] text-muted-foreground">
-                      کلاس {f.className} · {jalali(f.createdAt)}
-                    </span>
-                  </div>
-                  {/* متنِ کامل، از خودِ جدول — اعلان فقط پیش‌نمایش داشت. */}
-                  <p className="whitespace-pre-wrap text-[13px]">{f.message}</p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      <StudentFeedbackList feedback={feedback} />
 
       {/* ⚠️ افشا **همیشه** نشان داده می‌شود و نه فقط وقتی کلاسی هست.
           کسی که هنوز عضو نشده، دقیقاً همان کسی است که باید پیش از وارد

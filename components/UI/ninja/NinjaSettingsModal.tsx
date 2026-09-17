@@ -55,7 +55,7 @@ function NinjaSettingsModal({
         animate={{ opacity: 1, y: 0 }}
         className="glass relative z-20 rounded-2xl p-6 text-center sm:p-10"
       >
-        <h2 className="mb-2 text-xl font-bold sm:text-2xl">هنوز آماده نیست</h2>
+        <h2 className="game-title mb-2 text-xl font-bold sm:text-2xl">هنوز آماده نیست</h2>
         <p className="text-sm text-muted-foreground sm:text-base">
           برای این بازی هنوز هیچ نقشی با کلمه ثبت نشده.
         </p>
@@ -70,7 +70,7 @@ function NinjaSettingsModal({
       exit={{ opacity: 0, y: -20 }}
       className="glass relative z-20 rounded-2xl p-6 text-center sm:p-10"
     >
-      <h2 className="mb-8 text-xl font-bold sm:text-3xl">تنظیمات بازی</h2>
+      <h2 className="game-title mb-8 text-xl font-bold sm:text-3xl">تنظیمات بازی</h2>
 
       <div className="mb-8">
         <p className="mb-3 text-sm text-muted-foreground sm:text-base">نوع کلمات</p>

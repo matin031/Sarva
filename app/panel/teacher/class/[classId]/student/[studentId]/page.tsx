@@ -11,6 +11,7 @@ import { GRADE_LABEL } from "@/lib/profile/schemas";
 import { fa, jalali, relativeDay } from "@/lib/panel/format";
 import { getStudentDailyActivity } from "@/lib/teacher/analytics";
 import { getStudentReport } from "@/lib/teacher/student-report";
+import type { GameKey } from "@/lib/activity/schema";
 import RegisterStudentView from "@/components/UI/panel/teacher/RegisterStudentView";
 import { listTeacherFeedbackFor } from "@/lib/teacher/feedback";
 import FeedbackPanel from "@/components/UI/panel/teacher/FeedbackPanel";
@@ -46,6 +47,20 @@ export const metadata: Metadata = {
   title: "عملکرد دانش‌آموز",
   robots: { index: false, follow: false },
 };
+
+/**
+ * بازی‌هایی که صفحهٔ «فعالیتِ نشست‌به‌نشست» دارند.
+ *
+ * ⚠️ فهرستِ بسته و دستی، و نه مشتق از `hasStoredResults`. جاسوس و مدارِ
+ * دستور هم پاسخ ذخیره می‌کنند ولی صفحه‌ای برایشان ساخته نشده؛ ساختنِ لینک
+ * از روی «داده دارد» یعنی دو لینک که به ۴۰۴ می‌رسند.
+ *
+ * ⚠️ مقدارها باید با کلیدهای `GAMES` در
+ * `app/panel/teacher/class/[classId]/student/[studentId]/game/[game]/page.tsx`
+ * یکی باشند. آن صفحه هر چیزِ دیگری را ۴۰۴ می‌کند، پس ناهماهنگی یک لینکِ
+ * مرده می‌سازد و نه یک خطا.
+ */
+const DETAILED_GAMES = new Set<GameKey>(["aruz-bridge", "vocab"]);
 
 export const dynamic = "force-dynamic";
 
@@ -218,16 +233,28 @@ export default async function Page({
                     value={exams.average === null ? "—" : `${fa(exams.average)}٪`}
                   />
                 </div>
+                {/* ⚠️ هر ردیف حالا یک لینک است و نه یک خطِ مرده.
+
+                    «۱۴ از ۲۰» به دبیر نمی‌گوید ضعف کجاست؛ برای تصمیم گرفتن
+                    باید دید *کدام* سؤال‌ها از دست رفته‌اند. صفحهٔ مقصد
+                    همان کارنامه است، سؤال‌به‌سؤال.
+
+                    ⚠️ جزئیات عمداً در همین صفحه باز نمی‌شود: کارنامه دو
+                    ستونِ JSON بزرگ دارد و کشیدنِ آن‌ها برای ده کارنامه،
+                    این صفحه را — که فقط خلاصه می‌خواهد — سنگین می‌کرد.
+                    (همان استدلالِ بالای `recentExamList`.) */}
                 <ul className="flex flex-col divide-y divide-border">
                   {exams.recent.map((e) => (
-                    <li
-                      key={e.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <span className="font-medium">{e.title}</span>
-                      <span className="panel-num text-[13px] text-muted-foreground">
-                        {fa(e.score)} از {fa(e.max)} · {jalali(e.at)}
-                      </span>
+                    <li key={e.id}>
+                      <Link
+                        href={`/panel/teacher/class/${classId}/student/${studentId}/exam/${e.id}`}
+                        className="group flex flex-wrap items-center justify-between gap-2 rounded-lg py-2.5 transition-colors hover:bg-foreground/[0.03] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <span className="font-medium group-hover:text-primary">{e.title}</span>
+                        <span className="panel-num text-[13px] text-muted-foreground">
+                          {fa(e.score)} از {fa(e.max)} · {jalali(e.at)}
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -266,14 +293,32 @@ export default async function Page({
                   ) : g.total === 0 ? (
                     <span className="text-[13px] text-muted-foreground">هنوز بازی نکرده است.</span>
                   ) : (
-                    <span className="panel-num text-[13px] text-muted-foreground">
-                      {fa(g.correct)} از {fa(g.total)}
-                      {g.accuracy !== null && ` · ${fa(Math.round(g.accuracy * 100))}٪`}
-                      {/* ⚠️ واژه‌یاب داده دارد ولی درستی‌اش را مرورگر
-                          فرستاده. بدونِ این برچسب، دبیر آن درصد را
-                          هم‌ارزِ بقیه می‌خواند. */}
-                      {g.clientReported && (
-                        <span className="ms-2 text-[11px]">(گزارش‌شده توسط خودِ بازی)</span>
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="panel-num text-[13px] text-muted-foreground">
+                        {fa(g.correct)} از {fa(g.total)}
+                        {g.accuracy !== null && ` · ${fa(Math.round(g.accuracy * 100))}٪`}
+                        {/* ⚠️ واژه‌یاب داده دارد ولی درستی‌اش را مرورگر
+                            فرستاده. بدونِ این برچسب، دبیر آن درصد را
+                            هم‌ارزِ بقیه می‌خواند. */}
+                        {g.clientReported && (
+                          <span className="ms-2 text-[11px]">(گزارش‌شده توسط خودِ بازی)</span>
+                        )}
+                      </span>
+
+                      {/* ⚠️ لینک فقط برای بازی‌هایی که صفحهٔ جزئیات دارند.
+
+                          `DETAILED_GAMES` عمداً یک فهرستِ بستهٔ کوچک است و
+                          نه «هر بازی‌ای که داده دارد»: جاسوس و مدارِ دستور
+                          هم پاسخ ذخیره می‌کنند، ولی صفحه‌ای برایشان ساخته
+                          نشده. ساختنِ لینک از روی `hasStoredResults` یعنی
+                          دو لینکِ ۴۰۴. */}
+                      {DETAILED_GAMES.has(g.key) && (
+                        <Link
+                          href={`/panel/teacher/class/${classId}/student/${studentId}/game/${g.key}`}
+                          className="text-[12.5px] text-primary underline-offset-[6px] hover:underline"
+                        >
+                          دیدنِ فعالیت
+                        </Link>
                       )}
                     </span>
                   )}

@@ -4,6 +4,8 @@ import Link from "next/link";
 import PanelPageHeader from "./PanelPageHeader";
 import SarvaBuddy from "./SarvaBuddy";
 import styles from "./panel-design.module.css";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import { ArrowLeft } from "lucide-react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import PoemBody from "@/components/UI/club/PoemBody";
@@ -89,7 +91,17 @@ export default function ClubPanel({
 
   return (
     <div dir="rtl" className="flex flex-col gap-6">
-      <PanelPageHeader title="کلماتت اینجا خانه دارند" description="سروده‌ها، پسندها و گفت‌وگوهایت را کنار هم ببین." eyebrow="سروا کلاب" tone="rose" action={<Link href="/sarvaclub" className={styles.resumeCta}>بریم به کلاب <span aria-hidden>←</span></Link>} />
+      <PanelPageHeader title="سروا کلاب" description="سروده‌هایی که فرستاده‌ای، پسندها و گفت‌وگوهایت." tone="rose" action={
+        /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
+           دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
+           پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
+        <ShinyButton asChild>
+          <Link href="/sarvaclub">
+            رفتن به کلاب
+            <ArrowLeft aria-hidden className="size-4" />
+          </Link>
+        </ShinyButton>
+      } />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

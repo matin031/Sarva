@@ -100,7 +100,7 @@ export default function SetupScreen({
             </svg>
             بازیِ نقشِ دستوری
           </span>
-          <h1 className="gc-setup-title">مدار دستور</h1>
+          <h1 className="game-title gc-setup-title">مدار دستور</h1>
           <p className="gc-setup-sub">
             نقشِ هر واژه را در جای درست بگذار، مدار را ببند و لامپ را روشن کن.
           </p>

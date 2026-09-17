@@ -31,6 +31,7 @@ import {
   getStudentForTeacher,
 } from "@/lib/teacher/analytics";
 import { getStudentReport } from "@/lib/teacher/student-report";
+import { GAME_KEYS } from "@/lib/activity/schema";
 import { MIN_VERIFIED_FOR_ACCURACY } from "@/lib/teacher/analytics-rules";
 import { resetTehranDayCache, tehranDayAvailable } from "@/lib/analytics/timezone";
 import { normalizeSchoolName } from "@/lib/teacher/school-name";
@@ -393,7 +394,14 @@ async function main() {
   section("۵) بازی‌های بدونِ ذخیره");
 
   const lines = report?.games ?? [];
-  is(lines.length, 7, "هر هفت بازی در فهرست هست");
+  /* ⚠️ عدد از `GAME_KEYS` می‌آید و دستی نوشته نمی‌شود.
+     اینجا `7` هاردکد بود و با اضافه شدنِ «شکار نقش‌ها» شکست — یعنی یک
+     بررسیِ درست، که فقط سؤالش را غلط می‌پرسید. سؤالِ واقعی «آیا هر بازیِ
+     ثبت‌شده یک سطر دارد» است و نه «آیا هفت سطر هست». */
+  is(lines.length, GAME_KEYS.length, `هر ${GAME_KEYS.length} بازی در فهرست هست`);
+  for (const key of GAME_KEYS) {
+    if (!lines.some((g) => g.key === key)) bad(`«${key}» در فهرستِ بازی‌ها نیست`, "");
+  }
   for (const key of ["aruz-rapid", "ninja", "pairs"]) {
     const line = lines.find((g) => g.key === key);
     if (line?.hasStoredResults === false && line.accuracy === null && line.total === 0) {

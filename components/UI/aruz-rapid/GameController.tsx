@@ -129,8 +129,10 @@ export function Progress({
         تلاش <strong>{fa(attemptCount)}</strong>
       </span>
       {compact ? null : (
-        <span className="aruzr-chip">
-          زنجیره <strong>{fa(streak)}</strong>
+        <span className="game-display aruzr-chip">
+          {/* ⚠️ برچسب پفکی، عدد نه: رقم‌های پفک عرضِ ثابت ندارند و
+              شمارنده با هر تغییرِ رقم می‌پرید. */}
+          زنجیره <strong className="game-num">{fa(streak)}</strong>
         </span>
       )}
     </div>

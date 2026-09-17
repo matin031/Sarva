@@ -113,7 +113,7 @@ export function GameOverScreen({
 }) {
   return (
     <Enter>
-      <h2 className="text-2xl font-black text-destructive sm:text-3xl">شیشه شکست!</h2>
+      <h2 className="game-display text-2xl font-black text-destructive sm:text-3xl">شیشه شکست!</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {reason === "timeout"
           ? "زمان تمام شد و شیشهٔ زیرِ پایت تاب نیاورد."
@@ -153,7 +153,7 @@ export function FinishedScreen({
   const perfect = summary.correctCount === summary.totalQuestions;
   return (
     <Enter>
-      <h2 className="text-2xl font-black text-primary sm:text-3xl">
+      <h2 className="game-display text-2xl font-black text-primary sm:text-3xl">
         {perfect ? "بی‌نقص!" : "از پل گذشتی!"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">

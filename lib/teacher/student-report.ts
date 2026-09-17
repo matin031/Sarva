@@ -63,6 +63,7 @@ export const GAME_LABEL: Record<GameKey, string> = {
   jasoos: "جاسوس",
   ninja: "نینجای دستور",
   pairs: "جفت‌های ادبی",
+  "role-hunt": "شکار نقش‌ها",
   vocab: "واژه‌یاب",
 };
 
@@ -219,7 +220,7 @@ async function recentExamList(studentId: string) {
  * نمی‌کنیم. تفاوتِ «نکرده» با «نمی‌دانیم» دقیقاً همان چیزی است که این
  * صفحه باید صادقانه نشان دهد.
  *
- * چهار کوئری و نه هفت: سه بازیِ بی‌داده جدولی ندارند که از آن بخوانیم.
+ * پنج کوئری و نه هشت: سه بازیِ بی‌داده جدولی ندارند که از آن بخوانیم.
  */
 async function gameLines(studentId: string): Promise<GameLine[]> {
   const rows = await query<{
@@ -241,9 +242,12 @@ async function gameLines(studentId: string): Promise<GameLine[]> {
          union all
          select 'vocab', is_correct, answered_at
            from vocab_answers where user_id = ?
+         union all
+         select 'role-hunt', is_correct, answered_at
+           from role_hunt_answers where user_id = ?
        ) t
       group by game`,
-    [studentId, studentId, studentId, studentId],
+    [studentId, studentId, studentId, studentId, studentId],
   );
 
   const byGame = new Map(rows.map((r) => [r.game, r]));

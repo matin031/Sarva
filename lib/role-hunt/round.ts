@@ -1,0 +1,265 @@
+import type { GradeKey } from "@/lib/doroos/types";
+import type { GrammarCircuitQuestion } from "@/lib/grammar-circuit/types";
+import { grammarRoleLabel, isGrammarRoleKey } from "@/lib/grammar-circuit/roles";
+import type {
+  RoleHuntLine,
+  RoleHuntResolvedAnswer,
+  RoleHuntRound,
+  RoleHuntToken,
+} from "./types";
+
+/**
+ * تبدیلِ یک پرسشِ «مدارِ دستور» به یک دورِ «شکار نقش‌ها» — منطقِ خالص.
+ *
+ * ⚠️ بدونِ دیتابیس، بدونِ شبکه، بدونِ React. همان الگوی
+ * `lib/grammar-circuit/matching.ts` و `lib/plus/skill-buckets.ts`: قاعده‌ای
+ * که تعیین می‌کند «پاسخِ درست کدام است» باید بدونِ بالا آوردنِ یک دیتابیس
+ * آزمودنی باشد.
+ *
+ * =============================================================================
+ * ⚠️ چرا فقط واژه‌های *دارای نقش* دورِ مصراع می‌چرخند
+ * =============================================================================
+ *
+ * وسوسه‌انگیز بود که همهٔ واژه‌های مصراع در مدار بگردند — مدارِ شلوغ‌تر
+ * قشنگ‌تر است. ولی آن بازی well-posed نیست، و دلیلش را خودِ محتوا می‌گوید.
+ * در یکی از رکوردهای دهم، نویسنده نوشته:
+ *
+ *     «یکی» با وجود صفت شمارشی بودن عمداً وارد Slotها نشده …
+ *
+ * یعنی واژه‌ای که سوکت ندارد، لزوماً بی‌نقش نیست؛ فقط دربارهٔ آن سؤالی
+ * پرسیده نشده. اگر چنین واژه‌ای در مدار بچرخد و نقشِ هدف «صفت» باشد،
+ * دانش‌آموزی که «یکی» را می‌زند جوابِ درستی داده و ما «غلط» ثبت می‌کنیم —
+ * و بدتر: همان غلط به تحلیلِ نقش‌هایش می‌رود.
+ *
+ * پس مدار دقیقاً همان مجموعه‌ای است که «مدارِ دستور» هم سوکت برایشان
+ * می‌گذارد: واژه‌هایی که نقششان *تأیید شده* است. هر گزینهٔ غلط، از روی داده
+ * غلط است و نه از روی سکوتِ داده.
+ *
+ * =============================================================================
+ * ⚠️ چرا نقشِ هدف *از خودِ پرسش* درمی‌آید و نه از کلاینت
+ * =============================================================================
+ *
+ * اگر مرورگر می‌گفت «نقشِ این دور مسند بود»، کسی که کنسول را باز کند
+ * می‌توانست همیشه همان نقشی را بفرستد که واژهٔ کلیک‌شده‌اش دارد و یک
+ * تاریخچهٔ بی‌نقصِ ساختگی بسازد. حالا نقش، تابعِ *خالصِ* خودِ پرسش است:
+ * سرور همان تابع را دوباره اجرا می‌کند و کلاینت اصلاً حرفی در آن ندارد.
+ *
+ * قیمتش این است که هر پرسش همیشه همان نقش را می‌پرسد. با بیش از سیصد
+ * مصراعِ واجد شرایط، این هزینه‌ای نیست که دانش‌آموز حسش کند — و در عوض دور
+ * بازتولیدپذیر است: گزارشِ «این سؤال غلط است» همیشه به همان سؤال می‌رسد.
+ */
+
+/** کمینهٔ واژه‌های مدار. زیرِ سه‌تا، بازی به حدس زدن تبدیل می‌شود. */
+export const MIN_ORBIT_TOKENS = 3;
+
+/** بیشینهٔ واژه‌های مدار — کرانِ چیدمان، نه کرانِ محتوا. */
+export const MAX_ORBIT_TOKENS = 7;
+
+/** فقط شعر. جمله‌های درسنامه مدار نمی‌گیرند؛ این بازی دربارهٔ مصراع است. */
+const ALLOWED_TYPES = new Set(["hemistich", "verse"]);
+
+/**
+ * FNV-1a — یک هشِ کوچک و پایدار.
+ *
+ * ⚠️ به `String.prototype.hashCode` یا `Math.random` نیازی نیست و هیچ‌کدام
+ * هم کار نمی‌کردند: انتخابِ نقش باید بین سرورِ ساختِ دور و سرورِ ثبتِ پاسخ
+ * *بیت‌به‌بیت* یکی باشد، حتی روی دو پروسهٔ متفاوت و بعد از یک بازراه‌اندازی.
+ */
+function stableHash(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** متنِ پرسش، دقیقاً همان‌طور که نمایش داده می‌شود. */
+export function verseTextOf(question: GrammarCircuitQuestion): string {
+  return question.tokens
+    .map((t) => t.text + t.separatorAfter)
+    .join("")
+    .trim();
+}
+
+/**
+ * متنِ یک دور، از روی خطوطش.
+ *
+ * ⚠️ همان رشته‌ای را می‌سازد که `verseTextOf` از خودِ پرسش می‌ساخت، ولی
+ * کلاینت پرسشِ خام را ندارد — فقط دور را دارد. دو پیاده‌سازی برای یک رشته
+ * خطرِ واگرایی دارد، پس هر دو از یک قاعده می‌آیند: متنِ توکن + جداکننده‌اش،
+ * و `/` که جای خط را می‌گیرد.
+ */
+export function verseTextOfRound(round: RoleHuntRound): string {
+  return round.lines
+    .map((line) => line.map((t, i) => t.text + (i < line.length - 1 ? t.separatorAfter : "")).join("").trim())
+    .join(" / ");
+}
+
+/** توکن‌ها → مصراع‌ها. جداکنندهٔ « / » یعنی «خطِ بعد». */
+function toLines(tokens: readonly RoleHuntToken[], separators: readonly string[]): RoleHuntLine[] {
+  const lines: RoleHuntLine[] = [];
+  let current: RoleHuntToken[] = [];
+
+  tokens.forEach((token, index) => {
+    current.push(token);
+    if (separators[index]?.includes("/")) {
+      lines.push(current);
+      current = [];
+    }
+  });
+  if (current.length > 0) lines.push(current);
+
+  return lines;
+}
+
+/**
+ * پرسشِ «مدارِ دستور» → دورِ «شکار نقش‌ها»، یا `null` اگر واجد شرایط نیست.
+ *
+ * شرط‌ها به ترتیبِ ارزانی سنجیده می‌شوند، ولی ترتیبشان معنایی هم دارد:
+ * اول «آیا اصلاً شعر است»، بعد «آیا مدار به اندازهٔ کافی گزینه دارد»، و
+ * آخر «آیا نقشی هست که پاسخش *یکتا* باشد».
+ */
+export function buildRoleHuntRound(question: GrammarCircuitQuestion): RoleHuntRound | null {
+  if (!ALLOWED_TYPES.has(question.type)) return null;
+
+  const tokens: RoleHuntToken[] = question.tokens.map((t) => ({
+    id: t.id,
+    text: t.text,
+    separatorAfter: t.separatorAfter,
+    orbiting: Boolean(t.roleSlot),
+  }));
+
+  const orbit = tokens.filter((t) => t.orbiting);
+  if (orbit.length < MIN_ORBIT_TOKENS || orbit.length > MAX_ORBIT_TOKENS) return null;
+
+  /* چند واژهٔ مدار هر نقش را می‌پذیرند. `Set` به‌ازای هر سوکت، چون یک سوکت
+     می‌تواند یک کلید را دو بار فهرست کرده باشد و آن نباید دو بار شمرده شود. */
+  const holders = new Map<string, string[]>();
+  for (const token of question.tokens) {
+    if (!token.roleSlot) continue;
+    for (const key of new Set(token.roleSlot.acceptedRoleKeys)) {
+      const list = holders.get(key);
+      if (list) list.push(token.id);
+      else holders.set(key, [token.id]);
+    }
+  }
+
+  /* ⚠️ دو صافی، و هر دو دربارهٔ کیفیت‌اند و نه دربارهٔ کد:
+       • `length === 1` → پاسخ یکتاست. نقشی که دو واژه دارند، یا بازی را
+         بی‌معنی می‌کند (دو گزینه از سه گزینه درست) یا ما را مجبور به
+         «چند پاسخِ درست» می‌کند که سنجشِ مهارت را مبهم می‌کند.
+       • `isGrammarRoleKey` → نقش در کاتالوگِ متعارف هست. محتوا چند کلیدِ
+         محلی دارد (`copular_verb`، `preposition`) که برچسبِ فارسی ندارند؛
+         نشان دادنِ `copular_verb` به دانش‌آموز بدتر از نپرسیدن است. */
+  const candidates = [...holders.entries()]
+    .filter(([key, ids]) => ids.length === 1 && isGrammarRoleKey(key))
+    .map(([key, ids]) => ({ key, tokenId: ids[0]! }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+
+  if (candidates.length === 0) return null;
+
+  const seed = question.sourceId ?? question.id;
+  const picked = candidates[stableHash(seed) % candidates.length]!;
+
+  return {
+    questionId: question.id,
+    sourceId: question.sourceId ?? null,
+    grade: (question.grade as GradeKey | undefined) ?? null,
+    lesson: question.lesson ?? null,
+    lines: toLines(tokens, question.tokens.map((t) => t.separatorAfter)),
+    orbit,
+    roleKey: picked.key,
+    roleLabel: grammarRoleLabel(picked.key),
+    correctTokenId: picked.tokenId,
+  };
+}
+
+/**
+ * سنجشِ یک پاسخ روی سرور.
+ *
+ * ⚠️ ورودیِ کلاینت فقط `selectedTokenId` است. نقشِ هدف، پاسخِ درست و متنِ
+ * مصراع همگی از دیتابیس و از همین تابع درمی‌آیند — پس هیچ ادعایی دربارهٔ
+ * درست/غلط، نه صریح و نه ضمنی، از مرورگر پذیرفته نمی‌شود.
+ */
+export function resolveRoleHuntAnswer(
+  question: GrammarCircuitQuestion,
+  selectedTokenId: string,
+): RoleHuntResolvedAnswer | null {
+  const round = buildRoleHuntRound(question);
+  if (!round) return null;
+
+  /* فقط واژه‌های مدار قابلِ انتخاب‌اند. شناسه‌ای بیرونِ مدار یعنی یا کلاینتِ
+     کهنه است یا کسی دارد امتحان می‌کند؛ هر دو حالت «ثبت نکن». */
+  const chosenToken = round.orbit.find((t) => t.id === selectedTokenId);
+  if (!chosenToken) return null;
+
+  const correctToken = round.orbit.find((t) => t.id === round.correctTokenId);
+  if (!correctToken) return null;
+
+  return {
+    round,
+    chosenToken,
+    correctToken,
+    isCorrect: chosenToken.id === correctToken.id,
+    verse: verseTextOf(question),
+  };
+}
+
+/** خلاصهٔ یک نشست — همان چیزی که صفحهٔ نتیجه نشان می‌دهد. */
+export interface RoleHuntSummary {
+  total: number;
+  correct: number;
+  wrong: number;
+  /** بین ۰ و ۱؛ با صفر پاسخ، صفر. */
+  accuracy: number;
+  bestStreak: number;
+  /** ضعیف‌ترین نقش‌های همین نشست — فقط نقش‌هایی که غلطی در آن‌ها بوده. */
+  weakRoles: { roleKey: string; roleLabel: string; total: number; wrong: number }[];
+}
+
+/**
+ * جمع‌بندیِ نشست از روی پاسخ‌های همین نشست.
+ *
+ * ⚠️ عمداً جای «تحلیل» را نمی‌گیرد: این فقط گزارشِ یک نشستِ هشت‌دوری است و
+ * صفحهٔ نتیجه هم همین را می‌گوید. تحلیلِ واقعیِ نقش‌ها روی *همهٔ* بازی‌ها و
+ * همهٔ تاریخچه در `lib/plus/analysis.ts` انجام می‌شود، و دکمهٔ صفحهٔ نتیجه
+ * به همان‌جا می‌برد.
+ */
+export function summarizeRoleHuntSession(
+  answers: readonly { roleKey: string; roleLabel: string; isCorrect: boolean }[],
+): RoleHuntSummary {
+  let correct = 0;
+  let streak = 0;
+  let bestStreak = 0;
+  const byRole = new Map<string, { roleLabel: string; total: number; wrong: number }>();
+
+  for (const answer of answers) {
+    if (answer.isCorrect) {
+      correct += 1;
+      streak += 1;
+      if (streak > bestStreak) bestStreak = streak;
+    } else {
+      streak = 0;
+    }
+
+    const entry = byRole.get(answer.roleKey) ?? { roleLabel: answer.roleLabel, total: 0, wrong: 0 };
+    entry.total += 1;
+    if (!answer.isCorrect) entry.wrong += 1;
+    byRole.set(answer.roleKey, entry);
+  }
+
+  const total = answers.length;
+
+  return {
+    total,
+    correct,
+    wrong: total - correct,
+    accuracy: total === 0 ? 0 : correct / total,
+    bestStreak,
+    weakRoles: [...byRole.entries()]
+      .filter(([, v]) => v.wrong > 0)
+      .map(([roleKey, v]) => ({ roleKey, roleLabel: v.roleLabel, total: v.total, wrong: v.wrong }))
+      .sort((a, b) => b.wrong - a.wrong || b.total - a.total),
+  };
+}

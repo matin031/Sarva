@@ -967,7 +967,7 @@ function Shell({
             ← بازگشت
           </button>
         )}
-        <h1 className="text-2xl font-bold text-primary sm:text-3xl">{title}</h1>
+        <h1 className="game-display text-2xl font-bold text-primary sm:text-3xl">{title}</h1>
         {subtitle && <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {children}

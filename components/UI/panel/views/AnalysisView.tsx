@@ -67,7 +67,7 @@ trend: Awaited<ReturnType<typeof getProgressTrend>>;
         />
         <SkillBars
           title="نقش‌های دستوری"
-          hint="از «جاسوس» و «مدار دستور» با هم"
+          hint="از «جاسوس»، «مدار دستور» و «شکار نقش‌ها» با هم"
           analysis={roles}
           emptyText="هنوز تمرینِ کافی برای تحلیل نقش‌ها نداری."
         />
@@ -77,7 +77,7 @@ trend: Awaited<ReturnType<typeof getProgressTrend>>;
       <Card>
         <CardHeader>
           <CardTitle>تمرینت نتیجه داد؟</CardTitle>
-          <CardDescription>دقتِ کلی به تفکیک هفته — هر پنج تمرینِ سروا با هم.</CardDescription>
+          <CardDescription>دقتِ کلی به تفکیک هفته — هر شش تمرینِ سروا با هم.</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {trend.length < 2 ? (

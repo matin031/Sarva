@@ -306,7 +306,7 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/15 text-3xl">
             🎉
           </div>
-          <h2 className="text-2xl font-bold text-primary">
+          <h2 className="game-display text-2xl font-bold text-primary">
             آفرین! همه را جفت کردی
           </h2>
           <p className="mt-2 text-muted-foreground">

@@ -25,10 +25,17 @@ export { MIN_EVIDENCE_PER_BUCKET, MIN_EVIDENCE_TOTAL } from "./skill-buckets";
  *   • عروضِ سماعی (`user_answers` + `questions`) — تشخیصِ وزن از روی صدا
  *   • پلِ وزن     (`aruz_bridge_answers`)        — تشخیصِ وزن از روی متن
  *
- * تحلیلِ نقشِ دستوری هم از دو جا:
+ * تحلیلِ نقشِ دستوری هم از سه جا:
  *
- *   • جاسوس       (`jasoos_answers`)             — تشخیصِ نقشِ یک واژه در بیت
- *   • مدارِ دستور  (`grammar_circuit_answers`)     — چیدنِ نقش‌ها در جمله
+ *   • جاسوس        (`jasoos_answers`)             — تشخیصِ نقشِ یک واژه در بیت
+ *   • مدارِ دستور   (`grammar_circuit_answers`)     — چیدنِ نقش‌ها در جمله
+ *   • شکار نقش‌ها  (`role_hunt_answers`)           — یافتنِ واژهٔ یک نقش در مصراع
+ *
+ * ⚠️ و سطلِ تحلیل **نقش** است و نه بازی. اگر دانش‌آموز «مسند» را در هر سه
+ * بازی غلط بزند، در پنل یک سطر می‌بیند — «مسند، ۳ غلط» — و نه سه سطرِ
+ * جدا که هیچ‌کدامشان شواهدِ کافی ندارند. بازی فقط *منبع* است؛ مفهومِ
+ * یادگیری نقشِ دستوری است. تفکیکِ منبع داخلِ همان سطل می‌ماند
+ * (`bySource`) تا کاربر بداند عدد از کجا آمده.
  *
  * ⚠️ چرا این ترکیب اهمیت دارد: دانش‌آموزی که در عروضِ سماعی خوب است ولی در
  * پلِ وزن روی «مفاعیلن» می‌افتد، مشکلش شنیدن نیست — تشخیصِ نوشتاری است. اگر
@@ -153,12 +160,33 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
     });
   }
 
+  /* منبع ۳ — شکارِ نقش‌ها. همان کلیدِ متعارف، از همان کاتالوگ. */
+  const huntRows = await query<{ role_key: string; is_correct: boolean }>(
+    `select role_key, is_correct
+       from role_hunt_answers
+      where user_id = ?
+      order by answered_at desc
+      limit ?`,
+    [userId, SOURCE_ROW_CAP],
+  );
+
+  for (const r of huntRows) {
+    const key = r.role_key?.trim();
+    if (!key) continue;
+    rows.push({
+      key,
+      label: roleLabelForKey(key) ?? key,
+      correct: r.is_correct,
+      source: "شکار نقش‌ها",
+    });
+  }
+
   return bucketize(rows);
 }
 
 /* ────────────────────────── دفترِ اشتباه‌ها ─────────────────────────────── */
 
-export type MistakeArea = "aruz" | "bridge" | "vocab" | "jasoos" | "circuit";
+export type MistakeArea = "aruz" | "bridge" | "vocab" | "jasoos" | "circuit" | "roleHunt";
 
 export type MistakeEntry = {
   area: MistakeArea;
@@ -176,6 +204,7 @@ const AREA_LABEL: Record<MistakeArea, string> = {
   vocab: "واژه‌یاب",
   jasoos: "جاسوس",
   circuit: "مدار دستور",
+  roleHunt: "شکار نقش‌ها",
 };
 
 /**
@@ -193,7 +222,7 @@ export async function getMistakeBook(
 ): Promise<MistakeEntry[]> {
   const cap = Math.min(Math.max(limitPerArea, 1), 25);
 
-  const [aruz, bridge, vocab, jasoos, circuit] = await Promise.all([
+  const [aruz, bridge, vocab, jasoos, circuit, roleHunt] = await Promise.all([
     query<{ poem: string[] | null; answered_at: string }>(
       `select q.poem, ua.answered_at
          from user_answers ua
@@ -230,6 +259,14 @@ export async function getMistakeBook(
     query<{ token_text: string; role_key: string; answered_at: string }>(
       `select token_text, role_key, answered_at
          from grammar_circuit_answers
+        where user_id = ? and is_correct = 0
+        order by answered_at desc
+        limit ?`,
+      [userId, cap],
+    ),
+    query<{ verse: string; role_key: string; correct_token_text: string; answered_at: string }>(
+      `select verse, role_key, correct_token_text, answered_at
+         from role_hunt_answers
         where user_id = ? and is_correct = 0
         order by answered_at desc
         limit ?`,
@@ -277,6 +314,16 @@ export async function getMistakeBook(
       subtitle: `نقش درست: ${roleLabelForKey(r.role_key) ?? r.role_key}`,
       at: r.answered_at,
       practiceHref: "/game/grammar-circuit",
+    })),
+    ...roleHunt.map((r) => ({
+      area: "roleHunt" as const,
+      areaLabel: AREA_LABEL.roleHunt,
+      /* ⚠️ عنوان، خودِ مصراع است و نه واژهٔ درست: بدونِ مصراع، «بود» هیچ
+         چیزی به دانش‌آموز یادآوری نمی‌کند. واژه در زیرنویس می‌آید. */
+      title: r.verse,
+      subtitle: `${roleLabelForKey(r.role_key) ?? r.role_key}: «${r.correct_token_text}»`,
+      at: r.answered_at,
+      practiceHref: "/game/role-hunt",
     })),
   ];
 
@@ -365,8 +412,8 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
 
 /** اشتباه‌های یک ماه اخیر در همهٔ تمرین‌ها — فقط یک عدد، بدونِ کشیدنِ ردیف‌ها. */
 async function countRecentMistakes(userId: string): Promise<number> {
-  // ⚠️ پنج زیرکوئری و پنج بار `?`: در MySQL هر `?` پارامترِ بعدی را مصرف
-  // می‌کند، پس شناسهٔ کاربر پنج بار فرستاده می‌شود. (در Postgres `$1` پنج بار
+  // ⚠️ شش زیرکوئری و شش بار `?`: در MySQL هر `?` پارامترِ بعدی را مصرف
+  // می‌کند، پس شناسهٔ کاربر شش بار فرستاده می‌شود. (در Postgres `$1` شش بار
   // نوشته می‌شد و یک بار فرستاده — `lib/db` عمداً این تفاوت را پنهان نمی‌کند.)
   const row = await queryOne<{ n: number }>(
     `select
@@ -380,8 +427,10 @@ async function countRecentMistakes(userId: string): Promise<number> {
          where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from grammar_circuit_answers
          where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
+     + (select count(*) from role_hunt_answers
+         where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
        as n`,
-    [userId, userId, userId, userId, userId],
+    [userId, userId, userId, userId, userId, userId],
   );
   return row?.n ?? 0;
 }
@@ -411,7 +460,7 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
     //     ۰/۱ جمع می‌زند و همان عدد را می‌دهد.
     //   • `make_interval(weeks => …)` نیست → `interval ? week`.
     //
-    // شش بار `?` : پنج تا برای شناسهٔ کاربر در پنج جدول، یکی برای بازهٔ هفته.
+    // هفت بار `?` : شش تا برای شناسهٔ کاربر در شش جدول، یکی برای بازهٔ هفته.
     `with answers as (
        select answered_at, is_correct from user_answers where user_id = ?
        union all
@@ -422,6 +471,8 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
        select answered_at, is_correct from grammar_circuit_answers where user_id = ?
        union all
        select answered_at, is_correct from vocab_answers where user_id = ?
+       union all
+       select answered_at, is_correct from role_hunt_answers where user_id = ?
      )
      select date_sub(date(answered_at), interval weekday(answered_at) day) as week_start,
             count(*) as total,
@@ -430,7 +481,7 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
       where answered_at > now(6) - interval ? week
       group by week_start
       order by week_start`,
-    [userId, userId, userId, userId, userId, span],
+    [userId, userId, userId, userId, userId, userId, span],
   );
 
   return rows.map((r) => ({ week: r.week_start, total: Number(r.total), correct: Number(r.correct) }));

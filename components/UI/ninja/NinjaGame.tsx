@@ -278,7 +278,7 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
             exit={{ opacity: 0, y: -20 }}
             className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-destructive"
           >
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-destructive">
+            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-destructive">
               جان‌هایت تمام شد!
             </h2>
             {lastMistake && (
@@ -316,7 +316,7 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
             exit={{ opacity: 0, y: -20 }}
             className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
           >
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-primary">
+            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-primary">
               آفرین، نینجای دستور زبان شدی!
             </h2>
             <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">

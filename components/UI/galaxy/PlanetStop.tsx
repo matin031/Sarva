@@ -97,7 +97,8 @@ export default function PlanetStop({
               </div>
             </RevealItem>
 
-            <h2 className="text-2xl font-black text-foreground sm:text-3xl">
+            {/* نامِ بازی با پفک؛ توضیح و گام‌ها با وزیرمتن می‌مانند. */}
+            <h2 className="game-display text-2xl font-black text-foreground sm:text-3xl">
               <RevealWords text={title} inherit />
             </h2>
 

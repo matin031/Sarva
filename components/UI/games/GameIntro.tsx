@@ -41,7 +41,9 @@ export default function GameIntro({
       </motion.div>
 
       <div className="px-6 pb-7 text-center sm:px-8">
-        <motion.h1 variants={item} className="text-2xl font-extrabold sm:text-3xl">
+        {/* ⚠️ فقط تیتر و دکمه. «گام‌ها» عمداً وزیرمتن می‌مانند: آن‌ها
+            دستورالعمل‌اند و خوانا بودنشان مهم‌تر از شخصیت داشتنشان است. */}
+        <motion.h1 variants={item} className="game-display text-2xl font-extrabold sm:text-3xl">
           {title}
         </motion.h1>
         <motion.p variants={item} className={`mt-1 text-sm font-semibold sm:text-base ${accent}`}>
@@ -73,7 +75,7 @@ export default function GameIntro({
         <motion.div variants={item}>
           <button
             onClick={onStart}
-            className="group mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-9 py-3.5 text-base font-bold text-primary-foreground shadow-lg transition-all hover:brightness-90 active:scale-95 sm:text-lg"
+            className="game-display group mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-9 py-3.5 text-base font-bold text-primary-foreground shadow-lg transition-all hover:brightness-90 active:scale-95 sm:text-lg"
           >
             {cta}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} className="size-5 transition-transform group-hover:-translate-x-1">

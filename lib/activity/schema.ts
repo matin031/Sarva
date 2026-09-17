@@ -55,6 +55,7 @@ export const GAME_KEYS = [
   "jasoos",
   "ninja",
   "pairs",
+  "role-hunt",
   "vocab",
 ] as const;
 
@@ -77,6 +78,7 @@ export const GAMES_WITH_STORED_RESULTS: readonly GameKey[] = [
   "aruz-bridge",
   "grammar-circuit",
   "jasoos",
+  "role-hunt",
   "vocab",
 ];
 

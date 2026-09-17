@@ -131,7 +131,7 @@ export function SessionSetup({
       className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7"
     >
       <div className="text-center">
-        <h1 className="text-2xl font-black text-foreground sm:text-3xl">پلِ وزن</h1>
+        <h1 className="game-display text-2xl font-black text-foreground sm:text-3xl">پلِ وزن</h1>
         <p className="mt-1 text-sm text-muted-foreground">آماده‌ای از پل عبور کنی؟</p>
       </div>
 

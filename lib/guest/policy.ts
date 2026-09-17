@@ -21,6 +21,7 @@ export type GuestSection =
   | "pairs"
   | "aruz-rapid"
   | "grammar-circuit"
+  | "role-hunt"
   | "vazn-yab";
 
 /**
@@ -59,6 +60,13 @@ export const GUEST_POLICY: Record<GuestSection, SectionPolicy> = {
   "grammar-circuit": {
     title: "مدار دستور",
     allowance: { kind: "count", limit: 1, unit: "دور" },
+  },
+  // یک نشستِ کامل و نه یک دور: نشستِ «شکار نقش‌ها» هشت دورِ کوتاه است و
+  // بریدنش وسطِ کار، مهمان را پیش از دیدنِ صفحهٔ نتیجه بیرون می‌انداخت —
+  // یعنی دقیقاً همان چیزی که قرار بود او را به ساختنِ حساب ترغیب کند.
+  "role-hunt": {
+    title: "شکار نقش‌ها",
+    allowance: { kind: "count", limit: 1, unit: "نشست" },
   },
 
   // ── زیرمجموعه‌ای ─────────────────────────────────────────────

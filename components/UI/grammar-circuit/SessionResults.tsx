@@ -37,7 +37,7 @@ export default function SessionResults({
   return (
     <div dir="rtl" className="gc-root container mx-auto max-w-2xl py-10">
       <div className="gc-setup text-center">
-        <h1 className="gc-setup-title">مدارها کامل شد</h1>
+        <h1 className="game-display gc-setup-title">مدارها کامل شد</h1>
         {session && (
           <p className="gc-setup-sub">
             پایهٔ {gradeLabel(session.grade)} — درس‌های {formatLessonList(session.lessons)}

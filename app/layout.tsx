@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo/site";
 import { Vazirmatn, Noto_Naskh_Arabic } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/UI/NavigationProgress";
@@ -23,6 +24,35 @@ const naskh = Noto_Naskh_Arabic({
   weight: ["400", "500", "600", "700"],
   variable: "--font-naskh",
   display: "swap",
+});
+
+/* پفک — قلمِ بازیگوشِ ناحیهٔ بازی‌ها.
+
+   ⚠️ عمداً «قلمِ سایت» نمی‌شود و هیچ عنصری خودبه‌خود نمی‌گیردش. پفک یک قلمِ
+   نمایشیِ گرد و شوخ است: روی «شکار نقش‌ها»، امتیاز، رکورد و «آفرین!» جان
+   می‌دهد، و روی یک پاراگرافِ توضیح یا جدولِ تحلیل، متن را از جدی بودن
+   می‌اندازد. مخاطبِ سروا دبیرستانی است، نه کودکِ پیش‌دبستانی.
+
+   پس مثلِ مربّع فقط یک متغیّر تعریف می‌شود و مصرفش یک قاعدهٔ صریح در
+   `globals.css` است (`.game-display`) که هر جا خواستیم دستی می‌گذاریم.
+
+   ⚠️ هر دو قالب داده شده و ترتیب مهم است: مرورگر اولین قالبی را برمی‌دارد
+   که می‌شناسد، پس woff2 اول می‌آید و woff فقط برای مرورگرهای قدیمی‌تری
+   می‌ماند که هنوز روی گوشی‌های ارزان دیده می‌شوند.
+
+   ⚠️ رقم‌های پفک عرضِ ثابت ندارند، پس عدد با آن نوشته نمی‌شود — همان درسی
+   که مربّع داد و `.panel-num` از آن آمد. معادلش اینجا `.game-num` است. */
+const pofak = localFont({
+  src: [
+    { path: "./fonts/pofak/woff2/Pofak-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/pofak/woff/Pofak-Regular.woff", weight: "400", style: "normal" },
+    { path: "./fonts/pofak/woff2/Pofak-Bold.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/pofak/woff/Pofak-Bold.woff", weight: "700", style: "normal" },
+  ],
+  variable: "--font-pofak",
+  display: "swap",
+  fallback: ["Vazirmatn", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
 });
 
 /* ⚠️ آدرس دیگر اینجا هارد‌کد نیست. تا امروز رشتهٔ دامنهٔ قدیم در چهار فایل
@@ -140,7 +170,7 @@ export default function RootLayout({
       /* پالتِ پیش‌فرض در HTMLِ سرور؛ اسکریپتِ اولِ <body> اگر کاربر چیزِ
          دیگری انتخاب کرده باشد، پیش از اولین رنگ‌آمیزی عوضش می‌کند. */
       data-palette={DEFAULT_PALETTE}
-      className={`${vazirmatn.variable} ${naskh.variable} h-full antialiased dark`}
+      className={`${vazirmatn.variable} ${naskh.variable} ${pofak.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
          mismatch nobody can act on. This suppresses the warning for this one

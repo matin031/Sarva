@@ -1,0 +1,2060 @@
+/* =============================================================================
+   کیمیای وزن — شیوه‌نامهٔ آزمایشگاه
+   =============================================================================
+
+   کنارِ خودِ بازی است و نه در `globals.css`، به همان دلیلی که
+   `role-hunt.css` و `grammar-circuit.css` هستند: این قاعده‌ها فقط زیرِ یک
+   درختِ مشخص معنا دارند. همهٔ کلاس‌ها با `km-` شروع می‌شوند و هیچ
+   انتخابگرِ عنصریِ لختی (`button`, `svg`) اینجا نیست.
+
+   ── سه ماده، و بس ─────────────────────────────────────────────────────────
+     ۱) مرکبِ تیره  — سازه، پایه، تیرِ رَک، قابِ نوار
+     ۲) شیشه        — محفظهٔ شعر، محفظهٔ ترکیب، لولهٔ ویال‌ها
+     ۳) جوهرِ رنگی  — تنها جای پررنگِ صحنه
+
+   طلا، چوب، کروم و فلز عمداً نیستند. فیروزهٔ سروا فقط برای focus، پخشِ
+   ریتم، دکمهٔ اصلی و روشناییِ بسیار کم است — نه رنگِ همه‌چیز.
+
+   ── چرا هیچ‌جا `backdrop-filter` نیست ────────────────────────────────────
+   ⚠️ شیشهٔ این صفحه از *لبه، ضخامت، بازتاب و سایهٔ داخلی* ساخته می‌شود و
+   نه از تارِ پس‌زمینه. یعنی روی سافاری، روی صفحه‌های کم‌توان، و با هر
+   پرچمی که blur را خاموش کند، دستگاه هنوز شیشه‌ای است — و یعنی این
+   «glassmorphism» نیست.
+
+   ── رنگِ مواد ─────────────────────────────────────────────────────────────
+   ⚠️ هیچ رنگِ رکنی اینجا نوشته نشده. از `lib/kimia/visuals.ts` می‌آید و
+   به‌صورتِ `--km-ink` روی خودِ عنصر می‌نشیند.
+   ============================================================================= */
+
+/* ⚠️ توکن‌ها روی هر سه ریشه: معرفی و نتیجه خواهرهای صحنه‌اند و نه
+   فرزندانش. (یک بار این را فراموش کردیم و دکمهٔ «شروع آزمایش» بی‌پس‌زمینه
+   و عملاً نامرئی شد.) */
+.km-root,
+.km-intro,
+.km-session {
+  --km-stage-max: 1100px;
+
+  /* ── مرکب و شیشه ────────────────────────────────────────────────────
+     ⚠️ **چرا این توکن‌ها برای هر تم جداگانه نوشته شده‌اند.**
+     نسخهٔ قبل همه‌چیز را از `color-mix(var(--color-card), #000)` می‌ساخت.
+     روی تمِ تاریک جواب می‌داد، ولی روی تمِ روشن `--color-card` تقریباً
+     سفید است و «سفید + سیاه» می‌شود **خاکستری** — و خاکستریِ براق یعنی
+     *فلز*. دقیقاً به همین دلیل مخزن در تمِ روشن یک کپسولِ کرومی دیده
+     می‌شد. شیشه از تیره‌کردنِ کارت ساخته نمی‌شود.
+
+     شیشهٔ واقعی سه چیز دارد و هیچ‌کدام «رنگِ پرشده» نیستند:
+       ۱) لبهٔ روشنِ نازک (بازتابِ لبه)
+       ۲) ضخامت — یک سایهٔ داخلیِ روشن بالا و تیره پایین
+       ۳) حفرهٔ نیمه‌شفاف که پس‌زمینه از پشتش کمی پیداست
+
+     پس این‌ها با `transparent` ساخته می‌شوند و نه با رنگِ مات، و مقدارشان
+     در روشن و تاریک فرق دارد چون «نور» در دو تم از دو طرف می‌آید. */
+
+  /* ساختار — مرکبِ غیرشیشه‌ای: تیرِ رَک، پایه، دریچه‌ها */
+  --km-ink-800: color-mix(in oklch, var(--color-card) 80%, #000);
+
+  --km-edge: color-mix(in oklch, var(--color-foreground) 15%, transparent);
+  --km-edge-soft: color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  --km-lit: color-mix(in oklch, #fff 22%, transparent);
+  --km-lit-soft: color-mix(in oklch, #fff 10%, transparent);
+
+  --km-teal: var(--color-primary);
+
+  /* ── ابعاد ──────────────────────────────────────────────────────── */
+  /* ── واحدِ مقیاس ─────────────────────────────────────────────────────
+     ⚠️ **همهٔ اندازه‌های صحنه از همین یک عدد می‌آیند.**
+
+     `min(1vw, 1.6vh)` یعنی هر کدام از دو بُعد که تنگ‌تر بود، حرف آخر را
+     می‌زند. نسخهٔ قبل هر بلوک را با `clamp(vw)`ِ خودش اندازه می‌گرفت؛
+     روی صفحهٔ کم‌ارتفاع (۱۳۶۶×۶۲۵) عرض «جا هست» می‌گفت و ارتفاع نه، و
+     مجموعِ بلوک‌ها از قدِ صفحه می‌زد بیرون. با این واحد، کوتاه شدنِ صفحه
+     همه‌چیز را با هم کوچک می‌کند.
+
+     ⚠️ `vh` نه: نوارِ آدرسِ موبایل `vh` را بزرگ‌تر از دیدِ واقعی گزارش
+     می‌کند. `dvh`. */
+  /* ⚠️ واحد از **فضای آزاد** می‌آید و نه از یک سقفِ ثابت.
+
+     صحنه یک طرحِ مرجع دارد (روی دسکتاپ ~۱۱۰۰×۷۶۰ در واحدِ ۱۴px، یعنی
+     ۷۸ واحد عرض و ۵۴ واحد ارتفاع). واحدِ واقعی می‌شود کوچک‌ترینِ
+     «عرضِ در دسترس ÷ عرضِ طراحی» و «ارتفاعِ در دسترس ÷ ارتفاعِ طراحی».
+     نتیجه: روی نمایشگرِ بزرگ همه‌چیز بزرگ می‌شود و صحنه ارتفاع را پر
+     می‌کند، و روی صفحهٔ کم‌ارتفاع همه‌چیز با هم کوچک می‌شود.
+
+     سقفِ ۱٫۳۵rem فقط جلوی غول شدنِ اجزا روی نمایشگرِ خیلی بزرگ را
+     می‌گیرد (عرضِ صحنه هم به ۱۱۰۰px بسته است). */
+  --u: clamp(0.5rem, min(100vw / 78, 100dvh / 54), 1.35rem);
+
+  /* ── دو شعاع، و بس ─────────────────────────────────────────────────── */
+  --km-r: 0.75rem;      /* کانتینرها */
+  --km-r-sm: 0.5rem;    /* دکمه‌ها و چیزهای کوچک */
+
+  /* ── سطوح: دو پلهٔ تونال از توکن‌های سایت، بدونِ حاشیهٔ مویی ───────── */
+  --km-s1: var(--color-surface);
+  --km-s2: var(--color-surface-2);
+  /* ── سوراخِ خالیِ رَک ────────────────────────────────────────────────
+     ⚠️ «فرورفته» یعنی **تیره‌تر از رَک**، و جهتِ تیره‌تر شدن در دو تم یکی
+     نیست: روی تمِ تاریک باید به سیاه میل کند و روی روشن به متن. نسخهٔ
+     اول هر دو را «به سمتِ متن» می‌برد و روی تمِ تاریک سوراخ‌ها *روشن‌تر*
+     از رَک می‌شدند — یعنی برجسته به‌نظر می‌رسیدند و نه فرورفته (در
+     اسکرین‌شاتِ نزدیک دیده شد). */
+  --km-hole: color-mix(in oklch, var(--km-s1) 74%, #000);
+  --km-hole-deep: color-mix(in oklch, var(--km-s1) 52%, #000);
+  /* لبهٔ جلوییِ سوکت — در تمِ تاریک عمداً *تیره‌تر* از رَک است و نه
+     روشن‌تر: نسخهٔ قبل یک نوارِ خاکستریِ روشن بود که چشم را از شیشه‌ها
+     می‌دزدید. جلو بودنش را همین که روی سوراخ می‌افتد می‌گوید. */
+  --km-shelf: color-mix(in oklch, var(--km-s1) 80%, #000);
+  /* خطِ ساختاری، فقط جایی که *مرز* معنا دارد (لبهٔ شیشه). */
+  --km-line: color-mix(in oklch, var(--color-foreground) 12%, transparent);
+  --km-line-strong: color-mix(in oklch, var(--color-foreground) 22%, transparent);
+
+  /* ── رنگ‌ها: تأکید و دو رنگِ معنایی، همه از توکن‌های تمِ فعلی ───────── */
+  --km-accent: var(--color-primary);
+  --km-ok: var(--color-primary);
+  --km-bad: var(--color-destructive);
+
+  /* ── اندازهٔ لوله ────────────────────────────────────────────────────
+     یک اندازه برای هر سه نقشِ لوله (پخش‌کننده، نشسته در رَک، در حالِ
+     ریختن)، تا پروازِ FLIP وسطِ راه مقیاس عوض نکند. */
+  --km-tube-w-base: clamp(1.15rem, calc(var(--u) * 2.6), 2.4rem);
+  --km-tube-w: var(--km-tube-w-base);
+  --km-tube-h: clamp(3rem, calc(var(--u) * 7), 6rem);
+  --km-tube-gap: calc(var(--u) * 0.9);
+  /* جای نام و نشانهٔ زیرِ لوله — همیشه رزرو، حتی وقتی خالی است. */
+  --km-name-size: max(0.6875rem, calc(var(--u) * 0.85));
+  --km-tube-foot: calc(var(--km-name-size) * 1.25 + max(0.5rem, var(--u) * 0.6) + 3px);
+  /* خمِ کفِ لوله. */
+  /* ⚠️ ۰٫۳۴ و نه ۰٫۴۲: لبهٔ جلو ۱۵٪ پایینِ شیشه را می‌پوشاند، و با خمِ
+     بزرگ‌تر کلِ قوسِ کف پشتِ لبه پنهان می‌شد — یعنی شیشه ته‌صاف
+     دیده می‌شد. */
+  --km-tube-round: calc(var(--km-tube-w) * 0.34);
+
+  position: relative;
+  min-height: 100%;
+}
+
+/* ══════════════ شیشه در تمِ روشن ══════════════════════════════════════
+   ⚠️ در تمِ روشن نور از *بالا و جلو* می‌آید، پس لبهٔ درخشان دیگر سفید
+   نیست — سفید روی زمینهٔ سفید ناپیداست. لبه اینجا یک خطِ **تیرهٔ** بسیار
+   نازک است (همان چیزی که در عکسِ یک لیوان شیشه‌ای می‌بینید) و درخششْ
+   یک بازتابِ سفیدِ کوچک و موضعی.
+
+   ⚠️ حفره در تمِ روشن باید از زمینه **روشن‌تر** باشد و نه تیره‌تر: هوای
+   داخلِ شیشه نور جمع می‌کند. هر مقداری از `#000` اینجا فوراً فلز می‌سازد،
+   برای همین کلاً از فرمول‌ها حذف شده و جایش رنگِ سردِ کم‌اشباع نشسته. */
+:root:not(.dark) .km-root,
+:root:not(.dark) .km-intro,
+:root:not(.dark) .km-session {
+
+  --km-lit: color-mix(in oklch, #fff 85%, transparent);
+  --km-lit-soft: color-mix(in oklch, #fff 55%, transparent);
+  --km-edge: color-mix(in oklch, var(--color-foreground) 12%, transparent);
+  --km-edge-soft: color-mix(in oklch, var(--color-foreground) 6%, transparent);
+
+  /* ⚠️ سطوحِ سازه‌ای هم باید عوض شوند و نه فقط شیشه. `card + #000` در تمِ
+     روشن خاکستریِ گِلی می‌دهد — همان چیزی که کلِ صفحه را کدر کرده بود.
+     اینجا سطوح *روشن* می‌مانند و عمق از ته‌رنگِ سردِ لاجورد می‌آید، نه از
+     سیاه. */
+  --km-ink-800: color-mix(in oklch, var(--color-card) 94%, var(--color-lapis));
+
+  /**
+   * ⚠️ یک پلهٔ تیره‌تر از فیروزهٔ سایت — و فقط در تمِ روشن.
+   *
+   * قاعدهٔ ظاهر می‌گوید «یک تأکید، همان توکنِ primaryِ تم»، و این تنها
+   * جایی است که از آن فاصله می‌گیریم. دلیلش اندازه‌گیری است نه سلیقه:
+   * در تمِ روشن `--color-primary` برابرِ `#008687` است و متنِ سفیدِ
+   * `--color-primary-foreground` رویش **۴٫۲۹:۱** می‌دهد — زیرِ حدِ
+   * ۴٫۵:۱ استانداردِ AA. axe هر دو دکمهٔ «شروع آزمایش» و «آزمایش
+   * ترکیب» را به همین دلیل «جدی» علامت زد.
+   *
+   * راهِ دیگر، درشت و توپُر کردنِ متن تا حدِ «متنِ بزرگ» (۱۸٫۶۶px) بود
+   * که آستانه را به ۳:۱ می‌آورد؛ ولی آن یعنی دکمه‌ای که فقط برای عبور
+   * از یک تست بزرگ شده. تیره کردنِ خودِ فیروزه به‌اندازهٔ یک پله، همان
+   * رنگ را نگه می‌دارد و مسئله را ریشه‌ای حل می‌کند.
+   *
+   * تمِ تاریک دست‌نخورده است: آنجا متنِ تیره روی فیروزه از قبل بالای
+   * حد بود.
+   */
+  --km-accent: color-mix(in oklch, var(--color-primary) 88%, #000);
+
+  /* در تمِ روشن، تیره‌تر یعنی به سمتِ متن و نه به سمتِ سیاه. */
+  --km-hole: color-mix(in oklch, var(--km-s1) 88%, var(--color-foreground));
+  --km-hole-deep: color-mix(in oklch, var(--km-s1) 74%, var(--color-foreground));
+  --km-shelf: color-mix(in oklch, var(--km-s1) 82%, var(--color-foreground));
+}
+
+/* ⚠️ صحنهٔ بازی یک ستونِ **بسته** است: قدش دقیقاً دیدِ واقعیِ مرورگر
+   (`100dvh`) و `overflow: hidden`. یعنی «جا نشدن» تبدیل می‌شود به
+   کوچک‌تر شدنِ اجزا (از راهِ `--u`) و نه به اسکرولِ عمودی. */
+.km-root {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+  height: 100dvh;
+  max-width: var(--km-stage-max);
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-block: calc(var(--u) * 0.5) calc(var(--u) * 0.75 + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+
+/* ═════════════════════════════ پس‌زمینه ══════════════════════════════════
+   ⚠️ نقشِ سروا می‌ماند چون بخشی از هویت است، ولی شدتش نصف می‌شود
+   (۰٫۰۶ → ۰٫۰۳): در نسخهٔ قبل بافتِ لوزی با شعر رقابت می‌کرد و چشم اول
+   آن را می‌دید. رویش یک تاریکیِ گوشه‌ای و یک ستونِ نورِ بسیار کم‌رنگ
+   می‌نشیند تا ناحیهٔ بازی از زمینه جدا شود — بدونِ هیچ blurی. */
+.km-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.km-backdrop-pattern {
+  color: var(--color-gold);
+  opacity: 0.8;
+}
+
+.km-backdrop-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 78% at 50% 34%,
+    transparent 0%,
+    color-mix(in oklch, #000 34%, transparent) 62%,
+    color-mix(in oklch, #000 62%, transparent) 100%
+  );
+}
+
+/* ⚠️ در تمِ روشن سیاهیِ گوشه‌ها کلِ صفحه را خاکستریِ کثیف می‌کرد. آنجا
+   همان نقش را یک ته‌رنگِ سردِ بسیار کم‌رنگ بازی می‌کند: صحنه هنوز از
+   زمینه جدا می‌شود، ولی هیچ‌جا تیره نمی‌شود. */
+:root:not(.dark) .km-backdrop-vignette {
+  background: radial-gradient(
+    118% 76% at 50% 32%,
+    transparent 0%,
+    color-mix(in oklch, var(--color-lapis) 7%, transparent) 64%,
+    color-mix(in oklch, var(--color-lapis) 16%, transparent) 100%
+  );
+}
+
+/* ستونِ نورِ مرکزی — همان چیزی که می‌گوید «صحنه اینجاست». */
+/* در تمِ روشن، ستونِ نور باید *روشن‌تر از کاغذ* باشد و نه فیروزهٔ کم‌رنگ
+   روی سفید — وگرنه اصلاً دیده نمی‌شود. */
+:root:not(.dark) .km-backdrop-beam {
+  background: radial-gradient(
+    56% 46% at 50% 30%,
+    color-mix(in oklch, #fff 78%, transparent),
+    transparent 70%
+  );
+}
+
+.km-backdrop-beam {
+  position: absolute;
+  inset-block: -10%;
+  inset-inline-start: 50%;
+  width: min(62rem, 88vw);
+  translate: 50% 0;
+  background: radial-gradient(
+    56% 46% at 50% 30%,
+    color-mix(in oklch, var(--km-teal) 7%, transparent),
+    transparent 72%
+  );
+}
+
+.km-root > *:not(.km-backdrop),
+.km-intro-stage,
+.km-session-stage {
+  position: relative;
+  z-index: 1;
+}
+
+/* ═════════════════════════════ نوارِ بازی ════════════════════════════════
+   ⚠️ یک سیستم و نه سه چیزِ شناور: بازگشت، شمارنده و گزارش روی یک خط، با
+   یک زمینهٔ مشترکِ بسیار کم‌رنگ. */
+.km-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--km-ink-800) 72%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--km-lit-soft),
+    inset 0 0 0 1px var(--km-edge-soft);
+}
+
+.km-bar-plain {
+  max-width: var(--km-stage-max);
+  width: 100%;
+  margin-inline: auto;
+  margin-block: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* ⚠️ بدونِ برچسب، «نوار» چیزی جز یک پیوندِ بازگشت ندارد و کشیدنِ یک قابِ
+   عریضِ خالی از این‌سر تا آن‌سرِ صفحه، فقط ۴۸ پیکسل از بودجهٔ ارتفاع را
+   می‌خورد. پس قاب می‌رود و خودِ پیوند می‌ماند. */
+.km-bar-plain[data-bare] {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.km-bar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.km-bar-back:hover {
+  color: var(--color-foreground);
+  background: var(--km-edge-soft);
+}
+
+.km-bar-back:focus-visible {
+  outline: 2px solid var(--km-teal);
+  outline-offset: 2px;
+}
+
+.km-bar-round {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
+
+.km-bar-round-num {
+  color: var(--color-foreground);
+  font-weight: 700;
+}
+
+/* خطِ مورّبِ کوچک به‌جای «از» — کم‌سروصداتر و عددها را جفت می‌کند. */
+.km-bar-round-sep {
+  width: 1px;
+  height: 0.7rem;
+  rotate: 18deg;
+  background: var(--km-edge);
+}
+
+.km-bar-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  justify-self: end;
+}
+
+/* ═════════════════════════════ صحنه ══════════════════════════════════════
+   ⚠️ **بودجهٔ ارتفاع.** صحنه یک ستونِ بسته است به ارتفاعِ دیدِ واقعی
+   (`100dvh` و نه `100vh`، چون نوارِ آدرسِ موبایل `vh` را دروغ می‌کند) و
+   `overflow: hidden`. یعنی هیچ‌وقت اسکرولِ عمودی نمی‌سازد؛ به‌جایش
+   *اندازه‌ها* کوچک می‌شوند، چون همه‌شان از `--u` می‌آیند و `--u` خودش به
+   `1.6vh` بسته است.
+
+   قبلاً هر بلوک با `clamp(vw)`ِ خودش اندازه می‌گرفت و مجموعشان در
+   صفحه‌های کم‌ارتفاع از قدِ صفحه می‌زد بیرون؛ هیچ‌کس مسئولِ «جمعِ کل»
+   نبود. حالا `--u` آن مسئول است. */
+.km-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* فضای اضافه — بعد از اینکه باکسِ بیت به سقفش رسید — بینِ رَک و
+     پخش‌کننده‌ها پخش می‌شود و ته صحنه تلنبار نمی‌شود. */
+  justify-content: space-between;
+  gap: calc(var(--u) * 1.25);
+  width: 100%;
+  /* جریانِ ریختن از این جعبه بیرون می‌زند و نباید بریده شود. */
+  overflow: visible;
+}
+
+/* ═══════════════════════ باکسِ بیت = ظرفِ ترکیب ══════════════════════════
+   سطحِ تخت. جدا شدنش از زمینه با یک پلهٔ تونال است (`--km-s1` روی
+   `background`)، نه با حاشیهٔ مویی و نه با سایهٔ نرم. */
+/* ⚠️ باکسِ بیت *رشد می‌کند* و بقیهٔ بلوک‌ها اندازهٔ خودشان را دارند.
+
+   بدونِ این، در صفحه‌های بلند کلِ صحنه وسط شناور می‌ماند و بینِ
+   بلوک‌ها ~۲۰۰ پیکسل فاصلهٔ بی‌معنا می‌افتاد. حالا فضای اضافه می‌رود
+   داخلِ ظرفی که رنگ در آن ریخته می‌شود — یعنی جایی که بزرگ‌تر بودنش
+   *مفید* است. */
+.km-verse-card {
+  --km-play: clamp(2.5rem, calc(var(--u) * 3.4), 3.25rem);
+  position: relative;
+  flex: 1 1 auto;
+  /* ⚠️ سقف دارد و بی‌نهایت کش نمی‌آید: روی ۱۹۲۰×۹۲۰ یک کارتِ ۴۲۰ پیکسلی
+     با دو مصراع وسطش، شعر را «شناور» نشان می‌داد. با سقفِ ۳۸٪ و متنی که
+     خودش با `--u` بزرگ می‌شود، نسبتِ متن به کارت بالای ۰٫۳۵ می‌ماند. */
+  max-height: 38dvh;
+  width: min(42rem, 100%);
+  /* جا برای شیشه‌هایی که بالای همین لبه می‌ایستند و می‌ریزند. */
+  margin-top: calc(var(--u) * 2.5);
+  /* نیمهٔ پایینِ کلیدِ پخش از کارت بیرون می‌زند. */
+  margin-bottom: calc(var(--km-play) / 2 + var(--u));
+  border-radius: var(--km-r);
+  background: var(--km-s1);
+  transition: background-color 200ms ease;
+}
+
+/* محتویاتِ ظرف. مهارِ layout/paint اینجاست و نه روی کارت، چون کارت باید
+   بگذارد کلیدِ پخش از لبه‌اش بیرون بزند. */
+.km-verse-bowl {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+/* ⚠️ سقفِ شفافیت ۰٫۳۵ است و عدد دلبخواه نیست: تستِ
+   `tests/kimia/contrast.test.ts` کنتراستِ متنِ شعر را روی *بدترین* حالتِ
+   مایع (هر شانزده رنگ و `muddyMix`، در هر دو تم) می‌سنجد و زیر ۴٫۵:۱ رد
+   می‌کند. راهِ حلِ کنتراستِ کم، پایین آوردنِ همین عدد است و نه اضافه کردنِ
+   سایه به متن. */
+.km-verse-bands {
+  position: absolute;
+  inset: 0;
+  filter: blur(6px);
+  opacity: 0.32;
+  transition: filter 1.2s ease, opacity 0.6s ease;
+}
+
+/* هر لایهٔ رنگ — `translateY(-cum) scaleY(k)` از خطِ زمانی می‌آید. */
+.km-verse-band {
+  position: absolute;
+  inset-inline: -8%;
+  bottom: 0;
+  height: 100%;
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+  background: var(--km-band);
+  will-change: transform;
+}
+
+.km-verse-wave {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(var(--u) * 1.1);
+  /* مقیاسِ دامنه از کفِ خودِ موج باز می‌شود، نه از مرکزش. */
+  transform-origin: 50% 100%;
+  overflow: hidden;
+  opacity: 0;
+  color: #fff;
+  transition: opacity 0.4s, color 1.2s;
+  will-change: transform;
+}
+
+.km-verse-wave svg {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: 200%;
+  height: 100%;
+  animation: km-slosh 5s linear infinite;
+}
+
+.km-verse-wave path {
+  fill: currentColor;
+  opacity: 0.5;
+}
+
+@keyframes km-slosh {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.km-verse-body {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  gap: calc(var(--u) * 0.5);
+  /* ⚠️ پایین = شعاعِ کلید + ۱rem. کمتر از این، کلیدِ پخش روی مصراعِ دوم
+     می‌نشیند. */
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2)
+    calc(var(--km-play) / 2 + 1rem);
+  text-align: center;
+}
+
+/* ⚠️ اندازهٔ شعر روی خودِ `.km-verse-line` بسته می‌شود و نه روی کلاسِ
+   سراسریِ `.game-verse`: آن کلاس در بازی‌های دیگر هم استفاده می‌شود و
+   اینجا حق نداریم دستش بزنیم. */
+.km-verse-line {
+  margin: 0;
+  font-size: clamp(1rem, calc(var(--u) * 2), 2.15rem);
+  line-height: 1.85;
+  color: var(--color-foreground);
+}
+
+.km-verse-skeleton {
+  display: block;
+  height: 1rem;
+  width: min(22rem, 80%);
+  margin: 0.5rem auto;
+  border-radius: var(--km-r-sm);
+  background: var(--km-s2);
+}
+.km-verse-skeleton-b {
+  width: min(18rem, 68%);
+}
+
+/* ── حالت‌های داوری ─────────────────────────────────────────────────────
+   فقط رنگ عوض می‌شود؛ هیچ‌چیز جابه‌جا نمی‌شود. */
+/* ⚠️ دو نوسانِ کامل در ۲۸۰ms و دامنهٔ دقیقاً ۴ پیکسل — نه بیشتر: لرزشِ
+   بزرگ‌تر روی ظرفی که شعر داخلش است، خواندن را قطع می‌کند. */
+.km-verse-card[data-mode="wrong"] {
+  animation: km-verse-shake 280ms ease-in-out;
+}
+
+@keyframes km-verse-shake {
+  12.5% { transform: translateX(-4px); }
+  37.5% { transform: translateX(4px); }
+  62.5% { transform: translateX(-4px); }
+  87.5% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+/* ── «در حالِ سنجش» ────────────────────────────────────────────────────
+   ⚠️ هر لایهٔ رنگ با فازِ خودش کمی افقی می‌رود و برمی‌گردد، پس مایع
+   *همزده* دیده می‌شود و نه یک بلوکِ ساکن. نسخهٔ اول یک skewِ ۱٫۲ درجه‌ای
+   روی کلِ لایه بود که روی صفحهٔ کوچک اصلاً دیده نمی‌شد.
+
+   ⚠️ و با `translate` انجام می‌شود و نه `transform`: خطِ زمانی ارتفاع و
+   جای هر لایه را در `transform` می‌نویسد، و یک انیمیشن روی همان
+   property آن را پاک می‌کرد (لایه‌ها یک‌دفعه تمام‌قد می‌شدند). */
+.km-verse-card[data-mode="analyzing"] .km-verse-band {
+  animation: km-analyze-band 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.42s);
+}
+
+@keyframes km-analyze-band {
+  0%, 100% { translate: -6% 0; }
+  50% { translate: 6% 0; }
+}
+
+/* موجِ سطح هم تندتر می‌رود. */
+.km-verse-card[data-mode="analyzing"] .km-verse-wave svg {
+  animation-duration: 2.2s;
+}
+
+/* حل شدنِ رنگ‌ها — حرکتِ یکسان برای درست و غلط، فقط رنگ فرق می‌کند. */
+.km-verse-bands[data-blended] {
+  filter: blur(18px);
+}
+
+.km-verse-bands::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  border-radius: 50%;
+  background: radial-gradient(58% 48% at 50% 62%, var(--km-blend, transparent), transparent 72%);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  pointer-events: none;
+}
+
+.km-verse-bands[data-blended]::after {
+  opacity: 0.9;
+  animation: km-swirl 11s linear infinite;
+}
+
+@keyframes km-swirl {
+  to { rotate: 360deg; }
+}
+
+/* ═══════════════════════════ لایهٔ جریان ═════════════════════════════════ */
+.km-pour-layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 70;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.km-pour-stream { stroke: none; }
+.km-pour-ripple { fill: none; stroke-width: 1.4; }
+.km-pour-drop { stroke: none; }
+
+/* ═══════════════════════ بردرِ ریتم و کلیدِ پخش ═══════════════════════════ */
+.km-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.km-ring path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: butt;
+}
+
+.km-ring-track { stroke: var(--km-s2); }
+
+.km-ring-progress {
+  stroke: var(--km-accent);
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition: opacity 0.3s, stroke 0.3s;
+}
+
+/* ── حلقهٔ داوری ────────────────────────────────────────────────────────
+   ⚠️ جدا از حلقهٔ پیشرفتِ ریتم است و *یک بار* دور می‌زند. اگر همان حلقهٔ
+   ریتم رنگ عوض می‌کرد، جای پخش هم با آن پاک می‌شد. */
+.km-ring-verdict {
+  stroke: transparent;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+}
+
+.km-verse-card[data-mode="correct"] .km-ring-verdict,
+.km-verse-card[data-mode="wrong"] .km-ring-verdict {
+  animation: km-ring-sweep 900ms cubic-bezier(0.32, 0, 0.2, 1) forwards;
+}
+
+.km-verse-card[data-mode="correct"] .km-ring-verdict { stroke: var(--km-ok); }
+.km-verse-card[data-mode="wrong"] .km-ring-verdict { stroke: var(--km-bad); }
+
+@keyframes km-ring-sweep {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* ⚠️ `left` و `translate` هر دو *فیزیکی*‌اند.
+
+   باگِ قبلی همین بود: `inset-inline-start: 50%` در RTL یعنی
+   `right: 50%` (لبهٔ راستِ دکمه روی مرکز)، و `translate: -50%` باز هم
+   فیزیکی به چپ می‌بُرد — دو جابه‌جاییِ هم‌جهت، یعنی دکمه به‌اندازهٔ یک
+   عرضِ کامل از مرکز چپ‌تر می‌افتاد. */
+.km-play {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  translate: -50% 0;
+  bottom: calc(var(--km-play) / -2);
+  width: var(--km-play);
+  height: var(--km-play);
+  padding: 0;
+  /* حلقهٔ هم‌رنگِ زمینه، تا کلید روی بردر بنشیند — یک حاشیهٔ تخت و نه سایه. */
+  border: 4px solid var(--color-background);
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary-foreground);
+  background: var(--km-accent);
+  transition: transform 150ms ease, background-color 200ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.km-play:hover:not([aria-disabled="true"]) { transform: scale(1.05); }
+.km-play:active:not([aria-disabled="true"]) { transform: scale(0.96); }
+.km-play[aria-disabled="true"] { cursor: default; opacity: 0.55; }
+
+.km-play-face svg,
+.km-play-check svg {
+  display: block;
+  width: calc(var(--km-play) * 0.4);
+  height: calc(var(--km-play) * 0.4);
+}
+
+/* ── تیکِ کوتاهِ «درست» ──────────────────────────────────────────────────
+   ⚠️ هر دو آیکن همیشه در DOM‌اند و فقط دیده شدنشان عوض می‌شود: نه
+   stateی در کار است و نه ریستی لازم — با رفتنِ `data-mode` از «درست»،
+   خودبه‌خود به پخش برمی‌گردد. */
+.km-play-face,
+.km-play-check {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+}
+
+.km-play-check {
+  opacity: 0;
+}
+
+/* ⚠️ crossfadeِ ۱۸۰ms در دو سرِ یک پنجرهٔ ۱۲۶۰ میلی‌ثانیه‌ای: تیک نرم
+   می‌آید، ~۹۰۰ms می‌ماند و نرم می‌رود. فقط `opacity` و `transform`. */
+.km-verse-card[data-mode="correct"] .km-play-check {
+  animation: km-check-in 1260ms ease both;
+}
+
+.km-verse-card[data-mode="correct"] .km-play-face {
+  animation: km-check-out 1260ms ease both;
+}
+
+@keyframes km-check-in {
+  0% { opacity: 0; transform: scale(0.8); }
+  14.3% { opacity: 1; transform: scale(1); }
+  85.7% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes km-check-out {
+  0% { opacity: 1; transform: scale(1); }
+  14.3% { opacity: 0; transform: scale(0.8); }
+  85.7% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* بدونِ فایلِ صوتی: همان کلید، با سطحِ خنثی. */
+.km-play[data-silent] {
+  background: var(--km-s2);
+  color: var(--color-muted-foreground);
+}
+
+.km-play:focus-visible {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════ لولهٔ آزمایش ════════════════════════════════
+   ⚠️ شیشه‌ای که از گرادیان و بازتاب و سایهٔ داخلی ساخته شده بود، حالا از
+   *دو سطح* ساخته می‌شود: بدنهٔ خالی (`--km-s2`) و مایعِ تخت. تنها خطِ
+   اضافه، منیسک است — و آن هم اطلاعات است (سطحِ مایع)، نه تزئین.
+
+   محورِ چرخش وسطِ دهانه است؛ `lib/kimia/pour.ts` هم همین را فرض می‌کند. */
+.km-tube {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--u) * 0.45);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transform-origin: 50% 0;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+
+.km-tube[aria-disabled="true"] { cursor: default; }
+
+.km-tube-body {
+  position: relative;
+  width: var(--km-tube-w);
+  height: var(--km-tube-h);
+  transition: translate 180ms ease;
+}
+
+.km-tube-glass {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 2px 2px var(--km-tube-round) var(--km-tube-round);
+  background: var(--km-s2);
+  box-shadow: inset 0 0 0 1px var(--km-line);
+}
+
+.km-tube-liquid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 420%;
+  aspect-ratio: 1;
+  margin-left: -210%;
+  transform-origin: 50% 0;
+  transform: rotate(calc(var(--km-tilt, 0) * -1deg))
+    translateY(calc((0.5 - var(--km-fill, 0.64)) * var(--km-tube-h)));
+  background: var(--km-ink);
+}
+
+/* سطحِ مایع: یک خطِ روشن‌تر، چون *سطح* خودش اطلاعات است. */
+.km-tube-meniscus {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background: var(--km-ink-top);
+}
+
+.km-tube-rim {
+  position: absolute;
+  inset-inline: -2px;
+  top: -2px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--km-line-strong);
+}
+
+.km-tube-label {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  text-align: center;
+  line-height: 1.25;
+  transition: opacity 150ms ease;
+}
+
+.km-tube-name {
+  font-size: var(--km-name-size);
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.km-tube-glyph { display: block; color: var(--color-muted-foreground); }
+
+.km-tube-glyph .km-glyph {
+  width: auto;
+  height: max(0.5rem, calc(var(--u) * 0.6));
+}
+
+.km-tube[data-pouring] .km-tube-label { opacity: 0; }
+.km-tube[data-pouring] { z-index: 60; }
+
+.km-tube[data-recent] .km-tube-glass {
+  box-shadow: inset 0 0 0 1px var(--km-accent);
+}
+
+/* ⚠️ فقط شبکهٔ دسکتاپ. روی چرخ‌فلک، همین بلند شدنِ hover کفِ شیشهٔ وسط
+   را ۲٫۸ پیکسل بالاتر می‌بُرد و خطِ پایه به هم می‌ریخت (اندازه‌گیری‌شده).
+   آنجا «کدام یکی فعال است» را خودِ مرکزِ ریل می‌گوید. */
+@media (hover: hover) and (pointer: fine) {
+  .km-dispenser-grid .km-tube[data-role="dispenser"]:hover:not([aria-disabled="true"]) .km-tube-body {
+    translate: 0 calc(var(--u) * -0.35);
+  }
+}
+
+.km-tube:focus-visible { outline: none; }
+.km-tube:focus-visible .km-tube-glass {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+/* پر شدنِ دوبارهٔ شیشه بعد از برگشت به رَک. */
+.km-tube-liquid.km-tube-refilling {
+  transition: transform 300ms ease-out;
+}
+
+/* ═══════════════════════════ رَکِ جایگاه‌ها ══════════════════════════════
+   ⚠️ رَک یک *شیء* است و نه یک تختهٔ تمام‌عرض: عرضش دقیقاً
+   `slotCount × گامِ شیشه` است (`fit-content`)، پس با سه رکن کوچک است و
+   با هشت رکن بزرگ — همان‌طور که یک رَکِ واقعی هست.
+
+   ⚠️ جایگاهِ خالی خط‌چین و شماره ندارد: فقط یک *فرورفتگی* هم‌شکلِ شیشه،
+   یک پلهٔ تونال تیره‌تر. شماره و خط‌چین دو نشانهٔ تزئینی بودند که هیچ
+   اطلاعاتی اضافه نمی‌کردند. */
+.km-rack {
+  /* ⚠️ گامِ جایگاه از دو قید می‌آید: عرضِ شیشه، و عرضِ *نامِ* زیرش.
+     نسخهٔ اول فقط شیشه را می‌دید و نام‌های «مستفعلن» و «فاعلاتن» روی هم
+     می‌افتادند (در اسکرین‌شات دیده شد). طولانی‌ترین نامِ کاتالوگ هشت
+     حرف است. */
+  --km-socket-w: max(
+    calc(var(--km-tube-w) + var(--km-tube-gap)),
+    calc(var(--km-name-size) * 4.4)
+  );
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: calc(var(--u) * 0.9) calc(var(--u) * 0.9) calc(var(--u) * 0.6);
+  border-radius: var(--km-r);
+  background: var(--km-s1);
+}
+
+.km-rack-row {
+  display: grid;
+  grid-template-columns: repeat(var(--km-slot-count, 4), var(--km-socket-w));
+  justify-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ⚠️ روی گوشی، بیتِ شش تا هشت‌رکنی دو ردیف می‌شود: چهار تا بالا، بقیه
+   پایین. ترتیبِ خواندن خودبه‌خود راست‌به‌چپ است چون صفحه RTL است. */
+@media (max-width: 899px) {
+  .km-rack[data-many] .km-rack-row {
+    grid-template-columns: repeat(4, var(--km-socket-w));
+    row-gap: calc(var(--u) * 0.4);
+  }
+}
+
+/* ⚠️ ارتفاعِ سوکت *صریح* است: بدنهٔ شیشه + فاصله + جای نام. با ارتفاعِ
+   ضمنی، نشستنِ هر شیشه (که نام هم می‌آورد) رَک را بلندتر می‌کرد و کلِ
+   صحنه تکان می‌خورد — یعنی CLSِ حینِ تعامل. */
+.km-socket {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  width: 100%;
+  min-width: 0;
+  height: calc(var(--km-tube-h) * 1.16 + var(--km-tube-foot));
+}
+
+/* فرورفتگیِ خالی. */
+/* ⚠️ «سوراخ» با دو سطحِ تخت ساخته می‌شود و نه با سایه یا blur: بدنهٔ
+   سوراخ (کمی تیره‌تر از رَک) و یک نوارِ تیره‌ترِ بالا که عمقِ دهانه را
+   می‌سازد. شیشه که می‌نشیند، لبهٔ جلو روی همین می‌افتد. */
+.km-socket-well {
+  position: absolute;
+  inset-block-start: 0;
+  width: var(--km-tube-w);
+  height: var(--km-tube-h);
+  border-radius: 2px 2px var(--km-tube-round) var(--km-tube-round);
+  background: var(--km-hole);
+  overflow: hidden;
+  transition: opacity 200ms ease, background-color 200ms ease;
+}
+
+.km-socket-well::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 62% 0;
+  background: var(--km-hole-deep);
+}
+
+.km-socket[data-filled] .km-socket-well { opacity: 0; }
+
+.km-socket[data-active] .km-socket-well {
+  background: color-mix(in oklch, var(--km-accent) 28%, var(--km-hole));
+}
+
+.km-socket-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--km-r-sm);
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.km-socket-empty:focus-visible {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: -2px;
+}
+
+/* ⚠️ لبهٔ جلو ~۱۵٪ پایینِ شیشه را می‌پوشاند: همین است که شیشه را «داخلِ
+   رَک» نشان می‌دهد و نه «روی رَک». */
+.km-socket-lip {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  top: calc(var(--km-tube-h) * 0.85);
+  width: calc(var(--km-tube-w) + var(--u) * 0.5);
+  height: calc(var(--km-tube-h) * 0.15);
+  z-index: 4;
+  border-radius: 0 0 var(--km-r-sm) var(--km-r-sm);
+  background: var(--km-shelf);
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+
+.km-socket[data-lift] .km-socket-lip { opacity: 0; }
+
+.km-socket .km-tube { position: relative; z-index: 2; }
+
+/* ⚠️ ارتفاعِ نام همیشه رزرو است، حتی وقتی جایگاه خالی است: وگرنه با
+   نشستنِ هر شیشه، رَک بلندتر می‌شد و کلِ صفحه تکان می‌خورد (CLS). */
+.km-socket .km-tube-label {
+  margin-top: calc(var(--km-tube-h) * 0.16);
+}
+
+
+
+/* ═══════════════════════════ پخش‌کننده‌ها ════════════════════════════════
+   دسکتاپ (≥۹۰۰px): هر شانزده ماده در یک ردیف با گامِ برابر. */
+.km-dispensers {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: var(--km-stage-max);
+}
+
+.km-dispenser-grid {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  justify-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.km-dispenser-cell {
+  width: 100%;
+  min-width: 0;
+}
+
+.km-dispenser-grid .km-tube {
+  --km-tube-w: min(var(--km-tube-w-base), calc(100% - var(--u) * 0.8));
+}
+
+/* ═══════════════════ چرخ‌فلکِ پخش‌کننده‌ها (گوشی) ════════════════════════
+   ⚠️ عمق فقط با `transform` و `opacity` کشیده می‌شود و `--d` (فاصلهٔ
+   نرمال‌شده از مرکز) را rAF می‌نویسد. هیچ property دیگری در فریم عوض
+   نمی‌شود، پس مرورگر نه layout می‌سازد و نه paintِ دوباره.
+
+   ⚠️ `--ad` قدرِ مطلقِ همان فاصله است، فقط برای اینکه فرمول‌های زیر
+   نخواهند `abs()` بزنند (پشتیبانی‌اش هنوز همه‌جا نیست). */
+.km-cf {
+  --km-cf-item: clamp(3.75rem, 22vw, 5rem);
+  --km-cf-h: clamp(7.5rem, 21dvh, 9.5rem);
+  flex: 0 0 auto;
+  width: 100vw;
+  /* ریل تمامِ عرضِ صفحه را می‌گیرد، حتی وقتی صحنه padding دارد. */
+  margin-inline: calc(50% - 50vw);
+}
+
+.km-cf-track {
+  display: flex;
+  align-items: center;
+  height: var(--km-cf-h);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* ⚠️ همین padding است که «آیتمِ اول هم می‌تواند وسط بایستد» را ممکن
+     می‌کند: نیمِ عرضِ ریل منهای نیمِ عرضِ آیتم، در هر دو سر. */
+  padding-inline: calc(50% - var(--km-cf-item) / 2);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.km-cf-track::-webkit-scrollbar {
+  display: none;
+}
+
+.km-cf-item {
+  flex: 0 0 var(--km-cf-item);
+  scroll-snap-align: center;
+  display: grid;
+  justify-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  /* ⚠️ آیتم فقط *جابه‌جا* می‌شود؛ مقیاس روی خودِ شیشه می‌نشیند و مبدأش
+     کفِ شیشه است. با مقیاسِ کلِ آیتم، کفِ شیشه‌ها روی یک خط نمی‌ماند و
+     نام‌ها هم کوچک می‌شدند — یعنی همسایه‌ها «دورتر» به‌نظر نمی‌رسیدند،
+     فقط ریز. */
+  --ad: 3;
+  align-content: end;
+  transform: translateX(calc(var(--d, 0) * var(--km-cf-item) * -0.14));
+  z-index: calc(10 - var(--ad) * 3);
+  will-change: transform;
+}
+
+/* ⚠️ افتِ پله‌ای و نه خطی: همسایهٔ اول ۰٫۷۸ و ۰٫۵۵ (همان چیزی که
+   مشخصات می‌خواهد) و از آنجا به بعد ملایم‌تر، وگرنه همسایهٔ دوم عملاً
+   ناپدید می‌شد. */
+.km-cf-item .km-tube-body {
+  transform-origin: 50% 100%;
+  transform: scale(
+    calc(1 - 0.22 * min(var(--ad), 1) - 0.1 * max(0, min(var(--ad), 2.6) - 1))
+  );
+  opacity: calc(1 - 0.45 * min(var(--ad), 1) - 0.15 * max(0, min(var(--ad), 2.6) - 1));
+  transition: opacity 120ms linear;
+  will-change: transform, opacity;
+}
+
+.km-cf-item[data-centered] {
+  opacity: 1;
+  z-index: 12;
+}
+
+.km-cf-item[aria-disabled="true"] {
+  cursor: default;
+}
+
+.km-cf-item:focus-visible {
+  outline: none;
+}
+.km-cf-item:focus-visible .km-tube-glass {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+/* ⚠️ نام و الگو *بیرونِ* مقیاس‌اند: اندازه‌شان ثابت می‌ماند و فقط
+   پررنگی‌شان با فاصله از مرکز عوض می‌شود. متنِ کوچک‌شده خوانا نیست، و
+   این نام‌ها همان چیزی‌اند که باید یاد گرفته شوند. */
+.km-cf-item .km-tube-label {
+  opacity: calc(1 - 0.5 * min(var(--ad), 1) - 0.2 * max(0, min(var(--ad), 2.6) - 1));
+  transition: opacity 150ms ease;
+}
+/* ⚠️ ارتفاعِ برچسب *ثابت* است. بدونش، وزنِ ۷۰۰ِ آیتمِ وسط جعبهٔ متن را
+   چند پیکسل بلندتر می‌کرد و — چون ریل آیتم‌ها را وسط‌چین می‌کند — کفِ
+   شیشه‌ها دیگر روی یک خط نمی‌ماند (اندازه‌گیری‌شده: ۳٫۴۵px اختلاف). */
+.km-cf-item .km-tube-label {
+  height: var(--km-tube-foot);
+  align-content: start;
+}
+
+.km-cf-item .km-tube-name {
+  font-weight: 500;
+}
+.km-cf-item[data-centered] .km-tube-label {
+  opacity: 1;
+}
+.km-cf-item[data-centered] .km-tube-name {
+  font-weight: 700;
+}
+
+.km-cf-item .km-tube {
+  --km-tube-w: calc(var(--km-cf-item) * 0.52);
+  --km-tube-h: calc(var(--km-cf-h) * 0.52);
+}
+
+.km-cf-item[data-recent] .km-tube-glass {
+  box-shadow: inset 0 0 0 1px var(--km-accent);
+}
+
+/* کم‌حرکت: نه مقیاس، نه محوشدن. فقط snap. */
+.km-cf[data-reduced] .km-cf-item .km-tube-body {
+  transform: none;
+  opacity: 1;
+  transition: none;
+}
+
+.km-cf[data-reduced] .km-cf-item .km-tube-label {
+  opacity: 1;
+  transition: none;
+}
+
+.km-cf[data-reduced] .km-cf-item {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .km-cf-track {
+    scroll-behavior: auto;
+  }
+  .km-cf-item,
+  .km-cf-item .km-tube-body,
+  .km-cf-item .km-tube-label {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════ شبحِ برگشت ══════════════════════════════════ */
+.km-ghosts {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+
+.km-ghost {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  will-change: transform, opacity;
+}
+
+/* ═══════════════════════════ نوارِ اقدام ═════════════════════════════════
+   یک ردیف بینِ رَک و پخش‌کننده‌ها: راست خطِ وضعیت، چپ دکمه‌ها.
+
+   ⚠️ ارتفاعش *ثابت و رزروشده* است. نسخهٔ قبل یک کارتِ جدا زیرِ رَک بود
+   که با آمدنِ نتیجه محتوایش عوض می‌شد؛ حتی با ارتفاعِ ثابت، یک کارتِ
+   دیگر داخلِ صحنه بود — و قاعدهٔ «کارت داخلِ کارت» را می‌شکست. */
+.km-actions {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--u);
+  width: min(42rem, 100%);
+  min-height: calc(var(--u) * 4.5);
+}
+
+.km-status {
+  margin: 0;
+  font-size: max(0.8125rem, calc(var(--u) * 0.95));
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+
+/* ⚠️ `key`ِ React این گره را با هر پیام تازه می‌سازد، پس همین انیمیشن
+   دوباره اجرا می‌شود — چهار پیکسل حرکت و یک محوشدنِ کوتاه، نه بیشتر. */
+/* ⚠️ جعبهٔ متن *تمامِ ستون* را می‌گیرد و متن داخلش از ابتدا چیده می‌شود:
+   با جعبهٔ اندازهٔ محتوا، هر پیامِ کوتاه‌تر/بلندتر خودِ گرهٔ متن را
+   جابه‌جا می‌کرد و همان چند میلیونمِ CLS از اینجا می‌آمد. */
+.km-status-body {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  width: 100%;
+  animation: km-status-in 220ms ease-out both;
+}
+
+.km-status-text {
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes km-status-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.km-status-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+.km-status-icon-spin {
+  animation: km-spin 900ms linear infinite;
+}
+
+.km-status[data-tone="ok"] { color: var(--km-ok); }
+.km-status[data-tone="bad"] { color: var(--km-bad); }
+
+.km-actions-main {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+}
+
+.km-ghost-btn {
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 0.85);
+  border: 0;
+  border-radius: var(--km-r-sm);
+  background: none;
+  color: var(--color-muted-foreground);
+  font-size: max(0.8125rem, calc(var(--u) * 0.9));
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.km-ghost-btn:hover:not(:disabled) {
+  color: var(--color-foreground);
+  background: var(--km-s2);
+}
+.km-ghost-btn:disabled { opacity: 0.4; cursor: default; }
+.km-ghost-btn:focus-visible {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+/* دکمهٔ اصلی — تنها جای رنگِ تأکید در نوارِ اقدام. */
+.km-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 0.5);
+  /* ⚠️ عرضِ ثابت — نه برای زیبایی: متنِ دکمه بینِ «آزمایش ترکیب»،
+     «فرستادنِ دوباره» و «بیتِ بعدی» عوض می‌شود و هر بار عرضِ دکمه چند
+     پیکسل جابه‌جا می‌شد (CLSِ اندازه‌گیری‌شده: ۷e-6). */
+  min-width: max(calc(var(--u) * 12), 10.5rem);
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 1.6);
+  border: 0;
+  border-radius: var(--km-r-sm);
+  background: var(--km-accent);
+  color: var(--color-primary-foreground);
+  font-size: max(0.875rem, calc(var(--u) * 1));
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.km-cta:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--km-accent) 88%, var(--color-foreground));
+}
+
+.km-cta:disabled {
+  cursor: default;
+  background: var(--km-s2);
+  color: var(--color-muted-foreground);
+}
+
+.km-cta:focus-visible {
+  outline: 2px solid var(--color-foreground);
+  outline-offset: 2px;
+}
+
+/* ⚠️ برچسب کلِ عرضِ دکمه را می‌گیرد و متن داخلش وسط‌چین است: با این،
+   عوض شدنِ *متن* دیگر جعبهٔ برچسب را جابه‌جا نمی‌کند. */
+.km-cta-label {
+  flex: 1;
+  text-align: center;
+}
+
+.km-cta-label[data-busy] { opacity: 0.55; }
+
+.km-cta-spin {
+  position: absolute;
+  inset-inline-end: calc(var(--u) * 0.8);
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in oklch, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.km-cta-spin[data-on] {
+  opacity: 1;
+  animation: km-spin 700ms linear infinite;
+}
+
+@keyframes km-spin {
+  to { rotate: 360deg; }
+}
+
+/* ══════════════════════════ حالتِ خطا ════════════════════════════════════
+   ⚠️ اسپینرِ عمومی یا کارتِ خطا نه: خودِ دستگاه خاموش نشان داده می‌شود. */
+.km-offline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: clamp(2.5rem, 9vw, 5rem) 1rem;
+  text-align: center;
+}
+
+.km-offline-mark {
+  width: 3.5rem;
+  height: 1.1rem;
+  border-radius: 999px / 0.5rem;
+  background: color-mix(in oklch, #000 40%, var(--color-card));
+  box-shadow:
+    inset 0 0 0 1px var(--km-edge),
+    inset 0 2px 5px -2px color-mix(in oklch, #000 80%, transparent);
+}
+
+.km-offline-title {
+  font-size: 1.1rem;
+  color: var(--color-foreground);
+}
+
+.km-offline-note {
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
+  max-width: 28rem;
+  line-height: 1.8;
+}
+
+/* ══════════════════════════ صفحهٔ شروع ══════════════════════════════════
+   دو ستون: شیء در یک سو، کنسول در سوی دیگر.
+
+   ⚠️ اینجا پیش‌تر یک ستونِ مرکزی بود، با یادداشتی که می‌گفت «دو ستون نه».
+   آن یادداشت برداشته شد چون دلیلش رفع شد و نه چون نظرمان عوض شد: ایرادِ
+   آن نسخه «دو ستون بودن» نبود، «دو چیزِ بی‌ربط» بود — متن این‌طرف،
+   تصویرکِ تزئینی آن‌طرف. حالا یک ماده هر دو سر را به هم می‌دوزد: بشر
+   می‌ریزد، جوهر کفِ صحنه پخش می‌شود، و همان جوهر داخلِ کلیدهای کنسول بالا
+   می‌آید. توضیحِ بلندترش در KimiaIntro.tsx است.
+
+   ⚠️ «شیشه» اینجا هم مثلِ بقیهٔ فایل از لبه و ضخامت و بازتاب ساخته می‌شود
+   و نه از backdrop-filter. توضیحش سرِ فایل. */
+.km-intro {
+  display: flex;
+  flex-direction: column;
+  /* ⚠️ همان بودجهٔ صحنهٔ بازی: کلِ صفحهٔ معرفی باید در ارتفاعِ *مرئی* جا
+     شود. `dvh` و نه `vh`، چون نوارِ آدرسِ گوشی `vh` را بزرگ‌تر از دیدِ
+     واقعی گزارش می‌کند و صفحه دقیقاً به اندازهٔ همان نوار اسکرول می‌خورد. */
+  height: calc(100dvh - var(--km-chrome, 0px));
+  overflow: hidden;
+  padding-inline: 1rem;
+  padding-bottom: calc(var(--u) * 0.5 + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── دو ستون، یک محور ─────────────────────────────────────────────────────
+   ⚠️ چیدمان با grid-area نوشته شده و نه با ترتیبِ DOM، چون این دو باید
+   از هم جدا بمانند:
+
+     ترتیبِ DOM (و Tab و صفحه‌خوان): تیتر → پیش‌نمایش → کنترل‌ها
+     ترتیبِ دیداریِ دسکتاپ        : ستونِ راست = تیتر + کنترل‌ها
+                                     ستونِ چپ   = پیش‌نمایش
+
+   ⚠️ و «یک محور عمودی»: ردیف‌ها `auto auto` هستند و `align-content: center`
+   کلِ گرید را وسط می‌گذارد؛ پیش‌نمایش هر دو ردیف را می‌گیرد. پس مرکزِ
+   بلوکِ متن و مرکزِ پیش‌نمایش روی یک خط می‌افتند — چیزی که با دو ستونِ
+   `align-items: start` هیچ‌وقت درست درنمی‌آمد. */
+.km-intro-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  /* ⚠️ کفِ ۵۲۰ پیکسل روی خودِ ستون است و نه روی پیش‌نمایش: زیرِ این عرض
+     باکسِ بیت و رَک و پخش‌کننده‌ها دیگر «آزمایشگاه» نیستند، سه ردیفِ
+     ریزند. اگر جا نشد، چیدمان یک‌ستونه می‌شود (بریک‌پوینتِ پایین). */
+  grid-template-columns: minmax(0, 1fr) minmax(520px, 1.1fr);
+  grid-template-areas:
+    "head preview"
+    "controls preview";
+  align-content: center;
+  column-gap: calc(var(--u) * 3);
+  row-gap: calc(var(--u) * 1.75);
+  width: 100%;
+  max-width: var(--km-stage-max);
+  margin-inline: auto;
+  padding-block: calc(var(--u) * 0.5);
+}
+
+.km-intro-head {
+  grid-area: head;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+
+.km-intro-controls {
+  grid-area: controls;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+
+.km-intro-preview-slot {
+  grid-area: preview;
+  align-self: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.km-intro-title {
+  font-size: calc(var(--u) * 2.6);
+  line-height: 1.25;
+  color: var(--color-foreground);
+}
+
+.km-intro-lede {
+  font-size: calc(var(--u) * 0.95);
+  line-height: 1.85;
+  color: var(--color-muted-foreground);
+  max-width: 30ch;
+}
+
+/* ⚠️ دکمه از `components/UI/kit/button` می‌آید و اینجا فقط *جا* می‌گیرد:
+   رنگ، شعاع، حالتِ فشردن و حلقهٔ focus همه از سیستمِ سایت‌اند. */
+/* ⚠️ زمینه از `--km-accent` گرفته می‌شود و نه از `bg-primary`ِ خودِ
+   کامپوننت: هر دو دکمهٔ اصلیِ بازی باید *یک* رنگ باشند، و توضیحِ چرایی
+   تیره‌تر بودنِ آن رنگ در تمِ روشن سرِ همان توکن است. بقیهٔ چیزها —
+   شعاع، ارتفاع، حالتِ فشردن، حلقهٔ focus — از سیستمِ سایت می‌آید. */
+.km-intro-cta {
+  position: relative;
+  width: 100%;
+  background: var(--km-accent);
+}
+
+.km-intro-cta-label { transition: opacity 150ms ease; }
+.km-intro-cta-label[data-busy] { opacity: 0.55; }
+
+.km-intro-cta-spin {
+  position: absolute;
+  inset-inline-end: calc(var(--u) * 0.9);
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in oklch, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.km-intro-cta-spin[data-on] {
+  opacity: 1;
+  animation: km-spin 620ms linear infinite;
+}
+
+.km-intro-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: color-mix(in oklch, var(--color-muted-foreground) 88%, transparent);
+}
+
+.km-intro-note svg {
+  flex: none;
+  opacity: 0.8;
+}
+
+/* ── گردوغبارِ معلق ───────────────────────────────────────────────────────
+   ⚠️ بوم خودش `absolute inset-0` است، پس اینجا فقط محوشدنش در حاشیه‌ها
+   تنظیم می‌شود: بدونِ ماسک، ذرات تا لبهٔ صفحه پررنگ می‌مانند و نوارِ بالا
+   و متن را کثیف نشان می‌دهند. */
+.km-backdrop-dust {
+  -webkit-mask-image: radial-gradient(115% 85% at 50% 42%, #000 30%, transparent 88%);
+  mask-image: radial-gradient(115% 85% at 50% 42%, #000 30%, transparent 88%);
+}
+
+/* ═══════════════════════ پیش‌نمایشِ زندهٔ صفحهٔ شروع ══════════════════════
+   ⚠️ همان قطعه‌های بازی، فقط کوچک‌تر و بی‌صدا. هیچ استایلِ دومی برای
+   شیشه و رَک اینجا نوشته نشده؛ فقط اندازه‌ها از همان `--u` فشرده‌تر
+   می‌شوند و همه‌چیز از لمس بیرون می‌ماند. */
+.km-preview {
+  --km-tube-w: calc(var(--u) * 1.45);
+  --km-tube-h: calc(var(--u) * 4.2);
+  --km-tube-foot: calc(var(--u) * 1.4);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 0.6);
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.km-preview .km-verse-card {
+  /* ⚠️ کلیدِ پخشِ کوچک‌تر *اینجا* تعریف می‌شود و نه روی خودِ `.km-play`:
+     حاشیهٔ پایینِ کارت (جای نیمهٔ بیرون‌زدهٔ کلید) از همین متغیر حساب
+     می‌شود، و تعریفش پایین‌دست یعنی کارت جای اندازهٔ *بزرگ* را باز
+     می‌کرد و کلیدِ کوچک وسطِ فاصله معلق می‌ماند. */
+  --km-play: calc(var(--u) * 2.4);
+  flex: 0 1 auto;
+  width: 100%;
+  max-height: none;
+  margin-top: 0;
+}
+
+.km-preview .km-verse-line {
+  font-size: calc(var(--u) * 0.95);
+  line-height: 1.95;
+}
+
+.km-preview .km-verse-body {
+  padding: calc(var(--u) * 1.1) calc(var(--u) * 1) calc(var(--u) * 1.3);
+}
+
+.km-preview .km-rack {
+  width: fit-content;
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 0.6) calc(var(--u) * 0.3);
+}
+
+.km-preview .km-play-face svg {
+  width: calc(var(--u) * 0.8);
+  height: calc(var(--u) * 0.8);
+}
+
+.km-preview-pool {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--u) * 0.3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.km-preview-pool li {
+  width: calc(var(--km-tube-w) + var(--u) * 0.6);
+}
+
+/* ── یک ستون ──────────────────────────────────────────────────────────────
+   ⚠️ مرز ۱۰۲۴ است و نه ۹۰۰: ستونِ پیش‌نمایش کفِ ۵۲۰ پیکسلی دارد، و در
+   ۹۵۰ پیکسل چیزی که برای متن می‌ماند حدودِ ۳۵۰ پیکسل است — یعنی تیتر
+   سه‌خطی و سه کلیدِ انتخاب که به هم می‌چسبند. زیرِ این عرض یک ستون
+   درست‌تر است.
+
+   ترتیبِ دیداری همان ترتیبِ DOM می‌شود: تیتر، پیش‌نمایش، کنترل‌ها. */
+@media (max-width: 1024px) {
+  .km-intro-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "preview"
+      "controls";
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: stretch;
+    row-gap: calc(var(--u) * 0.6);
+    max-width: 34rem;
+  }
+
+  .km-intro-head { align-self: start; }
+  .km-intro-preview-slot { align-self: center; overflow: hidden; }
+
+  /* ⚠️ «چسبیده به پایین»: نوار تا لبهٔ فیزیکیِ صفحه کشیده می‌شود
+     (`margin-inline: -1rem` حاشیهٔ ریشه را خنثی می‌کند) و فاصلهٔ امنِ
+     دستگاه *داخلِ* خودش حساب می‌شود و نه بیرونش. یک پلهٔ تونال آن را از
+     پیش‌نمایش جدا می‌کند — نه خطِ مویی، نه سایه. */
+  .km-intro-controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    align-self: end;
+    margin-inline: -1rem;
+    margin-bottom: calc(var(--u) * -0.5 - env(safe-area-inset-bottom, 0px));
+    padding: calc(var(--u) * 0.7) 1rem calc(var(--u) * 0.7 + env(safe-area-inset-bottom, 0px));
+    background: var(--km-s1);
+  }
+
+  .km-preview .km-verse-card { width: min(30rem, 100%); }
+}
+
+/* ⚠️ ارتفاعِ خیلی کم (نوارِ ابزارِ باز روی لپ‌تاپِ کوچک، یا گوشیِ افقی):
+   پیش‌نمایش *حذف* می‌شود. تزئین است و انتخاب و دکمهٔ شروع نیستند؛ وقتی
+   جا برای هر دو نیست، آن یکی می‌رود. */
+@media (max-height: 519px) {
+  .km-intro-preview-slot { display: none; }
+
+  .km-intro-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "controls";
+    grid-template-rows: auto auto;
+    align-content: center;
+    max-width: 34rem;
+  }
+
+  .km-intro-controls {
+    position: static;
+    margin-inline: 0;
+    margin-bottom: 0;
+    padding: 0;
+    background: none;
+  }
+
+  .km-intro-note { display: none; }
+}
+
+/* ════════════════════════════ صفحهٔ نتیجه ════════════════════════════════ */
+.km-session {
+  display: flex;
+  flex-direction: column;
+  padding-inline: 1rem;
+  padding-bottom: 2rem;
+}
+
+.km-session-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 32rem;
+  width: 100%;
+  margin-inline: auto;
+  min-height: min(30rem, 66vh);
+  justify-content: center;
+  text-align: center;
+}
+
+/* ظرفی که «چقدر ساخته شد» را به‌صورتِ سطحِ مایع نشان می‌دهد — همان زبانِ
+   دیداریِ محفظه، در قابِ کوچک‌تر. */
+.km-session-vessel {
+  position: relative;
+  width: min(15rem, 62vw);
+  height: 3.2rem;
+  border-radius: 999px / 1.1rem;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-lapis) 24%, transparent),
+    color-mix(in oklch, #000 34%, var(--color-card))
+  );
+  box-shadow:
+    inset 0 1px 0 var(--km-lit),
+    inset 0 0 0 1px var(--km-edge),
+    0 16px 34px -24px color-mix(in oklch, #000 90%, transparent);
+}
+
+.km-session-fill {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(18% + var(--km-ratio, 0) * 72%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--km-teal) 70%, #fff 14%),
+    var(--km-teal) 42%,
+    color-mix(in oklch, var(--km-teal) 70%, #000)
+  );
+  transition: height 900ms cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+.km-session-sheen {
+  position: absolute;
+  inset-inline: 8%;
+  top: 12%;
+  height: 24%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in oklch, #fff 16%, transparent), transparent);
+}
+
+.km-session-lip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--km-edge-soft);
+}
+
+.km-session-title {
+  font-size: clamp(1.35rem, 5vw, 1.85rem);
+  color: var(--color-foreground);
+}
+
+.km-session-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 0.6rem 0 0.2rem;
+}
+
+.km-session-divider {
+  width: 1px;
+  height: 2rem;
+  background: var(--km-edge);
+}
+
+.km-session-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.km-session-stat dt {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.km-session-stat dd {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: color-mix(in oklch, var(--km-teal) 75%, var(--color-foreground));
+}
+
+.km-session-note {
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
+  max-width: 24rem;
+  line-height: 1.9;
+}
+
+.km-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.km-session-back { text-decoration: none; }
+
+
+/* ══════════════════════ انتخابِ طولِ نشست ════════════════════════════════
+   سه رادیویِ واقعی. ظاهرشان سه سطحِ تخت است با یک پلهٔ تونال و — برای
+   انتخاب‌شده — یک حلقهٔ تأکید از رنگِ اصلیِ تم.
+
+   ⚠️ نسخهٔ قبل یک «ظرفِ شیشه‌ایِ پرشونده» بود: جوهر از کف بالا می‌آمد،
+   هلالِ سطحش با آن بالا می‌رفت و دو حباب رها می‌شدند. زیبا بود و سه
+   مشکل داشت — گرادیان و براقی و سایه‌ای که هیچ‌کدام در قواعدِ ظاهر جا
+   ندارند، یک انیمیشنِ دائمی کنارِ یک انیمیشنِ دائمیِ دیگر (پیش‌نمایش)،
+   و یک `role="radio"`ِ دست‌ساز که فقط برای همان ظاهر لازم شده بود.
+
+   ⚠️ ورودی نامرئی است ولی *حذف نشده*: روی کلِ کلید کشیده می‌شود، پس
+   کلیک و focus و جهت‌دارها همه از خودِ مرورگر می‌آیند. حالت‌ها با
+   `:has()` از روی همان ورودی خوانده می‌شوند.
+
+   ⚠️ و انتخاب سه نشانه دارد: سطحِ پررنگ‌تر، حلقهٔ تأکید، و عددِ پررنگ. */
+.km-picker {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.45);
+  /* `fieldset`ِ خام یک قاب و حاشیهٔ پیش‌فرض دارد. */
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.km-picker-title {
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+
+.km-picker-keys {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(var(--u) * 0.5);
+}
+
+.km-picker-key {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.1rem;
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 0.4);
+  border-radius: var(--km-r);
+  background: var(--km-s2);
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+/* ⚠️ `opacity: 0` و نه `display: none` یا `sr-only`: ورودی باید هنوز
+   focus بگیرد و کلیک‌پذیر بماند. کلِ سطحِ کلید همین ورودی است. */
+.km-picker-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.km-picker-key:hover:not(:has(.km-picker-input:disabled)) {
+  background: color-mix(in oklch, var(--km-s2) 88%, var(--color-foreground));
+}
+
+.km-picker-key:has(.km-picker-input:checked) {
+  background: color-mix(in oklch, var(--km-accent) 12%, var(--km-s2));
+  box-shadow: inset 0 0 0 2px var(--km-accent);
+}
+
+.km-picker-key:has(.km-picker-input:focus-visible) {
+  outline: 2px solid var(--km-accent);
+  outline-offset: 2px;
+}
+
+.km-picker-key:has(.km-picker-input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.km-picker-num {
+  font-size: calc(var(--u) * 1.35);
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-muted-foreground);
+}
+
+.km-picker-key:has(.km-picker-input:checked) .km-picker-num {
+  color: var(--color-foreground);
+}
+
+.km-picker-name {
+  font-size: 0.8125rem;
+  color: var(--color-foreground);
+}
+
+.km-picker-time {
+  font-size: 0.6875rem;
+  color: var(--color-muted-foreground);
+}
+
+/* ═══════════════════════ کلیدِ صدا در نوارِ بازی ═════════════════════════ */
+.km-bar-sfx {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  color: color-mix(in oklch, var(--color-muted-foreground) 85%, transparent);
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.km-bar-sfx:hover {
+  color: var(--color-foreground);
+  background: var(--km-edge-soft);
+}
+
+.km-bar-sfx[data-on] {
+  color: color-mix(in oklch, var(--km-teal) 75%, var(--color-foreground));
+}
+
+.km-bar-sfx:focus-visible {
+  outline: 2px solid var(--km-teal);
+  outline-offset: 2px;
+}
+
+/* ══════════════ نوارِ اقدام روی گوشی و تبلت ════════════════════════════
+   ⚠️ مرز همان ۹۰۰ است که پخش‌کننده‌ها چرخ‌فلک می‌شوند. نسخهٔ اول این
+   بلوک را روی ۶۸۰ گذاشته بود و در ۷۶۸ پیکسل نوارِ اقدام وسطِ صفحه رها
+   می‌ماند در حالی که چرخ‌فلک از قبل آمده بود.
+
+   ترتیبِ *دیداری* عوض می‌شود (پخش‌کننده‌ها بالا، نوار پایین) ولی ترتیبِ
+   DOM و در نتیجه ترتیبِ Tab دست‌نخورده می‌ماند. */
+@media (max-width: 899px) {
+  /* ⚠️ طرحِ مرجعِ باریک فرق دارد: صحنه یک ستون است و عرضِ طراحی ~۳۲
+     واحد، نه ۷۸. با همان فرمولِ دسکتاپ، گوشیِ ۳۹۰ پیکسلی واحدِ ۵ پیکسلی
+     می‌گرفت و به کفِ clamp می‌چسبید — یعنی همه‌چیز ریز و نصفِ صفحه
+     خالی. */
+  .km-root,
+  .km-intro,
+  .km-session {
+    --u: clamp(0.5rem, min(100vw / 32, 100dvh / 58), 1.35rem);
+  }
+
+  .km-stage { justify-content: space-between; }
+
+  /* ⚠️ حاشیهٔ پایینِ ریشه برداشته می‌شود و خودِ نوار جایش را می‌گیرد:
+     «چسبیده به پایین» یعنی تا لبهٔ فیزیکیِ صفحه، و فاصلهٔ امنِ دستگاه
+     (`safe-area`) داخلِ همان نوار حساب می‌شود و نه بیرونش. */
+  .km-root { padding-bottom: 0; }
+
+  .km-actions {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    order: 3;
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    gap: calc(var(--u) * 0.4);
+    width: 100%;
+    padding-block: calc(var(--u) * 0.5);
+    padding-bottom: calc(var(--u) * 0.5 + env(safe-area-inset-bottom, 0px));
+    background: var(--color-background);
+  }
+
+  .km-actions-main {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: calc(var(--u) * 0.5);
+  }
+
+  .km-actions-main .km-cta { min-width: 0; }
+  .km-status { text-align: center; }
+
+  .km-dispensers { order: 2; }
+  .km-cf { order: 2; }
+}
+
+/* ══════════════════════ موبایل — ترکیبِ مستقل ════════════════════════════
+   ⚠️ نسخهٔ گوشی، دسکتاپِ کوچک‌شده نیست: ترتیب همان است ولی اندازه‌ها و
+   چگالی از نو تعیین می‌شوند. ویال‌ها روی گوشی نسبت به سهمِ صفحه
+   *بزرگ‌ترند* تا انگشت بتواند بزندشان، و رَک به‌جایش کشیده می‌شود. */
+@media (max-width: 680px) {
+  .km-root,
+  .km-intro,
+  .km-session {
+    --km-tube-foot: 2rem;
+  }
+
+  .km-root {
+    padding-inline: 0.85rem;
+    gap: 0.4rem;
+  }
+
+  .km-bar { padding: 0.3rem 0.5rem; }
+  .km-bar-back-text { display: none; }
+  .km-bar-round { font-size: 0.75rem; }
+
+
+
+  .km-session-stage { min-height: 0; padding-block: 2rem; }
+}
+
+/* ══════════════ دسکتاپ: هر شانزده ماده، بدونِ اسکرول ════════════════════
+   ⚠️ ضریبِ ۶٫۰۵vw از حسابِ واقعی آمده و نه از حدس: عرضِ قابلِ استفادهٔ رَک
+   روی هر نمایشگر `100vw - 2rem` است (تا سقفِ ۹۰rem)، و ۱۶ × ۶٫۰۵vw همیشه
+   کمی کمتر از آن می‌ماند — روی ۱۰۲۴ حدودِ ۹۹۲ در برابرِ ۹۹۲، روی ۱۹۲۰
+   ۱۴۰۸ در برابرِ ۱۴۴۰. کف و سقف هم گذاشته شده تا نه ریز شود و نه پهن. */
+@media (min-width: 1024px) {
+  .km-root {
+    /* ⚠️ ۶٫۰vw و نه ۶٫۰۵: اندازه‌گیری روی ۱۰۲۴ نشان داد دقیقاً *یک* ویال
+       بیرون می‌ماند، چون گودیِ ۰٫۷۵rem دو سرِ ریل هم از همان عرض کم
+       می‌شود. آن گودی فقط برای اسکرول است و اینجا اسکرولی نیست، پس
+       برداشته شد و ضریب هم کمی پایین آمد. حالا ۱۶ × ۶٫۰vw روی ۱۰۲۴
+       می‌شود ۹۸۳ در برابرِ ۹۹۲ فضای موجود. */
+    --km-socket: clamp(3.8rem, 6vw, 5.5rem);
+  }
+
+  .km-tube-name { font-size: clamp(0.6875rem, 0.86vw, 0.8125rem); }
+}
+
+/* صفحه‌های کوتاه: فاصله‌ها جمع می‌شوند، نه اندازهٔ متن. */
+/* ⚠️ حتی در صفحهٔ کم‌ارتفاع، فاصلهٔ پایین *نمی‌تواند* از شعاعِ دکمهٔ پلی
+   کمتر شود. نسخهٔ قبلِ همین بلوک یک عددِ ثابت می‌گذاشت و دکمه روی مصراعِ
+   دوم می‌نشست (اندازه‌گیری‌شده: یک پیکسل فاصله). */
+@media (max-height: 760px) {
+  .km-stage { gap: calc(var(--u) * 0.6); }
+  .km-verse-body {
+    padding-block: calc(var(--u) * 1.4) calc(var(--km-play) / 2 + 1rem);
+  }
+  .km-verse-line { line-height: 1.8; }
+}
+
+/* ════════════════════════════ کم‌حرکت ════════════════════════════════════
+   ⚠️ *همهٔ* بازخوردها می‌مانند و فقط کوتاه می‌شوند. کسی که حرکت را خاموش
+   کرده نباید ندانَد ترکیبش پایدار شد یا نه. */
+@media (prefers-reduced-motion: reduce) {
+  /* تیک فوری عوض می‌شود و مایع همزده نمی‌شود؛ فقط اسپینرِ دکمه می‌ماند. */
+  .km-verse-card[data-mode="correct"] .km-play-check,
+  .km-verse-card[data-mode="correct"] .km-play-face {
+    animation-timing-function: steps(1, end);
+  }
+
+  .km-verse-card[data-mode="analyzing"] .km-verse-band {
+    animation: none;
+  }
+
+  .km-verse-card[data-mode="analyzing"] .km-verse-wave svg {
+    animation: none;
+  }
+
+  .km-verse-card[data-mode="wrong"],
+  .km-cta-next {
+    animation-duration: 150ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .km-verse-skeleton,
+  .km-verse-wave svg,
+  .km-verse-bands[data-blended]::after {
+    animation: none;
+  }
+
+  .km-intro-cta-spin[data-on] { animation: none; }
+
+  /* ⚠️ لوله‌ها اصلاً پرواز نمی‌کنند (خودِ WAAPI در کامپوننت خاموش
+     می‌شود)؛ اینجا فقط باقیِ گذارها کوتاه می‌شوند. */
+  .km-tube-body,
+  .km-tube-label,
+  .km-socket-well,
+  .km-socket-lip,
+  .km-session-fill { transition-duration: 110ms; }
+
+  .km-tube[data-role="dispenser"]:hover:not([aria-disabled="true"]) .km-tube-body,
+  .km-tube[data-role="placed"]:hover:not([aria-disabled="true"]) .km-tube-body { translate: none; }
+}

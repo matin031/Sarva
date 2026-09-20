@@ -101,6 +101,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "aruz-rapid",
     "grammar-circuit",
     "jasoos",
+    "kimia",
     "ninja",
     "pairs",
     "role-hunt",

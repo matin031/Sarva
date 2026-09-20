@@ -26,6 +26,7 @@ const PAGES = [
   { path: "/game", kind: "public", label: "کهکشان بازی‌ها" },
   { path: "/game/grammar-circuit", kind: "public", label: "بازی مدار دستور" },
   { path: "/game/role-hunt", kind: "public", label: "بازی شکار نقش‌ها" },
+  { path: "/game/kimia", kind: "public", label: "بازی کیمیای وزن" },
   { path: "/game/aruz-bridge", kind: "public", label: "بازی پل وزن" },
   { path: "/game/ninja", kind: "public", label: "بازی نینجا" },
   { path: "/game/vocab", kind: "public", label: "بازی واژه‌یاب" },

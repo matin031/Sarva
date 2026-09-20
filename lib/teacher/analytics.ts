@@ -41,6 +41,7 @@ import { accuracyOrNull, attentionReasons, type AttentionReason } from "./analyt
  * | `aruz_bridge_answers`     | سرور (از جدولِ پرسش)         |
  * | `grammar_circuit_answers` | سرور (از جدولِ پرسش)         |
  * | `role_hunt_answers`       | سرور (از جدولِ پرسش)         |
+ * | `kimia_rounds`            | سرور (از snapshotِ خودِ دور)  |
  * | `quiz_attempts`           | سرور                         |
  * | `exam_attempts`           | سرور (بازتصحیح می‌کند)       |
  * | `vocab_answers`           | **مرورگر** ⚠️                 |
@@ -335,6 +336,7 @@ async function activityStats(studentIds: string[]): Promise<Map<string, Activity
     ...studentIds, // aruz_bridge_answers
     ...studentIds, // grammar_circuit_answers
     ...studentIds, // role_hunt_answers
+    ...studentIds, // kimia_rounds
     ...studentIds, // vocab_answers
     ...studentIds, // quiz_attempts
     ...studentIds, // exam_attempts
@@ -372,6 +374,11 @@ async function activityStats(studentIds: string[]): Promise<Map<string, Activity
          union all
          select user_id, answered_at, 'answer', 1, is_correct
            from role_hunt_answers where user_id in (${ph})
+         union all
+         /* ⚠️ یک ردیف به‌ازای هر *دور*، و درستی‌اش تلاشِ اول است. دورهای
+            رهاشده — آن‌ها که answered_at ندارند — اصلاً شاهد نیستند. */
+         select user_id, answered_at, 'answer', 1, first_correct
+           from kimia_rounds where user_id in (${ph}) and answered_at is not null
          union all
          select user_id, answered_at, 'answer', 0, is_correct
            from vocab_answers where user_id in (${ph})
@@ -450,15 +457,20 @@ export async function getStudentDailyActivity(
          select answered_at, is_correct from role_hunt_answers
           where user_id = ? and answered_at >= now(6) - interval ? day
          union all
+         select answered_at, first_correct from kimia_rounds
+          where user_id = ? and answered_at is not null
+            and answered_at >= now(6) - interval ? day
+         union all
          select answered_at, is_correct from vocab_answers
           where user_id = ? and answered_at >= now(6) - interval ? day
        ) t
       where at is not null
       group by 1
       order by 1`,
-    /* ⚠️ شش شاخه و دوازده `?`. هر `?` در MySQL پارامترِ بعدی را مصرف
+    /* ⚠️ هفت شاخه و چهارده `?`. هر `?` در MySQL پارامترِ بعدی را مصرف
        می‌کند، پس شناسه و بازه به‌ازای هر شاخه تکرار می‌شوند. */
     [
+      studentId, span,
       studentId, span,
       studentId, span,
       studentId, span,

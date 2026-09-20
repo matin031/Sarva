@@ -26,6 +26,7 @@ const PAGES = [
   { path: "/game", label: "کهکشان بازی‌ها", needs: ["بازی"] },
   { path: "/game/grammar-circuit", label: "مدار دستور", needs: [] },
   { path: "/game/role-hunt", label: "شکار نقش‌ها", needs: [] },
+  { path: "/game/kimia", label: "کیمیای وزن", needs: [] },
   { path: "/game/ninja", label: "نینجا", needs: [] },
   { path: "/game/aruz-bridge", label: "پل وزن", needs: [] },
   { path: "/game/vocab", label: "واژه‌یاب", needs: [] },

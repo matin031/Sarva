@@ -20,10 +20,17 @@ export { MIN_EVIDENCE_PER_BUCKET, MIN_EVIDENCE_TOTAL } from "./skill-buckets";
  * نشانش بدهد که تمرینش نتیجه داده یا نه.
  *
  * ── منابعِ شواهد ────────────────────────────────────────────────────────────
- * تحلیلِ وزن از **دو** بازی می‌آید و نه یکی:
+ * تحلیلِ وزن از **سه** بازی می‌آید و نه یکی:
  *
  *   • عروضِ سماعی (`user_answers` + `questions`) — تشخیصِ وزن از روی صدا
  *   • پلِ وزن     (`aruz_bridge_answers`)        — تشخیصِ وزن از روی متن
+ *   • کیمیای وزن  (`kimia_rounds`)               — *ساختنِ* ارکانِ وزن
+ *
+ * ⚠️ و سومی جنسِ متفاوتی از شاهد می‌دهد: دو تای اول «شناختن» را می‌سنجند
+ * (از میانِ چند گزینه) و سومی «ساختن» را. دانش‌آموزی که «مفاعیلن مفاعیلن
+ * فعولن» را از روی فهرست می‌شناسد ولی خودش نمی‌تواند بچیندش، در دو منبعِ
+ * اول سالم به نظر می‌رسد. برای همین در یک سطل می‌نشینند — سطل، *وزن* است
+ * و نه بازی — و تفکیکِ منبع (`bySource`) نشان می‌دهد ضعف از کدام جنس است.
  *
  * تحلیلِ نقشِ دستوری هم از سه جا:
  *
@@ -115,6 +122,33 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
     rows.push({ key: weight, label: weight, correct: r.is_correct, source: "پل وزن" });
   }
 
+  /* منبع ۳ — کیمیای وزن.
+     ⚠️ `first_correct` و نه `last_correct`: در آن بازی بازیکن می‌تواند
+     اصلاح کند و دوباره آزمایش کند، و این *هدفِ* بازی است. اگر نتیجهٔ
+     نهایی شمرده می‌شد، هر دورِ سخت هم «درست» ثبت می‌شد و تحلیل هیچ‌وقت
+     ضعفی نمی‌دید. شاهدِ یادگیری همان تلاشِ اول است.
+
+     ⚠️ و `answered_at is not null`: دوری که رها شده و هیچ‌وقت آزمایش نشده
+     شاهد نیست، نه درست و نه غلط.
+
+     ⚠️ `meter_ark` عمداً همان شکلِ رشته‌ایِ `aruz_bridge_answers
+     .correct_pattern` است («فاعلاتن فاعلاتن فاعلن»)، پس هر سه منبع در یک
+     سطل می‌نشینند و نه سه جزیرهٔ جدا با شواهدِ ناکافی. */
+  const kimiaRows = await query<{ meter_ark: string; first_correct: boolean }>(
+    `select meter_ark, first_correct
+       from kimia_rounds
+      where user_id = ? and answered_at is not null
+      order by answered_at desc
+      limit ?`,
+    [userId, SOURCE_ROW_CAP],
+  );
+
+  for (const r of kimiaRows) {
+    const weight = r.meter_ark.trim();
+    if (!weight) continue;
+    rows.push({ key: weight, label: weight, correct: r.first_correct, source: "کیمیای وزن" });
+  }
+
   return bucketize(rows);
 }
 
@@ -186,7 +220,14 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
 
 /* ────────────────────────── دفترِ اشتباه‌ها ─────────────────────────────── */
 
-export type MistakeArea = "aruz" | "bridge" | "vocab" | "jasoos" | "circuit" | "roleHunt";
+export type MistakeArea =
+  | "aruz"
+  | "bridge"
+  | "vocab"
+  | "jasoos"
+  | "circuit"
+  | "roleHunt"
+  | "kimia";
 
 export type MistakeEntry = {
   area: MistakeArea;
@@ -205,6 +246,7 @@ const AREA_LABEL: Record<MistakeArea, string> = {
   jasoos: "جاسوس",
   circuit: "مدار دستور",
   roleHunt: "شکار نقش‌ها",
+  kimia: "کیمیای وزن",
 };
 
 /**
@@ -222,7 +264,7 @@ export async function getMistakeBook(
 ): Promise<MistakeEntry[]> {
   const cap = Math.min(Math.max(limitPerArea, 1), 25);
 
-  const [aruz, bridge, vocab, jasoos, circuit, roleHunt] = await Promise.all([
+  const [aruz, bridge, vocab, jasoos, circuit, roleHunt, kimia] = await Promise.all([
     query<{ poem: string[] | null; answered_at: string }>(
       `select q.poem, ua.answered_at
          from user_answers ua
@@ -268,6 +310,17 @@ export async function getMistakeBook(
       `select verse, role_key, correct_token_text, answered_at
          from role_hunt_answers
         where user_id = ? and is_correct = 0
+        order by answered_at desc
+        limit ?`,
+      [userId, cap],
+    ),
+    /* ⚠️ «اشتباه» در کیمیای وزن یعنی *تلاشِ اول* غلط بوده — حتی اگر
+       بازیکن بعداً خودش درستش کرده باشد. دقیقاً همان دوری که ارزشِ مرور
+       کردن دارد. */
+    query<{ verse: string; meter_ark: string; answered_at: string }>(
+      `select verse, meter_ark, answered_at
+         from kimia_rounds
+        where user_id = ? and first_correct = 0
         order by answered_at desc
         limit ?`,
       [userId, cap],
@@ -324,6 +377,16 @@ export async function getMistakeBook(
       subtitle: `${roleLabelForKey(r.role_key) ?? r.role_key}: «${r.correct_token_text}»`,
       at: r.answered_at,
       practiceHref: "/game/role-hunt",
+    })),
+    ...kimia.map((r) => ({
+      area: "kimia" as const,
+      areaLabel: AREA_LABEL.kimia,
+      /* متنِ بیت با جداکنندهٔ «¶» ذخیره شده تا دو مصراع از هم پیدا باشند؛
+         در دفترِ اشتباه یک خط کافی است. */
+      title: r.verse.replace(" ¶ ", " / "),
+      subtitle: `وزن درست: ${r.meter_ark}`,
+      at: r.answered_at,
+      practiceHref: "/game/kimia",
     })),
   ];
 
@@ -412,8 +475,8 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
 
 /** اشتباه‌های یک ماه اخیر در همهٔ تمرین‌ها — فقط یک عدد، بدونِ کشیدنِ ردیف‌ها. */
 async function countRecentMistakes(userId: string): Promise<number> {
-  // ⚠️ شش زیرکوئری و شش بار `?`: در MySQL هر `?` پارامترِ بعدی را مصرف
-  // می‌کند، پس شناسهٔ کاربر شش بار فرستاده می‌شود. (در Postgres `$1` شش بار
+  // ⚠️ هفت زیرکوئری و هفت بار `?`: در MySQL هر `?` پارامترِ بعدی را مصرف
+  // می‌کند، پس شناسهٔ کاربر هفت بار فرستاده می‌شود. (در Postgres `$1` هفت بار
   // نوشته می‌شد و یک بار فرستاده — `lib/db` عمداً این تفاوت را پنهان نمی‌کند.)
   const row = await queryOne<{ n: number }>(
     `select
@@ -429,8 +492,10 @@ async function countRecentMistakes(userId: string): Promise<number> {
          where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
      + (select count(*) from role_hunt_answers
          where user_id = ? and is_correct = 0 and answered_at > now(6) - interval 30 day)
+     + (select count(*) from kimia_rounds
+         where user_id = ? and first_correct = 0 and answered_at > now(6) - interval 30 day)
        as n`,
-    [userId, userId, userId, userId, userId, userId],
+    [userId, userId, userId, userId, userId, userId, userId],
   );
   return row?.n ?? 0;
 }
@@ -460,7 +525,11 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
     //     ۰/۱ جمع می‌زند و همان عدد را می‌دهد.
     //   • `make_interval(weeks => …)` نیست → `interval ? week`.
     //
-    // هفت بار `?` : شش تا برای شناسهٔ کاربر در شش جدول، یکی برای بازهٔ هفته.
+    // هشت بار `?` : هفت تا برای شناسهٔ کاربر در هفت جدول، یکی برای بازهٔ هفته.
+    //
+    // ⚠️ از «کیمیای وزن» تلاشِ *اول* می‌آید و نه نتیجهٔ نهایی، و دورهای
+    // رهاشده اصلاً نمی‌آیند. روندِ پیشرفت باید همان چیزی را نشان بدهد که
+    // تحلیلِ وزن می‌شمارد، وگرنه دو عددِ ناسازگار به کاربر داده‌ایم.
     `with answers as (
        select answered_at, is_correct from user_answers where user_id = ?
        union all
@@ -473,6 +542,9 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
        select answered_at, is_correct from vocab_answers where user_id = ?
        union all
        select answered_at, is_correct from role_hunt_answers where user_id = ?
+       union all
+       select answered_at, first_correct from kimia_rounds
+        where user_id = ? and answered_at is not null
      )
      select date_sub(date(answered_at), interval weekday(answered_at) day) as week_start,
             count(*) as total,
@@ -481,7 +553,7 @@ export async function getProgressTrend(userId: string, weeks = 8): Promise<Progr
       where answered_at > now(6) - interval ? week
       group by week_start
       order by week_start`,
-    [userId, userId, userId, userId, userId, userId, span],
+    [userId, userId, userId, userId, userId, userId, userId, span],
   );
 
   return rows.map((r) => ({ week: r.week_start, total: Number(r.total), correct: Number(r.correct) }));

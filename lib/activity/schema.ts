@@ -53,6 +53,7 @@ export const GAME_KEYS = [
   "aruz-rapid",
   "grammar-circuit",
   "jasoos",
+  "kimia",
   "ninja",
   "pairs",
   "role-hunt",
@@ -78,6 +79,8 @@ export const GAMES_WITH_STORED_RESULTS: readonly GameKey[] = [
   "aruz-bridge",
   "grammar-circuit",
   "jasoos",
+  // یک ردیف به‌ازای هر *دور* در `kimia_rounds`، با درستیِ سنجیده‌شدهٔ سرور.
+  "kimia",
   "role-hunt",
   "vocab",
 ];

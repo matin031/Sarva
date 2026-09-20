@@ -22,6 +22,7 @@ export type GuestSection =
   | "aruz-rapid"
   | "grammar-circuit"
   | "role-hunt"
+  | "kimia"
   | "vazn-yab";
 
 /**
@@ -66,6 +67,13 @@ export const GUEST_POLICY: Record<GuestSection, SectionPolicy> = {
   // یعنی دقیقاً همان چیزی که قرار بود او را به ساختنِ حساب ترغیب کند.
   "role-hunt": {
     title: "شکار نقش‌ها",
+    allowance: { kind: "count", limit: 1, unit: "نشست" },
+  },
+  // همان دلیلِ بالا، و اینجا قوی‌تر: هر بیتِ «کیمیای وزن» چند بار گوش
+  // دادن و اصلاح کردن می‌خواهد، پس بریدنِ مهمان وسطِ نشست یعنی بیرون
+  // انداختنش دقیقاً جایی که تازه فهمیده بازی چیست.
+  kimia: {
+    title: "کیمیای وزن",
     allowance: { kind: "count", limit: 1, unit: "نشست" },
   },
 

@@ -1,0 +1,124 @@
+import type { FootKey } from "./catalog";
+import type { KimiaErrorType } from "./scansion";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   «این تلاش چه چیزی را در ردیفِ دور عوض می‌کند؟» — منطقِ خالص.
+   ═══════════════════════════════════════════════════════════════════════════
+
+   ⚠️ عمداً از `server/rounds.ts` جدا شده و نه به‌خاطر معماری. سه قاعده‌ای
+   که اینجا زندگی می‌کنند، *معنای* کارنامهٔ دانش‌آموزند:
+
+     • یک دور = یک شاهد، هرچند بار که تلاش شود
+     • شاهدِ یادگیری = تلاشِ اول، و فقط یک بار نوشته می‌شود
+     • تلاشِ دوبارهٔ شبکه هیچ ستونی را تکان نمی‌دهد
+
+   اگر این سه فقط داخلِ یک تراکنشِ SQL زندگی می‌کردند، تنها راهِ آزمودنشان
+   بالا آوردنِ یک دیتابیس بود — و در عمل یعنی آزموده نمی‌شدند. حالا
+   `tests/kimia/round-state.test.ts` هر ترکیبِ ممکن را بدونِ هیچ اتصالی
+   می‌سنجد، و لایهٔ SQL فقط همین تصمیم را اجرا می‌کند.
+
+   (همان الگوی `lib/plus/skill-buckets.ts` و `lib/aruz-bridge/machine.ts`.)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** وضعیتِ ردیفِ دور، همان‌طور که از دیتابیس خوانده می‌شود. */
+export type RoundSnapshot = {
+  status: "active" | "completed";
+  attemptsCount: number;
+  lastAttemptId: string | null;
+  lastCorrect: boolean | null;
+  lastErrorType: KimiaErrorType | null;
+};
+
+export type AttemptInput = {
+  attemptId: string;
+  selected: readonly FootKey[];
+  isCorrect: boolean;
+  errorType: KimiaErrorType | null;
+  responseMs: number | null;
+};
+
+/** نوشتنی‌هایی که یک تلاشِ واقعی تولید می‌کند. */
+export type RoundWrite = {
+  attemptsCount: number;
+  status: "active" | "completed";
+  selectedText: string;
+  isCorrect: boolean;
+  errorType: KimiaErrorType | null;
+  /** فقط در تلاشِ اول پر است؛ در بقیه `null` یعنی «دست نزن». */
+  first: { selectedText: string; isCorrect: boolean; errorType: KimiaErrorType | null; responseMs: number | null } | null;
+};
+
+export type AttemptDecision =
+  /** تلاشِ واقعی — ردیف عوض می‌شود. */
+  | { kind: "write"; write: RoundWrite }
+  /** همین شناسه قبلاً رسیده؛ همان پاسخِ قبلی، بدونِ هیچ تغییری. */
+  | { kind: "duplicate" }
+  /** دور بسته است؛ نتیجهٔ ثبت‌شده برمی‌گردد، بدونِ هیچ تغییری. */
+  | { kind: "immutable" };
+
+/**
+ * تصمیم دربارهٔ یک تلاش.
+ *
+ * ⚠️ ترتیبِ دو شرطِ اول مهم است و اتفاقی نیست: اول «تکراری» و بعد «بسته».
+ * اگر برعکس بود، تلاشِ دوبارهٔ شبکه‌ای که *همان تلاشِ درست* را دوباره
+ * می‌فرستد، به‌عنوان «دورِ بسته» دیده می‌شد — نتیجه یکی است ولی معنایش در
+ * لاگ و در آیندهٔ این کد نه: یکی «چیزی نشد چون قبلاً همین را گفتی» است و
+ * آن یکی «چیزی نشد چون دیر رسیدی».
+ */
+export function decideAttempt(
+  round: RoundSnapshot,
+  attempt: AttemptInput,
+  joinSelected: (feet: readonly FootKey[]) => string,
+): AttemptDecision {
+  if (round.lastAttemptId !== null && round.lastAttemptId === attempt.attemptId) {
+    return { kind: "duplicate" };
+  }
+  if (round.status === "completed") return { kind: "immutable" };
+
+  const isFirst = round.attemptsCount === 0;
+  const selectedText = joinSelected(attempt.selected);
+
+  return {
+    kind: "write",
+    write: {
+      attemptsCount: round.attemptsCount + 1,
+      status: attempt.isCorrect ? "completed" : "active",
+      selectedText,
+      isCorrect: attempt.isCorrect,
+      errorType: attempt.errorType,
+      first: isFirst
+        ? {
+            selectedText,
+            isCorrect: attempt.isCorrect,
+            errorType: attempt.errorType,
+            /* ⚠️ زمانِ پاسخ هم فقط یک بار نوشته می‌شود. «چقدر طول کشید تا
+               اولین بار جواب داد» سنجهٔ متفاوتی است از «چقدر طول کشید تا
+               بالاخره درست شد»، و دومی را `attempts_count` می‌گوید. */
+            responseMs: attempt.responseMs,
+          }
+        : null,
+    },
+  };
+}
+
+/**
+ * وضعیتِ ردیف بعد از اعمالِ یک تصمیم — مدلِ آینهٔ همان `UPDATE`.
+ *
+ * فقط برای تست و استدلال است و هیچ‌جای مسیرِ اجرا صدا زده نمی‌شود؛ ولی
+ * وجودش یعنی می‌شود ثابت کرد که هیچ دنباله‌ای از تلاش‌ها ردیف را به حالتی
+ * نمی‌برد که CHECKهای مهاجرت ۰۱۸ ردش کنند.
+ */
+export function applyDecision(
+  round: RoundSnapshot,
+  decision: AttemptDecision,
+): RoundSnapshot {
+  if (decision.kind !== "write") return round;
+  const { write } = decision;
+  return {
+    status: write.status,
+    attemptsCount: write.attemptsCount,
+    lastAttemptId: null, // فراخواننده شناسه را می‌گذارد؛ اینجا اهمیتی ندارد
+    lastCorrect: write.isCorrect,
+    lastErrorType: write.errorType,
+  };
+}

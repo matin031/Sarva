@@ -185,6 +185,21 @@ const TRACING_EXCLUDES = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
+  /**
+   * صفحه‌هایی که فقط در توسعه route می‌شوند.
+   *
+   * ⚠️ `page.dev.tsx` در `next dev` یک صفحهٔ کامل است و در `next build`
+   * اصلاً صفحه نیست — چون پسوندِ `dev.tsx` فقط در حالتِ توسعه به این
+   * فهرست اضافه می‌شود. پس نه route ساخته می‌شود، نه HTML پیش‌رندر
+   * می‌شود، و نه ماژول‌هایی که فقط آن صفحه import‌شان می‌کند وارد باندل
+   * می‌شوند.
+   *
+   * ⚠️ چرا `notFound()` کافی نبود: آن *اجرا* را می‌بست ولی کد را
+   * نمی‌برد. قبل از این تغییر، `next build` صفحهٔ `/game/kimia/preview`
+   * را پیش‌رندر می‌کرد و پنلِ تنظیمِ صدا در خروجی می‌ماند.
+   */
+  pageExtensions: isDev ? ["tsx", "ts", "jsx", "js", "dev.tsx"] : ["tsx", "ts", "jsx", "js"],
+
   // خروجیِ خودبسنده برای داکر: به‌جای کلِ node_modules، فقط فایل‌هایی که
   // ردیابیِ import واقعاً به آن‌ها رسیده کپی می‌شوند. تفاوتش صدها مگابایت است.
   output: "standalone",

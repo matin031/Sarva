@@ -2,8 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  MAX_ATTEMPTS,
   applyDecision,
+  attemptsRemaining,
   decideAttempt,
+  decideReveal,
+  isRoundClosed,
+  mayRevealSolution,
   type AttemptInput,
   type RoundSnapshot,
 } from "@/lib/kimia/round-state";
@@ -19,6 +24,7 @@ const fresh = (): RoundSnapshot => ({
   lastAttemptId: null,
   lastCorrect: null,
   lastErrorType: null,
+  revealReason: null,
 });
 
 const attempt = (over: Partial<AttemptInput> = {}): AttemptInput => ({
@@ -66,6 +72,7 @@ test("⚠️ تلاشِ دوم شاهدِ اول را بازنویسی نمی‌
     lastAttemptId: "a1",
     lastCorrect: false,
     lastErrorType: "ORDER_ONLY",
+    revealReason: null,
   };
   const plan = decideAttempt(
     afterFirst,
@@ -121,6 +128,7 @@ test("⚠️ همان شناسهٔ تلاش، هیچ تغییری نمی‌ده�
     lastAttemptId: "a1",
     lastCorrect: false,
     lastErrorType: "ORDER_ONLY",
+    revealReason: null,
   };
   const plan = decideAttempt(afterFirst, attempt({ attemptId: "a1" }), join);
   assert.equal(plan.kind, "duplicate");
@@ -135,6 +143,7 @@ test("⚠️ شناسهٔ تازه بعد از تغییرِ پاسخ، یک تل
     lastAttemptId: "a1",
     lastCorrect: false,
     lastErrorType: "ORDER_ONLY",
+    revealReason: null,
   };
   const plan = decideAttempt(afterFirst, attempt({ attemptId: "a2" }), join);
   assert.equal(plan.kind, "write");
@@ -149,6 +158,7 @@ test("⚠️ دورِ بسته تغییرناپذیر است", () => {
     lastAttemptId: "a2",
     lastCorrect: true,
     lastErrorType: null,
+    revealReason: null,
   };
   for (const id of ["a3", "a4"]) {
     const plan = decideAttempt(done, attempt({ attemptId: id }), join);
@@ -164,6 +174,7 @@ test("تکراری بر بسته مقدم است", () => {
     lastAttemptId: "a1",
     lastCorrect: true,
     lastErrorType: null,
+    revealReason: null,
   };
   assert.equal(decideAttempt(done, attempt({ attemptId: "a1" }), join).kind, "duplicate");
 });
@@ -180,6 +191,14 @@ test("⚠️ هیچ دنباله‌ای از تلاش‌ها CHECKهای مها�
     if (r.lastCorrect !== null && (r.lastCorrect === true) !== (r.lastErrorType === null)) {
       bad.push("last_error_matches");
     }
+    /* قیدهای مهاجرت ۰۱۹. */
+    if (r.revealReason !== null && attempts === 0) bad.push("reveal_needs_attempt");
+    if (r.revealReason !== null && r.status === "completed") {
+      /* پاسخِ درست هیچ‌وقت `revealed_at` نمی‌نویسد — وگرنه یک دورِ موفق
+         در تحلیل از یک بن‌بست قابلِ تشخیص نبود. */
+      bad.push("solved_round_marked_revealed");
+    }
+    if (attempts > MAX_ATTEMPTS) bad.push("over_cap");
     return bad;
   };
 
@@ -205,4 +224,134 @@ test("⚠️ هیچ دنباله‌ای از تلاش‌ها CHECKهای مها�
   };
 
   walk(fresh(), 4, 0);
+});
+
+
+/* ═══════════════════ سه تلاش، و پایانی که پاسخ دارد ═══════════════════ */
+
+const after = (n: number, over: Partial<RoundSnapshot> = {}): RoundSnapshot => ({
+  status: "active",
+  attemptsCount: n,
+  lastAttemptId: `a${n}`,
+  lastCorrect: n === 0 ? null : false,
+  lastErrorType: n === 0 ? null : "ORDER_ONLY",
+  revealReason: null,
+  ...over,
+});
+
+test("تلاشِ چهارم رد می‌شود و هیچ ستونی را تکان نمی‌دهد", () => {
+  const plan = decideAttempt(after(MAX_ATTEMPTS), attempt({ attemptId: "a9" }), join);
+  assert.equal(plan.kind, "rejected");
+  if (plan.kind !== "rejected") return;
+  assert.equal(plan.reason, "attempts-exhausted");
+});
+
+test("تلاش بعد از «نمایش پاسخ» رد می‌شود — با دلیلِ خودش", () => {
+  /* ⚠️ دو کدِ متفاوت و نه یکی: بازیکنی که خودش پاسخ را دیده نباید پیامِ
+     «تلاش‌هایت تمام شد» بگیرد، که دروغ است. */
+  const plan = decideAttempt(after(1, { revealReason: "user" }), attempt({ attemptId: "a9" }), join);
+  assert.equal(plan.kind, "rejected");
+  if (plan.kind !== "rejected") return;
+  assert.equal(plan.reason, "already-revealed");
+});
+
+test("⚠️ تلاشِ تکراری *پیش از* سنجشِ سقف بررسی می‌شود", () => {
+  /* دورِ پر، و همان شناسه‌ای که آخرین بار آمده: این یک تلاشِ چهارم نیست،
+     یک تلاشِ دوبارهٔ شبکه است و باید همان پاسخِ قبلی را بگیرد و نه ۴۰۹.
+     اگر ترتیبِ شرط‌ها برعکس شود، هر لرزشِ شبکه روی تلاشِ سوم به بازیکن
+     می‌گفت «تلاش‌هایت تمام شد» بی‌آنکه نتیجه‌اش را ببیند. */
+  const round = after(MAX_ATTEMPTS, { lastAttemptId: "a3" });
+  const plan = decideAttempt(round, attempt({ attemptId: "a3" }), join);
+  assert.equal(plan.kind, "duplicate");
+});
+
+test("تلاشِ سومِ غلط، پاسخ را در همان تصمیم باز می‌کند", () => {
+  const plan = decideAttempt(after(MAX_ATTEMPTS - 1), attempt({ attemptId: "a3" }), join);
+  assert.equal(plan.kind, "write");
+  if (plan.kind !== "write") return;
+  assert.equal(plan.write.attemptsCount, MAX_ATTEMPTS);
+  assert.equal(plan.write.reveal, "exhausted");
+  assert.equal(plan.write.status, "active", "دورِ reveal شده completed نمی‌شود");
+});
+
+test("تلاشِ سومِ *درست* پاسخ را باز نمی‌کند — می‌بندد", () => {
+  const plan = decideAttempt(
+    after(MAX_ATTEMPTS - 1),
+    attempt({ attemptId: "a3", selected: RIGHT, isCorrect: true, errorType: null }),
+    join,
+  );
+  assert.equal(plan.kind, "write");
+  if (plan.kind !== "write") return;
+  assert.equal(plan.write.reveal, null, "دورِ موفق نباید «باز‌شده» ثبت شود");
+  assert.equal(plan.write.status, "completed");
+});
+
+test("تلاشِ اولِ غلط هیچ‌چیز را باز نمی‌کند", () => {
+  const plan = decideAttempt(after(0), attempt({ attemptId: "a1" }), join);
+  assert.equal(plan.kind, "write");
+  if (plan.kind !== "write") return;
+  assert.equal(plan.write.reveal, null);
+  assert.equal(plan.write.attemptsCount, 1);
+});
+
+test("«بسته» یک تعریف دارد و هر سه راهش را می‌شناسد", () => {
+  assert.equal(isRoundClosed(after(0)), false);
+  assert.equal(isRoundClosed(after(1)), false);
+  assert.equal(isRoundClosed(after(MAX_ATTEMPTS)), true, "سقف");
+  assert.equal(isRoundClosed(after(1, { revealReason: "user" })), true, "باز‌شده");
+  assert.equal(
+    isRoundClosed(after(1, { status: "completed", lastCorrect: true, lastErrorType: null })),
+    true,
+    "حل‌شده",
+  );
+});
+
+test("شمارندهٔ باقی‌مانده هیچ‌وقت منفی یا گمراه‌کننده نیست", () => {
+  assert.equal(attemptsRemaining(after(0)), MAX_ATTEMPTS);
+  assert.equal(attemptsRemaining(after(1)), MAX_ATTEMPTS - 1);
+  assert.equal(attemptsRemaining(after(MAX_ATTEMPTS)), 0);
+  /* دورِ حل‌شده در تلاشِ اول: بسته است، پس «دو تلاشِ باقی‌مانده» دربارهٔ
+     آن معنا ندارد و نباید روی صفحه بنشیند. */
+  assert.equal(
+    attemptsRemaining(after(1, { status: "completed", lastCorrect: true, lastErrorType: null })),
+    0,
+  );
+});
+
+test("دروازهٔ پاسخ فقط در سه حالت باز است", () => {
+  assert.equal(mayRevealSolution(after(0)), false);
+  assert.equal(mayRevealSolution(after(MAX_ATTEMPTS - 1)), false);
+  assert.equal(mayRevealSolution(after(MAX_ATTEMPTS)), true);
+  assert.equal(mayRevealSolution(after(1, { revealReason: "exhausted" })), true);
+  assert.equal(
+    mayRevealSolution(after(1, { status: "completed", lastCorrect: true, lastErrorType: null })),
+    true,
+  );
+});
+
+test("«نمایش پاسخ» بدونِ هیچ تلاشی رد می‌شود", () => {
+  const plan = decideReveal(after(0));
+  assert.equal(plan.kind, "rejected");
+  if (plan.kind !== "rejected") return;
+  assert.equal(plan.reason, "no-attempt-yet");
+});
+
+test("«نمایش پاسخ» بعد از یک تلاش می‌نویسد، و بارِ دوم نه", () => {
+  assert.deepEqual(decideReveal(after(1)), { kind: "write" });
+  /* ⚠️ زدنِ دوباره نباید زمانِ ثبت‌شده را جابه‌جا کند. */
+  assert.deepEqual(decideReveal(after(1, { revealReason: "user" })), { kind: "already-open" });
+});
+
+test("«نمایش پاسخ» روی دورِ حل‌شده چیزی نمی‌نویسد", () => {
+  /* ⚠️ بازیکن برنده شده؛ ثبتِ `revealed_at` روی او یعنی در تحلیل از یک
+     بن‌بست قابلِ تشخیص نباشد. پاسخ را می‌گیرد، ولی ردیف دست‌نخورده
+     می‌ماند. */
+  const solvedRound = after(1, { status: "completed", lastCorrect: true, lastErrorType: null });
+  assert.deepEqual(decideReveal(solvedRound), { kind: "already-open" });
+});
+
+test("«باز شدن با exhausted» با یک reveal دستی به user تبدیل نمی‌شود", () => {
+  assert.deepEqual(decideReveal(after(MAX_ATTEMPTS, { revealReason: "exhausted" })), {
+    kind: "already-open",
+  });
 });

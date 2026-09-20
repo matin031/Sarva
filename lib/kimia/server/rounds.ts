@@ -2,11 +2,17 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { execute, queryOne, transaction } from "@/lib/db";
 import { joinArk, kimiaMeterFor, type FootKey } from "../catalog";
-import { decideAttempt } from "../round-state";
+import {
+  MAX_ATTEMPTS,
+  decideAttempt,
+  decideReveal,
+  type RevealReason,
+  type RoundSnapshot,
+} from "../round-state";
 import type { KimiaErrorType } from "../scansion";
-import { decide, toVerdict, type Decision } from "../verdict";
+import { decide, solutionForArk, toVerdict, type Decision } from "../verdict";
 import type { KimiaCandidate } from "../pool";
-import type { KimiaVerdict } from "../types";
+import type { KimiaSolution, KimiaVerdict } from "../types";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    چرخهٔ عمرِ یک دور — ساختن، سنجیدن، بستن.
@@ -39,7 +45,33 @@ export type RoundRow = {
   last_selected: string | null;
   last_correct: number | boolean | null;
   last_error_type: string | null;
+  revealed_at: string | Date | null;
+  reveal_reason: string | null;
 };
+
+/** ستون‌های ردیفِ دور، در یک جا — تا سه کوئری از هم دور نیفتند. */
+const ROUND_COLUMNS = `id, question_id, verse, meter_ark, meter_name, slot_count, status,
+            attempts_count, last_attempt_id, last_selected, last_correct, last_error_type,
+            revealed_at, reveal_reason`;
+
+/**
+ * ردیفِ دیتابیس → همان چیزی که منطقِ خالص می‌فهمد.
+ *
+ * ⚠️ یک جا و نه سه جا. `last_correct` روی MySQL عدد است و روی درایورهای
+ * دیگر بولین؛ یک بار اینجا اهلی می‌شود و بقیهٔ فایل دیگر به شکلِ خامش
+ * فکر نمی‌کند.
+ */
+function snapshotOf(row: RoundRow): RoundSnapshot {
+  return {
+    status: row.status === "completed" ? "completed" : "active",
+    attemptsCount: Number(row.attempts_count),
+    lastAttemptId: row.last_attempt_id,
+    lastCorrect:
+      row.last_correct === null ? null : row.last_correct === 1 || row.last_correct === true,
+    lastErrorType: (row.last_error_type as KimiaErrorType | null) ?? null,
+    revealReason: (row.reveal_reason as RevealReason | null) ?? null,
+  };
+}
 
 /** ⚠️ ستونِ ۴۰۰ نویسه است و بلندترین بیتِ بانک خیلی کمتر؛ برش فقط نگهبانِ
  *  محتوای غیرمنتظره است، نه اتفاقی که انتظارش را داریم. */
@@ -72,8 +104,7 @@ export async function createRound(
 
 export function loadRound(roundId: string, userId: string): Promise<RoundRow | null> {
   return queryOne<RoundRow>(
-    `select id, question_id, verse, meter_ark, meter_name, slot_count, status,
-            attempts_count, last_attempt_id, last_selected, last_correct, last_error_type
+    `select ${ROUND_COLUMNS}
        from kimia_rounds
       where id = ? and user_id = ?`,
     [roundId, userId],
@@ -82,7 +113,9 @@ export function loadRound(roundId: string, userId: string): Promise<RoundRow | n
 
 export type RecordOutcome =
   | { ok: true; verdict: KimiaVerdict }
-  | { ok: false; reason: "not-found" | "unsupported-meter" };
+  | { ok: false; reason: "not-found" | "unsupported-meter" }
+  /** دور بسته است — تلاشِ چهارم، یا تلاش بعد از «نمایش پاسخ». */
+  | { ok: false; reason: "closed"; code: "attempts-exhausted" | "already-revealed" };
 
 /**
  * ثبتِ یک تلاش — اتمیک، و بی‌اثر در برابرِ ثبتِ دوباره.
@@ -119,8 +152,7 @@ export async function recordAttempt(input: {
 }): Promise<RecordOutcome> {
   return transaction(async (tx) => {
     const row = await tx.queryOne<RoundRow>(
-      `select id, question_id, verse, meter_ark, meter_name, slot_count, status,
-              attempts_count, last_attempt_id, last_selected, last_correct, last_error_type
+      `select ${ROUND_COLUMNS}
          from kimia_rounds
         where id = ? and user_id = ?
         for update`,
@@ -139,15 +171,9 @@ export async function recordAttempt(input: {
        بازخوردِ ثبت‌شده* را برمی‌گردانند و نه یک خطا: کلاینتی که دوباره
        فرستاده باید همان چیزی را ببیند که بار اول دیده. فقط `saved` راستش
        را می‌گوید. */
+    const before = snapshotOf(row);
     const plan = decideAttempt(
-      {
-        status: row.status === "completed" ? "completed" : "active",
-        attemptsCount: Number(row.attempts_count),
-        lastAttemptId: row.last_attempt_id,
-        lastCorrect:
-          row.last_correct === null ? null : row.last_correct === 1 || row.last_correct === true,
-        lastErrorType: (row.last_error_type as KimiaErrorType | null) ?? null,
-      },
+      before,
       {
         attemptId: input.attemptId,
         selected: input.selected,
@@ -158,15 +184,18 @@ export async function recordAttempt(input: {
       (feet) => joinArk(feet).slice(0, 160),
     );
 
+    /* ⚠️ «رد» و «بدونِ تغییر» از هم جدا برمی‌گردند. تلاشِ تکراریِ شبکه و
+       دورِ حل‌شده همان بازخوردِ ثبت‌شده را می‌گیرند (کلاینتی که دوباره
+       فرستاده باید همان چیزی را ببیند که بار اول دید)، ولی تلاشِ چهارم
+       یک ۴۰۹ می‌گیرد با کدی که رابط کاربری بتواند بفهمدش. */
+    if (plan.kind === "rejected") {
+      return { ok: false as const, reason: "closed" as const, code: plan.reason };
+    }
+
     if (plan.kind !== "write") {
       return {
         ok: true as const,
-        verdict: toVerdict(
-          storedDecision(row),
-          row.meter_name,
-          false,
-          Number(row.attempts_count),
-        ),
+        verdict: toVerdict(storedDecision(row), row.meter_name, false, before),
       };
     }
 
@@ -181,6 +210,11 @@ export async function recordAttempt(input: {
        محافظت می‌کند، ولی نوشتنِ شرط در دو جا یعنی حتی اگر روزی کسی قفل را
        بردارد، بدترین حالت «هیچ ردیفی عوض نشد» است و نه «شاهدِ یادگیری
        بازنویسی شد». */
+    /* ⚠️ `reveal` در **همین** UPDATE نوشته می‌شود و نه در یک درخواستِ دوم.
+       بینِ «تلاشِ سوم ثبت شد» و «پاسخ باز شد» نباید هیچ پنجره‌ای باشد،
+       وگرنه یک تبِ دیگر در همان لحظه تلاشِ چهارم می‌فرستد و می‌گیرد. */
+    const revealReason = write.reveal;
+
     if (isFirst) {
       await tx.execute(
         `update kimia_rounds
@@ -195,7 +229,9 @@ export async function recordAttempt(input: {
                 last_error_type   = ?,
                 last_attempt_id   = ?,
                 status            = ?,
-                completed_at      = case when ? = 1 then now(6) else null end
+                completed_at      = case when ? = 1 then now(6) else null end,
+                revealed_at       = case when ? is null then revealed_at else now(6) end,
+                reveal_reason     = coalesce(reveal_reason, ?)
           where id = ? and attempts_count = 0`,
         [
           selectedText,
@@ -208,10 +244,17 @@ export async function recordAttempt(input: {
           input.attemptId,
           decision.isCorrect ? "completed" : "active",
           decision.isCorrect ? 1 : 0,
+          revealReason,
+          revealReason,
           input.roundId,
         ],
       );
     } else {
+      /* ⚠️ شرطِ سقف در خودِ `where` هم تکرار شده، با اینکه قفلِ بالا از
+         آن محافظت می‌کند. نوشتنِ یک قاعده در دو جا یعنی اگر روزی کسی
+         قفل را بردارد، بدترین حالت «هیچ ردیفی عوض نشد» است و نه «تلاشِ
+         چهارم ثبت شد». همان الگویی که ۰۱۸ برای `attempts_count = 0`
+         دارد. */
       await tx.execute(
         `update kimia_rounds
             set attempts_count  = attempts_count + 1,
@@ -220,8 +263,11 @@ export async function recordAttempt(input: {
                 last_error_type = ?,
                 last_attempt_id = ?,
                 status          = ?,
-                completed_at    = case when ? = 1 then now(6) else null end
-          where id = ? and status = 'active'`,
+                completed_at    = case when ? = 1 then now(6) else null end,
+                revealed_at     = case when ? is null then revealed_at else now(6) end,
+                reveal_reason   = coalesce(reveal_reason, ?)
+          where id = ? and status = 'active'
+            and attempts_count < ? and revealed_at is null`,
         [
           selectedText,
           decision.isCorrect ? 1 : 0,
@@ -229,14 +275,27 @@ export async function recordAttempt(input: {
           input.attemptId,
           decision.isCorrect ? "completed" : "active",
           decision.isCorrect ? 1 : 0,
+          revealReason,
+          revealReason,
           input.roundId,
+          MAX_ATTEMPTS,
         ],
       );
     }
 
+    /* وضعیتِ *بعد از* نوشتن — همان چیزی که کلاینت باید ببیند. */
+    const after: RoundSnapshot = {
+      status: write.status,
+      attemptsCount,
+      lastAttemptId: input.attemptId,
+      lastCorrect: decision.isCorrect,
+      lastErrorType: errorType,
+      revealReason: revealReason ?? before.revealReason,
+    };
+
     return {
       ok: true as const,
-      verdict: toVerdict(decision, row.meter_name, true, attemptsCount),
+      verdict: toVerdict(decision, row.meter_name, true, after),
     };
   });
 }
@@ -255,7 +314,78 @@ function storedDecision(row: RoundRow): Decision {
     isCorrect,
     errorType: isCorrect ? null : ((row.last_error_type as KimiaErrorType | null) ?? null),
     acceptedSequence: isCorrect ? (meter?.canonical ?? null) : null,
+    ark: row.meter_ark,
   };
+}
+
+/* ─────────────────────────── «نمایش پاسخ» ──────────────────────────────── */
+
+export type RevealOutcome =
+  | { ok: true; solution: KimiaSolution; verdict: KimiaVerdict }
+  | { ok: false; reason: "not-found" | "unsupported-meter" }
+  | { ok: false; reason: "rejected"; code: "no-attempt-yet" };
+
+/**
+ * باز کردنِ پاسخ به درخواستِ خودِ بازیکن.
+ *
+ * ⚠️ همان تراکنشِ قفل‌شدهٔ `recordAttempt` و نه یک `update` ساده: اگر
+ * بازیکن هم‌زمان «نمایش پاسخ» و «آزمایش ترکیب» بفرستد، یکی باید پشتِ
+ * دیگری صف ببندد و وضعیتِ *بعد از* اولی را ببیند. بدونِ قفل، تلاشی که
+ * بعد از reveal رسیده می‌توانست ثبت شود.
+ *
+ * ⚠️ و بی‌اثر در برابرِ زدنِ دوباره: `decideReveal` می‌گوید چیزی نوشته
+ * شود یا نه، و «قبلاً باز است» یک موفقیت است و نه خطا. زمانِ ثبت‌شده
+ * جابه‌جا نمی‌شود و علتِ `exhausted` به `user` تبدیل نمی‌شود.
+ */
+export async function revealRound(input: {
+  userId: string;
+  roundId: string;
+}): Promise<RevealOutcome> {
+  return transaction(async (tx) => {
+    const row = await tx.queryOne<RoundRow>(
+      `select ${ROUND_COLUMNS}
+         from kimia_rounds
+        where id = ? and user_id = ?
+        for update`,
+      [input.roundId, input.userId],
+    );
+    if (!row) return { ok: false as const, reason: "not-found" as const };
+
+    const solution = solutionForArk(row.meter_ark, row.meter_name);
+    /* وزنی که دیگر در کاتالوگ نیست پاسخِ قابلِ نمایشی ندارد، و حدس زدن
+       جایگزینش نمی‌شود. */
+    if (!solution) return { ok: false as const, reason: "unsupported-meter" as const };
+
+    const before = snapshotOf(row);
+    const plan = decideReveal(before);
+    if (plan.kind === "rejected") {
+      return { ok: false as const, reason: "rejected" as const, code: plan.reason };
+    }
+
+    if (plan.kind === "write") {
+      /* ⚠️ `reveal_reason is null` در `where`: دو درخواستِ هم‌زمان که هر
+         دو از قفل رد شده‌اند (روی دو ردیفِ متفاوت نمی‌شود، ولی قاعده باید
+         مستقل از قفل هم درست بماند) دومی هیچ ردیفی عوض نمی‌کند. */
+      await tx.execute(
+        `update kimia_rounds
+            set revealed_at   = now(6),
+                reveal_reason = 'user'
+          where id = ? and revealed_at is null and attempts_count > 0`,
+        [input.roundId],
+      );
+    }
+
+    const after: RoundSnapshot = {
+      ...before,
+      revealReason: before.revealReason ?? (plan.kind === "write" ? "user" : null),
+    };
+
+    return {
+      ok: true as const,
+      solution,
+      verdict: toVerdict(storedDecision(row), row.meter_name, plan.kind === "write", after),
+    };
+  });
 }
 
 /**
@@ -271,5 +401,28 @@ export function guestVerdict(
 ): KimiaVerdict | null {
   const decision = decide(candidate.meter.ark, selected);
   if (!decision) return null;
-  return toVerdict(decision, candidate.meter.name, false, null);
+  /* ⚠️ مهمان ردیفی ندارد، پس «وضعیتِ دور» برایش ساختگی است و همین درست
+     است: تنها چیزی که سرور دربارهٔ او می‌داند همین یک تلاش است.
+     `attemptsCount: 0` یعنی `remaining` هم بی‌معنا می‌شود، و مسیرِ
+     فراخواننده آن را به `null` تبدیل می‌کند. */
+  return toVerdict(decision, candidate.meter.name, false, {
+    status: decision.isCorrect ? "completed" : "active",
+    attemptsCount: 0,
+    lastAttemptId: null,
+    lastCorrect: decision.isCorrect,
+    lastErrorType: decision.errorType,
+    revealReason: null,
+  });
+}
+
+/**
+ * پاسخِ یک بیت برای مهمان — بدونِ هیچ ردیفی و بدونِ هیچ شرطی.
+ *
+ * ⚠️ شرطِ «دست‌کم یک تلاش» اینجا اعمال نمی‌شود و نمی‌تواند بشود: هیچ
+ * ردیفی وجود ندارد که بگوید مهمان تلاش کرده یا نه. سقف و شمارشِ او در
+ * مرورگر است و — مثلِ خودِ سهمیهٔ مهمان — سنجهٔ امنیتی نیست. آنچه اینجا
+ * می‌ماند محدودیتِ نرخ روی IP است تا کسی کلِ بانک را با یک حلقه نکشد.
+ */
+export function guestSolution(candidate: KimiaCandidate): KimiaSolution | null {
+  return solutionForArk(candidate.meter.ark, candidate.meter.name);
 }

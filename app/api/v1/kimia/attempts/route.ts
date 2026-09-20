@@ -7,6 +7,7 @@ import { withRoute } from "@/lib/api/route";
 import { MAX_SLOTS, MIN_SLOTS, parseSelection } from "@/lib/kimia/catalog";
 import { candidateById } from "@/lib/kimia/server/source";
 import { guestVerdict, loadRound, recordAttempt } from "@/lib/kimia/server/rounds";
+import { closedFail } from "@/lib/kimia/server/http";
 
 /**
  * POST /api/v1/kimia/attempts — «آزمایش ترکیب».
@@ -33,6 +34,15 @@ import { guestVerdict, loadRound, recordAttempt } from "@/lib/kimia/server/round
  * را عوض کرده و دوباره زده، شناسهٔ تازه می‌فرستد و یک تلاشِ واقعی ثبت
  * می‌شود. تفاوتِ «تلاشِ دوبارهٔ شبکه» و «تلاشِ دوبارهٔ کاربر» دقیقاً همین
  * است، و بدونش آمار با هر لرزشِ شبکه باد می‌کرد.
+ *
+ * ── سه تلاش، و بعد پاسخ ────────────────────────────────────────────────────
+ * تلاشِ چهارم ۴۰۹ می‌گیرد، و تلاشِ سومِ *غلط* در همان تراکنش پاسخ را باز
+ * می‌کند (`reveal_reason = 'exhausted'`). سقف داخلِ تراکنشِ قفل‌شده سنجیده
+ * می‌شود و نه اینجا: اینجا فقط نتیجه‌اش به HTTP ترجمه می‌شود.
+ *
+ * ⚠️ متنِ ۴۰۹ عمداً خنثی است و هیچ‌چیز دربارهٔ *پاسخ* نمی‌گوید. کدِ
+ * ماشین‌خوان کنارش می‌آید تا رابط کاربری بتواند «تلاش‌هایت تمام شد» را از
+ * «پاسخ را قبلاً دیدی» جدا کند بدونِ تطبیقِ رشته.
  */
 
 const schema = z
@@ -70,7 +80,11 @@ export const POST = withRoute("/api/v1/kimia/attempts", async (request: NextRequ
 
       const verdict = guestVerdict(candidate, feet);
       if (!verdict) return fail("این بیت فعلاً قابل بررسی نیست.", 409);
-      return ok(verdict);
+      /* ⚠️ `remaining: null` و نه یک عدد: سرور دربارهٔ مهمان هیچ حالتی
+         ندارد و وانمود نمی‌کند دارد. شمارشِ سه تلاشِ مهمان در مرورگر
+         انجام می‌شود و `lib/kimia/config.ts` صریح نوشته که سنجهٔ امنیتی
+         نیست. */
+      return ok({ ...verdict, attemptsCount: null, remaining: null });
     }
 
     const limit = rateLimit(`kimia-attempts:${user.id}`, 300, 10 * 60);
@@ -106,9 +120,9 @@ export const POST = withRoute("/api/v1/kimia/attempts", async (request: NextRequ
     });
 
     if (!outcome.ok) {
-      return outcome.reason === "not-found"
-        ? fail("این دور پیدا نشد.", 404)
-        : fail("این بیت فعلاً قابل بررسی نیست.", 409);
+      if (outcome.reason === "not-found") return fail("این دور پیدا نشد.", 404);
+      if (outcome.reason === "closed") return closedFail(outcome.code);
+      return fail("این بیت فعلاً قابل بررسی نیست.", 409);
     }
 
     /* ⚠️ اینجا عمداً هیچ رویدادِ فعالیتی ثبت نمی‌شود.

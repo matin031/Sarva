@@ -4,11 +4,12 @@ import "./kimia-dev.css";
 
 import { StrictMode, useMemo, useRef, useState } from "react";
 import KimiaGame from "@/components/UI/kimia/KimiaGame";
+import { MAX_ATTEMPTS } from "@/lib/kimia/round-state";
 import SfxPanel from "./SfxPanel";
 import { KIMIA_METERS } from "@/lib/kimia/catalog";
-import type { KimiaSource } from "@/lib/kimia/source";
+import type { KimiaRevealResult, KimiaSource } from "@/lib/kimia/source";
 import { KimiaSourceError } from "@/lib/kimia/source";
-import type { FootKey, KimiaRound, KimiaVerdict } from "@/lib/kimia/types";
+import type { FootKey, KimiaRound, KimiaSolution, KimiaVerdict } from "@/lib/kimia/types";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    میزِ تنظیمِ انیمیشن‌ها.
@@ -59,6 +60,11 @@ export default function KimiaPreview() {
     };
 
     const answers = new Map<string, readonly FootKey[]>();
+    /* ⚠️ شمارندهٔ تلاشِ *ساختگی*، به‌ازای هر دور. منبعِ واقعی این را از
+       ردیفِ دیتابیس می‌گیرد؛ اینجا فقط برای دیدنِ نقطه‌های تلاش و چرخشِ
+       کارت بدونِ دیتابیس لازم است. */
+    const tries = new Map<string, number>();
+    const opened = new Set<string>();
 
     return {
       async startRound(): Promise<KimiaRound> {
@@ -101,6 +107,13 @@ export default function KimiaPreview() {
           answer.every((foot, i) => foot === input.selected[i]);
         const isCorrect =
           verdictMode === "always-correct" ? true : verdictMode === "always-wrong" ? false : matches;
+
+        const used = Math.min(MAX_ATTEMPTS, (tries.get(input.roundId) ?? 0) + 1);
+        tries.set(input.roundId, used);
+        const exhausted = !isCorrect && used >= MAX_ATTEMPTS;
+        if (exhausted) opened.add(input.roundId);
+        const open = isCorrect || opened.has(input.roundId);
+
         return {
           isCorrect,
           errorType: isCorrect ? null : "ORDER_ONLY",
@@ -108,7 +121,27 @@ export default function KimiaPreview() {
           meterName: isCorrect ? "وزنِ نمونه (پیش‌نمایش)" : null,
           acceptedSequence: isCorrect ? answer : null,
           saved: false,
-          attemptsCount: null,
+          attemptsCount: used,
+          remaining: open ? 0 : Math.max(0, MAX_ATTEMPTS - used),
+          revealed: opened.has(input.roundId),
+          solution: open ? previewSolution(answer) : null,
+        };
+      },
+
+      async reveal(input): Promise<KimiaRevealResult> {
+        await sleep(latency);
+        /* ⚠️ همان شرطِ سرور: بدونِ حتی یک تلاش، پاسخ باز نمی‌شود. اگر
+           پیش‌نمایش سهل‌گیرتر از سرور باشد، همان اختلاف است که بعداً
+           به‌شکلِ «روی من کار می‌کرد» برمی‌گردد. */
+        if ((tries.get(input.roundId) ?? 0) === 0) {
+          throw new KimiaSourceError("اول یک بار ترکیب را آزمایش کن.", "no-attempt-yet");
+        }
+        opened.add(input.roundId);
+        return {
+          solution: previewSolution(answers.get(input.questionId) ?? []),
+          saved: false,
+          revealed: true,
+          remaining: 0,
         };
       },
     };
@@ -221,6 +254,21 @@ export default function KimiaPreview() {
       )}
     </div>
   );
+}
+
+/**
+ * پاسخِ ساختگیِ پیش‌نمایش.
+ *
+ * ⚠️ `accepted` عمداً *دو* خوانش دارد: وجهِ پشتِ کارت باید بتواند «خوانشِ
+ * دیگر» را هم نشان بدهد، و اگر پیش‌نمایش همیشه یک خوانش بدهد آن شاخه
+ * هیچ‌وقت با چشم دیده نمی‌شود.
+ */
+function previewSolution(canonical: readonly FootKey[]): KimiaSolution {
+  return {
+    meterName: "وزنِ نمونه (پیش‌نمایش)",
+    canonical,
+    accepted: canonical.length > 2 ? [canonical, [...canonical].reverse()] : [canonical],
+  };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

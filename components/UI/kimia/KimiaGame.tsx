@@ -11,6 +11,7 @@ import GameBar from "./GameBar";
 import KimiaIntro from "./KimiaIntro";
 import KimiaResult from "./KimiaResult";
 import VerseVessel, { type VesselMode } from "./VerseVessel";
+import AttemptDots from "./AttemptDots";
 import PourOverlay from "./PourOverlay";
 import StatusLine, { type StatusKind } from "./StatusLine";
 import { usePourTimeline } from "./use-pour-timeline";
@@ -22,7 +23,9 @@ import { useReducedMotion } from "@/lib/perf/use-perf";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { setRhythmSource, stopRhythm } from "@/lib/kimia/audio";
 import { disposeSfx, playKimiaSfx } from "@/lib/kimia/sfx";
+import type { KimiaSolution } from "@/lib/kimia/types";
 import { KIMIA_CONFIG, type SessionLength } from "@/lib/kimia/config";
+import { MAX_ATTEMPTS } from "@/lib/kimia/round-state";
 import { KIMIA_COPY } from "@/lib/kimia/copy";
 import { muddyMix, resultantMix } from "@/lib/kimia/mix";
 import {
@@ -115,6 +118,36 @@ export default function KimiaGame({
     KIMIA_CONFIG.defaultSessionLength,
   );
   const [score, setScore] = useState<SessionScore>({ solved: 0, firstTry: 0 });
+
+  /* ── پایان دور: پاسخ روی صفحه ────────────────────────────────────────
+     ⚠️ `solution` با *پاسخ سرور* می‌آید و تا نیامده `null` است. مرورگر
+     هیچ‌وقت خودش نمی‌سازدش. */
+  const [solution, setSolution] = useState<KimiaSolution | null>(null);
+  /** چیدمان بازیکن در لحظه‌ای که دور بسته شد — برای ردیف «چیدمان تو». */
+  const [finalPick, setFinalPick] = useState<readonly (string | null)[]>([]);
+  /**
+   * کارت چرخیده.
+   *
+   * ⚠️ **هیچ منطقی به این وابسته نیست.** فقط یک کلاس CSS. حالت بازی با
+   * رسیدن پاسخ سرور جلو رفته و «بیت بعدی» از همان لحظه فعال است؛ این
+   * تایمر صرفاً می‌گذارد بازخورد داوری خوانده شود و بعد کارت را
+   * برمی‌گرداند.
+   */
+  const [flipped, setFlipped] = useState(false);
+  const flipTimer = useRef<number | null>(null);
+  /**
+   * چند تلاش مانده.
+   *
+   * ⚠️ برای کاربر واردشده این عدد **از سرور** می‌آید و مرورگر خودش
+   * نمی‌شمارد. برای مهمان هیچ ردیفی وجود ندارد که شمارش رویش بنشیند، پس
+   * همین‌جا شمرده می‌شود — و **سنجهٔ امنیتی نیست**، دقیقاً مثل خود سهمیهٔ
+   * مهمان. محتوای بازی هرحال عمومی است.
+   */
+  const [triesLeft, setTriesLeft] = useState<number>(MAX_ATTEMPTS);
+  /** دکمهٔ «نمایش پاسخ» یک بار زده شده و منتظر تأیید است. */
+  const [revealArmed, setRevealArmed] = useState(false);
+  const armTimer = useRef<number | null>(null);
+  const revealing = useRef(false);
   const [seen, setSeen] = useState<string[]>([]);
 
   /* ── صحنه و شیشه‌ها ───────────────────────────────────────────────────── */
@@ -176,7 +209,13 @@ export default function KimiaGame({
 
   const playing = phase === "playing" || phase === "pouring" || phase === "readyToCheck";
   const editable = phase === "playing" || phase === "readyToCheck" || phase === "wrongReveal";
-  const locked = phase === "pouring" || phase === "validating" || phase === "correctReveal";
+  /* ⚠️ `revealed` هم قفل است: دور تمام شده و هیچ تلاش تازه‌ای نمی‌پذیرد.
+     تنها دکمهٔ زندهٔ صفحه «بیت بعدی» است. */
+  const locked =
+    phase === "pouring" ||
+    phase === "validating" ||
+    phase === "correctReveal" ||
+    phase === "revealed";
 
   /* پوستهٔ بازی فقط وقتی هشدارِ «خروج» می‌دهد که واقعاً چیزی برای از دست
      دادن باشد — یعنی وسطِ یک دور، نه در معرفی و نه در صفحهٔ نتیجه. */
@@ -201,6 +240,8 @@ export default function KimiaGame({
       if (pourTimer.current !== null) window.clearTimeout(pourTimer.current);
       if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
       if (analyzeTimer.current !== null) window.clearTimeout(analyzeTimer.current);
+      if (flipTimer.current !== null) window.clearTimeout(flipTimer.current);
+      if (armTimer.current !== null) window.clearTimeout(armTimer.current);
       /* eslint-enable react-hooks/exhaustive-deps */
     };
   }, []);
@@ -266,6 +307,19 @@ export default function KimiaGame({
       setPulse(null);
       setRejected(null);
       pouring.current = false;
+      /* ⚠️ کارت **بدون انیمیشن** به وجه جلو برمی‌گردد. اگر همین‌جا
+         `flipped=false` با گذار ۷۰۰ms اجرا می‌شد، بازیکن نیم‌ثانیه پاسخِ
+         بیت قبلی را می‌دید که دارد می‌چرخد — و بیت تازه پشتش ظاهر
+         می‌شد. با رفتن `solution` وجه پشت اصلاً از DOM می‌رود، پس
+         گذاری هم در کار نیست. */
+      if (flipTimer.current !== null) window.clearTimeout(flipTimer.current);
+      if (armTimer.current !== null) window.clearTimeout(armTimer.current);
+      setFlipped(false);
+      setSolution(null);
+      setFinalPick([]);
+      setRevealArmed(false);
+      setTriesLeft(MAX_ATTEMPTS);
+      revealing.current = false;
       /* ⚠️ بیتِ تازه یعنی هر انیمیشنِ در جریانی بی‌معنا شده: لغو، و ظرف
          خالی. بدونِ این، رنگِ بیتِ قبلی روی بیتِ بعدی می‌ماند. */
       pour.cancel();
@@ -356,7 +410,7 @@ export default function KimiaGame({
         /* ⚠️ متن با رفتارِ تازه عوض شد: حالا زدنِ یک بخشِ پر، خودش آن را
            برمی‌دارد. پیامِ قبلی («انتخاب کن») کاری را می‌گفت که دیگر
            قدمِ اولِ درست نیست. */
-        setCue("مخزن پر است — روی بخشی که می‌خواهی عوض کنی بزن تا برداشته شود.");
+        setCue("مخزن پر است. برای عوض کردن، روی یک بخش بزن.");
         return;
       }
 
@@ -599,7 +653,23 @@ export default function KimiaGame({
         setVerdict(result);
         setRejected(result.isCorrect ? null : tank.slots);
         buzz(result.isCorrect);
-        setPhase(result.isCorrect ? "correctReveal" : "wrongReveal");
+
+        /* ⚠️ شمارنده از **پاسخ سرور** می‌آید. تنها جایی که مرورگر خودش
+           می‌شمارد، مهمان است — که `remaining: null` می‌گیرد چون ردیفی
+           ندارد. آن شمارش سنجهٔ امنیتی نیست (توضیح در `config.ts`). */
+        setTriesLeft(result.remaining ?? Math.max(0, triesLeft - 1));
+
+        /* «دور بسته شد» یعنی سرور پاسخ را فرستاده — با هر سه علت: درست
+           ساخت، تلاش‌ها تمام شد، یا قبلاً باز شده بود. */
+        const closing = result.solution !== null;
+        if (closing) {
+          setSolution(result.solution);
+          setFinalPick(tank.slots);
+        }
+
+        setPhase(
+          closing ? "revealed" : result.isCorrect ? "correctReveal" : "wrongReveal",
+        );
         /* ⚠️ صدا با *شروعِ* رقص هم‌زمان است و نه با پایانش: لایهٔ ترکیب
            در ۵۲۰ms محو می‌شود و حلِّ هارمونیک ~۹۰۰ms طول می‌کشد، پس صدا
            زیرِ هاله ادامه پیدا می‌کند و با نشستنِ رنگ تمام می‌شود. */
@@ -612,22 +682,29 @@ export default function KimiaGame({
           }));
         }
 
-        if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
-        revealTimer.current = window.setTimeout(
-          () => {
+        if (closing) {
+          /* ⚠️ چرخش **فقط تصویر** است. حالت از قبل `revealed` شده و
+             «بیت بعدی» همین حالا فعال است؛ این تایمر صرفاً می‌گذارد
+             بازخورد داوری (یک دور بردر ۹۰۰ms) خوانده شود و بعد کارت را
+             برمی‌گرداند. اگر کاربر وسطش «بعدی» را بزند، `loadRound`
+             تایمر را پاک می‌کند و کارت بی‌انیمیشن به جلو برمی‌گردد. */
+          if (flipTimer.current !== null) window.clearTimeout(flipTimer.current);
+          flipTimer.current = window.setTimeout(() => {
             if (!mounted.current || currentRoundId.current !== thisRound) return;
-            /* پاسخِ درست تا زدنِ «آزمایشِ بعدی» روی صفحه می‌ماند؛ پاسخِ
-               غلط بعد از نمایشِ کوتاه، مخزن را دوباره قابلِ ویرایش
-               می‌کند — با همان انتخابِ قبلی، نه خالی. */
-            if (!result.isCorrect) {
-              /* ترکیبِ ناپایدار تخلیه می‌شود تا آزمایشِ بعدی روی ظرفِ
-                 خالی باشد؛ چیدمانِ بازیکن دست‌نخورده می‌ماند. */
-              pour.drain(stageRef.current);
-              setPhase("readyToCheck");
-            }
-          },
-          result.isCorrect ? KIMIA_CONFIG.correctRevealMs : KIMIA_CONFIG.wrongRevealMs,
-        );
+            setFlipped(true);
+          }, KIMIA_CONFIG.motion.flip.delayMs);
+        } else {
+          if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+          revealTimer.current = window.setTimeout(() => {
+            if (!mounted.current || currentRoundId.current !== thisRound) return;
+            /* پاسخ غلط که هنوز تلاش دارد: بعد از نمایش کوتاه، مخزن
+               دوباره قابل ویرایش می‌شود — با همان انتخاب قبلی، نه خالی.
+               ترکیب ناپایدار تخلیه می‌شود تا آزمایش بعدی روی ظرف خالی
+               باشد. */
+            pour.drain(stageRef.current);
+            setPhase("readyToCheck");
+          }, KIMIA_CONFIG.wrongRevealMs);
+        }
       } catch (err) {
         if (!mounted.current || currentRoundId.current !== thisRound) return;
         /* ⚠️ شکستِ شبکه هیچ بازخوردِ درست/غلطی نمی‌سازد. انتخابِ کاربر
@@ -645,15 +722,67 @@ export default function KimiaGame({
         if (mounted.current) setAnalyzing(false);
       }
     },
-    [buzz, phase, pour, reduced, round, source, tank],
+    [buzz, phase, pour, reduced, round, source, tank, triesLeft],
   );
+
+  /* ─────────────────────────── نمایش پاسخ ────────────────────────────
+     ⚠️ دو مرحله‌ای، و مرحلهٔ اول بعد از سه ثانیه خودش برمی‌گردد. یک
+     دکمهٔ تک‌ضربه‌ای کنار «از نو» و «واگرد»، همان چیزی است که با یک لمس
+     اشتباه کل بیت را می‌سوزاند.
+
+     ⚠️ فوکوس جابه‌جا نمی‌شود و متن دکمه با `aria-live` اعلام می‌شود:
+     کاربر صفحه‌خوان باید بفهمد دکمه‌ای که زیر انگشتش است حالا چیز
+     دیگری می‌گوید. */
+  const handleReveal = useCallback(async () => {
+    if (!round || revealing.current) return;
+    if (!revealArmed) {
+      setRevealArmed(true);
+      if (armTimer.current !== null) window.clearTimeout(armTimer.current);
+      armTimer.current = window.setTimeout(() => {
+        if (mounted.current) setRevealArmed(false);
+      }, 3000);
+      return;
+    }
+    if (armTimer.current !== null) window.clearTimeout(armTimer.current);
+    setRevealArmed(false);
+    revealing.current = true;
+    const thisRound = currentRoundId.current;
+    try {
+      const result = await source.reveal({
+        roundId: round.roundId,
+        questionId: round.questionId,
+      });
+      if (!mounted.current || currentRoundId.current !== thisRound) return;
+      stopRhythm();
+      pour.cancel();
+      pour.drain(stageRef.current);
+      setSolution(result.solution);
+      setFinalPick(tank.slots);
+      setTriesLeft(0);
+      setVerdict(null);
+      setError(null);
+      setPhase("revealed");
+      if (flipTimer.current !== null) window.clearTimeout(flipTimer.current);
+      flipTimer.current = window.setTimeout(() => {
+        if (!mounted.current || currentRoundId.current !== thisRound) return;
+        setFlipped(true);
+      }, KIMIA_CONFIG.motion.flip.delayMs);
+    } catch (err) {
+      if (!mounted.current || currentRoundId.current !== thisRound) return;
+      setError(
+        err instanceof KimiaSourceError ? err.message : "نمایش پاسخ ممکن نشد.",
+      );
+    } finally {
+      revealing.current = false;
+    }
+  }, [pour, revealArmed, round, source, tank]);
 
   /** حالتِ دیداریِ ظرفِ بیت — یک منبع، تا رنگ و بردر و لرزش با هم بخوانند. */
   const vesselMode: VesselMode = analyzing
     ? "analyzing"
-    : phase === "correctReveal"
+    : phase === "correctReveal" || (phase === "revealed" && verdict?.isCorrect)
       ? "correct"
-      : phase === "wrongReveal"
+      : phase === "wrongReveal" || (phase === "revealed" && verdict !== null)
         ? "wrong"
         : "edit";
 
@@ -716,12 +845,33 @@ export default function KimiaGame({
     !unchangedAfterWrong;
   const ctaBusy = phase === "validating";
 
+  /**
+   * «نمایش پاسخ» کِی دیده می‌شود.
+   *
+   * ⚠️ فقط بعد از دست‌کم یک تلاش، و فقط تا وقتی دور باز است. سرور همین
+   * شرط را با `no-attempt-yet` دارد؛ این فقط دکمه را از جلوی چشم کسی
+   * که هنوز تلاش نکرده برمی‌دارد.
+   */
+  const canReveal =
+    round !== null &&
+    phase !== "revealed" &&
+    phase !== "loading" &&
+    triesLeft < MAX_ATTEMPTS &&
+    solution === null;
+
   /* ⚠️ یک منبع برای «سطحِ نتیجه چه می‌گوید»، تا حالت‌ها روی هم نیفتند:
      خطای شبکه بر هر چیزِ دیگری مقدم است، بعد داوریِ سرور، بعد اشارهٔ
      کوتاهِ رابط، و در سکوت میکروکپیِ «چند جایگاه مانده». */
   const statusKind: StatusKind = error
     ? "error"
-    : /* ⚠️ تا بیت نیامده، رَک هنوز جایگاهی ندارد و «ترکیب آماده است»
+    : /* دور بسته: سه پایان، سه جمله. */
+      phase === "revealed"
+      ? verdict?.isCorrect
+        ? "correct"
+        : verdict
+          ? "exhausted"
+          : "shown"
+      : /* ⚠️ تا بیت نیامده، رَک هنوز جایگاهی ندارد و «ترکیب آماده است»
          دروغ است (با شبکهٔ کند دیده شد). */
       !round || phase === "loading"
       ? "loading"
@@ -780,6 +930,12 @@ export default function KimiaGame({
               loading={!round || phase === "loading"}
               mode={vesselMode}
               playDisabled={locked}
+              solution={solution}
+              yours={finalPick.filter((f): f is FootKey => f !== null)}
+              /* «خودش ساخت» و نه «پاسخ را دید»: فقط وقتی آخرین تلاش
+                 درست بوده. */
+              solved={verdict?.isCorrect === true}
+              flipped={flipped}
             />
 
             <FootRack
@@ -796,12 +952,60 @@ export default function KimiaGame({
             {/* ⚠️ نوارِ اقدام: یک ردیف، ارتفاعِ ثابت، راست وضعیت و چپ
                 دکمه‌ها. کارتِ نتیجه حذف شد — توضیحش در `StatusLine`. */}
             <div className="km-actions">
-              <StatusLine
-                kind={statusKind}
-                verdict={verdict}
-                message={error ?? cue}
-                remaining={remaining}
-              />
+              {/* ⚠️ نقطه‌های تلاش و «نمایش پاسخ» کنار *خط وضعیت*‌اند و نه
+                  کنار دکمه‌ها. یک بار در ردیف دکمه‌ها گذاشته شدند و روی
+                  ۳۹۰ پیکسل، دکمهٔ اصلی به ۱۰۱ پیکسل فشرده شد و متنش دو
+                  خطی شد — یعنی ردیف با هر بار عوض شدن برچسب ۲۸ پیکسل
+                  بالا و پایین می‌رفت (CLSِ اندازه‌گیری‌شده: ۰٫۰۲). */}
+              <div className="km-actions-side">
+                <StatusLine
+                  kind={statusKind}
+                  verdict={verdict}
+                  message={error ?? cue}
+                  remaining={remaining}
+                />
+                  {/* ⚠️ جایش همیشه رزرو است، حتی پیش از اولین تلاش. */}
+                  <AttemptDots
+                    remaining={triesLeft}
+                    hidden={phase === "revealed" || triesLeft >= MAX_ATTEMPTS}
+                  />
+
+                  {/* ⚠️ فقط بعد از اولین غلط. پیش از آن، دکمه‌ای که پاسخ را
+                      لو می‌دهد کنار دست کسی که هنوز تلاش نکرده، خودِ بازی
+                      را بی‌معنا می‌کند — و سرور هم همین را با
+                      `no-attempt-yet` رد می‌کند. */}
+                  {/* ⚠️ همیشه رندر می‌شود و فقط *دیده* نمی‌شود. با رندرِ
+                      شرطی، ظاهر شدنش بعد از اولین غلط کل ردیف را جابه‌جا
+                      می‌کرد (CLSِ اندازه‌گیری‌شده روی ۳۹۰: ۰٫۰۵۳) — همان
+                      درسی که اسپینرِ دکمهٔ اصلی یک بار داد. */}
+                  <button
+                      type="button"
+                      className="km-reveal-btn"
+                      data-hidden={!canReveal || undefined}
+                      data-armed={revealArmed || undefined}
+                      onClick={() => void handleReveal()}
+                      disabled={locked || !canReveal}
+                      aria-hidden={!canReveal || undefined}
+                      tabIndex={canReveal ? undefined : -1}
+                    >
+                      {/* ⚠️ هر دو برچسب همیشه در DOM‌اند و روی هم می‌نشینند،
+                          و فقط یکی دیده می‌شود. عرض دکمه = عرض بلندترین
+                          متن، پس عوض شدن «نمایش پاسخ» به «مطمئنی؟» هیچ
+                          پیکسلی را جابه‌جا نمی‌کند. `min-width` امتحان شد و
+                          کافی نبود: با `--u`ِ متغیر، عددِ ثابت روی یک
+                          اندازه جواب می‌داد و روی اندازهٔ دیگر نه
+                          (اندازه‌گیری‌شده: ۸۱ → ۷۱٫۸ پیکسل). */}
+                      <span className="km-reveal-slot" aria-live="polite">
+                        <span data-on={!revealArmed || undefined} aria-hidden={revealArmed || undefined}>
+                          {KIMIA_COPY.reveal.ask}
+                        </span>
+                        <span data-on={revealArmed || undefined} aria-hidden={!revealArmed || undefined}>
+                          {KIMIA_COPY.reveal.confirm}
+                        </span>
+                      </span>
+                    </button>
+
+              </div>
 
               <div className="km-actions-main">
                 <button
@@ -821,7 +1025,7 @@ export default function KimiaGame({
                   از نو
                 </button>
 
-              {phase === "correctReveal" ? (
+              {phase === "correctReveal" || phase === "revealed" ? (
                 <button type="button" className="km-cta km-cta-next" onClick={nextRound}>
                   {roundIndex >= sessionLength ? KIMIA_COPY.cta.finish : KIMIA_COPY.cta.next}
                 </button>

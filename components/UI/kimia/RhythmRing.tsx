@@ -59,10 +59,27 @@ export default function RhythmRing({
    * دومِ کپی‌شده داشته باشد.
    */
   demoProgress,
+  /**
+   * فقط بردر را بکش، بدون کلید پخش.
+   *
+   * ⚠️ لازم شد چون کارت دو رو دارد: هر وجه بردر *خودش* را می‌خواهد (وگرنه
+   * بردرِ جلو پشت کارت هم دیده می‌شود و با چرخش آینه‌ای می‌شود)، ولی کلید
+   * پخش باید **بیرون از المان چرخان** بماند — هم چون نباید بچرخد و هم
+   * چون هر عنصر سه‌بعدی روی مسیر چرخش، متن را روی بعضی مرورگرها محو
+   * می‌کند.
+   *
+   * هر دو نمونه از یک store می‌خوانند (`useSyncExternalStore`)، پس دو
+   * بردر با یک `currentTime` پر می‌شوند و هیچ‌کدام حالت دومی ندارد.
+   */
+  ringOnly = false,
+  /** فقط کلید پخش، بدون بردر. */
+  buttonOnly = false,
 }: {
   vesselRef: React.RefObject<HTMLElement | null>;
   disabled?: boolean;
   demoProgress?: number | null;
+  ringOnly?: boolean;
+  buttonOnly?: boolean;
 }) {
   const state = useSyncExternalStore(subscribeRhythm, rhythmSnapshot, rhythmServerSnapshot);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -239,15 +256,14 @@ export default function RhythmRing({
   /* ⚠️ برچسبِ حالتِ بی‌صدا نه دروغ می‌گوید و نه دکمه را «خراب» نشان
      می‌دهد: نشانگر پخش می‌شود، ولی صریح گفته می‌شود که صدایی نیست. */
   const label = state.playing
-    ? "توقفِ ریتم"
+    ? "توقف ریتم"
     : finished
-      ? "شنیدنِ دوبارهٔ ریتم"
+      ? "شنیدن دوبارهٔ ریتم"
       : hasAudio
-        ? "شنیدنِ ریتمِ این بیت"
-        : "پخشِ نشانگرِ ریتم — صدای این بیت در دسترس نیست";
+        ? "شنیدن ریتم این بیت"
+        : "پخش نشانگر ریتم. صدای این بیت در دسترس نیست";
 
-  return (
-    <>
+  const ring = (
       <svg ref={svgRef} className="km-ring" aria-hidden focusable="false">
         <path ref={trackRef} className="km-ring-track" pathLength={1} />
         <path ref={progressRef} className="km-ring-progress" pathLength={1} />
@@ -255,7 +271,12 @@ export default function RhythmRing({
             اجرایش را تعیین می‌کند (CSS). */}
         <path ref={verdictRef} className="km-ring-verdict" pathLength={1} />
       </svg>
+  );
 
+  if (ringOnly) return ring;
+
+  const control = (
+    <>
       <button
         type="button"
         className="km-play"
@@ -299,8 +320,17 @@ export default function RhythmRing({
       {/* ⚠️ حالتِ صدا برای صفحه‌خوان — بردر یک تصویرِ صرف است و چیزی
           نمی‌گوید. */}
       <span className="sr-only" aria-live="polite">
-        {state.failed ? "صدای این وزن در دسترس نیست." : state.playing ? "ریتم در حالِ پخش است." : ""}
+        {state.failed ? "صدای این وزن در دسترس نیست." : state.playing ? "ریتم در حال پخش است." : ""}
       </span>
+    </>
+  );
+
+  if (buttonOnly) return control;
+
+  return (
+    <>
+      {ring}
+      {control}
     </>
   );
 }

@@ -396,7 +396,17 @@
    بلوک‌ها ~۲۰۰ پیکسل فاصلهٔ بی‌معنا می‌افتاد. حالا فضای اضافه می‌رود
    داخلِ ظرفی که رنگ در آن ریخته می‌شود — یعنی جایی که بزرگ‌تر بودنش
    *مفید* است. */
-.km-verse-card {
+/* ── صحنه: جعبهٔ چیدمان، و تنها جایی که `perspective` دارد ──────────────
+   ⚠️ اندازه و حاشیه از کارت به اینجا آمد. کارت حالا یک *وجه* است و باید
+   دقیقاً قد صحنه باشد، وگرنه دو وجه دو ارتفاع می‌گیرند و چرخش می‌لنگد.
+
+   ⚠️ `perspective` حدود ۱٫۶ برابر عرض کارت: کمتر از آن، چرخش مثل یک
+   دربِ کشویی اغراق‌شده می‌شود و گوشهٔ نزدیک از کادر می‌زند بیرون.
+
+   ⚠️ و اینجا **هیچ** `overflow`، `filter`، `contain`، `opacity` کمتر از
+   یک، `mix-blend-mode` یا `clip-path` نیست و نباید بیاید — هر کدام
+   `preserve-3d` فرزند را خنثی می‌کنند و کارت به‌جای چرخیدن تخت می‌شود. */
+.km-verse-scene {
   --km-play: clamp(2.5rem, calc(var(--u) * 3.4), 3.25rem);
   position: relative;
   flex: 1 1 auto;
@@ -407,8 +417,84 @@
   width: min(42rem, 100%);
   /* جا برای شیشه‌هایی که بالای همین لبه می‌ایستند و می‌ریزند. */
   margin-top: calc(var(--u) * 2.5);
-  /* نیمهٔ پایینِ کلیدِ پخش از کارت بیرون می‌زند. */
+  /* نیمهٔ پایینِ کلیدِ پخش از صحنه بیرون می‌زند. */
   margin-bottom: calc(var(--km-play) / 2 + var(--u));
+  perspective: calc(min(42rem, 100%) * 1.6);
+}
+
+/* المان چرخان. دو وجه در *یک* سلول grid روی هم می‌نشینند، پس ارتفاع
+   همیشه قد بلندترین وجه است و با چرخش هیچ‌چیز جابه‌جا نمی‌شود (CLS=۰). */
+.km-verse-flip {
+  display: grid;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--km-flip-turn, 700ms) cubic-bezier(0.22, 0.61, 0.24, 1);
+}
+
+/* ⚠️ کارت وسط چرخش کمی به سمت بیننده می‌آید و برمی‌گردد.
+   بدون آن، چرخش شبیه یک تصویر است که وارونه می‌شود؛ با آن، شبیه کارتی
+   است که کسی برش می‌گرداند. `translateZ` است و نه `scale`، پس هیچ
+   پیکسلی از چیدمان تکان نمی‌خورد (CLS دست‌نخورده). */
+.km-verse-scene[data-flipped] .km-verse-flip {
+  animation: km-flip-lift var(--km-flip-turn, 700ms) cubic-bezier(0.22, 0.61, 0.24, 1);
+  transform: rotateY(180deg);
+}
+
+@keyframes km-flip-lift {
+  50% { translate: 0 0 calc(var(--u) * 1.6); }
+}
+
+/* ── ورود محتوای پشت، *بعد* از نشستن کارت ─────────────────────────────
+   ⚠️ تأخیر برابر کل چرخش است و نه نصفش: وسط چرخش، وجه پشت از لبه دیده
+   می‌شود و هر حرکتی روی محتوایش آنجا کشیده و کج به‌نظر می‌رسد. */
+.km-verse-scene[data-flipped] .km-back > * {
+  animation: km-back-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--km-flip-turn, 700ms) * 0.75 + var(--i, 0) * 70ms);
+}
+
+@keyframes km-back-in {
+  from { opacity: 0; translate: 0 calc(var(--u) * 0.5); }
+  to { opacity: 1; translate: 0 0; }
+}
+
+.km-face {
+  grid-area: 1 / 1;
+  min-height: 0;
+  /* ⚠️ با پیشوند: سافاری تا نسخهٔ ۱۵ بدون آن وجه پشت را از لای وجه جلو
+     نشان می‌دهد. */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ⚠️ وجه پشت **مطلق** است و نه یک هم‌سلولیِ عادی — و این یک انحراف
+   آگاهانه از «دو وجه در یک سلول grid» است.
+
+   با هر دو در جریان، ارتفاع سلول برابر *بلندترین* وجه می‌شود. کارت اما
+   یک آیتم flex در ستون صحنه است، پس بلندتر شدنش رَک و نوار اقدام و
+   پخش‌کننده‌ها را هل می‌دهد: CLS اندازه‌گیری‌شده ۰٫۰۱۴ روی ۱۳۶۶ و
+   ۰٫۰۶۹ روی ۳۹۰ — دقیقاً همان چیزی که قرار بود صفر بماند.
+
+   با `absolute`، قدِ کارت را *فقط* وجه جلو تعیین می‌کند (یعنی همان قدی
+   که امروز دارد و هیچ پیکسلی عوض نمی‌شود) و وجه پشت همان کادر را پر
+   می‌کند. محتوای بلندتر پشت، به‌جای هل دادن صفحه، داخل خودش جمع
+   می‌شود. */
+/* ⚠️ انتخابگر ترکیبی و نه `.km-face-back` تنها: `.km-verse-card` پایین‌تر
+   در همین فایل `position: relative` می‌دهد و با وزن برابر، *بعدی* برنده
+   می‌شد — یعنی وجه پشت دوباره در جریان می‌نشست و سلول grid به قد
+   بلندترین وجه می‌رفت. دقیقاً همان CLSی که این قاعده برای رفعش نوشته
+   شده بود (اندازه‌گیری‌شده: ارتفاع صحنه ۱۶۵ → ۲۲۶). */
+.km-verse-card.km-face-back {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  overflow: hidden;
+  transform: rotateY(180deg);
+}
+
+.km-verse-card {
+  position: relative;
+  height: 100%;
+  min-height: 0;
   border-radius: var(--km-r);
   background: var(--km-s1);
   transition: background-color 200ms ease;
@@ -524,7 +610,10 @@
    فقط رنگ عوض می‌شود؛ هیچ‌چیز جابه‌جا نمی‌شود. */
 /* ⚠️ دو نوسانِ کامل در ۲۸۰ms و دامنهٔ دقیقاً ۴ پیکسل — نه بیشتر: لرزشِ
    بزرگ‌تر روی ظرفی که شعر داخلش است، خواندن را قطع می‌کند. */
-.km-verse-card[data-mode="wrong"] {
+/* ⚠️ روی *صحنه* و نه روی کارت. تا دیروز کلید پخش فرزند کارت بود و با
+   آن می‌لرزید؛ حالا بیرون از المان چرخان است، پس لرزاندن کارت به‌تنهایی
+   یعنی دکمه سرِ جایش بماند و مجموعه از هم بپاشد. */
+.km-verse-scene[data-mode="wrong"] {
   animation: km-verse-shake 280ms ease-in-out;
 }
 
@@ -703,11 +792,11 @@
 
 /* ⚠️ crossfadeِ ۱۸۰ms در دو سرِ یک پنجرهٔ ۱۲۶۰ میلی‌ثانیه‌ای: تیک نرم
    می‌آید، ~۹۰۰ms می‌ماند و نرم می‌رود. فقط `opacity` و `transform`. */
-.km-verse-card[data-mode="correct"] .km-play-check {
+.km-verse-scene[data-mode="correct"] .km-play-check {
   animation: km-check-in 1260ms ease both;
 }
 
-.km-verse-card[data-mode="correct"] .km-play-face {
+.km-verse-scene[data-mode="correct"] .km-play-face {
   animation: km-check-out 1260ms ease both;
 }
 
@@ -1198,6 +1287,18 @@
   min-height: calc(var(--u) * 4.5);
 }
 
+/* خط وضعیت، نقطه‌های تلاش و «نمایش پاسخ» — یک گروه، سمت راست نوار. */
+.km-actions-side {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.4);
+  min-width: 0;
+}
+
+/* ⚠️ جمله فضای باقی‌مانده را می‌گیرد و دو تای دیگر عرض ثابت دارند، پس
+   عوض شدن متن هیچ‌کدام را جابه‌جا نمی‌کند. */
+.km-actions-side .km-status { flex: 1 1 auto; min-width: 0; }
+
 .km-status {
   margin: 0;
   font-size: max(0.8125rem, calc(var(--u) * 0.95));
@@ -1534,11 +1635,11 @@
   user-select: none;
 }
 
-.km-preview .km-verse-card {
-  /* ⚠️ کلیدِ پخشِ کوچک‌تر *اینجا* تعریف می‌شود و نه روی خودِ `.km-play`:
-     حاشیهٔ پایینِ کارت (جای نیمهٔ بیرون‌زدهٔ کلید) از همین متغیر حساب
-     می‌شود، و تعریفش پایین‌دست یعنی کارت جای اندازهٔ *بزرگ* را باز
-     می‌کرد و کلیدِ کوچک وسطِ فاصله معلق می‌ماند. */
+/* ⚠️ روی *صحنه* و نه روی کارت. با دو رو شدن کارت، اندازه و حاشیه و
+   `--km-play` همه به `.km-verse-scene` رفتند؛ کارت فقط یک وجه است.
+   تا وقتی این قاعده روی کارت بود، کلید پخش اندازهٔ پیش‌فرض دسکتاپ را
+   می‌گرفت و ۳۲ پیکسل از مرکز باکس فاصله داشت (تست فاز ۱ گرفتش). */
+.km-preview .km-verse-scene {
   --km-play: calc(var(--u) * 2.4);
   flex: 0 1 auto;
   width: 100%;
@@ -1616,7 +1717,7 @@
     background: var(--km-s1);
   }
 
-  .km-preview .km-verse-card { width: min(30rem, 100%); }
+  .km-preview .km-verse-scene { width: min(30rem, 100%); }
 }
 
 /* ⚠️ ارتفاعِ خیلی کم (نوارِ ابزارِ باز روی لپ‌تاپِ کوچک، یا گوشیِ افقی):
@@ -1947,13 +2048,50 @@
     background: var(--color-background);
   }
 
+  /* ⚠️ flex و نه grid. تا دیروز `grid-template-columns: auto auto 1fr`
+     بود و دقیقاً برای سه فرزند نوشته شده بود (واگرد، از نو، دکمهٔ
+     اصلی). با اضافه شدن نقطه‌های تلاش و «نمایش پاسخ»، دکمهٔ اصلی از
+     ستون `1fr` بیرون افتاد و عرضش تابع *متنش* شد — پس با عوض شدن
+     «آزمایش ترکیب» به «بیت بعدی» کل ردیف ۲۲ پیکسل جابه‌جا می‌شد
+     (CLSِ اندازه‌گیری‌شده: ۹٫۲e-4 روی ۳۹۰).
+
+     با flex، دکمهٔ اصلی همهٔ فضای باقی‌مانده را می‌گیرد و طول متنش هیچ
+     چیزی را تکان نمی‌دهد — هر چند فرزند دیگری هم اضافه شود. */
   .km-actions-main {
-    display: grid;
-    grid-template-columns: auto auto 1fr;
+    display: flex;
+    align-items: center;
     gap: calc(var(--u) * 0.5);
   }
 
-  .km-actions-main .km-cta { min-width: 0; }
+  .km-actions-main .km-cta { min-width: 0; flex: 1 1 auto; }
+
+  /* ⚠️ دو خط همیشه رزرو است. روی ۳۹۰، ستون جمله ۲۰۱ پیکسل است و
+     «درست است. رمل مثمن محذوف» دو خطی می‌شود در حالی که «۲ جایگاه دیگر
+     مانده» یک خطی است — یعنی نوار اقدام ۲۶ پیکسل بالا و پایین می‌پرید
+     (CLSِ اندازه‌گیری‌شده: ۰٫۰۱۱). `3em` دقیقاً دو خط با همین
+     line-height است. */
+  /* ⚠️ ارتفاع **ثابت**، دقیقاً دو خط.
+     روی ۳۹۰ ستون جمله ۲۰۱ پیکسل است: «۲ جایگاه دیگر مانده» یک خط
+     می‌شود و «درست است. رمل مثمن محذوف» سه خط — یعنی نوار اقدام با هر
+     پیام ۱۳ تا ۲۶ پیکسل بالا و پایین می‌پرید (CLSِ اندازه‌گیری‌شده:
+     ۰٫۰۱).
+
+     ⚠️ و `-webkit-line-clamp` اینجا کار *نمی‌کند*: `.km-status-text` یک
+     آیتم flex است و display آن blockify می‌شود (`-webkit-box` →
+     `flow-root`)، پس clamp بی‌اثر است. ارتفاع ثابت + `overflow: hidden`
+     همان کار را بدون وابستگی به display می‌کند.
+
+     نام وزن پشت کارت کامل نوشته شده، پس بریده شدنش اینجا چیزی را از
+     بین نمی‌برد. */
+  .km-actions-side .km-status {
+    height: 3em;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .km-actions-main .km-ghost-btn,
+  .km-actions-main .km-reveal-btn,
+  .km-actions-main .km-tries { flex: none; }
   .km-status { text-align: center; }
 
   .km-dispensers { order: 2; }
@@ -2015,13 +2153,290 @@
   .km-verse-line { line-height: 1.8; }
 }
 
+
+/* ═══════════════════════ پشتِ کارت: پاسخ ════════════════════════════════
+   ⚠️ همان دو سطح تونال و همان شعاع کارت جلو. وجه پشت یک «کارت دوم» با
+   طراحی تازه نیست؛ همان کارت است از آن‌طرف. */
+.km-back {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+  height: 100%;
+  /* ⚠️ حاشیهٔ پایین جای *کلید پخش* است. کلید روی لبهٔ پایینی صحنه
+     می‌نشیند و نیمش بیرون است؛ بدون این، آخرین ردیف نوار درست زیر آن
+     می‌افتاد و هر دو خوانده نمی‌شدند. */
+  padding: calc(var(--u) * 0.8) calc(var(--u) * 1) calc(var(--km-play) * 0.62);
+  border-radius: inherit;
+  /* ⚠️ اینجا آزاد است: این *داخل* یک وجه است و سه‌بعدی را نمی‌شکند. */
+  overflow: hidden;
+}
+
+.km-back-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  margin: 0;
+  flex: none;
+}
+
+.km-back-tag {
+  padding: calc(var(--u) * 0.15) calc(var(--u) * 0.6);
+  border-radius: var(--km-r-sm);
+  background: var(--km-s2);
+  color: var(--color-muted-foreground);
+  font-size: max(0.75rem, calc(var(--u) * 0.85));
+  font-weight: 600;
+}
+
+.km-back-tag[data-solved] {
+  background: color-mix(in oklch, var(--km-ok) 16%, var(--km-s2));
+  color: var(--km-ok);
+}
+
+.km-back-meter {
+  color: var(--color-foreground);
+  font-size: max(0.8125rem, calc(var(--u) * 0.9));
+  font-weight: 600;
+}
+
+/* ⚠️ `overflow: hidden` و `flex: 1 1 auto`: شعر هر قدر جا هست می‌گیرد و
+   بیشتر از آن نه. بدون این، با سه ردیف نوار روی کارت ۳۸dvh، بیت از
+   کارت می‌زد بیرون و نوارها رویش می‌افتادند. نوارها هیچ‌وقت کوچک
+   نمی‌شوند چون *پاسخ* همان‌هاست. */
+.km-back-verse {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.km-back-verse .km-verse-line {
+  font-size: max(0.875rem, calc(var(--u) * 1));
+  line-height: 1.9;
+}
+
+.km-back-bars {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.35);
+  flex: none;
+  margin-top: auto;
+}
+
+/* ── نوار ارکان ────────────────────────────────────────────────────────── */
+.km-bar-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+}
+
+.km-bar-row[data-dim] { opacity: 0.62; }
+
+/* ⚠️ عرض ثابت و نه `max-content`: با دو برچسب به دو طول («چیدمان تو» و
+   «خوانش دیگر»)، نوارهای زیر هم از یک جا شروع نمی‌شدند و ردیف‌ها پلکانی
+   می‌شدند. */
+.km-bar-rowlabel {
+  flex: none;
+  width: calc(var(--u) * 4.2);
+  text-align: start;
+  color: var(--color-muted-foreground);
+  font-size: max(0.625rem, calc(var(--u) * 0.68));
+  line-height: 1.3;
+}
+
+/* ردیف اول برچسب ندارد؛ برای هم‌ترازی همان عرض را خالی می‌گیرد. */
+.km-bar-row:not(:has(.km-bar-rowlabel)) .km-rbar {
+  margin-inline-start: calc(var(--u) * 4.2 + var(--u) * 0.5);
+}
+
+.km-rbar {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* ⚠️ عرض هر بلوک با `flex-grow` برابر تعداد هجاهاست و نه با عرض ثابت:
+   نوار باید همیشه کل پهنا را پر کند، وگرنه روی صفحهٔ پهن ته آن خالی
+   می‌ماند و روی گوشی بلوک‌ها از کادر می‌زنند بیرون. */
+.km-rblock {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: calc(var(--u) * 0.3) 2px;
+  border-radius: var(--km-r-sm);
+  background: color-mix(in oklch, var(--km-ink) 30%, var(--km-s1));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--km-ink) 55%, transparent);
+}
+
+.km-rblock-sig {
+  display: flex;
+  gap: 2px;
+  color: color-mix(in oklch, var(--km-ink) 82%, var(--color-foreground));
+  font-size: max(0.625rem, calc(var(--u) * 0.7));
+  line-height: 1;
+}
+
+.km-rsyl[data-long] { font-weight: 700; }
+
+.km-rblock-name {
+  color: var(--color-foreground);
+  font-size: max(0.625rem, calc(var(--u) * 0.72));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ⚠️ نشانهٔ «غلط» یک خط است و نه یک رنگ. بلوک‌ها از قبل رنگی‌اند و یک
+   قرمزِ اضافه روی یک بلوک فیروزه‌ای، هم بدنما بود و هم برای کسی که رنگ
+   را نمی‌بیند هیچ نمی‌گفت. */
+.km-rblock[data-wrong]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 10%;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--km-bad);
+}
+
+/* ── گوشی: نوار جمع‌تر، تا شعر جا بماند ────────────────────────────────
+   ⚠️ روی کارتِ ۱۴۶ پیکسلیِ ۳۹۰، دو ردیف نوارِ دوطبقه (نشانه بالای نام)
+   تمام ارتفاع را می‌خوردند و شعر به صفر بریده می‌شد — یعنی دقیقاً همان
+   چیزی که قرار بود پشت کارت باشد، نبود.
+   نشانه و نام کنار هم می‌روند و ردیف نصف می‌شود. */
+@media (max-width: 680px) {
+  .km-rblock {
+    flex-direction: row;
+    gap: calc(var(--u) * 0.3);
+    padding: calc(var(--u) * 0.22) calc(var(--u) * 0.25);
+  }
+
+  .km-rblock-sig { font-size: max(0.5625rem, calc(var(--u) * 0.6)); }
+  .km-rblock-name { font-size: max(0.5625rem, calc(var(--u) * 0.62)); }
+
+  .km-bar-rowlabel { width: calc(var(--u) * 3.4); }
+  .km-bar-row:not(:has(.km-bar-rowlabel)) .km-rbar {
+    margin-inline-start: calc(var(--u) * 3.4 + var(--u) * 0.5);
+  }
+
+  .km-back { gap: calc(var(--u) * 0.35); padding-inline: calc(var(--u) * 0.7); }
+
+  /* ⚠️ شعر کف دارد و نوارها ندارند: اگر جا کم بیاید، نوار فشرده می‌شود
+     و شعر نه. بدون این، `flex` شعر را اول قربانی می‌کرد. */
+  .km-back-verse { min-height: calc(var(--u) * 3.4); }
+
+  .km-rbar[data-many] { flex-wrap: wrap; row-gap: 2px; }
+  .km-rbar[data-many] > .km-rblock { flex-basis: calc(33.333% - 2px); }
+}
+
+/* ═══════════════════════ نقطه‌های تلاش ══════════════════════════════════
+   ⚠️ جا همیشه رزرو است (`min-width` روی حالت خالی هم اعمال می‌شود): آمدن
+   و رفتن سه نقطه، دکمه‌های کنارش را چند پیکسل جابه‌جا می‌کرد. */
+.km-tries {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin: 0;
+  min-width: calc(var(--u) * 1.9);
+}
+
+.km-tries[data-empty] { visibility: hidden; }
+
+.km-try-dot {
+  width: calc(var(--u) * 0.42);
+  height: calc(var(--u) * 0.42);
+  min-width: 5px;
+  min-height: 5px;
+  border-radius: 50%;
+  background: var(--km-accent);
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+
+/* سوخته: هم رنگ می‌رود، هم توخالی می‌شود — دو نشانه و نه یکی.
+   ⚠️ و یک تپش کوتاه، چون «یک تلاش رفت» باید *حس* شود. بدون آن، نقطه
+   بی‌صدا خاموش می‌شد و بازیکن تازه در تلاش سوم می‌فهمید چند بار زده. */
+.km-try-dot[data-spent] {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--km-edge);
+  animation: km-dot-spend 320ms ease-out;
+}
+
+@keyframes km-dot-spend {
+  40% { transform: scale(1.5); }
+  to { transform: scale(1); }
+}
+
+.km-tries[data-low] .km-try-dot:not([data-spent]) {
+  background: var(--km-bad);
+}
+
+/* ═══════════════════════ دکمهٔ «نمایش پاسخ» ═════════════════════════════
+   ⚠️ عرض ثابت است و با عوض شدن متن («نمایش پاسخ» → «مطمئنی؟») تکان
+   نمی‌خورد: دو کلمه با دو طول، دکمه‌های کنارش را جابه‌جا می‌کردند. */
+.km-reveal-btn {
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 0.7);
+  border: 0;
+  border-radius: var(--km-r-sm);
+  background: none;
+  color: var(--color-muted-foreground);
+  font-size: max(0.8125rem, calc(var(--u) * 0.9));
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.km-reveal-btn:hover:not(:disabled) {
+  background: var(--km-s2);
+  color: var(--color-foreground);
+}
+
+/* ⚠️ فقط رنگ، و نه وزن قلم: با `font-weight: 600` متنِ فعال پهن‌تر
+   می‌شد و چون عرض جعبه بیشینهٔ دو متن است، خودِ دکمه ۰٫۷ پیکسل تکان
+   می‌خورد (اندازه‌گیری‌شده). */
+.km-reveal-btn[data-armed] {
+  color: var(--km-bad);
+}
+
+.km-reveal-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* جا گرفته ولی دیده‌نشده — تا آمدنش ردیف را تکان ندهد. */
+.km-reveal-btn[data-hidden] { visibility: hidden; }
+
+/* دو برچسب در یک سلول: جعبه به اندازهٔ بلندترین‌شان است و با عوض شدن
+   متن تکان نمی‌خورد. */
+.km-reveal-slot {
+  display: grid;
+  place-items: center;
+}
+
+.km-reveal-slot > span {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.km-reveal-slot > span[data-on] { visibility: visible; }
+
 /* ════════════════════════════ کم‌حرکت ════════════════════════════════════
    ⚠️ *همهٔ* بازخوردها می‌مانند و فقط کوتاه می‌شوند. کسی که حرکت را خاموش
    کرده نباید ندانَد ترکیبش پایدار شد یا نه. */
 @media (prefers-reduced-motion: reduce) {
   /* تیک فوری عوض می‌شود و مایع همزده نمی‌شود؛ فقط اسپینرِ دکمه می‌ماند. */
-  .km-verse-card[data-mode="correct"] .km-play-check,
-  .km-verse-card[data-mode="correct"] .km-play-face {
+  .km-verse-scene[data-mode="correct"] .km-play-check,
+  .km-verse-scene[data-mode="correct"] .km-play-face {
     animation-timing-function: steps(1, end);
   }
 
@@ -2033,7 +2448,7 @@
     animation: none;
   }
 
-  .km-verse-card[data-mode="wrong"],
+  .km-verse-scene[data-mode="wrong"],
   .km-cta-next {
     animation-duration: 150ms !important;
     animation-delay: 0ms !important;
@@ -2046,6 +2461,31 @@
   }
 
   .km-intro-cta-spin[data-on] { animation: none; }
+
+  /* ⚠️ چرخش سه‌بعدی برای کسی که حرکت را خاموش کرده، دقیقاً همان چیزی
+     است که خاموشش کرده. وجه‌ها به‌جای چرخیدن، محو می‌شوند — همان
+     اطلاعات، بدون حرکت. */
+  .km-verse-flip {
+    transform-style: flat;
+    transition: none;
+  }
+
+  .km-verse-scene[data-flipped] .km-verse-flip { transform: none; }
+
+  .km-face {
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+    transition: opacity var(--km-flip-reduced, 200ms) ease;
+  }
+
+  .km-face-back { transform: none; opacity: 0; }
+
+  /* ورود پلکانی و بلند شدن کارت هم می‌روند: محو ساده، همین. */
+  .km-verse-scene[data-flipped] .km-verse-flip { animation: none; }
+  .km-verse-scene[data-flipped] .km-back > * { animation: none; }
+  .km-try-dot[data-spent] { animation: none; }
+  .km-verse-scene[data-flipped] .km-face-front { opacity: 0; }
+  .km-verse-scene[data-flipped] .km-face-back { opacity: 1; }
 
   /* ⚠️ لوله‌ها اصلاً پرواز نمی‌کنند (خودِ WAAPI در کامپوننت خاموش
      می‌شود)؛ اینجا فقط باقیِ گذارها کوتاه می‌شوند. */

@@ -11,6 +11,10 @@ export type StatusKind =
   | "correct"
   | "wrong"
   | "wrongIdle"
+  /** تلاش‌ها تمام شد؛ پاسخ پشت کارت است. */
+  | "exhausted"
+  /** خود بازیکن پاسخ را باز کرد. */
+  | "shown"
   | "error"
   | "cue";
 
@@ -49,7 +53,11 @@ export default function StatusLine({
   remaining: number;
 }) {
   const tone =
-    kind === "correct" ? "ok" : kind === "wrong" || kind === "error" ? "bad" : undefined;
+    kind === "correct"
+      ? "ok"
+      : kind === "wrong" || kind === "error" || kind === "exhausted"
+        ? "bad"
+        : undefined;
 
   const text =
     kind === "error"
@@ -59,7 +67,11 @@ export default function StatusLine({
         : kind === "wrong"
           ? /* راهنماییِ سرور دقیق‌تر از متنِ عمومی است — اگر آمد، همان. */
             (verdict?.hint ?? KIMIA_COPY.wrong)
-          : kind === "wrongIdle"
+          : kind === "exhausted"
+            ? KIMIA_COPY.exhausted
+            : kind === "shown"
+            ? KIMIA_COPY.reveal.done
+            : kind === "wrongIdle"
             ? KIMIA_COPY.wrongIdle
             : kind === "loading"
               ? KIMIA_COPY.loading

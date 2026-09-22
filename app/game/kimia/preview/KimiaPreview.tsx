@@ -32,7 +32,15 @@ const VERSES: readonly (readonly [string, string])[] = [
   ["بنی‌آدم اعضای یک پیکرند", "که در آفرینش ز یک گوهرند"],
 ];
 
-type Verdict = "server" | "always-correct" | "always-wrong" | "network-error";
+type Verdict =
+  | "server"
+  | "always-correct"
+  /** غلط، ولی هنوز تلاش مانده — برای دیدن نقطه‌ها و دکمهٔ «نمایش پاسخ». */
+  | "wrong-first"
+  /** غلط و **آخرین** تلاش: پاسخ خودبه‌خود باز می‌شود و کارت می‌چرخد. */
+  | "wrong-last"
+  | "always-wrong"
+  | "network-error";
 type Audio = "file" | "none";
 
 export default function KimiaPreview() {
@@ -105,10 +113,19 @@ export default function KimiaPreview() {
         const answer = answers.get(input.questionId) ?? [];
         const matches = answer.length === input.selected.length &&
           answer.every((foot, i) => foot === input.selected[i]);
+        const forcedWrong =
+          verdictMode === "always-wrong" ||
+          verdictMode === "wrong-first" ||
+          verdictMode === "wrong-last";
         const isCorrect =
-          verdictMode === "always-correct" ? true : verdictMode === "always-wrong" ? false : matches;
+          verdictMode === "always-correct" ? true : forcedWrong ? false : matches;
 
-        const used = Math.min(MAX_ATTEMPTS, (tries.get(input.roundId) ?? 0) + 1);
+        /* ⚠️ `wrong-last` شمارنده را مستقیم به سقف می‌برد: بدون آن، برای
+           دیدن چرخشِ «تلاش‌ها تمام شد» باید سه بار دکمه می‌زدی. */
+        const used =
+          verdictMode === "wrong-last"
+            ? MAX_ATTEMPTS
+            : Math.min(MAX_ATTEMPTS, (tries.get(input.roundId) ?? 0) + 1);
         tries.set(input.roundId, used);
         const exhausted = !isCorrect && used >= MAX_ATTEMPTS;
         if (exhausted) opened.add(input.roundId);
@@ -211,8 +228,10 @@ export default function KimiaPreview() {
             onChange={(e) => setVerdictMode(e.target.value as Verdict)}
             style={INPUT}
           >
-            <option value="server">مثلِ سرور</option>
-            <option value="always-correct">همیشه درست</option>
+            <option value="server">مثل سرور</option>
+            <option value="always-correct">درست</option>
+            <option value="wrong-first">غلط (تلاش ۱ از ۳)</option>
+            <option value="wrong-last">غلط (آخرین تلاش)</option>
             <option value="always-wrong">همیشه غلط</option>
             <option value="network-error">خطای شبکه</option>
           </select>

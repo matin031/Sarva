@@ -40,7 +40,7 @@ export default function KimiaResult({
         <span className="km-backdrop-beam" />
       </div>
 
-      <GameBarPlain label="پایانِ نشست" />
+      <GameBarPlain label="پایان نشست" />
 
       <div className="km-session-stage">
         {/* شیشهٔ نگه‌دارندهٔ نتیجه — همان جنسِ محفظهٔ ترکیب، در قابِ کوچک‌تر. */}
@@ -55,7 +55,7 @@ export default function KimiaResult({
             ? "همهٔ ترکیب‌ها پایدار شدند"
             : solved === 0
               ? "این بار ترکیبی پایدار نشد"
-              : "کارِ امروزِ کیمیاگر"}
+              : "کار امروز کیمیاگر"}
         </h2>
 
         <dl className="km-session-stats">
@@ -67,20 +67,20 @@ export default function KimiaResult({
           </div>
           <span className="km-session-divider" aria-hidden />
           <div className="km-session-stat">
-            <dt>بارِ اول درست</dt>
+            <dt>بار اول درست</dt>
             <dd className="game-num">{toFa(firstTry)}</dd>
           </div>
         </dl>
 
         <p className="km-session-note">
           {user
-            ? "نتیجهٔ هر بیت در کارنامه‌ات ثبت شد؛ تحلیلِ وزن‌ها را در پنل می‌بینی."
+            ? "نتیجهٔ هر بیت در کارنامه‌ات ثبت شد؛ تحلیل وزن‌ها را در پنل می‌بینی."
             : "برای اینکه نتیجه‌ها در کارنامه‌ات بمانند، وارد شو."}
         </p>
 
         <div className="km-session-actions">
           <button type="button" className="km-cta" onClick={onRestart}>
-            نشستِ تازه
+            نشست تازه
           </button>
           <Link href="/game" className="km-tertiary km-session-back">
             بازگشت به بازی‌ها

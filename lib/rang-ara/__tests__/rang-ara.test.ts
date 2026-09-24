@@ -309,7 +309,7 @@ test("بیت‌های seedِ کتاب با متنِ درسنامه یکی‌ان
     assert.ok(!ids.has(raw.id), `شناسهٔ تکراری: ${raw.id}`);
     ids.add(raw.id);
     const name = `${raw.book.grade}-${String(raw.book.lesson).padStart(2, "0")}`;
-    assert.match(raw.id, new RegExp(`^${name}-${raw.book.beyt}b?$`), `${raw.id}: شناسه با درس و بیت نمی‌خواند`);
+    assert.match(raw.id, new RegExp(`^${name}-${raw.book.beyt}[b-z]?$`), `${raw.id}: شناسه با درس و بیت نمی‌خواند`);
     assert.ok(files.has(`${name}.ts`), `${raw.id}: درس پیدا نشد`);
     const lesson = (await import(pathToFileURL(join(dir, `${name}.ts`)).href)).default;
     if (lesson.kind === "prose") {

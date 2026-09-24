@@ -10,6 +10,7 @@ import { CONCEPTS, DEMO, DEMO_RIGHT, DEMO_WRONG, DIALOGUE, LEVELS, paletteFor, t
 import { canPaint, currentStep, initialState, judge, pickLine, reduce, selections, type Action, type Found, type State } from "../game";
 import { parseSteps, toLevel, validateVerse, type VerseRecord } from "../verse";
 import { BOOK_RAW } from "../../../scripts/rang-ara/book-seed";
+import { buildSeeds, planExisting } from "../../../scripts/rang-ara/plan";
 
 const run = (actions: Action[], from: State = initialState, levels: Level[] = LEVELS) =>
   actions.reduce((s, a) => reduce(levels, s, a), from);
@@ -345,6 +346,38 @@ test("بیت‌های seedِ کتاب با متنِ درسنامه یکی‌ان
     });
     assert.equal(problem, null, `${raw.id}: ${problem}`);
   }
+});
+
+test("seed: --update --publish-book پیش‌نویس‌های کتاب را منتشر می‌کند و بس", () => {
+  const drafts = buildSeeds(false);
+  const published = buildSeeds(true);
+  const isBook = (key: string) => key.startsWith("book:");
+  // همان بیت‌ها، با همان کلیدها؛ پرچم فقط وضعیت را عوض می‌کند.
+  assert.deepEqual(published.map((s) => s.key), drafts.map((s) => s.key));
+  assert.equal(drafts.filter((s) => isBook(s.key)).length, BOOK_RAW.length);
+  // درجِ تازه: خارج از کتاب همیشه منتشرشده، کتاب فقط با --publish-book.
+  for (const s of drafts) assert.equal(s.published, !isBook(s.key), s.key);
+  for (const s of published) assert.equal(s.published, true, s.key);
+  // انتشارِ ردیفِ موجود فقط برای کتاب و فقط با --publish-book.
+  for (const s of drafts) assert.equal(s.promote, false, s.key);
+  for (const s of published) assert.equal(s.promote, isBook(s.key), s.key);
+
+  const book = published.find((s) => isBook(s.key))!;
+  const outside = published.find((s) => !isBook(s.key))!;
+  const bookDraft = drafts.find((s) => isBook(s.key))!;
+  const none = { sync: false, publish: false };
+
+  // پیش‌نویسِ کتاب منتشر می‌شود، حتی وقتی متنش با فایل یکی است (همان وضعِ سرور).
+  assert.deepEqual(planExisting(book, { isPublished: false, changed: false }, true), { sync: false, publish: true });
+  assert.deepEqual(planExisting(book, { isPublished: false, changed: true }, true), { sync: true, publish: true });
+  // اجرای دوباره: دیگر کاری نیست.
+  assert.deepEqual(planExisting(book, { isPublished: true, changed: false }, true), none);
+  // بدونِ --update هیچ ردیفِ موجودی دست نمی‌خورد، حتی با --publish-book.
+  assert.deepEqual(planExisting(book, { isPublished: false, changed: true }, false), none);
+  // --update بدونِ --publish-book وضعیتِ انتشار را دست نمی‌زند.
+  assert.deepEqual(planExisting(bookDraft, { isPublished: false, changed: false }, true), none);
+  // بیتِ خارج از کتابی که مدیر برداشته برنمی‌گردد.
+  assert.deepEqual(planExisting(outside, { isPublished: false, changed: false }, true), none);
 });
 
 test("وجه‌شبه فقط وقتی روی پالت می‌آید که بیت بخواهدش", () => {

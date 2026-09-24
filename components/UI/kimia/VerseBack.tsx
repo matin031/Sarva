@@ -78,12 +78,27 @@ export default function VerseBack({
 
   return (
     <div className="km-back">
-      <p className="km-back-head" style={{ "--i": 0 } as React.CSSProperties}>
-        <span className="km-back-tag" data-solved={solved || undefined}>
-          {solved ? KIMIA_COPY.back.solved : KIMIA_COPY.back.shown}
+      <header className="km-back-head" style={{ "--i": 0 } as React.CSSProperties}>
+        {/* مُهر: تیک وقتی خودش درست چیده، چشم وقتی پاسخ نشان داده شده. */}
+        <span className="km-back-seal" data-solved={solved || undefined} aria-hidden>
+          {solved ? (
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5.5 12.5 10 17l8.5-9.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+            </svg>
+          )}
         </span>
-        <span className="km-back-meter">{solution.meterName}</span>
-      </p>
+        <span className="km-back-titles">
+          <span className="km-back-meter game-title">{solution.meterName}</span>
+          <span className="km-back-tag" data-solved={solved || undefined}>
+            {solved ? KIMIA_COPY.back.solved : KIMIA_COPY.back.shown}
+          </span>
+        </span>
+      </header>
 
       {/* همان شعر، همان قلم. کارت که برمی‌گردد نباید متن عوض شود. */}
       <div className="km-back-verse" style={{ "--i": 1 } as React.CSSProperties}>

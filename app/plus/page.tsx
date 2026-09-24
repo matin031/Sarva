@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "سروا پلاس",
   description:
-    "سروا پلاس به تو می‌گوید کدام وزن و کدام نقش دستوری را باید مرور کنی — بر پایهٔ پاسخ‌های خودت.",
+    "اشتراک سروا پلاس: نقش دستوری و آرایه‌های درسنامه، هوشواره، تحلیل اشتباه‌ها در وزن و دستور، و تمرین پیشنهادی روزانه.",
   alternates: { canonical: "/plus" },
 };
 
@@ -72,7 +72,11 @@ export default async function Page() {
             </p>
           )}
 
-          <PlanCards offers={offers} state={status.state} />
+          <PlanCards
+            offers={offers}
+            state={status.state}
+            permanent={status.state === "active" && status.expiresAt === null}
+          />
 
           {terms ? (
             <p className="mx-auto mt-5 max-w-2xl rounded-xl border border-border/60 p-4 text-center text-xs leading-relaxed text-muted-foreground">
@@ -91,8 +95,7 @@ export default async function Page() {
             سؤالی داری؟{" "}
             <Link href="/panel/support" className="text-primary underline underline-offset-4">
               از پشتیبانی بپرس
-            </Link>{" "}
-            — پیش از خرید و بعد از آن.
+            </Link>
           </p>
         </div>
       }

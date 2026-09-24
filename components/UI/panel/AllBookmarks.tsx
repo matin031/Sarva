@@ -23,7 +23,7 @@ const AREA_HREF: Record<BookmarkArea, string> = {
   aruz: "/panel/aruz",
   vocab: "/panel/vocab",
   exam: "/panel/exam",
-  jasoos: "/panel/jasoos",
+  jasoos: "/panel/grammar",
 };
 
 const AREA_TONE: Record<BookmarkArea, string> = {
@@ -107,8 +107,7 @@ export default function AllBookmarks({ initial }: { initial: Bookmark[] }) {
       <div className={styles.emptyState}>
         <SarvaBuddy small /><p className="font-semibold">هنوز چیزی نشان نکرده‌ای</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-          سرِ هر سؤال، بیت یا واژه یک دکمهٔ نشان هست. هرچه با آن ذخیره کنی،
-          همین‌جا جمع می‌شود.
+          سؤال، بیت یا واژه‌ای که نشان کنی اینجا می‌آید.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {(Object.keys(AREA_LABEL) as BookmarkArea[]).map((a) => (

@@ -442,7 +442,7 @@ export default function ArkanSphere({ reduced }: { reduced: boolean }) {
     });
     mo.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class", "data-theme"],
+      attributeFilter: ["class", "data-theme", "data-palette"],
     });
 
     if (reduced) {

@@ -45,7 +45,7 @@ export default function ClassAnalytics({ dashboard }: { dashboard: ClassDashboar
           <CardHeader>
             <CardTitle>نیازمند توجه</CardTitle>
             <CardDescription>
-              هر مورد دلیلِ خودش را دارد — امتیاز یا رتبه‌بندی‌ای در کار نیست.
+              بدون امتیاز و رتبه‌بندی.
             </CardDescription>
           </CardHeader>
           <CardContent>

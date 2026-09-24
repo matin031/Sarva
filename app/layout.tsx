@@ -8,6 +8,7 @@ import { NavigationProgress } from "@/components/UI/NavigationProgress";
 import SiteChrome from "@/components/SiteChrome";
 import LogoReveal from "@/components/UI/LogoReveal";
 import { DEFAULT_PALETTE, PALETTE_INIT_SCRIPT } from "@/lib/theme/palette";
+import { READING_FONT_INIT_SCRIPT } from "@/lib/theme/reading-font";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -75,6 +76,61 @@ const pofak = localFont({
   ],
   variable: "--font-pofak",
   display: "swap",
+  fallback: ["Vazirmatn", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
+
+/* قلم‌های اختیاریٔ درسنامه — پیدا، لحظه، درنا.
+
+   کاربر در درسنامه می‌تواند قلمِ خواندن را عوض کند
+   (`components/UI/doroos/ReadingFontDock.tsx`). فهرستِ گزینه‌ها در
+   `lib/theme/reading-font.ts` است و اعمالش یک قاعدهٔ CSS زیرِ
+   `.reading-scope`. اینجا فقط متغیّرشان ساخته می‌شود.
+
+   ⚠️ `preload: false` عمدی است. این سه قلم در حالتِ پیش‌فرض هیچ
+   کجا دیده نمی‌شوند؛ با preloadِ پیش‌فرضِ next/font هر صفحهٔ سایت
+   شش فایلِ woff2 را پیشاپیش می‌کشید که برای ۹۹٪ِ بازدیدها دورِ
+   ریختنِ تمام است. بدونِ preload، مرورگر فقط وقتی فایل را
+   می‌گیرد که قاعده‌ای واقعاً آن را به متنی بچسباند.
+
+   ⚠️ وزن‌ها بازه‌اند و نه عددِ تک، و این دقیقاً به خاطرِ درسنامه
+   است: متنِ درس پر است از `font-bold` و `font-black`، ولی این سه قلم
+   فقط دو وزن دارند. اگر وزنِ ۷۰۰ را به هیچ فایلی نسبت
+   ندهیم، مرورگر خودش سیاهِ جعلی می‌سازد (synthetic bold) که روی
+   فارسی فاجعه است: اتّصال‌ها پر می‌شوند و نقطه‌ها به هم می‌چسبند.
+   با بازه، هر وزنِ درخواستی به نزدیک‌ترین فایلِ واقعی می‌رسد. */
+const peyda = localFont({
+  src: [
+    { path: "./fonts/peyda/PeydaWeb-Regular.woff2", weight: "100 500", style: "normal" },
+    { path: "./fonts/peyda/PeydaWeb-Medium.woff2", weight: "600 900", style: "normal" },
+  ],
+  variable: "--font-peyda",
+  display: "swap",
+  preload: false,
+  fallback: ["Vazirmatn", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
+
+const lahzeh = localFont({
+  src: [
+    { path: "./fonts/lahzeh/Lahzeh-Regular.woff2", weight: "100 500", style: "normal" },
+    { path: "./fonts/lahzeh/Lahzeh-Medium.woff2", weight: "600 900", style: "normal" },
+  ],
+  variable: "--font-lahzeh",
+  display: "swap",
+  preload: false,
+  fallback: ["Vazirmatn", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
+
+const dorna = localFont({
+  src: [
+    { path: "./fonts/dorna/Dorna Light.woff2", weight: "100 300", style: "normal" },
+    { path: "./fonts/dorna/Dorna Regular.woff2", weight: "400 900", style: "normal" },
+  ],
+  variable: "--font-dorna",
+  display: "swap",
+  preload: false,
   fallback: ["Vazirmatn", "system-ui", "sans-serif"],
   adjustFontFallback: false,
 });
@@ -201,10 +257,27 @@ export default function RootLayout({
   return (
     <html
       lang="fa"
+      /* ⚠️ `dir="rtl"` روی خودِ <html> و نه فقط `text-right` روی <body>.
+         این دو یکی نیستند و تفاوتشان یک باگِ دیدنی می‌ساخت: `text-right`
+         فقط *تراز* است، ولی جهتِ دوسویهٔ متن (bidi) همچنان چپ‌به‌راست
+         می‌ماند. نتیجه‌اش این بود که هر نویسهٔ خنثی در انتهای یک جملهٔ
+         فارسی — سه‌نقطه، پرانتز، علامتِ تعجب — به آن سرِ دیگر می‌پرید:
+         «در حال ورود…» روی صفحه «…در حال ورود» دیده می‌شد.
+
+         تا امروز هر جایی که این را می‌دید، خودش یک `dir="rtl"` محلی
+         می‌گذاشت (پنل، چند مودال، چند پاراگراف) — یعنی همان قاعده ده‌ها
+         بار تکرار شده بود و هر جای تازه‌ای که یادش می‌رفت، دوباره همان
+         باگ را داشت.
+
+         ⚠️ بی‌خطر بودنش آزموده شد و حدس نیست: صفحهٔ اصلی، بازی‌ها،
+         راهنما، وزن‌یاب و دربارهٔ ما پیش و پس از این تغییر پیکسل‌به‌پیکسل
+         مقایسه شدند و تنها تفاوت، جهتِ کشیده‌شدنِ خط‌کشِ
+         `rough-notation` بود که حالا از راست شروع می‌شود. */
+      dir="rtl"
       /* پالتِ پیش‌فرض در HTMLِ سرور؛ اسکریپتِ اولِ <body> اگر کاربر چیزِ
          دیگری انتخاب کرده باشد، پیش از اولین رنگ‌آمیزی عوضش می‌کند. */
       data-palette={DEFAULT_PALETTE}
-      className={`${vazirmatn.variable} ${naskh.variable} ${morabba.variable} ${pofak.variable} h-full antialiased dark`}
+      className={`${vazirmatn.variable} ${naskh.variable} ${morabba.variable} ${pofak.variable} ${peyda.variable} ${lahzeh.variable} ${dorna.variable} h-full antialiased dark`}
       /* Browser extensions (dark-mode ones especially) write an inline style
          onto <html> before React hydrates, which React then reports as a
          mismatch nobody can act on. This suppresses the warning for this one
@@ -217,6 +290,10 @@ export default function RootLayout({
             <html> می‌نشاند. اگر پایین‌تر می‌رفت — یا به یک useEffect سپرده
             می‌شد — کاربر در هر بار باز کردنِ هر صفحه یک پرشِ رنگ می‌دید. */}
         <script dangerouslySetInnerHTML={{ __html: PALETTE_INIT_SCRIPT }} />
+        {/* همان داستان، برای قلمِ درسنامه: اگر خواننده قلمی انتخاب
+            کرده باشد، باید پیش از اولین چیدمان روی <html> بنشیند، وگرنه
+            کلِ متنِ درس یک بار با وزیرمتن چیده و بلافاصله بازچیده می‌شود. */}
+        <script dangerouslySetInnerHTML={{ __html: READING_FONT_INIT_SCRIPT }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

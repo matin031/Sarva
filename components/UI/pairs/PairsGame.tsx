@@ -501,7 +501,16 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
 
         {/* چیدمانِ flex و نه grid: دستِ آخر می‌تواند چهار یا پنج جفت باشد و
             ردیفِ ناتمامِ *وسط‌چین* یک خطِ کوتاهِ عمدی به نظر می‌رسد، نه یک
-            خانهٔ خالی در شبکه. */}
+            خانهٔ خالی در شبکه.
+
+            ⚠️ روی موبایل **سه‌تایی** و نه دوتایی.
+            دوتایی یعنی هر قاب ۱۷۰ پیکسل عرض و ۲۷۰ پیکسل ارتفاع داشت، و شش
+            جفت سه ردیف می‌شد: بیش از هزار پیکسل اسکرول برای صفحه‌ای که کلِ
+            کارش «همهٔ این‌ها را با هم ببین و به‌خاطر بسپار» است. صفحه‌ای که
+            یک‌جا دیده نمی‌شود، حفظ هم نمی‌شود.
+
+            سه‌تایی همان شش جفت را در دو ردیف و حدودِ ۳۸۰ پیکسل جا می‌دهد —
+            یک صفحه، یک نگاه. */}
         <motion.ul
           initial="hidden"
           animate="visible"
@@ -515,13 +524,13 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
                 hidden: { opacity: 0, y: 18 },
                 visible: { opacity: 1, y: 0 },
               }}
-              className="group relative z-20 w-[calc(50%-0.375rem)] overflow-hidden rounded-3xl border border-border bg-linear-to-b from-surface to-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-gold/45 hover:shadow-xl sm:w-[calc(33.333%-0.667rem)]"
+              className="group relative z-20 w-[calc(33.333%-0.5rem)] overflow-hidden rounded-2xl border border-border bg-linear-to-b from-surface to-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-gold/45 hover:shadow-xl sm:w-[calc(33.333%-0.667rem)] sm:rounded-3xl"
             >
               <span
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-l from-transparent via-gold/40 to-transparent"
               />
-              <span className="absolute top-3 right-3 z-10 flex size-6 items-center justify-center rounded-full bg-background/70 text-[11px] font-bold text-muted-foreground backdrop-blur-sm">
+              <span className="absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-background/70 text-[10px] font-bold text-muted-foreground backdrop-blur-sm sm:top-3 sm:right-3 sm:size-6 sm:text-[11px]">
                 {fa(i + 1)}
               </span>
 
@@ -529,7 +538,11 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
                   صحنه نیستند، یک شکلِ کاملِ بی‌پس‌زمینه‌اند و بریدنشان یعنی
                   نصفِ شاعر. هالهٔ پشتشان جای سایه را می‌گیرد تا روی زمینهٔ
                   روشن هم شناور به نظر برسند. */}
-              <div className="relative aspect-4/5 overflow-hidden">
+              {/* ⚠️ روی موبایل مربع و نه ۴:۵. با سه ستون، ۴:۵ همان ارتفاعی را
+                  برمی‌گرداند که تازه از دو ستون گرفته شده بود. تصویرها
+                  `object-contain` اند، پس قابِ کوتاه‌تر آن‌ها را نمی‌بُرد —
+                  فقط کوچک‌ترشان می‌کند. */}
+              <div className="relative aspect-square overflow-hidden sm:aspect-4/5">
                 <span
                   aria-hidden
                   className="pointer-events-none absolute inset-x-5 top-8 bottom-1 rounded-[45%] bg-primary/12 blur-2xl transition-all duration-500 group-hover:bg-gold/20"
@@ -548,13 +561,17 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
                 )}
               </div>
 
-              <div className="relative border-t border-border/60 bg-card/50 px-2.5 py-3 text-center">
-                <p className="truncate text-sm font-black text-foreground sm:text-base">
+              {/* ⚠️ `truncate` رفت و جایش `text-balance` آمد.
+                  در سه ستون، «نصرالله منشی» و «کلیله و دمنه» هر دو بریده
+                  می‌شدند — روی صفحه‌ای که کاربر آمده تا همین دو نام را
+                  حفظ کند. نامِ بریده بدتر از نامِ دوخطی است. */}
+              <div className="relative border-t border-border/60 bg-card/50 px-1.5 py-2 text-center sm:px-2.5 sm:py-3">
+                <p className="text-balance text-[11px] leading-tight font-black text-foreground sm:text-base">
                   {p.author}
                 </p>
-                <span className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-gold/12 px-2.5 py-1 text-[11px] font-bold text-gold-ink">
+                <span className="mt-1 inline-flex max-w-full items-center gap-1 rounded-lg bg-gold/12 px-1.5 py-0.5 text-[10px] leading-snug font-bold text-gold-ink sm:mt-1.5 sm:rounded-full sm:px-2.5 sm:py-1 sm:text-[11px]">
                   <BookIcon className="size-3 shrink-0" />
-                  <span className="truncate">{p.work}</span>
+                  <span className="text-balance">{p.work}</span>
                 </span>
               </div>
             </motion.li>
@@ -681,10 +698,18 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
         </div>
       </div>
 
-      <div
-        style={gridStyle}
-        className="grid grid-cols-[repeat(var(--cols-base),minmax(0,1fr))] gap-2 sm:grid-cols-[repeat(var(--cols-wide),minmax(0,1fr))] sm:gap-3.5"
-      >
+      {/* ⚠️ `flex` و نه `grid` — همان انتخابی که صفحهٔ مرور از اول کرده بود.
+          زمینِ موبایل حالا می‌تواند ردیفِ آخرِ ناتمام داشته باشد (ده کارت در
+          چهار ستون: ۴+۴+۲) و `justify-center` آن را به یک خطِ کوتاهِ عمدی
+          تبدیل می‌کند و نه یک خانهٔ خالی. چراییِ کاملش بالای `mobileColumns`
+          در `lib/literary-pairs.ts`.
+
+          ⚠️ عرضِ هر کارت از روی همان متغیرها حساب می‌شود و نه با
+          `basis-1/4`: تعدادِ ستون در زمانِ اجرا معلوم می‌شود و Tailwind
+          کلاسِ پویا نمی‌سازد. کسرِ فاصله‌ها لازم است، وگرنه چهار کارتِ
+          ۲۵٪ به‌اضافهٔ سه فاصله از عرض بیرون می‌زند و یکی به خطِ بعد
+          می‌افتد. */}
+      <div style={gridStyle} className="flex flex-wrap justify-center gap-2 sm:gap-3.5">
         {deck.map((card, index) => {
           const isMatched = matched.has(card.pairId);
           const isUp = isMatched || flipped.includes(index);
@@ -695,7 +720,7 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
               type="button"
               onClick={() => handleFlip(index)}
               disabled={isUp || locked}
-              className="group relative z-20 aspect-3/4 [perspective:900px] focus:outline-none"
+              className="group relative z-20 aspect-3/4 basis-[calc((100%-(var(--cols-base)-1)*0.5rem)/var(--cols-base))] [perspective:900px] focus:outline-none sm:basis-[calc((100%-(var(--cols-wide)-1)*0.875rem)/var(--cols-wide))]"
             >
               <motion.div
                 className="relative h-full w-full [transform-style:preserve-3d]"

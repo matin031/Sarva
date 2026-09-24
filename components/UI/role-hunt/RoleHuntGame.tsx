@@ -5,7 +5,7 @@ import "./role-hunt.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import GuestLimitModal from "@/components/UI/GuestLimitModal";
-import { Particles } from "@/components/UI/kit/particles";
+import { Volume2, VolumeX, Check, Flame } from "lucide-react";
 import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
 import { useRoundGuard } from "@/lib/games/round-guard";
 import { useReducedMotion } from "@/lib/perf/use-perf";
@@ -28,9 +28,11 @@ import { fetchRoleHuntRounds, RoleHuntSourceError, submitRoleHuntAnswer } from "
 import type { RoleHuntRound } from "@/lib/role-hunt/types";
 import { immersiveMode } from "@/lib/immersive-mode";
 import { useRoleHuntOrientation } from "@/lib/role-hunt/use-orientation";
-import OrbitStage, { StarShape } from "./OrbitStage";
+import Link from "next/link";
+import OrbitStage from "./OrbitStage";
 import OrientationGate from "./OrientationGate";
 import RoleDecoder from "./RoleDecoder";
+import RoleHuntIntro from "./RoleHuntIntro";
 import RoleHuntResults from "./RoleHuntResults";
 
 /**
@@ -113,21 +115,19 @@ export default function RoleHuntGame() {
      mount می‌شود و هیچ حالتی به بیرون نمی‌دهد؛ یک callback از آن به بالا،
      یک وابستگیِ دوطرفه می‌ساخت برای عددی که همین‌جا هم معلوم است. */
   const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    if (phase !== "playing") return;
-    // حرکتِ کمتر: رمزگشایی‌ای در کار نیست، نقش از همان لحظه کامل است.
-    if (reduced) {
-      setRevealed(true);
-      return;
-    }
-    setRevealed(false);
-    const id = window.setTimeout(() => setRevealed(true), ROLE_HUNT_CONFIG.decoderMs);
-    return () => window.clearTimeout(id);
-  }, [phase, index, reduced]);
 
   /* ⚠️ «قفل» فقط یک پوششِ دیداری نیست: مدار می‌ایستد، رمزگشا یخ می‌زند،
      ستاره‌ها غیرفعال می‌شوند و تایمرِ دورِ بعد نصب نمی‌شود. */
-  const paused = blocked;
+  /* ⚠️ فقط *وسطِ دور*. صفحهٔ معرفی و نتیجه روی گوشیِ عمودی هم خوانا هستند
+     و پوشاندنشان یعنی دانش‌آموز پیش از چرخاندنِ گوشی نمی‌فهمد بازی چیست. */
+  const paused = blocked && phase === "playing";
+
+  /* رمزگشا در `decoderMs` کامل می‌شود؛ از همان لحظه مهلتِ پاسخ شروع است. */
+  useEffect(() => {
+    if (phase !== "playing" || revealed || paused) return;
+    const id = window.setTimeout(() => setRevealed(true), ROLE_HUNT_CONFIG.decoderMs);
+    return () => window.clearTimeout(id);
+  }, [phase, revealed, paused]);
 
   /* پوسته فقط وقتی باید سرِ خروج هشدار بدهد که واقعاً دوری در جریان است. */
   useRoundGuard(phase === "playing");
@@ -145,7 +145,7 @@ export default function RoleHuntGame() {
       ? {
           area: "grammar_circuit",
           targetId: round.questionId,
-          snapshot: `${verseTextOfRound(round)}\nنقشِ هدف: ${round.roleLabel}`,
+          snapshot: `${verseTextOfRound(round)}\nنقش‌ها: ${round.asks.map((a) => a.roleLabel).join("، ")}`,
           targetRef: { game: "role-hunt", grade: round.grade, lesson: round.lesson },
         }
       : null,
@@ -170,6 +170,7 @@ export default function RoleHuntGame() {
       setAnswers([]);
       setAnswered(null);
       setHovered(null);
+      playRoleHuntSound("start");
       setPhase("playing");
     } catch (err) {
       setError(
@@ -193,78 +194,152 @@ export default function RoleHuntGame() {
      پیاپیِ گوشی هیچ درخواستِ تازه‌ای نمی‌سازد. */
   const wasBlocked = useRef(false);
 
+  /* ⚠️ اندیسِ *پرسش* داخلِ همین مصراع.
+
+     یک بیت چند نقش دارد و بازیکن آن را یک بار می‌خواند و بعد پشتِ هم به
+     همه جواب می‌دهد. پس دو شمارنده لازم است و نه یکی: `index` می‌گوید
+     کدام مصراع، `ask` می‌گوید کدام نقشِ همان مصراع. */
+  const [ask, setAsk] = useState(0);
+  const currentAsk = round?.asks[ask] ?? null;
+
   const select = useCallback(
     (tokenId: string) => {
       const current = rounds[index];
+      const currentQ = current?.asks[ask];
       /* ⚠️ نگهبانِ ثبتِ دوباره. بدونِ آن، دو کلیکِ سریع روی دو ستاره — یا
-         یک کلیک و یک Enter — دو درخواست می‌فرستاد و دورِ بعد را هم رد
+         یک کلیک و یک Enter — دو درخواست می‌فرستاد و پرسشِ بعد را هم رد
          می‌کرد. `disabled` روی دکمه‌ها همین را می‌گوید، ولی تکیه بر DOM برای
-         یک قاعدهٔ منطقی کافی نیست. */
-      // ⚠️ قفلِ ورودی حتی اگر لمسی از زیرِ پوشش رد شود.
-      if (!current || answered !== null || paused) return;
+         یک قاعدهٔ منطقی کافی نیست.
 
-      const isCorrect = tokenId === current.correctTokenId;
-      playRoleHuntSound(isCorrect ? "correct" : "wrong");
+         ⚠️ و قفلِ ورودی حتی اگر لمسی از زیرِ پوششِ «گوشی را بچرخان» رد شود. */
+      if (!current || !currentQ || answered !== null || paused) return;
+
+      const isCorrect = tokenId === currentQ.correctTokenId;
+      /* زنجیره پیش از همین پاسخ؛ صدای درست با هر پاسخِ پیاپی کمی زیرتر می‌شود. */
+      let run = 0;
+      for (let i = answers.length - 1; i >= 0 && answers[i]!.isCorrect; i--) run += 1;
+      playRoleHuntSound(isCorrect ? "correct" : "wrong", { streak: run });
       setAnswered({ tokenId, isCorrect });
       setAnswers((prev) => [
         ...prev,
-        { roleKey: current.roleKey, roleLabel: current.roleLabel, isCorrect },
+        { roleKey: currentQ.roleKey, roleLabel: currentQ.roleLabel, isCorrect },
       ]);
 
       /* بی‌انتظار و بی‌سروصدا: سرور خودش دوباره می‌سنجد و نتیجه‌اش برای
-         نمایش لازم نیست. */
+         نمایش لازم نیست.
+
+         ⚠️ `roundId` به‌ازای هر *پرسش* یکتا می‌شود و نه هر مصراع — کلیدِ
+         یکتاییِ جدول روی `(user_id, round_id)` است و اگر چهار پرسشِ یک
+         بیت یک شناسه می‌گرفتند، فقط اولی ثبت می‌شد. */
       void submitRoleHuntAnswer({
-        roundId: roundIds.current[index] ?? roundId(),
+        roundId: `${roundIds.current[index] ?? roundId()}`.slice(0, 34) + `-${ask}`,
         questionId: current.questionId,
+        askIndex: ask,
         selectedTokenId: tokenId,
       }).catch(() => {});
-
     },
-    [answered, paused, index, rounds],
+    [answered, paused, index, ask, rounds, answers],
   );
 
-  /* ⚠️ پیشرویِ دور یک *افکت* است و نه یک `setTimeout` داخلِ کلیک — و این
-     تفاوت تمامِ رفتارِ چرخشِ گوشی را می‌سازد.
+  /* ═══════════════════════════════════════════════════════════════════
+     سه فاز، و هر کدام تایمرِ خودش
+     ═══════════════════════════════════════════════════════════════════
 
-     با `setTimeout` داخلِ `select`، اگر کاربر وسطِ بازخورد گوشی را عمودی
-     می‌کرد، تایمر سرِ وقتش می‌سوخت و دورِ بعد *پشتِ پوشش* می‌آمد: بازیکن
-     برمی‌گشت و می‌دید یک مصراع را از دست داده.
+     خواندن (یک بار در هر مصراع) → پرسش (به‌ازای هر نقش) → بازخورد
 
-     حالا شرطِ زنده بودنِ تایمر خودِ `paused` است. با قفل شدن، پاکسازیِ
-     افکت تایمر را برمی‌دارد؛ با باز شدن، دوباره نصب می‌شود. هیچ‌چیزِ دیگری
-     عوض نمی‌شود: نه پاسخ دوباره فرستاده می‌شود (آن در `select` است و یک
-     بار)، نه امتیاز پاک می‌شود، نه دور جلو می‌رود. */
-  /* ⚠️ مهلتِ پاسخ.
+     ⚠️ هر سه تایمر *افکت*اند و نه `setTimeout` داخلِ کلیک، و همگی
+     `paused` را در وابستگی‌هایشان دارند. یعنی چرخاندنِ گوشی به عمودی هر
+     سه را برمی‌دارد و با برگشت دوباره نصبشان می‌کند — هیچ‌وقت چیزی پشتِ
+     پوشش نمی‌سوزد. */
 
-     شمارش فقط وقتی شروع می‌شود که نقش کامل رو شده باشد (`revealed`)،
-     وگرنه بخشی از چهار ثانیه صرفِ خواندنِ رمزگشا می‌شد و بازیکن برای
-     چیزی جریمه می‌شد که هنوز ندیده بود.
+  /** فازِ خواندن تمام شده؟ */
+  const [reading, setReading] = useState(true);
 
-     و مثلِ تایمرِ دورِ بعد، با قفلِ گوشیِ عمودی برداشته می‌شود — پس
-     چرخاندنِ گوشی هیچ‌وقت باعثِ «وقت تمام» نمی‌شود. */
+  /* ⚠️ ریست هنگامِ *رندر* و نه در یک افکت.
+
+     سه حالت با عوض شدنِ مصراع یا پرسش باید از نو شروع شوند: فازِ خواندن،
+     شمارندهٔ پرسش، و «نقش رو شد؟». نسخهٔ اول این‌ها را در `useEffect`
+     می‌نوشت و هم ESLint درست ایراد می‌گرفت و هم رفتارش بد بود: یک رندرِ
+     اضافه با حالتِ *قبلی* روی صفحه می‌نشست و بعد پاک می‌شد — یعنی نقشِ
+     مصراعِ قبلی برای یک فریم دیده می‌شد.
+
+     این همان الگوی رسمیِ React برای «تنظیم حالت وقتی چیزی عوض شد» است:
+     مقایسه با مقدارِ قبلی و `setState` در بدنهٔ رندر. React بلافاصله
+     دوباره رندر می‌کند، پیش از آنکه چیزی به DOM برسد. */
+  const [prevRound, setPrevRound] = useState(index);
+  if (prevRound !== index) {
+    setPrevRound(index);
+    setReading(true);
+    setAsk(0);
+    setRevealed(reduced);
+  }
+
+  const [prevAsk, setPrevAsk] = useState(ask);
+  if (prevAsk !== ask) {
+    setPrevAsk(ask);
+    // پرسشِ تازه یعنی رمزگشایی تازه — مگر در حالتِ حرکتِ کمتر.
+    setRevealed(reduced);
+  }
+
   useEffect(() => {
-    if (phase !== "playing" || answered !== null || paused || !revealed) return;
+    if (phase !== "playing" || !reading || paused) return;
+    const id = window.setTimeout(
+      () => setReading(false),
+      ROLE_HUNT_CONFIG.readSeconds * 1000,
+    );
+    return () => window.clearTimeout(id);
+  }, [phase, reading, paused, index]);
+
+  /* ⚠️ تیکِ سه ثانیهٔ آخرِ خواندن.
+
+     با `setInterval` روی کلِ مدت نوشته نشد: آن‌وقت تیک از ثانیهٔ اول
+     می‌آمد و دیگر «هشدار» نبود، بافت بود. اینجا یک تأخیر تا لحظهٔ هشدار
+     و بعد سه تیکِ ثانیه‌ای. */
+  useEffect(() => {
+    if (phase !== "playing" || !reading || paused || reduced) return;
+    const lead = (ROLE_HUNT_CONFIG.readSeconds - ROLE_HUNT_CONFIG.readTickSeconds) * 1000;
+    let interval = 0;
+    const start = window.setTimeout(() => {
+      playRoleHuntSound("clock");
+      interval = window.setInterval(() => playRoleHuntSound("clock"), 1000);
+    }, lead);
+    return () => {
+      window.clearTimeout(start);
+      if (interval) window.clearInterval(interval);
+    };
+  }, [phase, reading, paused, reduced, index]);
+
+  /* ⚠️ مهلتِ پاسخ — فقط بعد از اینکه نقش کامل رو شده باشد.
+
+     وگرنه بخشی از چهار ثانیه صرفِ خواندنِ رمزگشا می‌شد و بازیکن برای
+     چیزی جریمه می‌شد که هنوز ندیده بود. */
+  useEffect(() => {
+    if (phase !== "playing" || reading || answered !== null || paused || !revealed) return;
     const id = window.setTimeout(() => {
-      playRoleHuntSound("wrong");
+      playRoleHuntSound("timeout");
       setAnswered({ tokenId: null, isCorrect: false });
       setAnswers((prev) => [
         ...prev,
         {
-          roleKey: rounds[index]?.roleKey ?? "",
-          roleLabel: rounds[index]?.roleLabel ?? "",
+          roleKey: currentAsk?.roleKey ?? "",
+          roleLabel: currentAsk?.roleLabel ?? "",
           isCorrect: false,
         },
       ]);
     }, ROLE_HUNT_CONFIG.answerSeconds * 1000);
     return () => window.clearTimeout(id);
-  }, [phase, answered, paused, revealed, index, rounds]);
+  }, [phase, reading, answered, paused, revealed, currentAsk]);
 
+  /* پیشروی: پرسشِ بعدیِ همین مصراع، یا مصراعِ بعدی. */
   useEffect(() => {
     if (answered === null || paused) return;
     const id = window.setTimeout(() => {
       setAnswered(null);
       setHovered(null);
-      if (index + 1 >= rounds.length) {
+      const total = rounds[index]?.asks.length ?? 0;
+      if (ask + 1 < total) {
+        setAsk(ask + 1);
+      } else if (index + 1 >= rounds.length) {
         playRoleHuntSound("sessionEnd");
         setPhase("results");
       } else {
@@ -272,7 +347,7 @@ export default function RoleHuntGame() {
       }
     }, ROLE_HUNT_CONFIG.feedbackMs);
     return () => window.clearTimeout(id);
-  }, [answered, paused, index, rounds.length]);
+  }, [answered, paused, index, ask, rounds]);
 
   /* یک نشستِ کامل = یک «دورِ» مهمان. در همان گذار به صفحهٔ نتیجه، و فقط
      یک بار. */
@@ -323,23 +398,12 @@ export default function RoleHuntGame() {
   return (
     <div
       dir="rtl"
-      className="rh-root container mx-auto max-w-3xl px-4 py-8 sm:py-10"
+      className="rh-root container mx-auto max-w-5xl px-4 py-8 sm:py-10"
+      data-phase={phase}
       data-phone={phone ? "true" : undefined}
       data-paused={paused ? "true" : undefined}
     >
-      {/* ⚠️ پس‌زمینه زیرِ همه‌چیز و بیرون از درختِ تعاملی است.
-          `pointer-events` ندارد و `aria-hidden` است، پس نه جلوی کلیکِ
-          ستاره‌ها را می‌گیرد و نه برای صفحه‌خوان وجود دارد. تعدادِ ذره‌ها
-          عمداً کم است: این صفحه روی خوانا بودنِ یک مصراع ایستاده. */}
-      <div className="rh-backdrop" aria-hidden="true">
-        <Particles
-          className="absolute inset-0"
-          quantity={reduced ? 26 : 60}
-          size={0.35}
-          staticity={60}
-          color="var(--color-primary)"
-        />
-      </div>
+      <div className="rh-backdrop" aria-hidden="true" />
 
       {guestPrompt && (
         <GuestLimitModal section="role-hunt" onDismiss={() => setGuestPrompt(false)} />
@@ -352,67 +416,93 @@ export default function RoleHuntGame() {
           کاربری که با Tab کار می‌کند می‌توانست پشتِ پوشش به ستاره‌ها برسد و
           پاسخی ثبت کند که اصلاً ندیده است. */}
       <div className="rh-play" inert={paused || undefined}>
-      {phase === "intro" && <Intro onStart={start} />}
-
-      {phase === "loading" && (
-        <p className="py-24 text-center text-sm text-muted-foreground">
-          در حالِ آماده کردنِ مصراع‌ها…
-        </p>
+      {(phase === "intro" || phase === "loading") && (
+        <RoleHuntIntro
+          onStart={start}
+          busy={phase === "loading"}
+          reduced={reduced}
+          immersive={phone && !blocked}
+          portraitPhone={blocked}
+        />
       )}
 
       {phase === "error" && (
-        <div className="py-20 text-center">
-          <p className="text-sm text-muted-foreground">{error}</p>
-          <button
-            type="button"
-            onClick={start}
-            className="mt-5 inline-flex min-h-11 items-center rounded-xl border border-border px-6 text-sm font-semibold transition-all hover:border-primary hover:text-primary"
-          >
-            تلاش دوباره
-          </button>
+        <div className="rh-error" role="alert">
+          <p className="rh-error-text">{error}</p>
+          <div className="rh-result-cta">
+            <button type="button" onClick={start} className="rh-btn rh-btn-primary">
+              تلاش دوباره
+            </button>
+            <Link href="/game" className="rh-btn rh-btn-ghost">
+              بازی‌ها
+            </Link>
+          </div>
         </div>
       )}
 
       {phase === "playing" && round && (
-        <>
+        <div className="rh-enter">
           <div className="rh-hud">
-            <span className="rh-hud-chip">
-              دور
-              <b className="game-num">
-                {(index + 1).toLocaleString("fa-IR")}/{rounds.length.toLocaleString("fa-IR")}
-              </b>
-            </span>
-            <span className="rh-hud-chip">
-              درست
-              <b className="game-num">{correctSoFar.toLocaleString("fa-IR")}</b>
-            </span>
-            <span className="rh-hud-chip">
-              زنجیره
-              <b className="game-num">{streak.toLocaleString("fa-IR")}</b>
-            </span>
-            {/* ⚠️ خاموش‌کردنِ صدا باید *روی خودِ بازی* باشد و نه در تنظیماتِ
-                جایی دیگر: کسی که در کلاس یا کنارِ بقیه بازی می‌کند، همان
-                ثانیهٔ اول لازمش دارد. */}
-            {/* ⚠️ فقط وقتی دیده می‌شود که سیستم‌عامل حرکت را بسته باشد.
-                برای بقیه یک دکمهٔ بی‌معنی است و نوار را شلوغ می‌کند. */}
-            {systemReduced && (
+            <div className="rh-hud-group">
+              {phone && !blocked && <ExitChip />}
+              <span className="rh-hud-chip">
+                دور
+                <b className="game-num">
+                  {(index + 1).toLocaleString("fa-IR")}/{rounds.length.toLocaleString("fa-IR")}
+                </b>
+              </span>
+              <span className="rh-hud-chip">
+                نقش
+                <b className="game-num">
+                  {(ask + 1).toLocaleString("fa-IR")}/{round.asks.length.toLocaleString("fa-IR")}
+                </b>
+              </span>
+            </div>
+            <div className="rh-hud-group rh-hud-score">
+              <span className="rh-hud-chip">
+                <Check size={14} aria-hidden="true" />
+                درست
+                {/* کلید روی عدد: با هر پاسخِ درست از نو mount می‌شود و یک بار می‌پرد. */}
+                <b key={correctSoFar} className="game-num rh-bump">
+                  {correctSoFar.toLocaleString("fa-IR")}
+                </b>
+              </span>
+              <span className="rh-hud-chip" data-hot={streak >= 3 ? "true" : undefined}>
+                <Flame size={14} aria-hidden="true" />
+                زنجیره
+                <b className="game-num">{streak.toLocaleString("fa-IR")}</b>
+              </span>
+            </div>
+            <div className="rh-hud-group rh-hud-actions">
+              {/* ⚠️ خاموش‌کردنِ صدا باید *روی خودِ بازی* باشد و نه در تنظیماتِ
+                  جایی دیگر: کسی که در کلاس یا کنارِ بقیه بازی می‌کند، همان
+                  ثانیهٔ اول لازمش دارد. */}
+              {/* ⚠️ فقط وقتی دیده می‌شود که سیستم‌عامل حرکت را بسته باشد.
+                  برای بقیه یک دکمهٔ بی‌معنی است و نوار را شلوغ می‌کند. */}
+              {systemReduced && (
+                <button
+                  type="button"
+                  className="rh-hud-chip"
+                  aria-pressed={motionForced}
+                  onClick={() => setMotionForced(!isMotionForced())}
+                >
+                  {motionForced ? "حرکت روشن" : "حرکت خاموش"}
+                </button>
+              )}
               <button
                 type="button"
-                className="rh-hud-chip"
-                aria-pressed={motionForced}
-                onClick={() => setMotionForced(!isMotionForced())}
+                className="rh-hud-chip rh-hud-sound"
+                aria-pressed={sound}
+                aria-label={sound ? "صدا روشن" : "صدا خاموش"}
+                title={sound ? "صدا روشن" : "صدا خاموش"}
+                onClick={() => setSoundEnabled(!isSoundEnabled())}
               >
-                {motionForced ? "حرکت روشن" : "حرکت خاموش"}
+                {sound ? <Volume2 size={17} /> : <VolumeX size={17} />}
               </button>
-            )}
-            <button
-              type="button"
-              className="rh-hud-chip"
-              aria-pressed={sound}
-              onClick={() => setSoundEnabled(!isSoundEnabled())}
-            >
-              {sound ? "صدا روشن" : "صدا خاموش"}
-            </button>
+            </div>
+          </div>
+          <div className="rh-round-progress" aria-hidden="true">
+            {rounds.map((r, i) => <span key={r.questionId} data-state={i < index ? "done" : i === index ? "current" : undefined} />)}
           </div>
 
           <OrbitStage
@@ -426,35 +516,56 @@ export default function RoleHuntGame() {
             hoveredTokenId={hovered}
             onHover={setHovered}
             onSelect={select}
-            locked={paused}
+            correctTokenId={currentAsk?.correctTokenId ?? ""}
+            locked={paused || reading}
+            reading={reading}
+            readSeconds={ROLE_HUNT_CONFIG.readSeconds}
+            center={
+              <div className="rh-center-slot">
+                {/* ⚠️ کلید روی دور: رمزگشا با هر دور از نو mount می‌شود و از
+                    `٭٭٭` شروع می‌کند. بدونِ آن، React همان گره را نگه می‌داشت و
+                    نقشِ تازه بی‌هیچ انیمیشنی جای نقشِ قبلی می‌نشست. */}
+                {/* ⚠️ نقش تا پایانِ فازِ خواندن اصلاً *ساخته* نمی‌شود و فقط
+                    پنهان نیست. اگر پنهان می‌بود، رمزگشا پشتِ صحنه کار می‌کرد و
+                    صدای تیکش با ثانیه‌شمارِ خواندن قاطی می‌شد — و بدتر، مهلتِ
+                    چهار ثانیه پیش از دیده شدنِ نقش شروع می‌شد. */}
+                {!reading && (
+                <div className="rh-decoder-wrap">
+                  <RoleDecoder
+                    key={`${round.questionId}-${ask}`}
+                    roleLabel={currentAsk?.roleLabel ?? ""}
+                    reduced={reduced}
+                    paused={paused}
+                  />
+                  {/* ⚠️ نوارِ مهلت. `key` روی خودِ دور است تا با هر نقشِ تازه از
+                      اول پر شود؛ بدونِ آن، انیمیشن از جایی که بود ادامه می‌داد. */}
+                  {revealed && answered === null && (
+                    <span
+                      key={`t-${index}`}
+                      className="rh-timer"
+                      data-paused={paused ? "true" : undefined}
+                      style={
+                        { "--rh-answer": `${ROLE_HUNT_CONFIG.answerSeconds}s` } as React.CSSProperties
+                      }
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                )}
+
+                {reading && (
+                  <p className="rh-read-hint">
+                    بیت را بخوان
+                    <span className="game-num">
+                      {" "}
+                      ({round.asks.length.toLocaleString("fa-IR")} نقش در راه است)
+                    </span>
+                  </p>
+                )}
+              </div>
+            }
           />
 
-          <div className="mt-6 flex justify-center">
-            {/* ⚠️ کلید روی دور: رمزگشا با هر دور از نو mount می‌شود و از
-                `٭٭٭` شروع می‌کند. بدونِ آن، React همان گره را نگه می‌داشت و
-                نقشِ تازه بی‌هیچ انیمیشنی جای نقشِ قبلی می‌نشست. */}
-            <div className="rh-decoder-wrap">
-              <RoleDecoder
-                key={round.questionId}
-                roleLabel={round.roleLabel}
-                reduced={reduced}
-                paused={paused}
-              />
-              {/* ⚠️ نوارِ مهلت. `key` روی خودِ دور است تا با هر نقشِ تازه از
-                  اول پر شود؛ بدونِ آن، انیمیشن از جایی که بود ادامه می‌داد. */}
-              {revealed && answered === null && (
-                <span
-                  key={`t-${index}`}
-                  className="rh-timer"
-                  data-paused={paused ? "true" : undefined}
-                  style={
-                    { "--rh-answer": `${ROLE_HUNT_CONFIG.answerSeconds}s` } as React.CSSProperties
-                  }
-                  aria-hidden="true"
-                />
-              )}
-            </div>
-          </div>
 
           {/* نتیجهٔ هر پاسخ، برای کسی که صفحه را نمی‌بیند. */}
           <p className="sr-only" aria-live="polite">
@@ -464,7 +575,7 @@ export default function RoleHuntGame() {
                 ? "درست بود."
                 : "نادرست بود؛ پاسخِ درست روی مصراع نشان داده شد."}
           </p>
-        </>
+        </div>
       )}
 
       {phase === "results" && <RoleHuntResults summary={summary} onRestart={start} />}
@@ -474,44 +585,31 @@ export default function RoleHuntGame() {
 }
 
 /**
- * معرفیِ کوتاه — یک جمله، یک دکمه.
+ * خروج روی گوشیِ افقی، جایی که نوارِ پوسته برداشته شده.
  *
- * ⚠️ عمداً آموزشِ چندمرحله‌ای نیست و قاعدهٔ بازی *فقط* همین‌جا گفته می‌شود.
- * داخلِ خودِ دور هیچ‌وقت «قید را پیدا کن» نوشته نمی‌شود؛ آنجا تنها چیزی که
- * دیده می‌شود خودِ نقش است. دلیلش سنجشی است: اگر هر دور دستورالعمل را تکرار
- * کند، آنچه اندازه می‌گیریم خواندنِ دستورالعمل است و نه شناختِ نقش.
+ * ⚠️ دو ضربه و نه یک: یک لمسِ اتفاقی کنارِ مدار نباید نشست را از بین ببرد،
+ * و یک پنجرهٔ تأییدِ کامل روی صفحهٔ ۳۹۰ پیکسلی کلِ بازی را می‌پوشاند.
  */
-function Intro({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="rh-intro">
-      {/* مدارِ ساکن — همان چیزی که پشتِ دکمه انتظارش را دارد. */}
-      <div className="rh-intro-orbit" aria-hidden="true">
-        {[0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875].map((a) => (
-          <StarShape
-            key={a}
-            className="rh-intro-star"
-            style={{ "--rh-a": `${a}turn` } as React.CSSProperties}
-          />
-        ))}
-      </div>
+function ExitChip() {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = window.setTimeout(() => setArmed(false), 2500);
+    return () => window.clearTimeout(id);
+  }, [armed]);
 
-      <div className="rh-intro-content">
-        <h1 className="game-display text-3xl font-bold sm:text-4xl">شکار نقش‌ها</h1>
-        <p className="mt-5 text-base leading-relaxed sm:text-lg">
-          هر نقشی که نمایش داده شد، واژهٔ درست را از میان کلمه‌های در حالِ چرخش انتخاب
-          کن.
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          با پاسخ‌های درست، سرعت و دقتت را در شناختِ نقش‌های دستوری بهتر کن.
-        </p>
-        <button
-          type="button"
-          onClick={onStart}
-          className="game-display mt-8 inline-flex min-h-12 items-center rounded-xl bg-primary px-9 text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-95 active:scale-95 sm:text-lg"
-        >
-          شروع بازی
-        </button>
-      </div>
-    </div>
+  if (armed) {
+    return (
+      <Link href="/game" className="rh-hud-chip rh-hud-exit" data-armed="true">
+        خروج؟ دوباره بزن
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className="rh-hud-chip rh-hud-exit" onClick={() => setArmed(true)} aria-label="خروج از بازی">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </button>
   );
 }

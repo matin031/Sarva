@@ -123,7 +123,7 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
      ارقامِ فارسی هم قبول است و به لاتین تبدیل می‌شود، چون مدیر این عدد را از
      پنلِ فارسیِ SMS.ir کپی می‌کند و همان‌جا «۴۱۴۰۲۶» نوشته شده. */
   let toStore = trimmed;
-  if (key === "sms.template_id") {
+  if (key.startsWith("sms.template_")) {
     toStore = trimmed.replace(/[۰-۹٠-٩]/g, (d) => {
       const code = d.charCodeAt(0);
       return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
@@ -146,7 +146,8 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
     summary: `تنظیم «${SETTING_SPECS[key].label}» تغییر کرد`,
     // مقدار عمداً فرستاده می‌شود ولی redactMetadata کلیدهای حساس (api_key و
     // مانندش) را پنهان می‌کند — پس آدرس ایمیل در لاگ می‌آید و کلید پیامک نه.
-    metadata: { [key]: toStore },
+    // رازها (مثل پینِ درگاه) با نامی که الگوی redact نمی‌شناسد هم نباید لاگ شوند.
+    metadata: { [key]: SETTING_SPECS[key].secret ? "«راز»" : toStore },
   });
 
   revalidatePath("/admin/settings");

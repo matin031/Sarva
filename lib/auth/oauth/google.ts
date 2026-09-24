@@ -27,6 +27,9 @@ const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 export const GOOGLE_STATE_COOKIE = "sarva_g_state";
 export const GOOGLE_VERIFIER_COOKIE = "sarva_g_verifier";
 export const GOOGLE_NONCE_COOKIE = "sarva_g_nonce";
+/** مقصدِ بعد از ورود (مثلاً صفحهٔ خرید). پیش از نوشتن و بعد از خواندن از
+ *  `safeReturnTo` رد می‌شود؛ پس کوکیِ دستکاری‌شده هم به بیرون نمی‌برد. */
+export const GOOGLE_RETURN_COOKIE = "sarva_g_return";
 
 /** کوکی‌های جریان کوتاه‌عمرند: ده دقیقه برای تمام کردنِ ورود کافی است. */
 export const GOOGLE_FLOW_TTL_SECONDS = 600;

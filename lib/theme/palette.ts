@@ -13,9 +13,9 @@
 
 export const PALETTES = [
   { id: "turquoise", label: "فیروزه‌ای" },
-  { id: "sky", label: "آسمانی" },
   { id: "lilac", label: "یاسی" },
   { id: "mint", label: "نعنایی" },
+  { id: "sky", label: "آسمانی" },
   { id: "pistachio", label: "پسته‌ای" },
   { id: "peach", label: "هلویی" },
   { id: "rose", label: "رز" },
@@ -63,6 +63,89 @@ export function applyPalette(id: PaletteId) {
   } catch {
     /* حالتِ خصوصی یا کوکیِ بسته — انتخاب همین نشست اعمال می‌شود و بس. */
   }
+}
+
+/**
+ * عوض کردنِ پالت با جلوه: رنگِ تازه مثلِ جوهر از نقطهٔ کلیک روی صفحه پخش
+ * می‌شود و صفحهٔ قبلی زیرش کمی محو و بی‌رنگ می‌شود.
+ *
+ * ⚠️ عمداً همان دایرهٔ تیزِ کلیدِ روشن/تاریک نیست. آن جلوه مالِ تم است؛ اگر
+ * پالت هم همان را داشت، کاربر دو کلید با یک حس می‌دید. اینجا لبهٔ دایره نرم
+ * است (ماسکِ radial با لبهٔ محو) و به‌جای clip-path، اندازهٔ ماسک بزرگ می‌شود.
+ *
+ * بی‌جلوه، همان `applyPalette` است: مرورگرِ بدونِ View Transitions، کاربرِ
+ * reduced-motion، و انتخابِ دوبارهٔ پالتِ فعلی.
+ */
+export function switchPalette(id: PaletteId, origin?: { x: number; y: number }) {
+  const root = document.documentElement;
+  if (readPalette() === id) return;
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!document.startViewTransition || reduce) {
+    applyPalette(id);
+    return;
+  }
+
+  const x = origin?.x ?? window.innerWidth / 2;
+  const y = origin?.y ?? 0;
+  // قطری که دورترین گوشه را هم بپوشاند، به‌اضافهٔ لبهٔ نرم.
+  const reach = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+  const size = reach * 2 / 0.7;
+
+  root.dataset.paletteSwitching = "";
+  const transition = document.startViewTransition(() => applyPalette(id));
+
+  transition.ready
+    .then(() => {
+      const timing = { duration: 850, easing: "cubic-bezier(.65,0,.35,1)" };
+      root.animate(
+        {
+          maskSize: ["0px 0px", `${size}px ${size}px`],
+          maskPosition: [`${x}px ${y}px`, `${x - size / 2}px ${y - size / 2}px`],
+        },
+        { ...timing, pseudoElement: "::view-transition-new(root)" },
+      );
+      root.animate(
+        { filter: ["none", "saturate(0.4) blur(2px)"] },
+        { ...timing, pseudoElement: "::view-transition-old(root)" },
+      );
+    })
+    .catch(() => {});
+
+  transition.finished.finally(() => {
+    delete root.dataset.paletteSwitching;
+  });
+}
+
+/**
+ * رنگ‌های پالتِ فعلی به هگز، برای کتابخانه‌هایی مثلِ canvas-confetti که
+ * متغیرِ CSS نمی‌فهمند. بدونِ این، کاغذرنگی‌ها در هر پالتی فیروزه‌ای بودند.
+ */
+export function paletteHexColors(extra: string[] = []): string[] {
+  const fallback = ["#008687", "#00a5a6", "#d4a941", "#f1d38a"];
+  if (typeof document === "undefined") return [...fallback, ...extra];
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return [...fallback, ...extra];
+  const cs = getComputedStyle(document.documentElement);
+  const toHex = (token: string, fb: string) => {
+    const css = cs.getPropertyValue(token).trim();
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = fb;
+    if (css) ctx.fillStyle = css;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  };
+  return [
+    toHex("--primary", fallback[0]),
+    toHex("--logo-1", fallback[1]),
+    toHex("--gold", fallback[2]),
+    toHex("--gold-light", fallback[3]),
+    toHex("--lapis-light", fallback[0]),
+    ...extra,
+  ];
 }
 
 /**

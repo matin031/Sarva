@@ -13,7 +13,8 @@ import {
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit, recordError } from "@/lib/admin/audit";
-import { parseUnitSpec, unitPattern, type ParsedUnit } from "@/lib/aruz-rapid/units";
+import { formatUnitSpec, parseUnitSpec, readStoredUnits, unitPattern, type ParsedUnit } from "@/lib/aruz-rapid/units";
+import { fitMeter, meterPattern } from "@/lib/aruz-rapid/scan";
 
 /**
  * محتوای بازی «کوتاه یا بلند؟» از دیدِ مدیر.
@@ -60,7 +61,7 @@ export type RapidAruzTotals = {
 };
 
 type ActionResult =
-  | { ok: true; warning?: string }
+  | { ok: true }
   | { ok: false; error: string };
 
 const MAX_PREVIEW = 191;
@@ -78,35 +79,12 @@ type QuestionRow = {
   sort_index: number;
 };
 
-/** همان دلیلِ lib/aruz-rapid/content.ts: در MariaDB ستونِ JSON رشته برمی‌گردد. */
-function readUnits(value: unknown): ParsedUnit[] {
-  let raw = value;
-  if (typeof raw === "string") {
-    try {
-      raw = JSON.parse(raw);
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(raw)) return [];
-
-  const units: ParsedUnit[] = [];
-  for (const item of raw) {
-    if (typeof item !== "object" || item === null) continue;
-    const u = item as { display?: unknown; length?: unknown };
-    if (typeof u.display !== "string" || u.display.length === 0) continue;
-    if (u.length !== "short" && u.length !== "long") continue;
-    units.push({ display: u.display, length: u.length });
-  }
-  return units;
-}
-
 function toAdmin(r: QuestionRow): AdminRapidAruzQuestion {
-  const units = readUnits(r.units);
+  const units = readStoredUnits(r.units);
   return {
     id: r.id,
     previewText: r.preview_text,
-    unitSpec: units.map((u) => `${u.display}=${u.length === "short" ? "U" : "-"}`).join(" "),
+    unitSpec: formatUnitSpec(units),
     pattern: unitPattern(units),
     units,
     meter: r.meter,
@@ -121,11 +99,12 @@ function toAdmin(r: QuestionRow): AdminRapidAruzQuestion {
 export async function aruzRapidAdminList(): Promise<AdminRapidAruzQuestion[]> {
   await requireAdmin();
 
+  // تازه‌ترها بالا؛ وگرنه مصراعِ تازه تهِ صدها ردیفِ seed گم می‌شود.
   const rows = await query<QuestionRow>(
     `select id, preview_text, units, meter, attribution, explanation,
             has_unit_overlap, is_published, sort_index
        from aruz_rapid_questions
-      order by sort_index, preview_text`,
+      order by created_at desc, sort_index, preview_text`,
   );
 
   return rows.map(toAdmin);
@@ -207,6 +186,16 @@ function prepare(input: RapidAruzInput): { ok: true; data: Prepared } | { ok: fa
     return { ok: false, error: `وزن و شاعر نباید بیشتر از ${MAX_SHORT_TEXT} نویسه باشند.` };
   }
 
+  /* ⚠️ وزن اجباری است و الگوی هجاها باید با یکی از گونه‌های مجازش بخواند.
+     این تنها سدی است که میان یک کلیکِ اشتباه در پنل و صدها دانش‌آموزی که
+     «کوتاه» را «بلند» یاد می‌گیرند قرار دارد؛ پنل هم همین را می‌سنجد، ولی
+     پنل ورودیِ مورد اعتماد نیست. */
+  if (!meter) return { ok: false, error: "وزن را انتخاب کنید." };
+  if (!meterPattern(meter)) return { ok: false, error: `وزنِ «${meter}» شناخته نشد.` };
+  if (!fitMeter(unitPattern(parsed.units), meter)) {
+    return { ok: false, error: "الگوی هجاها با این وزن نمی‌خواند." };
+  }
+
   const explanation = (input.explanation ?? "").trim();
 
   return {
@@ -221,37 +210,6 @@ function prepare(input: RapidAruzInput): { ok: true; data: Prepared } | { ok: fa
       isPublished: input.isPublished ?? true,
     },
   };
-}
-
-/**
- * الگوی دستیِ مدیر را با موتورِ عروضِ خودِ سروا می‌سنجد.
- *
- * ⚠️ نتیجه‌اش **هشدار** است و نه خطا، و این عمدی است. موتور روی متنِ
- * کاملاً اعراب‌گذاری‌شده گاهی هیچ تقطیعی پیدا نمی‌کند (سکونِ صریح مسیرش را
- * می‌بندد) — همان چیزی که scripts/verify-aruz-rapid.ts هم با آن روبه‌رو بود
- * و راه‌حلش امتحانِ دوبارهٔ متنِ بی‌اعراب است. پس «موتور تأیید نکرد» یعنی
- * «یک بار دیگر نگاه کن»، نه «غلط است»؛ مرجعِ نهایی خودِ مدیر است.
- *
- * ⚠️ و import اش پویاست: موتور lexicon.json را با خودش می‌آورد و دلیلی
- * ندارد در هر اکشنِ دیگری بارگذاری شود.
- */
-async function engineWarning(previewText: string, units: ParsedUnit[]): Promise<string | undefined> {
-  const mine = unitPattern(units);
-  try {
-    const { detect } = await import("@/lib/aruz/detect");
-    const diacritics = /[ً-ْٰ]/g;
-
-    for (const text of [previewText, previewText.replace(diacritics, "")]) {
-      const { rows, s1 } = detect(text);
-      if ([...s1.keys()].includes(mine)) return undefined;
-      if (rows[0]?.pat === mine) return undefined;
-    }
-
-    return "ذخیره شد، ولی موتورِ عروض این الگو را برای این مصراع پیدا نکرد؛ یک بار دیگر هجاها را نگاه کنید.";
-  } catch {
-    // موتور در دسترس نبود؟ ذخیره نباید به‌خاطرش شکست بخورد.
-    return undefined;
-  }
 }
 
 export async function aruzRapidAdminUpsert(input: RapidAruzInput): Promise<ActionResult> {
@@ -292,7 +250,7 @@ export async function aruzRapidAdminUpsert(input: RapidAruzInput): Promise<Actio
         metadata: { units: q.units.length },
       });
 
-      return { ok: true, warning: await engineWarning(q.previewText, q.units) };
+      return { ok: true };
     }
 
     // مصراعِ تازه بعد از آخری می‌نشیند. خواندنِ بیشترین sort_index و درج در
@@ -327,7 +285,7 @@ export async function aruzRapidAdminUpsert(input: RapidAruzInput): Promise<Actio
       metadata: { units: q.units.length },
     });
 
-    return { ok: true, warning: await engineWarning(q.previewText, q.units) };
+    return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
       return { ok: false, error: `«${q.previewText}» از قبل ثبت شده است.` };
@@ -385,65 +343,51 @@ export async function aruzRapidAdminDelete(id: string): Promise<ActionResult> {
 }
 
 /**
- * افزودنِ گروهی از یک متنِ چندخطی.
+ * افزودنِ گروهی.
  *
- * هر خط یک مصراع، و ستون‌ها با `|` جدا می‌شوند:
+ * پنل هر خط را خودش تقطیع می‌کند و به مدیر نشان می‌دهد؛ اینجا همان
+ * مصراع‌ها با هجاهایشان می‌رسند و دوباره با همان `prepare` سنجیده می‌شوند —
+ * پیش‌نمایشِ پنل ورودیِ مورد اعتماد نیست.
  *
- *     متنِ مصراع | تَ=U وا=- نا=- | وزن | شاعر
- *
- * ⚠️ جداکننده اینجا فقط `|` و tab است و نه خط تیره — بر خلافِ جفت‌های ادبی.
- * دلیلش سرِ جای خودش روشن است: خطِ تیره در این بازی *نمادِ هجای بلند* است و
- * در ستونِ دوم ده‌ها بار می‌آید.
- *
- * خط‌های خراب باعث شکستِ کل عملیات نمی‌شوند؛ شمارشان با شمارهٔ خط برگردانده
- * می‌شود تا مدیر بداند کدام خط و چرا رد شد.
+ * خط‌های خراب باعث شکستِ کل عملیات نمی‌شوند؛ با شمارهٔ خط برمی‌گردند.
  */
 export type RapidAruzBulkResult =
   | { ok: true; added: number; duplicates: number; failures: string[] }
   | { ok: false; error: string };
 
-export async function aruzRapidAdminBulkAdd(text: string): Promise<RapidAruzBulkResult> {
+export type RapidAruzBulkItem = RapidAruzInput & { line: number };
+
+export async function aruzRapidAdminBulkAdd(items: RapidAruzBulkItem[]): Promise<RapidAruzBulkResult> {
   const admin = await requireAdmin();
 
-  const lines = text
-    .split("\n")
-    .map((l, i) => ({ no: i + 1, raw: l.trim() }))
-    .filter((l) => l.raw.length > 0 && !l.raw.startsWith("#"));
-
-  if (lines.length === 0) return { ok: false, error: "متنی برای افزودن وارد نشده." };
-  if (lines.length > 200) return { ok: false, error: "هر بار حداکثر ۲۰۰ خط." };
+  if (!Array.isArray(items) || items.length === 0) return { ok: false, error: "مصراعی برای افزودن نیست." };
+  if (items.length > 200) return { ok: false, error: "هر بار حداکثر ۲۰۰ مصراع." };
 
   const prepared: Prepared[] = [];
   const failures: string[] = [];
 
-  for (const line of lines) {
-    const cols = line.raw.split(/\s*[|\t]\s*/);
-    if (cols.length < 2) {
-      failures.push(`خط ${line.no}: ستونِ هجاها ندارد.`);
+  for (const item of items) {
+    const line = Number.isInteger(item?.line) ? item.line : 0;
+    if (typeof item?.previewText !== "string" || typeof item.unitSpec !== "string") {
+      failures.push(`خط ${line}: دادهٔ نامعتبر.`);
       continue;
     }
-
     const result = prepare({
-      previewText: cols[0],
-      unitSpec: cols[1],
-      meter: cols[2],
-      attribution: cols[3],
+      previewText: item.previewText,
+      unitSpec: item.unitSpec,
+      meter: typeof item.meter === "string" ? item.meter : "",
+      attribution: typeof item.attribution === "string" ? item.attribution : "",
+      explanation: typeof item.explanation === "string" ? item.explanation : "",
+      hasUnitOverlap: item.hasUnitOverlap === true,
     });
     if (!result.ok) {
-      failures.push(`خط ${line.no}: ${result.error}`);
+      failures.push(`خط ${line}: ${result.error}`);
       continue;
     }
     prepared.push(result.data);
   }
 
-  if (prepared.length === 0) {
-    return {
-      ok: false,
-      error:
-        failures[0] ??
-        "هیچ خطی خوانده نشد. هر خط باید «متن مصراع | هجاها | وزن | شاعر» باشد.",
-    };
-  }
+  if (prepared.length === 0) return { ok: false, error: failures[0] ?? "هیچ مصراعی پذیرفته نشد." };
 
   try {
     // on duplicate key update با مقدارِ خودش = «هیچ کاری نکن»، ولی بر خلاف

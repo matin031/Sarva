@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import GameReportButton from "@/components/UI/games/GameReportButton";
+import { GameBackButton, gameIconButton } from "@/components/UI/games/GameNav";
 import { isSfxEnabled, setSfxEnabled, sfxServerSnapshot, subscribeSfx } from "@/lib/kimia/sfx";
 
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
@@ -37,12 +37,7 @@ export default function GameBar({
 }) {
   return (
     <header className="km-bar" dir="rtl">
-      <button type="button" className="km-bar-back" onClick={onLeave}>
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-        </svg>
-        <span className="km-bar-back-text">بازی‌ها</span>
-      </button>
+      <GameBackButton onClick={onLeave} />
 
       {/* ⚠️ شمارنده مرکزِ نوار است و نه یک badge در گوشه: تنها اطلاعاتِ
           وضعیتی است که بازیکن وسطِ نشست لازم دارد. */}
@@ -55,7 +50,7 @@ export default function GameBar({
 
       <div className="km-bar-side">
         <SfxToggle />
-        <GameReportButton variant="bare" compact />
+        <GameReportButton />
       </div>
     </header>
   );
@@ -74,7 +69,7 @@ function SfxToggle() {
   return (
     <button
       type="button"
-      className="km-bar-sfx"
+      className={`${gameIconButton} game-nav-toggle`}
       data-on={on || undefined}
       onClick={() => setSfxEnabled(!on)}
       aria-pressed={on}
@@ -106,12 +101,7 @@ function SfxToggle() {
 export function GameBarPlain({ label }: { label?: string }) {
   return (
     <header className="km-bar km-bar-plain" data-bare={label ? undefined : true} dir="rtl">
-      <Link href="/game" className="km-bar-back">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-        </svg>
-        <span className="km-bar-back-text">بازی‌ها</span>
-      </Link>
+      <GameBackButton href="/game" />
       {label ? (
         <p className="km-bar-round">
           <span className="km-bar-round-label">{label}</span>

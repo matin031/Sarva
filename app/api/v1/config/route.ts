@@ -1,5 +1,6 @@
 import { handleError, ok } from "@/lib/api/http";
 import { withRoute } from "@/lib/api/route";
+import { captchaMode } from "@/lib/auth/captcha-policy";
 
 /**
  * GET /api/v1/config — تنظیماتِ عمومیِ کلاینت، خوانده‌شده در زمان اجرا.
@@ -29,7 +30,13 @@ export const GET = withRoute("/api/v1/config", async () => {
     return ok({
       // site key عمومی است — در HTML هر سایتی که Turnstile دارد دیده می‌شود.
       // چیزی که امنیت را می‌سازد تأیید سمت سرور است، نه پنهان بودن این رشته.
-      turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || null,
+      /* ⚠️ کلید فقط وقتی به مرورگر می‌رود که سرور هم واقعاً توکن را بررسی
+         می‌کند. با `CAPTCHA_MODE=off` ممکن است کلید در محیط مانده باشد؛
+         فرستادنش یعنی کاربر یک کادرِ تأیید ببیند و حلش کند در حالی که
+         نتیجه‌اش هیچ‌جا خوانده نمی‌شود — یک مانعِ تزئینی. */
+      turnstileSiteKey: captchaMode() === "off"
+        ? null
+        : process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || null,
     });
   } catch (err) {
     return handleError(err);

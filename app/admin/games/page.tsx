@@ -7,6 +7,7 @@ import { jasoosAdminList } from "@/lib/admin/jasoos-actions";
 import { gcAdminTotals } from "@/lib/admin/grammar-circuit-actions";
 import { aruzRapidAdminTotals } from "@/lib/admin/aruz-rapid-actions";
 import { roleHuntAdminTotals } from "@/lib/admin/role-hunt-actions";
+import { rangAraAdminTotals } from "@/lib/admin/rang-ara-actions";
 import { JASOOS_SUSPECT_COUNT } from "@/lib/jasoos-data";
 
 export const metadata: Metadata = {
@@ -20,13 +21,16 @@ export const dynamic = "force-dynamic";
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
 async function loadOverview() {
-  const [pairCounts, ninja, jasoos, circuit, rapid, roleHunt] = await Promise.all([
+  const [pairCounts, ninja, jasoos, circuit, rapid, roleHunt, rangAra] = await Promise.all([
     pairsAdminCounts(),
     ninjaAdminOverview(),
     jasoosAdminList(),
     gcAdminTotals(),
     aruzRapidAdminTotals(),
     roleHuntAdminTotals(),
+    /* ⚠️ جدولِ ۰۲۲ روی هاست ممکن است هنوز ساخته نشده باشد؛ کلِ صفحهٔ
+       بازی‌ها نباید به خاطرِ یک بازی بخوابد. */
+    rangAraAdminTotals().catch(() => null),
   ]);
 
   const pairTotal = Object.values(pairCounts).reduce((a, b) => a + b, 0);
@@ -50,13 +54,14 @@ async function loadOverview() {
     circuit,
     rapid,
     roleHunt,
+    rangAra,
   };
 }
 
 export default async function Page() {
   const result = await loadAdminData(loadOverview);
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
-  const { pairs, ninja, jasoos, circuit, rapid, roleHunt } = result.data;
+  const { pairs, ninja, jasoos, circuit, rapid, roleHunt, rangAra } = result.data;
 
   const rejectedCount = Object.values(roleHunt.rejected).reduce((a, b) => a + b, 0);
 
@@ -139,6 +144,21 @@ export default async function Page() {
           : rejectedCount > 0
             ? `${fa(rejectedCount)} مصراع وارد بازی نمی‌شود`
             : null,
+    },
+    {
+      href: "/admin/games/rang-ara",
+      title: "رنگ‌آرا",
+      desc: "بیت‌ها به تفکیکِ پایه و درس، یا خارج از کتاب. برای هر بیت آرایه‌ها را مشخص می‌کنی و جوابِ هر کدام را با کلیک روی واژه‌های بیت.",
+      stat: !rangAra
+        ? "جدولِ این بازی روی دیتابیس نیست"
+        : rangAra.total === 0
+          ? "هنوز خالی — بازی با بیت‌های پیش‌فرض"
+          : `${fa(rangAra.published)} از ${fa(rangAra.total)} بیت منتشر شده`,
+      warn: !rangAra
+        ? "مهاجرتِ ۰۲۲ اجرا نشده (جدولِ rang_ara_verses)"
+        : rangAra.broken > 0
+          ? `${fa(rangAra.broken)} بیتِ ناقص`
+          : null,
     },
     {
       href: "/admin/vocab",

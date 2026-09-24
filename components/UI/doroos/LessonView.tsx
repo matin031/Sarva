@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, MotionConfig, useScroll, useSpring } from "motion/react";
 import type { Grade } from "@/lib/doroos/types";
 import type { Lesson } from "@/lib/doroos/types";
-import { faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
 import {
   RevealGroup,
   RevealItem,
@@ -12,7 +12,7 @@ import {
 } from "@/components/UI/aruz/reveal";
 import BeytCard from "@/components/UI/doroos/BeytCard";
 import PassageCard from "@/components/UI/doroos/PassageCard";
-import RealmPanel from "@/components/UI/doroos/RealmPanel";
+import ReadingFontDock from "@/components/UI/doroos/ReadingFontDock";
 import { REALMS } from "@/lib/doroos/types";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -47,7 +47,12 @@ export default function LessonView({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative z-20 overflow-hidden">
+      {/* ⚠️ قلمِ انتخابیِ خواننده فقط همین‌جا مصرف می‌شود.
+            `reading-scope` دامنهٔ قاعده‌ای در globals.css است که
+            `--font-reading` را می‌نشاند. عمداً روی این div است و نه
+            <html>: هدر، فوتر و بقیهٔ سایت باید هویّتِ تایپوگرافیکِ
+            خودشان را نگه دارند. */}
+      <div className="reading-scope relative z-20 overflow-hidden">
         {/* reading progress */}
         <motion.div
           aria-hidden
@@ -190,6 +195,11 @@ export default function LessonView({
           </section>
         ) : null}
 
+        {/* داکِ قلم — `fixed` است، پس جایِ آمدنش در درخت بر چیدمان
+            اثر ندارد؛ آخر می‌آید تا در ترتیبِ تب، پیش از متنِ درس
+            نیفتد. */}
+        <ReadingFontDock />
+
         {/* ---------- end of lesson ---------- */}
         <section dir="rtl" className="relative z-20 container pb-24">
           <div className="relative z-20 flex flex-wrap items-center justify-center gap-3">
@@ -197,13 +207,13 @@ export default function LessonView({
               href={`/doroos/${grade.key}`}
               className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-7 font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
             >
-              درس‌های دیگرِ {grade.book}
+              درس‌های دیگر {grade.book}
             </Link>
             <Link
               href="/doroos"
               className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-card px-7 font-bold text-foreground transition-all hover:border-primary/40 active:scale-95"
             >
-              تغییرِ پایه
+              تغییر پایه
             </Link>
           </div>
         </section>

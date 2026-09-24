@@ -8,6 +8,8 @@ import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import { makeRng } from "@/lib/aruz-bridge/fracture";
 import { NO_RAYCAST } from "./AnswerHitTarget";
 import { useProceduralEnvironment } from "./useProceduralEnv";
+import { useTokenRgb } from "@/lib/theme/use-primary-rgb";
+import { sceneColor } from "./sceneColor";
 
 /* محیط: ارتفاع، خطر، تعلیق و عمق — ولی نه ترس.
  *
@@ -18,7 +20,7 @@ import { useProceduralEnvironment } from "./useProceduralEnv";
  *   • ذراتِ معلق، که بدونشان فضای خالی مقیاس ندارد.
  *   • نقشهٔ محیطی، که تنها دلیلِ دیده‌شدنِ شیشه است. */
 
-function SuspendedParticles({ count }: { count: number }) {
+function SuspendedParticles({ count, tint }: { count: number; tint: string }) {
   const ref = useRef<THREE.Points>(null);
 
   const geometry = useMemo(() => {
@@ -39,14 +41,14 @@ function SuspendedParticles({ count }: { count: number }) {
   const material = useMemo(
     () =>
       new THREE.PointsMaterial({
-        color: "#9fe4e8",
+        color: sceneColor(tint, 1.5, 0.2),
         size: 0.045,
         transparent: true,
         opacity: 0.5,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
-    [],
+    [tint],
   );
 
   useEffect(
@@ -67,26 +69,28 @@ function SuspendedParticles({ count }: { count: number }) {
 }
 
 /** تیرهای کناری و بست‌ها — سازه‌ای که شیشه‌ها را نگه داشته. */
-function BridgeStructure({ steps }: { steps: number }) {
+function BridgeStructure({ steps, tint, gold }: { steps: number; tint: string; gold: string }) {
   const beamMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#243447",
+        /* تیرها فلزِ تیره‌اند، ولی فلزی که *ته‌رنگِ همین پالت* را دارد — وگرنه
+           در پالتِ رز یک سازهٔ سرمه‌ایِ بی‌ربط وسطِ صحنه می‌ماند. */
+        color: sceneColor(tint, 0.42, 0.62),
         roughness: 0.42,
         metalness: 0.82,
       }),
-    [],
+    [tint],
   );
   const accentMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#d9a441",
+        color: sceneColor(gold),
         roughness: 0.35,
         metalness: 0.6,
-        emissive: new THREE.Color("#7a5312"),
+        emissive: sceneColor(gold, 0.45),
         emissiveIntensity: 0.8,
       }),
-    [],
+    [gold],
   );
 
   useEffect(
@@ -155,7 +159,14 @@ export function BridgeEnvironment({
   fogNear: number;
   fogFar: number;
 }) {
-  const envMap = useProceduralEnvironment(quality.envMapSize);
+  /* ⚠️ همهٔ رنگ‌های زیر از توکن‌های سایت خوانده می‌شوند و نه از هگزِ ثابت.
+     پیش از این، «پلِ وزن» تنها جای سایت بود که به `data-palette` جواب نمی‌داد:
+     کاربر کلِ سروا را زعفرانی می‌کرد و نوارِ بالای بازی زعفرانی می‌شد، ولی
+     خودِ پل فیروزه‌ایِ دست‌نخورده می‌ماند — دو دنیای بی‌ربط، پشتِ سرِ هم.
+     `useTokenRgb` همان هوکی است که WaveCanvas هم استفاده می‌کند. */
+  const primary = useTokenRgb("--primary");
+  const gold = useTokenRgb("--gold", "217,164,65");
+  const envMap = useProceduralEnvironment(quality.envMapSize, primary, gold);
 
   return (
     <>
@@ -164,17 +175,17 @@ export function BridgeEnvironment({
           حالتِ سراسری‌ای دستی بازگردانده نمی‌شود.
           مه ادامهٔ مسیر را می‌بلعد — هم برای تعلیق، هم چون چیزی که دیده
           نمی‌شود لازم نیست رندر شود. */}
-      <fog attach="fog" args={["#071019", fogNear, fogFar]} />
-      <color attach="background" args={["#060c14"]} />
+      <fog attach="fog" args={[sceneColor(primary, 0.15, 0.3), fogNear, fogFar]} />
+      <color attach="background" args={[sceneColor(primary, 0.09, 0.3)]} />
       {envMap && <primitive object={envMap} attach="environment" />}
 
       {/* نورِ محیطیِ کم — بیشترِ روشناییِ صحنه از نقشهٔ محیطی می‌آید */}
-      <ambientLight intensity={0.35} color="#8fb6c4" />
+      <ambientLight intensity={0.35} color={sceneColor(primary, 1.45, 0.45)} />
       {/* نورِ اصلی از بالا و کمی جلو، تا لبهٔ شیشه‌ها برق بیفتد */}
       <directionalLight
         position={[4, 9, 3]}
         intensity={1.35}
-        color="#dff3f5"
+        color={sceneColor(primary, 1.85, 0.5)}
         castShadow={quality.shadows}
         shadow-mapSize-width={quality.shadows ? 1024 : 0}
         shadow-mapSize-height={quality.shadows ? 1024 : 0}
@@ -186,12 +197,12 @@ export function BridgeEnvironment({
         shadow-camera-bottom={-8}
       />
       {/* نورِ پرکنندهٔ فیروزه‌ای از پایین — تهی را کاملاً سیاه نمی‌گذارد */}
-      <pointLight position={[0, -4, -6]} intensity={9} distance={26} color="#1d7f86" />
+      <pointLight position={[0, -4, -6]} intensity={9} distance={26} color={sceneColor(primary, 0.8)} />
       {/* لبهٔ طلاییِ پشتِ سر، برای جداکردنِ کاراکتر از پس‌زمینه */}
-      <directionalLight position={[-5, 3, -8]} intensity={0.6} color="#d9a441" />
+      <directionalLight position={[-5, 3, -8]} intensity={0.6} color={sceneColor(gold)} />
 
-      <BridgeStructure steps={steps} />
-      <SuspendedParticles count={quality.particleCount} />
+      <BridgeStructure steps={steps} tint={primary} gold={gold} />
+      <SuspendedParticles count={quality.particleCount} tint={primary} />
     </>
   );
 }

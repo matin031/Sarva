@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "motion/react";
 
 /**
  * TanStack Query — فقط زیرِ `/panel`، و فقط برای چیزهایی که واقعاً روی
@@ -34,5 +35,10 @@ export default function PanelQueryProvider({ children }: { children: React.React
       }),
   );
 
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  // MotionConfig: همهٔ انیمیشن‌های motion در پنل تنظیمِ reduced-motionِ سیستم را رعایت کنند.
+  return (
+    <QueryClientProvider client={client}>
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+    </QueryClientProvider>
+  );
 }

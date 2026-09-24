@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ShinyButton } from "@/components/UI/kit/magic-shiny-button";
 import { formatRials } from "@/lib/plus/money";
 import { fa } from "@/lib/panel/format";
 import type { PlusPlanOffer, PlusState } from "@/lib/plus/types";
@@ -21,10 +22,15 @@ import AnimatedPlanCard from "./AnimatedPlanCard";
 export default function PlanCards({
   offers,
   state,
+  permanent = false,
 }: {
   offers: PlusPlanOffer[];
   state: PlusState;
+  /** دسترسیِ فعالِ بی‌پایان — خرید چیزی به آن اضافه نمی‌کند. */
+  permanent?: boolean;
 }) {
+  const router = useRouter();
+
   if (offers.length === 0) {
     return (
       <div className="glass rounded-2xl p-6 text-center text-muted-foreground">
@@ -35,13 +41,16 @@ export default function PlanCards({
 
   /* متنِ دکمه با وضعیتِ حساب عوض می‌شود. یک عبارتِ ثابت («خرید اشتراک») به
      کسی که همین حالا اشتراک دارد پیشنهادِ بی‌معنی می‌دهد و به کسی که
-     اشتراکش تمام شده نمی‌گوید که قرار است تمدید کند. */
+     اشتراکش تمام شده نمی‌گوید که قرار است تمدید کند.
+
+     ⚠️ مشترکِ فعال هم به صفحهٔ خرید می‌رود و نه «مدیریت»: پیش‌تر این دکمه به
+     `/panel/subscription` می‌رفت و دکمهٔ «تمدید» همان صفحه به `/plus`
+     برمی‌گشت — یعنی کسی که اشتراکش رو به پایان بود، هیچ راهی برای تمدید
+     نداشت. فقط دسترسیِ دائمی دکمه ندارد، چون خرید چیزی به آن اضافه نمی‌کند. */
   const ctaLabel =
-    state === "active"
-      ? "مدیریت سروا پلاس"
-      : state === "expired" || state === "revoked"
-        ? "تمدید سروا پلاس"
-        : "فعال‌سازی سروا پلاس";
+    state === "active" || state === "expired" || state === "revoked"
+      ? "تمدید اشتراک"
+      : "خرید اشتراک";
 
   /* ⚠️ با یک پلن، شبکهٔ دوستونه یک کارتِ نیمه‌عرضِ چسبیده به یک لبه می‌سازد
      که شبیه چیزی است که نصفش بار نشده. تا وقتی مالک فقط یک مدت می‌فروشد،
@@ -115,9 +124,10 @@ export default function PlanCards({
             )}
 
             <ul className="space-y-1.5 text-sm text-muted-foreground">
-              <li>• تحلیل نقاط ضعف در وزن‌ها و نقش‌های دستوری</li>
-              <li>• دفتر اشتباه‌ها و مرور هدفمند</li>
-              <li>• پیشنهاد تمرین امروز، بر پایهٔ پاسخ‌های خودت</li>
+              <li>• نقش دستوری، آرایه‌ها و هوشواره در درسنامه</li>
+              <li>• تحلیل اشتباه‌ها در وزن‌ها و نقش‌های دستوری</li>
+              <li>• دفتر اشتباه‌ها</li>
+              <li>• تمرین پیشنهادی هر روز</li>
               <li>• روند پیشرفت هفتگی</li>
             </ul>
 
@@ -127,17 +137,24 @@ export default function PlanCards({
               پیش‌پرداخت است و تمدید خودکار ندارد.
             </p>
 
-            <Link
-              href={state === "active" ? "/panel/subscription" : `/checkout?plan=${offer.code}`}
-              className="mt-auto rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              /* شمارهٔ پلن در برچسبِ دسترس‌پذیری می‌آید تا کاربرِ صفحه‌خوان
-                 بداند این دکمه مالِ کدام کارت است — سه دکمه با متنِ یکسان
-                 بی‌فایده‌اند. */
-              aria-label={`${ctaLabel} — ${offer.title}`}
-              data-plan-index={index}
-            >
-              {ctaLabel}
-            </Link>
+            {permanent ? (
+              <p className="mt-auto rounded-xl border border-border px-4 py-2.5 text-center text-sm text-muted-foreground">
+                اشتراک تو دائمی است
+              </p>
+            ) : (
+              <ShinyButton
+                type="button"
+                onClick={() => router.push(`/checkout?plan=${encodeURIComponent(offer.code)}`)}
+                className="mt-auto w-full border-primary/50 py-2.5"
+                /* نامِ پلن در برچسبِ دسترس‌پذیری می‌آید تا کاربرِ صفحه‌خوان
+                   بداند این دکمه مالِ کدام کارت است — سه دکمه با متنِ یکسان
+                   بی‌فایده‌اند. */
+                aria-label={`${ctaLabel} — ${offer.title}`}
+                data-plan-index={index}
+              >
+                {ctaLabel}
+              </ShinyButton>
+            )}
           </AnimatedPlanCard>
         );
       })}

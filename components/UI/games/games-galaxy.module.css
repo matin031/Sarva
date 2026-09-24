@@ -1,0 +1,19 @@
+/* The heading wrapper has no layout/paint containment: Persian descenders and
+   the existing reveal mask keep their original bounds. Only its clock pauses. */
+.heading { display: block; }
+.heading .gradient { animation-play-state: inherit; }
+
+/* An explicit choice for this page may override OS reduced motion. The
+   default still respects it; these are the original timings and keyframes. */
+.fullMotion .gradient { animation-name: hueShift; animation-duration: 6s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.fullMotion [data-galaxy-loop="node"] {
+  animation: nodePulse 2.6s ease-in-out var(--node-delay) infinite !important;
+}
+@keyframes hueShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes nodePulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.9); opacity: 1; }
+}

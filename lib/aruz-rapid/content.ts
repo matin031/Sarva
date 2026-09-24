@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 import { recordError } from "@/lib/admin/audit";
 import { DEMO_RAPID_ARUZ_QUESTIONS } from "./demo-questions";
 import { screenRapidAruzQuestions } from "./validator";
-import { withRevealProgress, type ParsedUnit } from "./units";
+import { readStoredUnits, withRevealProgress } from "./units";
 import type { RapidAruzQuestion } from "./types";
 
 /**
@@ -31,38 +31,6 @@ type QuestionRow = {
   has_unit_overlap: boolean | number;
 };
 
-/**
- * ستونِ JSON را به آرایه تبدیل می‌کند.
- *
- * ⚠️ این تابع فقط به‌خاطرِ یک تفاوتِ موتور وجود دارد: در MySQL نوعِ JSON
- * واقعی است و mysql2 خودش شیء می‌دهد، ولی در MariaDB — که میزبانِ
- * production است — `JSON` یک نامِ مستعار برای LONGTEXT است و همان ستون
- * **رشته** برمی‌گردد. کدی که فقط روی یکی از این دو امتحان شده باشد، روی آن
- * یکی بی‌صدا هیچ سؤالی نشان نمی‌دهد.
- */
-function readUnits(value: unknown): ParsedUnit[] {
-  const raw = typeof value === "string" ? safeParse(value) : value;
-  if (!Array.isArray(raw)) return [];
-
-  const units: ParsedUnit[] = [];
-  for (const item of raw) {
-    if (typeof item !== "object" || item === null) continue;
-    const u = item as { display?: unknown; length?: unknown };
-    if (typeof u.display !== "string" || u.display.length === 0) continue;
-    if (u.length !== "short" && u.length !== "long") continue;
-    units.push({ display: u.display, length: u.length });
-  }
-  return units;
-}
-
-function safeParse(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
 export async function loadRapidAruzQuestions(): Promise<RapidAruzContent> {
   let rows: QuestionRow[];
   try {
@@ -86,7 +54,7 @@ export async function loadRapidAruzQuestions(): Promise<RapidAruzContent> {
     id: r.id,
     type: "hemistich",
     previewText: r.preview_text,
-    units: withRevealProgress(readUnits(r.units), r.id),
+    units: withRevealProgress(readStoredUnits(r.units), r.id),
     meter: r.meter || undefined,
     attribution: r.attribution || undefined,
     explanation: r.explanation || undefined,

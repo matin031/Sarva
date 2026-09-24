@@ -3,7 +3,7 @@ import PanelPageHeader from "../PanelPageHeader";
 import styles from "../panel-design.module.css";
 import type { PlusStatus, PlusOrderSummary } from "@/lib/plus/types";
 import { fa, jalaliLong } from "@/lib/panel/format";
-import { PLUS_SOURCE_LABEL } from "@/lib/plus/labels";
+import { PLUS_SOURCE_LABEL, orderStatusLabel } from "@/lib/plus/labels";
 
 export default function SubscriptionView({ status, sellable, soonDays, recent, plusOn }: { status: PlusStatus; sellable: boolean; soonDays: number; recent: { orders: PlusOrderSummary[] }; plusOn: boolean; }) {
   return (
@@ -19,8 +19,7 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
         >
           <h2 className="font-bold">در بررسی وضعیت اشتراک مشکلی پیش آمد</h2>
           <p className="text-sm text-muted-foreground">
-            این یک اشکال از سمتِ ماست، نه از حساب شما. اگر اشتراکی دارید سرِ
-            جایش است. لحظه‌ای بعد دوباره این صفحه را باز کنید.
+            چند لحظه بعد دوباره امتحان کنید.
           </p>
           <Link
             href="/panel/subscription"
@@ -87,7 +86,7 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
               برنامهٔ من
             </Link>
             {sellable && (
-              <Link href="/plus" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">
+              <Link href="/checkout" className="rounded-xl border border-border px-4 py-2 text-sm font-bold">
                 تمدید
               </Link>
             )}
@@ -117,12 +116,11 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
           <h2 className="font-bold">دورهٔ سروا پلاس پایان یافته است</h2>
           {/* ⚠️ کاربر باید مطمئن باشد که سابقه‌اش پاک نشده. */}
           <p className="text-sm leading-relaxed text-muted-foreground">
-            هیچ‌کدام از پاسخ‌ها، نشان‌شده‌ها و کارنامه‌هایت پاک نشده‌اند. با
-            تمدید، همه‌شان دوباره در تحلیل‌ها به کار می‌آیند.
+            سوابقت پاک نشده است.
           </p>
           {sellable && (
             <Link
-              href="/plus"
+              href="/checkout"
               className="inline-block rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
             >
               تمدید سروا پلاس
@@ -133,9 +131,7 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
         <section data-panel-card="" className="bg-surface border border-border/70 space-y-3 rounded-2xl p-6">
           <h2 className="font-bold">هنوز اشتراک فعالی نداری</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            سروا پلاس از پاسخ‌های خودت می‌فهمد کدام وزن و کدام نقش دستوری را
-            باید مرور کنی، و به‌جای فهرستِ بی‌پایانِ تمرین همان چند مورد را
-            جلویت می‌گذارد.
+            با سروا پلاس، نقش دستوری و آرایه‌های درسنامه، هوشواره، تحلیل ضعف‌ها و مرور اشتباه‌ها باز می‌شود.
           </p>
           {sellable ? (
             <Link
@@ -163,9 +159,17 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
           </div>
           <ul className="space-y-2 text-sm">
             {recent.orders.map((order) => (
-              <li key={order.id} className="flex items-center justify-between gap-2">
-                <span className="select-all font-mono text-xs">{order.orderNumber}</span>
-                <span className="text-muted-foreground">{jalaliLong(order.createdAt)}</span>
+              <li key={order.id}>
+                <Link
+                  href={`/panel/billing/${order.id}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-foreground/5"
+                >
+                  <span className="font-mono text-xs">{order.orderNumber}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {orderStatusLabel(order.status, order.latestPaymentState)}
+                  </span>
+                  <span className="text-muted-foreground">{jalaliLong(order.createdAt)}</span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -173,7 +177,7 @@ export default function SubscriptionView({ status, sellable, soonDays, recent, p
       )}
 
       {/* ⚠️ این بخش‌ها هرگز پشتِ اشتراک قفل نمی‌شوند. */}
-      <nav className={`${styles.quickLinks} text-xs text-muted-foreground}`}>
+      <nav className={`${styles.quickLinks} text-xs text-muted-foreground`}>
         <Link href="/panel/setting" className="underline underline-offset-4">
           امنیت حساب
         </Link>

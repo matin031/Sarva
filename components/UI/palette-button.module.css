@@ -35,10 +35,7 @@
   width: 268px;
   max-width: calc(100vw - 24px);
   padding: 14px;
-  border: 1px solid color-mix(in oklch, var(--primary) 20%, var(--border));
   border-radius: 22px;
-  background: var(--card);
-  box-shadow: 0 20px 65px #0003;
   transform-origin: var(--radix-dropdown-menu-content-transform-origin);
   animation: paletteIn 170ms ease-out;
 }

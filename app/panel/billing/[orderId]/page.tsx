@@ -1,8 +1,10 @@
 import ReceiptView from "@/components/UI/panel/views/ReceiptView";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { getPanelUser } from "@/lib/panel/queries";
-import { getOrderDetail } from "@/lib/plus/orders";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { formatPhone } from "@/lib/auth/phone";
+import { isUuid } from "@/lib/api/action-input";
+import { getOrderDetail, reconcileOpenOrders } from "@/lib/plus/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -12,27 +14,40 @@ export const metadata: Metadata = {
 };
 
 /**
- * جزئیات یک سفارش + رسیدِ قابلِ چاپ.
+ * جزئیات یک سفارش + فاکتورِ قابلِ چاپ.
  *
  * ⚠️ **مالکیت روی سرور اعمال می‌شود.** `getOrderDetail` شرطِ `user_id` را در
  * خودِ کوئری دارد، پس عوض کردنِ شناسه در آدرس به سفارشِ کسِ دیگری نمی‌رسد —
- * «پیدا نشد» می‌گیرد. این تنها چیزی است که جلوی خواندنِ اطلاعات مالیِ بقیه
- * را می‌گیرد؛ در این پروژه RLS وجود ندارد.
+ * «پیدا نشد» می‌گیرد. در این پروژه RLS وجود ندارد.
  *
- * ⚠️ و این «فاکتور رسمی مالیاتی» **نیست** و هیچ‌جا چنین ادعایی نمی‌شود. یک
- * رسیدِ قابلِ چاپ است؛ فاکتور رسمی الزاماتِ حقوقی دارد که هنوز پیاده نشده.
+ * ⚠️ «فاکتور رسمی مالیاتی» **نیست** و هیچ‌جا چنین ادعایی نمی‌شود.
+ *
+ * پیش از نمایش، اگر نتیجهٔ پرداختی هنوز مبهم است از درگاه پرسیده می‌شود:
+ * کسی که بعد از پرداخت اتصالش قطع شده، همین‌جا باید اشتراکِ فعال ببیند.
  */
 export default async function Page({
   params,
 }: {
   params: Promise<{ orderId: string }>;
 }) {
-  const user = await getPanelUser();
-  if (!user) redirect("/auth?returnTo=/panel/billing");
-
   const { orderId } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect(`/auth?returnTo=${encodeURIComponent(`/panel/billing/${orderId}`)}`);
+  if (!isUuid(orderId)) notFound();
+
+  await reconcileOpenOrders(user.id);
+
   const order = await getOrderDetail(user.id, orderId);
   if (!order) notFound();
 
-  return <ReceiptView order={order} />;
+  const name =
+    [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.fullName || "—";
+  const phone = formatPhone(user.phone);
+
+  return (
+    <ReceiptView
+      order={order}
+      buyer={{ name, contact: user.email ?? phone, contactLtr: !user.email }}
+    />
+  );
 }

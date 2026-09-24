@@ -1,9 +1,9 @@
-import { GRADES } from "@/lib/doroos";
+import { GRADE_META, LESSON_TITLES } from "@/lib/doroos/catalog";
 import type { GradeKey } from "@/lib/doroos/types";
 
 /** برنامهٔ درسیِ «مدار دستور».
  *
- *  پایه‌ها و شمارهٔ درس‌ها از `lib/doroos` می‌آیند — همان‌جایی که درسنامه و
+ *  پایه‌ها و عنوانِ درس‌ها از `lib/doroos/catalog` می‌آیند — همان‌جایی که درسنامه و
  *  واژه‌یاب هم از آن می‌خوانند. اینجا حقیقتِ تازه‌ای از برنامهٔ درسی ساخته
  *  نمی‌شود؛ فقط چیزی که *مخصوصِ این بازی* است اضافه می‌شود.
  *
@@ -13,7 +13,7 @@ import type { GradeKey } from "@/lib/doroos/types";
 
 export type { GradeKey };
 
-export const GRAMMAR_CIRCUIT_GRADES = GRADES.map((g) => ({
+export const GRAMMAR_CIRCUIT_GRADES = GRADE_META.map((g) => ({
   key: g.key,
   label: g.label,
   book: g.book,
@@ -76,9 +76,7 @@ export function formatLessonList(lessons: readonly number[]): string {
 /** عنوانِ درس، از همان رجیستریِ درسنامه. برای درسی که عنوانش را نداریم
  *  «درس ۷» برمی‌گردد و نه یک نامِ ساختگی — همان قاعدهٔ lib/doroos. */
 export function lessonTitle(grade: GradeKey, lesson: number): string {
-  const title = GRADES.find((g) => g.key === grade)?.lessons.find(
-    (l) => l.number === lesson,
-  )?.title;
+  const title = LESSON_TITLES[grade]?.[lesson];
   return title || `درس ${lesson.toLocaleString("fa-IR")}`;
 }
 

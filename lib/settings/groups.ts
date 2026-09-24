@@ -20,10 +20,15 @@
  */
 
 /** گروه‌های صفحهٔ تنظیمات. `SettingSpec.group` از همین می‌آید. */
-export type SettingGroup = "mail" | "sms" | "home" | "plus";
+export type SettingGroup = "site" | "mail" | "sms" | "notify" | "home" | "plus";
 
 /** برچسب فارسی هر گروه، برای عنوان بخش‌ها در صفحهٔ تنظیمات. */
 export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: string }> = {
+  site: {
+    title: "وضعیت سایت",
+    description:
+      "حالتِ «در حال بروزرسانی». وقتی روشن باشد، بازدیدکننده به‌جای سایت یک صفحهٔ کوتاه می‌بیند — ولی مدیرِ واردشده سایت را عادی می‌بیند و می‌تواند همان لحظه تغییرات را امتحان کند.",
+  },
   mail: {
     title: "ایمیل",
     description: "کد تأیید حساب و لینک بازیابی رمز از این آدرس فرستاده می‌شوند.",
@@ -32,6 +37,11 @@ export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: 
     title: "پیامک",
     description:
       "ورود با موبایل، ثبت‌نام، تأیید شماره و بازیابی رمز همگی از اینجا پیامک می‌فرستند. سرویس، SMS.ir است و برای فعال شدنش دو چیز لازم است: کلید API و شناسهٔ قالبِ تأییدشده.",
+  },
+  notify: {
+    title: "اطلاع‌رسانی",
+    description:
+      "پیامک و ایمیلِ رویدادهای حساب و اشتراک: خوش‌آمدِ ثبت‌نام، فعال‌سازی و تمدید، و یادآوریِ پایان. ⚠️ پیامکِ هر رویداد تا وقتی شناسهٔ قالبش ثبت نشده فرستاده نمی‌شود — خطِ خدماتی متنِ آزاد نمی‌پذیرد.",
   },
   plus: {
     title: "سروا پلاس",

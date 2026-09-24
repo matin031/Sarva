@@ -62,6 +62,33 @@ export type VesselMode = "edit" | "analyzing" | "correct" | "wrong";
 
 const FLIP = KIMIA_CONFIG.motion.flip;
 
+/* ذره‌های لحظهٔ داوری — جای ثابت و نه تصادفی، تا هر بار همان حرکتِ حساب‌شده
+   دیده شود و رندرِ سرور و مرورگر یکی بماند. `x` درصدِ عرض، `d` تأخیر. */
+const SPARKS = [
+  { x: 12, d: 0, s: 1 },
+  { x: 24, d: 140, s: 0.7 },
+  { x: 35, d: 60, s: 0.9 },
+  { x: 47, d: 220, s: 0.6 },
+  { x: 58, d: 30, s: 1 },
+  { x: 69, d: 180, s: 0.75 },
+  { x: 80, d: 90, s: 0.9 },
+  { x: 90, d: 250, s: 0.65 },
+];
+const PUFFS = [
+  { x: 22, d: 0, s: 1 },
+  { x: 44, d: 120, s: 1.3 },
+  { x: 63, d: 60, s: 1.1 },
+  { x: 81, d: 180, s: 0.9 },
+];
+const GRAINS = [
+  { x: 18, d: 200 },
+  { x: 31, d: 320 },
+  { x: 52, d: 260 },
+  { x: 66, d: 380 },
+  { x: 77, d: 240 },
+  { x: 88, d: 340 },
+];
+
 export default function VerseVessel({
   lines,
   loading,
@@ -155,6 +182,36 @@ export default function VerseVessel({
                 </p>
               ))
             )}
+          </div>
+
+          {/* لحظهٔ داوری. «درست»: ترکیب تبلور می‌کند — برقی روی شیشه و جرقه‌هایی که
+              از مایع بالا می‌روند. «غلط»: ترکیب می‌بُرد — دودی کم‌رنگ بلند می‌شود و
+              ذراتِ ته‌نشین پایین می‌روند. فقط CSS و فقط وقتی `data-mode` عوض شود. */}
+          <div className="km-fx" aria-hidden>
+            <span className="km-fx-clip">
+              <span className="km-fx-flash" />
+            </span>
+            {SPARKS.map((p, i) => (
+              <span
+                key={`s${i}`}
+                className="km-fx-spark"
+                style={{ "--x": `${p.x}%`, "--d": `${p.d}ms`, "--s": p.s } as React.CSSProperties}
+              />
+            ))}
+            {PUFFS.map((p, i) => (
+              <span
+                key={`p${i}`}
+                className="km-fx-puff"
+                style={{ "--x": `${p.x}%`, "--d": `${p.d}ms`, "--s": p.s } as React.CSSProperties}
+              />
+            ))}
+            {GRAINS.map((p, i) => (
+              <span
+                key={`g${i}`}
+                className="km-fx-grain"
+                style={{ "--x": `${p.x}%`, "--d": `${p.d}ms` } as React.CSSProperties}
+              />
+            ))}
           </div>
 
           <RhythmRing vesselRef={frontRef} ringOnly />

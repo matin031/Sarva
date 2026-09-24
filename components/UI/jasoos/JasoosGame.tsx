@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, MotionConfig } from "motion/react";
+import { Clock3, Fingerprint, Heart, RotateCcw, SlidersHorizontal, Trophy, SearchX } from "lucide-react";
 import { pickJasoosLevels } from "@/lib/jasoos-data";
 import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
@@ -10,8 +11,8 @@ import { apiPost } from "@/lib/api/client";
 import SchoolMap from "./SchoolMap";
 import ShootingScene from "./ShootingScene";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
-import GameIntro from "@/components/UI/games/GameIntro";
-import { JasoosPreview } from "@/components/UI/games/GamePreviews";
+import JasoosIntro from "./JasoosIntro";
+import styles from "./jasoos.module.css";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 
@@ -68,6 +69,16 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
 
   // who the restored (localStorage) session belongs to: "guest" | user id | null
   const restoredOwnerRef = useRef<string | null>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+
+  const focusScreen = () => {
+    const node = screenRef.current;
+    if (!node) return;
+    node.focus({ preventScroll: true });
+    if (node.getBoundingClientRect().top < 0) {
+      node.scrollIntoView({ block: "start", behavior: "instant" });
+    }
+  };
 
   const level = runLevels[levelIndex];
 
@@ -312,183 +323,78 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   };
 
   if (!restoredFromStorage) {
-    return (
-      <div className="container max-w-4xl mx-auto my-10 sm:my-16 text-center text-muted-foreground">
-        در حال بارگذاری...
-      </div>
-    );
+    return <div className={styles.game} role="status">در حال آماده‌سازی پرونده‌ها…</div>;
   }
 
   return (
-    <div className="container max-w-4xl mx-auto my-10 sm:my-16">
-      {guestPrompt && (
-        <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
-      )}
+    <MotionConfig reducedMotion="user">
+    <div ref={screenRef} tabIndex={-1} className={styles.game} dir="rtl" aria-label="بازی جاسوس نقش‌ها">
+      {guestPrompt && <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />}
       {(screen === "map" || screen === "scene") && (
-        <div className="flex items-center justify-between mb-4 px-1 flex-wrap gap-y-2">
-          <div className="flex items-center gap-x-1.5">
-            {Array.from({ length: START_LIVES }).map((_, i) => (
-              <span
-                key={i}
-                className={`text-lg sm:text-xl ${i < lives ? "opacity-100" : "opacity-20"}`}
-              >
-                ❤️
-              </span>
-            ))}
-          </div>
-          <div className="glass rounded-full px-4 py-1 text-sm sm:text-base font-bold">
-            پرونده {clearedCount + 1} از {runLevels.length}
-          </div>
-          {settings?.timeLimitMinutes && timeLeftDisplay !== null && (
-            <div
-              className={`glass rounded-full px-4 py-1 text-sm sm:text-base font-bold tabular-nums ${
-                timeLeftDisplay < 30000 ? "text-destructive" : ""
-              }`}
-            >
-              {formatTime(timeLeftDisplay)}
+        <div className={styles.hud} aria-label="وضعیت مأموریت">
+          <div className={styles.hudTitle}><Fingerprint /><span>جاسوسِ نقش‌ها</span></div>
+          <div className={styles.hudProgress}>
+            <span>پرونده {(clearedCount + 1).toLocaleString("fa-IR")} از {runLevels.length.toLocaleString("fa-IR")}</span>
+            <div className={styles.progressTrack} role="progressbar" aria-label="پرونده‌های حل‌شده" aria-valuenow={clearedCount} aria-valuemin={0} aria-valuemax={runLevels.length}>
+              <span style={{ width: (clearedCount / Math.max(1, runLevels.length)) * 100 + "%" }} />
             </div>
-          )}
+          </div>
+          <div className={styles.hudStats}>
+            {settings?.timeLimitMinutes && timeLeftDisplay !== null && (
+              <div className={styles.timer} data-urgent={timeLeftDisplay < 30000} aria-label="زمان باقی‌مانده">
+                <Clock3 size={16} /><span dir="ltr">{formatTime(timeLeftDisplay)}</span>
+              </div>
+            )}
+            <div className={styles.lives} role="img" aria-label={lives.toLocaleString("fa-IR") + " جان باقی‌مانده"}>
+              {Array.from({ length: START_LIVES }).map((_, i) => <Heart key={i} aria-hidden="true" fill={i < lives ? "currentColor" : "none"} className={i < lives ? undefined : styles.lostLife} />)}
+            </div>
+          </div>
         </div>
       )}
 
       <AnimatePresence mode="wait">
         {screen === "intro" && (
-          <GameIntro
-            title="جاسوسِ نقش‌ها"
-            tagline="یک بیت، چهار مظنون، یک دروغگو."
-            steps={[
-              "پشتِ هر در، یک بیت و چهار مظنون که هرکدام نقشی دستوری یا آرایه‌ای ادعا می‌کنند.",
-              "سه نفر راست می‌گویند؛ یکی جاسوس است و نقشی می‌گوید که در بیت اصلاً نیست.",
-              "جاسوسِ دروغگو را نشانه بگیر و شلیک کن — هر اشتباه یک جان می‌گیرد.",
-            ]}
-            lives={START_LIVES}
-            accent="text-lapis"
-            chipBg="bg-lapis-light/15 text-foreground"
-            Preview={JasoosPreview}
-            onStart={() => {
-              // زودتر از صفحهٔ تنظیمات: مهمانی که سهمیه‌اش تمام شده نباید
-              // اول تنظیمات را پر کند و بعد رد شود.
-              if (guest.blocked) {
-                setGuestPrompt(true);
-                return;
-              }
+          <motion.div onAnimationComplete={focusScreen} key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <JasoosIntro onStart={() => {
+              if (guest.blocked) { setGuestPrompt(true); return; }
               setScreen("settings");
-            }}
-          />
-        )}
-
-        {screen === "settings" && (
-          <JasoosSettingsModal maxQuestions={allLevels.length} onStart={beginRun} />
-        )}
-
-        {screen === "map" && (
-          <motion.div
-            key="map"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <SchoolMap
-              levels={runLevels}
-              clearedCount={clearedCount}
-              onEnter={(i) => {
-                setLevelIndex(i);
-                setScreen("scene");
-              }}
-            />
+            }} />
           </motion.div>
         )}
-
+        {screen === "settings" && (
+          <motion.div onAnimationComplete={focusScreen} key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <JasoosSettingsModal maxQuestions={allLevels.length} onStart={beginRun} onBack={() => setScreen("intro")} />
+          </motion.div>
+        )}
+        {screen === "map" && (
+          <motion.div onAnimationComplete={focusScreen} key="map" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <SchoolMap levels={runLevels} clearedCount={clearedCount} onEnter={(i) => { setLevelIndex(i); setScreen("scene"); }} />
+          </motion.div>
+        )}
         {screen === "scene" && level && (
-          <motion.div
-            key={`scene-${level.id}-${attemptId}`}
-            initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.5 }}
-          >
+          <motion.div onAnimationComplete={focusScreen} key={"scene-" + level.id + "-" + attemptId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             <ShootingScene level={level} onResult={handleResult} />
           </motion.div>
         )}
-
-        {screen === "gameover" && (
-          <motion.div
-            key="gameover"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center border-2 border-destructive"
-          >
-            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-destructive">
-              {gameOverReason === "time" ? "زمان تمام شد!" : "جان‌هایت تمام شد!"}
-            </h2>
-            {missedSpy && (
-              <>
-                <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-2">
-                  جاسوسِ واقعی «{missedSpy.role}» بود.
-                </p>
-                <p className="text-xs sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed mb-6">
-                  {missedSpy.evidence}
-                </p>
-              </>
-            )}
-            <p className="text-sm sm:text-base mb-6">
-              تا اینجا {clearedCount} پرونده را با موفقیت رد کردی.
-            </p>
-            <div className="flex items-center justify-center gap-x-3">
-              <button
-                onClick={restart}
-                className="inline-flex items-center justify-center font-medium text-primary-foreground
-                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-              >
-                شروع دوباره از اول
-              </button>
-              <button
-                onClick={() => setScreen("settings")}
-                className="inline-flex items-center justify-center font-medium
-                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
-              >
-                تغییر تنظیمات
-              </button>
+        {(screen === "gameover" || screen === "win") && (
+          <motion.section onAnimationComplete={focusScreen} key={screen} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={styles.panel + " " + styles.result} aria-labelledby="jasoos-result-title">
+            <div className={styles.resultIcon}>{screen === "win" ? <Trophy /> : gameOverReason === "time" ? <Clock3 /> : <SearchX />}</div>
+            <h2 id="jasoos-result-title" className="game-display">{screen === "win" ? "آفرین، کارآگاه!" : gameOverReason === "time" ? "زمان مأموریت تمام شد" : "این دور به پایان رسید"}</h2>
+            <p>{screen === "win" ? "هیچ جاسوسی از نگاهت پنهان نماند. همهٔ پرونده‌ها حل شدند!" : "هر پرونده یک نکتهٔ تازه دارد؛ دور بعد با تجربه‌تر برمی‌گردی."}</p>
+            <div className={styles.resultStats}>
+              <div><strong>{clearedCount.toLocaleString("fa-IR")} از {runLevels.length.toLocaleString("fa-IR")}</strong><span>پروندهٔ حل‌شده</span></div>
+              <div><strong>{lives.toLocaleString("fa-IR")}</strong><span>جان باقی‌مانده</span></div>
             </div>
-          </motion.div>
-        )}
-
-        {screen === "win" && (
-          <motion.div
-            key="win"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
-          >
-            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-primary">
-              آفرین، جاسوس‌یاب!
-            </h2>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              تو همه‌ی {runLevels.length} جاسوس را با {lives} جانِ باقی‌مانده
-              پیدا کردی.
-            </p>
-            <div className="flex items-center justify-center gap-x-3">
-              <button
-                onClick={restart}
-                className="inline-flex items-center justify-center font-medium text-primary-foreground
-                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-              >
-                بازی دوباره
-              </button>
-              <button
-                onClick={() => setScreen("settings")}
-                className="inline-flex items-center justify-center font-medium
-                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
-              >
-                تغییر تنظیمات
-              </button>
+            {screen === "gameover" && missedSpy && <div className={styles.resultEvidence}><strong>جاسوس واقعی «{missedSpy.role}» بود.</strong><p>{missedSpy.evidence}</p></div>}
+            <div className={styles.resultActions}>
+              <button type="button" onClick={restart} className={styles.primaryButton}><RotateCcw size={17} />{screen === "win" ? "یک مأموریت تازه" : "دوباره تلاش می‌کنم"}</button>
+              <button type="button" onClick={() => setScreen("settings")} className={styles.secondaryButton}><SlidersHorizontal size={17} /> تغییر تنظیمات</button>
             </div>
-          </motion.div>
+          </motion.section>
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }
 

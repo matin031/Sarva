@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
-import { groupIntoSessions, jalali, relativeDay, scoreColor } from "@/lib/panel/format";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
+import { groupIntoSessions, jalali, relativeDay } from "@/lib/panel/format";
 import { VOCAB_GRADES } from "@/lib/vocab-data";
 import { vocabImageUrl } from "@/lib/vocab-image";
 import type { VocabAnswer } from "@/lib/panel/types";
@@ -48,6 +49,8 @@ export default function VocabSessionList({
   onLoadMore: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  // ⚠️ فهرستِ بی‌انتها نه: شش دورِ آخر، بقیه با «نمایش بیشتر».
+  const [shown, setShown] = useState(6);
   const sessions = useMemo(
     () => groupIntoSessions(answers, (a) => a.answeredAt),
     [answers],
@@ -57,16 +60,15 @@ export default function VocabSessionList({
     return (
       <div className=" mt-3 rounded-2xl bg-card p-6 text-center shadow sm:p-8">
         <p className=" text-muted-foreground">
-          هنوز واژه‌یاب بازی نکرده‌ای. اولین دستِ کاملت که تمام شود، همین‌جا با
-          همهٔ واژه‌هایش می‌آید.
+          هنوز واژه‌یاب بازی نکرده‌ای.
         </p>
       </div>
     );
   }
 
   return (
-    <div className=" mt-3 flex flex-col gap-y-3">
-      {sessions.map((items) => (
+    <div className=" mt-4 flex flex-col gap-y-2.5">
+      {sessions.slice(0, shown).map((items) => (
         <SessionRow
           key={items[0].id}
           items={items}
@@ -77,10 +79,10 @@ export default function VocabSessionList({
         />
       ))}
 
-      {hasMore && (
+      {(shown < sessions.length || hasMore) && (
         <button
           type="button"
-          onClick={onLoadMore}
+          onClick={() => (shown < sessions.length ? setShown((n) => n + 10) : onLoadMore())}
           disabled={loadingMore}
           className={`mx-auto mt-2 inline-flex items-center gap-x-2 rounded-2xl border border-border
             bg-card px-5 py-3 text-sm font-bold transition-all sm:px-6 ${
@@ -89,7 +91,7 @@ export default function VocabSessionList({
                 : "cursor-pointer hover:border-primary/50 hover:text-primary active:scale-95"
             }`}
         >
-          {loadingMore ? "...در حال بارگیری" : "بارگیری آزمون‌های بیشتر"}
+          {loadingMore ? "در حال بارگیری…" : "نمایش بیشتر"}
         </button>
       )}
     </div>
@@ -109,11 +111,10 @@ function SessionRow({
   const ordered = useMemo(() => [...items].reverse(), [items]);
   const correct = items.filter((a) => a.isCorrect).length;
   const percent = Math.round((correct / items.length) * 100);
-  const color = scoreColor(percent);
   const when = ordered[0].answeredAt;
 
   return (
-    <div className=" rounded-2xl bg-card p-3 shadow sm:p-4">
+    <div className=" rounded-2xl border border-border/70 bg-card p-3 transition-colors hover:border-primary/35 sm:p-4">
       <button
         type="button"
         onClick={onToggle}
@@ -121,12 +122,7 @@ function SessionRow({
         className=" flex w-full cursor-pointer items-center justify-between gap-3 text-right"
       >
         <div className=" flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-          <div
-            style={{ borderColor: color, color }}
-            className=" flex size-14 shrink-0 items-center justify-center rounded-full border-4 text-sm font-bold transition-colors sm:size-16 sm:text-base"
-          >
-            {toFa(percent)}%
-          </div>
+          <AnimatedCircularProgress value={percent} className="size-12 sm:size-14" />
           <div className=" min-w-0">
             <p className=" truncate text-sm font-bold sm:text-base">
               {toFa(correct)} از {toFa(items.length)} واژه درست
@@ -139,6 +135,16 @@ function SessionRow({
               <span className=" opacity-60">{jalali(when)}</span>
             </p>
           </div>
+        </div>
+
+        {/* یک خانه برای هر واژهٔ این دور، به همان ترتیبِ بازی. */}
+        <div aria-hidden className=" hidden max-w-[45%] flex-wrap justify-end gap-1 sm:flex">
+          {ordered.slice(0, 16).map((a) => (
+            <span
+              key={a.id}
+              className={`h-2 w-4 rounded-full ${a.isCorrect ? "bg-primary" : "bg-destructive/75"}`}
+            />
+          ))}
         </div>
 
         <svg

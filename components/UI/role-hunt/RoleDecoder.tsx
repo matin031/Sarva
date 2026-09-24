@@ -110,7 +110,7 @@ export default function RoleDecoder({
 
   return (
     <div className="rh-decoder" dir="rtl">
-      <span className="rh-decoder-label">نقش</span>
+      <span className="rh-decoder-label">پیدا کن</span>
 
       {/* ⚠️ فقط مقدارِ *نهایی* به فناوری‌های کمکی می‌رسد.
           خواندنِ «٭ق٭» با صفحه‌خوان هیچ معنایی ندارد و در هر گام یک اعلام

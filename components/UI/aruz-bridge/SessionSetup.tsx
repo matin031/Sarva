@@ -107,6 +107,7 @@ export function SessionSetup({
   error,
   /** چند پرسشِ یکتا در مخزن هست. `null` یعنی هنوز نمی‌دانیم. */
   availableUnique,
+  assignmentTitle,
 }: {
   session: AruzBridgeSessionConfig;
   onChange: (next: AruzBridgeSessionConfig) => void;
@@ -114,6 +115,8 @@ export function SessionSetup({
   loading: boolean;
   error: string | null;
   availableUnique: number | null;
+  /** در تکلیفِ دبیر، تعداد و سؤال‌ها از قبل معلوم‌اند و بازیکن عوضشان نمی‌کند. */
+  assignmentTitle?: string;
 }) {
   const patch = (delta: Partial<AruzBridgeSessionConfig>) => onChange({ ...session, ...delta });
 
@@ -131,48 +134,52 @@ export function SessionSetup({
       className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7"
     >
       <div className="text-center">
-        <h1 className="game-display text-2xl font-black text-foreground sm:text-3xl">پلِ وزن</h1>
-        <p className="mt-1 text-sm text-muted-foreground">آماده‌ای از پل عبور کنی؟</p>
+        <h1 className="game-display text-2xl font-black text-foreground sm:text-3xl">پل وزن</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {assignmentTitle ? `تکلیف: ${assignmentTitle}` : "آماده‌ای از پل عبور کنی؟"}
+        </p>
       </div>
 
       <div className="mt-6 space-y-5">
-        <section>
-          <h2 className="mb-2 text-xs font-bold text-muted-foreground">تعدادِ سؤال</h2>
-          <div className="flex gap-2">
-            {QUESTION_COUNTS.map((count) => (
-              <Segment
-                key={count}
-                selected={session.questionCount === count}
-                disabled={isUnavailable(count)}
-                onClick={() => patch({ questionCount: count })}
-                label={`${fa.format(count)} سؤال`}
-                title={
-                  isUnavailable(count)
-                    ? `فقط ${fa.format(availableUnique ?? 0)} سؤالِ یکتا موجود است`
-                    : undefined
-                }
-              >
-                <span className="block text-lg font-black tabular-nums">{fa.format(count)}</span>
-                <span className="mt-0.5 block text-[0.65rem] opacity-80">{COUNT_LABELS[count]}</span>
-              </Segment>
-            ))}
-          </div>
-          {capped && (availableUnique ?? 0) < 20 && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              فقط {fa.format(availableUnique ?? 0)} سؤالِ یکتا در این مجموعه موجود است.
-            </p>
-          )}
-        </section>
+        {!assignmentTitle && (
+          <section>
+            <h2 className="mb-2 text-xs font-bold text-muted-foreground">تعداد سؤال</h2>
+            <div className="flex gap-2">
+              {QUESTION_COUNTS.map((count) => (
+                <Segment
+                  key={count}
+                  selected={session.questionCount === count}
+                  disabled={isUnavailable(count)}
+                  onClick={() => patch({ questionCount: count })}
+                  label={`${fa.format(count)} سؤال`}
+                  title={
+                    isUnavailable(count)
+                      ? `فقط ${fa.format(availableUnique ?? 0)} سؤال یکتا موجود است`
+                      : undefined
+                  }
+                >
+                  <span className="block text-lg font-black tabular-nums">{fa.format(count)}</span>
+                  <span className="mt-0.5 block text-[0.65rem] opacity-80">{COUNT_LABELS[count]}</span>
+                </Segment>
+              ))}
+            </div>
+            {capped && (availableUnique ?? 0) < 20 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                فقط {fa.format(availableUnique ?? 0)} سؤال یکتا در این مجموعه موجود است.
+              </p>
+            )}
+          </section>
+        )}
 
         <section>
-          <h2 className="mb-2 text-xs font-bold text-muted-foreground">سرعتِ تصمیم‌گیری</h2>
+          <h2 className="mb-2 text-xs font-bold text-muted-foreground">سرعت تصمیم‌گیری</h2>
           <div className="flex gap-2">
             {(Object.keys(PACE_LABELS) as GamePace[]).map((pace) => (
               <Segment
                 key={pace}
                 selected={session.pace === pace}
                 onClick={() => patch({ pace })}
-                label={`سرعتِ ${PACE_LABELS[pace]}`}
+                label={`سرعت ${PACE_LABELS[pace]}`}
               >
                 <span className="block text-sm font-bold">{PACE_LABELS[pace]}</span>
               </Segment>
@@ -184,13 +191,15 @@ export function SessionSetup({
           <CheckRow
             checked={session.reviewMistakes}
             onChange={(v) => patch({ reviewMistakes: v })}
-            label="مرورِ اشتباه‌ها در پایان"
+            label="مرور اشتباه‌ها در پایان"
           />
-          <CheckRow
-            checked={session.allowRepeatQuestions}
-            onChange={(v) => patch({ allowRepeatQuestions: v })}
-            label="اجازهٔ تکرارِ سؤال در همین دور"
-          />
+          {!assignmentTitle && (
+            <CheckRow
+              checked={session.allowRepeatQuestions}
+              onChange={(v) => patch({ allowRepeatQuestions: v })}
+              label="اجازهٔ تکرار سؤال در همین دور"
+            />
+          )}
           <CheckRow
             checked={session.soundEnabled}
             onChange={(v) => patch({ soundEnabled: v })}
@@ -211,7 +220,7 @@ export function SessionSetup({
         disabled={loading}
         className="mt-6 w-full rounded-xl bg-primary py-3 font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
       >
-        {loading ? "در حالِ آماده‌سازی…" : "شروعِ بازی"}
+        {loading ? "در حال آماده‌سازی…" : "شروع بازی"}
       </button>
     </motion.div>
   );

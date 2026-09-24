@@ -26,7 +26,6 @@ export default function RoleTray({
   onPointerDown,
   onActivate,
 }: RoleTrayProps) {
-  const remaining = pieces.length - usedPieceIds.size;
   return (
     <section
       ref={hostRef as React.RefObject<HTMLElement>}
@@ -35,10 +34,6 @@ export default function RoleTray({
       aria-label="سینیِ نقش‌ها"
     >
       <div className="gc-tray-inner">
-        <div className="flex items-center justify-between px-1 text-[0.7rem] font-semibold text-[var(--gc-text-muted)]">
-          <span>قطعه‌های نقش</span>
-          <span>{remaining.toLocaleString("fa-IR")} قطعهٔ آزاد</span>
-        </div>
         <div className="gc-tray-items">
           {pieces.map((piece) => (
             <RoleModule

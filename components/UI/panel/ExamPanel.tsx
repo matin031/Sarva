@@ -11,7 +11,8 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 import PanelSection from "@/components/UI/panel/PanelSection";
-import { jalali, relativeDay, scoreColor } from "@/lib/panel/format";
+import { jalali, relativeDay } from "@/lib/panel/format";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
 import {
   STATUS_LABEL,
   answerText,
@@ -94,7 +95,7 @@ function QuestionReview({
 
       {!entry.parts.length ? (
         <p className=" mt-3 text-sm text-muted-foreground">
-          ریزِ این سؤال ذخیره نشده است؛ فقط نمره‌اش را داریم.
+          ریز این سؤال ذخیره نشده است؛ فقط نمره‌اش را داریم.
         </p>
       ) : (
         <div className=" mt-3 flex flex-col gap-3">
@@ -143,7 +144,7 @@ function QuestionReview({
                 <div className=" mt-2 flex flex-col gap-2 text-sm">
                   <p className=" rounded-lg bg-secondary p-2.5">
                     <span className=" text-xs text-muted-foreground">
-                      پاسخِ تو:{" "}
+                      پاسخ تو:{" "}
                     </span>
                     {mine || (
                       <span className=" text-muted-foreground">
@@ -155,7 +156,7 @@ function QuestionReview({
                   </p>
                   {right && (
                     <p className=" rounded-lg bg-green-500/10 p-2.5 text-green-800 dark:text-green-300">
-                      <span className=" text-xs opacity-80">پاسخِ درست: </span>
+                      <span className=" text-xs opacity-80">پاسخ درست: </span>
                       {right}
                     </p>
                   )}
@@ -218,18 +219,17 @@ export default function ExamPanel({
           </Link>
         </ShinyButton>
       } />
-      <PracticeSummary items={[{ label: "میانگین کارنامه‌ها", value: `${toFa(stats.average)}٪` }, { label: "آزمون‌های تو", value: toFa(stats.count) }, { label: "بهترین کارنامه", value: `${toFa(stats.best)}٪` }, { label: "آخرین آزمون", value: stats.lastAt ? relativeDay(stats.lastAt) : "هنوز شروع نکرده‌ای" }]} />
+      <PracticeSummary items={[{ label: "میانگین کارنامه‌ها", value: stats.count ? `${toFa(stats.average)}٪` : "—" }, { label: "آزمون‌های تو", value: toFa(stats.count) }, { label: "بهترین کارنامه", value: stats.count ? `${toFa(stats.best)}٪` : "—" }, { label: "آخرین آزمون", value: stats.lastAt ? relativeDay(stats.lastAt) : "هنوز شروع نکرده‌ای" }]} />
 
       <PanelSection
         title="کارنامه‌ها"
         icon="award"
-        hint="روی هر کارنامه بزن تا نمرهٔ تک‌تکِ سؤال‌ها را ببینی."
+        hint="برای دیدن نمرهٔ هر سؤال، روی کارنامه بزن."
       >
         {!attempts.length ? (
           <div className=" mt-3 rounded-2xl bg-card p-6 text-center shadow sm:p-8">
             <p className=" text-muted-foreground">
-              هنوز امتحان نهایی نداده‌ای. اولین آزمونت که تمام شود، کارنامه‌اش
-              همین‌جا می‌آید.
+              هنوز امتحان نهایی نداده‌ای.
             </p>
           </div>
         ) : (
@@ -265,7 +265,6 @@ function AttemptCard({
   const percent = attempt.maxScore
     ? Math.round((attempt.totalScore / attempt.maxScore) * 100)
     : 0;
-  const color = scoreColor(percent);
 
   /* ⚠️ همان تابعی که صفحهٔ دبیر هم صدا می‌زند — توضیحش بالای
      `lib/exam/attempt-view.ts`. دو شکلِ ذخیره‌سازی (قدیمی `{score,max}` و
@@ -287,7 +286,7 @@ function AttemptCard({
   const partial = entries.length - full - zero;
 
   return (
-    <div className=" rounded-2xl bg-card p-3 shadow sm:p-4">
+    <div className=" rounded-2xl border border-border/70 bg-card p-3 transition-colors hover:border-primary/35 sm:p-4">
       <button
         type="button"
         onClick={onToggle}
@@ -295,12 +294,7 @@ function AttemptCard({
         className=" flex w-full cursor-pointer items-center justify-between gap-3 text-right"
       >
         <div className=" flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-          <div
-            style={{ borderColor: color, color }}
-            className=" flex size-14 shrink-0 items-center justify-center rounded-full border-4 text-sm font-bold sm:size-16 sm:text-base"
-          >
-            {toFa(percent)}%
-          </div>
+          <AnimatedCircularProgress value={percent} className="size-12 sm:size-14" />
           <div className=" min-w-0">
             <p className=" truncate text-sm font-bold sm:text-base">
               {attempt.examTitle}
@@ -331,17 +325,6 @@ function AttemptCard({
         </svg>
       </button>
 
-      <div className=" mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-        <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: `${percent}%` }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, ease: EASE }}
-          style={{ backgroundColor: color }}
-          className=" h-full rounded-full"
-        />
-      </div>
-
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -354,7 +337,7 @@ function AttemptCard({
             <div className=" mt-3 rounded-2xl bg-secondary p-3 sm:p-4">
               {!entries.length ? (
                 <p className=" py-4 text-center text-sm text-muted-foreground">
-                  ریزِ نمرهٔ این آزمون ذخیره نشده است.
+                  ریز نمرهٔ این آزمون ذخیره نشده است.
                 </p>
               ) : (
                 <>

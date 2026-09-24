@@ -155,7 +155,12 @@ function extract(file: string) {
             // فهرستِ جای‌نگهدارِ IN — placeholders() این را می‌سازد.
             if (/\bin\s*\($/.test(tail)) return ["?"];
             // فهرستِ سطرهای یک INSERT چندردیفی که در زمان اجرا ساخته می‌شود.
-            if (/\bvalues$/.test(tail)) return ["(?, ?, ?, ?, ?)", "(?)"];
+            // ⚠️ به تعدادِ ستون‌های فهرستِ پیش از `values`. پرکنندهٔ ثابتِ پنج‌تایی
+            // فقط برای INSERTِ پنج‌ستونی درست بود و بقیه را «1136» می‌خواند.
+            if (/\bvalues$/.test(tail)) {
+              const cols = /\(([^()]*)\)\s*values$/.exec(tail)?.[1].split(",").length;
+              return cols ? [`(${Array(cols).fill("?").join(", ")})`] : ["(?, ?, ?, ?, ?)", "(?)"];
+            }
             return ["", "where true"];
           };
 

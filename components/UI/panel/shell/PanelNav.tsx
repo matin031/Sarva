@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "motion/react";
 import { PANEL_NAV } from "./nav";
 import styles from "../panel-design.module.css";
 
 /** Every destination stays visible on desktop and in the mobile drawer. */
 export default function PanelNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  // ⚠️ سایدبار و کشوی موبایل هر دو این ناوبری را رندر می‌کنند؛ layoutIdِ
+  // مشترک باعث می‌شد قرص از یکی به دیگری پرواز کند.
+  const layoutGroup = onNavigate ? "drawer" : "sidebar";
   const preview = process.env.NODE_ENV === "development" && (pathname === "/design-preview" || pathname.startsWith("/design-preview/"));
   const currentPath = preview ? pathname.replace("/design-preview", "/panel") : pathname;
   return (
@@ -27,6 +31,10 @@ export default function PanelNav({ onNavigate }: { onNavigate?: () => void }) {
               return (
                 <Link key={item.src} href={href} onClick={onNavigate}
                   aria-current={active ? "page" : undefined} className={styles.navLink}>
+                  {active && (
+                    <motion.span layoutId={`panel-nav-${layoutGroup}`} className={styles.navActive}
+                      transition={{ type: "spring", stiffness: 420, damping: 36 }} />
+                  )}
                   <span className={styles.navIcon}><Icon aria-hidden className="size-[19px]" strokeWidth={1.7} /></span>
                   <span>{item.title}</span>
                   {item.tag && <span className={styles.navTag}>{item.tag}</span>}

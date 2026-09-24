@@ -33,6 +33,21 @@ export interface RoleHuntToken {
 /** یک مصراع — تکه‌ای از متن که روی یک خط خوانده می‌شود. */
 export type RoleHuntLine = RoleHuntToken[];
 
+/** یک پرسش از یک مصراع: «کدام واژه این نقش را دارد؟» */
+export interface RoleHuntAsk {
+  /** کلیدِ متعارفِ نقش (`subject`، `predicate`، …). */
+  roleKey: string;
+  /** برچسبِ فارسی، از کاتالوگِ نقش‌ها. هرگز مبنای مقایسه نیست. */
+  roleLabel: string;
+  /**
+   * تنها رخدادِ درست.
+   *
+   * ⚠️ «تنها» یک شرطِ ورود است و نه یک فرض: نقشی که دو واژه‌اش آن را
+   * داشته باشند اصلاً پرسیده نمی‌شود. توضیحش در `round.ts`.
+   */
+  correctTokenId: string;
+}
+
 export interface RoleHuntRound {
   /** شناسهٔ ردیفِ `grammar_circuit_questions`. */
   questionId: string;
@@ -52,23 +67,26 @@ export interface RoleHuntRound {
   /** واژه‌هایی که دورِ مصراع می‌چرخند — به ترتیبِ ظاهرشدن در متن. */
   orbit: RoleHuntToken[];
 
-  /** کلیدِ متعارفِ نقشِ هدف (`subject`، `predicate`، …). */
-  roleKey: string;
-  /** برچسبِ فارسی، از کاتالوگِ نقش‌ها. هرگز مبنای مقایسه نیست. */
-  roleLabel: string;
-
   /**
-   * تنها رخدادِ درست.
+   * پرسش‌های همین مصراع، به ترتیب.
    *
-   * ⚠️ «تنها» یک شرطِ ورود به بانک است و نه یک فرض: دوری که دو واژه‌اش همان
-   * نقش را داشته باشند اصلاً ساخته نمی‌شود. توضیحش در `round.ts`.
+   * ⚠️ یک مصراع چند نقشِ تأییدشده دارد و هر کدام یک پرسش است: اول «قید»،
+   * بعد «نهاد»، بعد «مسند»… بازیکن بیت را *یک بار* می‌خواند و بعد پشتِ هم
+   * به همهٔ نقش‌ها جواب می‌دهد. این همان کاری است که سرِ جلسهٔ امتحان از او
+   * می‌خواهند و با «یک نقش برای هر بیت» اصلاً تمرین نمی‌شد.
+   *
+   * ترتیب قطعی است (بر اساسِ کلیدِ نقش) چون سرور باید بتواند از روی
+   * *اندیس* بفهمد کدام نقش پرسیده شده — بدونِ اینکه مرورگر بتواند دروغ
+   * بگوید.
    */
-  correctTokenId: string;
+  asks: RoleHuntAsk[];
 }
 
 /** نتیجهٔ سنجشِ یک پاسخ — همان چیزی که سرور در جدول می‌نویسد. */
 export interface RoleHuntResolvedAnswer {
   round: RoleHuntRound;
+  /** پرسشی که پاسخ داده شد. */
+  ask: RoleHuntAsk;
   chosenToken: RoleHuntToken;
   correctToken: RoleHuntToken;
   isCorrect: boolean;

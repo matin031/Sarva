@@ -102,9 +102,16 @@ export function contentHref(
           : "select * from aruz_bridge_questions order by sort_index limit 50;",
       });
 
+    case "other":
+      /* «رنگ‌آرا» بخشِ گزارشِ خودش را ندارد (افزودنش migrationِ CHECK
+         می‌خواست) و زیرِ «سایر» با شناسهٔ `rang-ara:<id>` گزارش می‌دهد. */
+      if (focus?.startsWith("rang-ara:")) {
+        return withParams("/admin/games/rang-ara", { [FOCUS_PARAM]: focus.slice("rang-ara:".length) });
+      }
+      return null;
+
     case "aruz_rapid":
     case "doroos":
-    case "other":
       // محتوایشان فایل یا بستهٔ داخلِ کد است — هیچ صفحه‌ای در پنل ویرایششان
       // نمی‌کند، و لینکی که به جای بی‌ربط برود بدتر از نبودنِ لینک است.
       return null;

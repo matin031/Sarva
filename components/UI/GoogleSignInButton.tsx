@@ -13,12 +13,23 @@ import { useState } from "react";
  * جریانِ تازه می‌سازد و کوکی‌های جریانِ اول را بازنویسی می‌کند، و آن‌وقت
  * بازگشتِ اول با state ناهماهنگ رد می‌شود.
  */
-export default function GoogleSignInButton({ label }: { label: string }) {
+export default function GoogleSignInButton({
+  label,
+  returnTo,
+}: {
+  label: string;
+  /** مقصدِ بعد از ورود؛ سرور دوباره از allowlist ردش می‌کند. */
+  returnTo?: string;
+}) {
   const [going, setGoing] = useState(false);
 
   return (
     <a
-      href="/api/v1/auth/google"
+      href={
+        returnTo
+          ? `/api/v1/auth/google?returnTo=${encodeURIComponent(returnTo)}`
+          : "/api/v1/auth/google"
+      }
       onClick={() => setGoing(true)}
       aria-disabled={going}
       className={`flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-border

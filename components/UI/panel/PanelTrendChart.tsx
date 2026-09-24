@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -46,8 +45,7 @@ export default function PanelTrendChart({
   if (busiest === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        در این بازه پاسخی ثبت نشده است. اولین تمرین، همین‌جا ستونِ خودش را
-        می‌سازد.
+        در این بازه پاسخی ثبت نشده است.
       </p>
     );
   }
@@ -58,7 +56,11 @@ export default function PanelTrendChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 0 }} barCategoryGap={3}>
             <CartesianGrid vertical={false} strokeDasharray="4 6" className="stroke-border" opacity={0.45} />
+            {/* ⚠️ `reversed`: در کلِ پنل زمان از راست به چپ جلو می‌رود (نوارِ
+                هفته، نقشهٔ فعالیت)؛ بدونِ این، فقط همین نمودار امروز را سمتِ
+                راست می‌گذاشت. */}
             <XAxis
+              reversed
               dataKey="label"
               tickLine={false}
               axisLine={false}
@@ -84,19 +86,21 @@ export default function PanelTrendChart({
               cursor={{ fill: "var(--foreground)", opacity: 0.05 }}
               content={<TrendTooltip />}
             />
-            <Bar dataKey="correct" stackId="a" radius={[0, 0, 4, 4]}>
-              {data.map((d) => (
-                <Cell key={d.label} fill="var(--primary)" />
-              ))}
-            </Bar>
-            <Bar dataKey="wrong" stackId="a" radius={[4, 4, 0, 0]} animationDuration={700}>
-              {data.map((d) => (
-                <Cell
-                  key={d.label}
-                  fill="color-mix(in oklch, var(--destructive) 45%, var(--border))"
-                />
-              ))}
-            </Bar>
+            <defs>
+              <linearGradient id="trend-correct" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--primary)" />
+                <stop offset="100%" stopColor="color-mix(in oklch, var(--primary) 55%, var(--gold))" />
+              </linearGradient>
+            </defs>
+            <Bar dataKey="correct" stackId="a" fill="url(#trend-correct)" radius={[0, 0, 4, 4]} maxBarSize={28} />
+            <Bar
+              dataKey="wrong"
+              stackId="a"
+              fill="color-mix(in oklch, var(--destructive) 45%, var(--border))"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={28}
+              animationDuration={700}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

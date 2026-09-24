@@ -3,12 +3,10 @@
 import "./kimia.css";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import KimiaIntroPreview from "./KimiaIntroPreview";
+import KimiaHero from "./KimiaHero";
 import SessionPicker from "./SessionPicker";
 import { GameBarPlain } from "./GameBar";
 import { Button } from "@/components/UI/kit/button";
-import { GeometricPattern } from "@/components/persian-patterns";
-import ThemedParticles from "@/components/UI/ThemedParticles";
 import { unlockSfx } from "@/lib/kimia/sfx";
 import type { SessionLength } from "@/lib/kimia/config";
 
@@ -100,22 +98,9 @@ export default function KimiaIntro({
 
   return (
     <div ref={rootRef} className="km-intro" dir="rtl">
-      <div className="km-backdrop" aria-hidden>
-        <GeometricPattern className="km-backdrop-pattern" opacity={0.035} />
-        {/* گردوغبارِ معلقِ آزمایشگاه. عمداً پشتِ تاریکیِ گوشه‌ای است تا در
-            حاشیه‌ها محو شود و با متن رقابت نکند. */}
-        <ThemedParticles
-          className="km-backdrop-dust"
-          quantity={150}
-          size={3}
-          opacity={0.14}
-          drift={0.32}
-          depth={0.62}
-        />
-        <span className="km-backdrop-vignette" />
-        <span className="km-backdrop-beam" />
-      </div>
-
+      {/* ⚠️ پس‌زمینهٔ جدا (ذراتِ معلق، تاریکیِ گوشه‌ها، ستونِ نور) برداشته شد:
+          صفحهٔ شروع روی زمینه و نقشِ خودِ سایت می‌نشیند، مثلِ هر صفحهٔ دیگری،
+          و تنها چیزِ درخشان همان بالن است. */}
       {/* ⚠️ بدونِ برچسب: تیترِ صفحه همان `<h1>`ِ پایین است. */}
       <GameBarPlain />
 
@@ -126,13 +111,12 @@ export default function KimiaIntro({
               «ریتم را بشنو، ارکان را بریز، وزن را بساز.» بود که «بریز»
               را بی‌مفعول رها می‌کرد. */}
           <p className="km-intro-lede">
-            ریتم بیت را بشنو، ارکان عروضی را در جایگاه‌ها بچین و رنگشان را در بیت بریز؛
-            ترکیب درست پایدار می‌ماند.
+            ریتم بیت را بشنو و ارکانش را به ترتیب در ظرف بریز. ترکیب درست پایدار می‌ماند.
           </p>
         </div>
 
         <div className="km-intro-preview-slot">
-          <KimiaIntroPreview />
+          <KimiaHero />
         </div>
 
         <div className="km-intro-controls">

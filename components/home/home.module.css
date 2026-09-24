@@ -14,12 +14,13 @@
 .home :is(h1, h2, h3) { text-wrap: balance; }
 .home :is(a, button, [role="tabpanel"]):focus-visible { outline: 3px solid var(--primary); outline-offset: 5px; }
 .home h2 { font-size: clamp(27px, 3vw, 40px); font-weight: 800; line-height: 1.65; letter-spacing: -.6px; }
-.kicker { display: block; color: var(--home-action); font-size: 12px; font-weight: 700; margin-bottom: 10px; }
 
 /* The original, centered Sarva hero. */
-.hero { text-align: center; padding-block: 65px 20px; }
+/* ⚠️ پایینِ هیرو عمداً بلندتر از قبل است: نقشهٔ زیرین حاشیهٔ بالا دارد و
+   جمعِ آن دو، نفسِ میانِ این دو بخش را می‌سازد. تا امروز این جمع ۲۰+۲۰
+   بود و نقشه به دکمه‌های هیرو چسبیده دیده می‌شد. */
+.hero { text-align: center; padding-block: 65px 34px; }
 .heroContent { max-width: 1050px; margin-inline: auto; }
-.eyebrow { display: inline-block; border-radius: 40px; padding: 4px 17px; margin-bottom: 17px; background: color-mix(in srgb, var(--primary) 9%, transparent); color: var(--home-action); font-size: 13px; font-weight: 650; }
 .hero h1 { font-size: clamp(35px, 4.9vw, 68px); font-weight: 800; line-height: 1.5; letter-spacing: -1.3px; }
 .heroLine { display: block; line-height: inherit; }
 .heroAccent { color: var(--primary); }
@@ -35,13 +36,14 @@
 .textLink:hover { text-decoration: underline; text-underline-offset: 5px; }
 
 /* A map on the page, with no rectangular outer surface. */
-.networkSection { width: min(100% - 40px, 1000px); margin: 20px auto 0; }
+.networkSection { width: min(100% - 40px, 1000px); margin: 62px auto 0; }
 .network { position: relative; height: 375px; isolation: isolate; }
 .networkOrbit { position: absolute; top: 50%; left: 50%; width: 280px; height: 280px; transform: translate(-50%, -50%); border: 1px dashed color-mix(in srgb, var(--primary) 20%, transparent); border-radius: 50%; }
-.networkOrbit::after { content: ""; position: absolute; inset: 26px; border: 1px solid color-mix(in srgb, var(--gold) 24%, transparent); border-radius: 50%; }
-.networkCenter { position: absolute; z-index: 2; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: 136px; height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: 50%; background: color-mix(in srgb, var(--background) 92%, transparent); box-shadow: 0 0 48px color-mix(in srgb, var(--primary) 9%, transparent); }
+/* ⚠️ حلقهٔ دومِ طلایی برداشته شد. دو دایرهٔ هم‌مرکز، زیرِ شش گره و شش
+   پرتوی متحرک، یک خطِ زیادی بود: مدار باید زمینه باشد، نه عنصرِ دیگری
+   که چشم را نگه دارد. */
+.networkCenter { position: absolute; z-index: 2; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: 136px; height: 136px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: color-mix(in srgb, var(--background) 92%, transparent); box-shadow: 0 0 48px color-mix(in srgb, var(--primary) 9%, transparent); }
 .networkLogo { width: 72px; height: 92px; }
-.networkCenter > span:last-child { font-size: 19px; font-weight: 800; line-height: 1.6; }
 .networkNode { position: absolute; z-index: 2; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 9px; color: var(--foreground); }
 .nodeIcon { display: grid; place-items: center; width: 63px; height: 63px; border-radius: 21px; color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border)); background: color-mix(in srgb, var(--background) 92%, transparent); transition: transform 180ms, border-color 180ms; }
 .networkNode > span:last-child { font-size: 14px; line-height: 1.8; font-weight: 650; background: color-mix(in srgb, var(--background) 60%, transparent); padding-inline: 6px; border-radius: 5px; }
@@ -53,8 +55,10 @@
 .nodeFour { top: 9px; left: 18%; }
 .nodeFive { top: 143px; left: 3%; }
 .nodeSix { bottom: 4px; left: 18%; }
-.nodeThree .nodeIcon, .nodeSix .nodeIcon { color: var(--gold-ink); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); }
-:global(.dark) .nodeThree .nodeIcon, :global(.dark) .nodeSix .nodeIcon { color: var(--gold); }
+/* ⚠️ «امتحان نهایی» و «سروا کلاب» تا امروز طلایی بودند و چهار گرهٔ دیگر
+   فیروزه‌ای. آن دو رنگ هیچ معنایی نمی‌ساخت — نه رده‌ای، نه تازگی، نه
+   دسته‌ای — و فقط شش گرهِ هم‌رده را دوپاره نشان می‌داد. رنگِ دسته‌ای باید
+   چیزی بگوید؛ وگرنه فقط نوفه است. */
 
 /* Four illustrated leaves: tinted paper, palette accents and tactile hover.
    The enclosing section stays transparent so the site's pattern continues. */
@@ -74,9 +78,18 @@
 }
 .feature::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; background: radial-gradient(ellipse at 10% 0, color-mix(in srgb, var(--feature-accent) 18%, transparent), transparent 75%); transition: opacity 280ms; }
 .feature::after { content: ""; position: absolute; bottom: 0; right: 23px; left: 23px; height: 2px; background: var(--feature-accent); opacity: .4; transform: scaleX(.2); transform-origin: right; transition: transform 350ms, opacity 280ms; }
-.feature:nth-child(2) { --feature-accent: var(--gold); margin-top: 20px; }
+/* ⚠️ دو تغییر، هر دو برای آرام کردنِ این ردیف:
+
+   ۱. پلّهٔ `margin-top: 20px` روی کارتِ دوم و چهارم برداشته شد. آن زیگ‌زاگ
+      کارت‌ها را جداتر نشان نمی‌داد؛ فقط خطِ بالای ردیف را می‌شکست.
+
+   ۲. طلاییِ کارتِ دوم رفت. در یک ردیفِ چهارتایی، سه کارتِ سرد و یکی گرم،
+      آن یکی را «مهم‌تر» نشان می‌داد — ادعایی که هیچ‌کس نکرده بود. طلایی
+      در این صفحه می‌ماند، ولی فقط جایی که تأکید است (خطِ زیرِ تیترِ هیرو،
+      هایلایتِ جملهٔ پایانی) و نه به‌عنوانِ رنگِ دسته. */
+.feature:nth-child(2) { --feature-accent: var(--turquoise-light); }
 .feature:nth-child(3) { --feature-accent: var(--primary); }
-.feature:nth-child(4) { --feature-accent: var(--turquoise-light); margin-top: 20px; }
+.feature:nth-child(4) { --feature-accent: var(--lapis-light); }
 .feature:hover, .feature:focus-within { transform: translateY(-7px); border-color: color-mix(in srgb, var(--feature-accent) 65%, var(--border)); box-shadow: 0 18px 36px color-mix(in srgb, var(--primary-deep) 16%, transparent), inset 0 1px color-mix(in srgb, var(--foreground) 9%, transparent); }
 .feature:hover::before, .feature:focus-within::before { opacity: 1; }
 .feature:hover::after, .feature:focus-within::after { transform: scaleX(1); opacity: .8; }
@@ -101,8 +114,6 @@
 .demoPanel { display: grid; grid-template-columns: .8fr 1.3fr; align-items: center; gap: 70px; max-width: 1100px; margin-inline: auto; }
 .demoPanel[hidden] { display: none; }
 .demoCopy { min-width: 0; padding-block: 15px; }
-.demoIndex { display: block; font-size: 34px; line-height: 1.3; color: var(--primary); font-weight: 650; margin-bottom: 22px; }
-.demoIndex > span { color: var(--muted-foreground); font-size: 13px; font-weight: 400; }
 .demoCopy h3 { font-size: 28px; line-height: 1.8; font-weight: 800; }
 .demoCopy p { font-size: 15px; color: var(--muted-foreground); line-height: 2.15; margin-top: 16px; }
 .demoCopy > a { margin-top: 25px; }
@@ -117,24 +128,18 @@
 .faqSection { display: grid; grid-template-columns: .8fr 1.35fr; gap: 65px; padding-block: 85px; align-items: start; }
 .faqIntro { padding-top: 12px; }
 .faqIntro > p { color: var(--muted-foreground); font-size: 15px; margin-top: 16px; }
-.faqIntro .textLink { margin-top: 18px; }
+.faqIntro .textLink { margin-top: 12px; }
 .faqList { min-width: 0; border: 1px solid var(--border); border-radius: 19px; background: color-mix(in srgb, var(--card) 65%, transparent); }
 .faqItem { padding-inline: 22px; }
 .faqItem:first-child { border-radius: 19px 19px 0 0; }
 .faqItem:last-child { border-radius: 0 0 19px 19px; }
 .faqItem[data-state="open"] { background: color-mix(in srgb, var(--primary) 4%, transparent); }
 .faqItem:not([data-state="open"]):hover { background: color-mix(in srgb, var(--primary) 3%, transparent); }
-.faqTrigger { cursor: pointer; min-height: 94px; }
+.faqTrigger { cursor: pointer; min-height: 68px; }
 .faqTrigger:hover { color: var(--home-action); }
-.faqIcon { display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px; color: var(--primary); background: color-mix(in srgb, var(--primary) 9%, transparent); }
-.faqItem:nth-child(2) .faqIcon { color: var(--gold-ink); background: color-mix(in srgb, var(--gold) 13%, transparent); }
-:global(.dark) .faqItem:nth-child(2) .faqIcon { color: var(--gold); }
-.faqItem:nth-child(3) .faqIcon { color: var(--foreground); background: color-mix(in srgb, var(--lapis-light) 12%, transparent); }
-.faqTitle { display: grid; gap: 2px; min-width: 0; font-size: 14px; font-weight: 650; line-height: 1.9; }
-.faqSubtitle { color: var(--muted-foreground); font-size: 11px; font-weight: 400; }
-.faqAnswer { padding-inline-start: 62px; padding-inline-end: 20px; font-size: 14px; line-height: 2; }
+.faqTitle { min-width: 0; font-size: 15px; font-weight: 650; line-height: 1.9; }
+.faqAnswer { padding-inline: 0 20px; font-size: 14px; line-height: 2; color: var(--muted-foreground); }
 .closing { text-align: center; padding-block: 40px 70px; border-top: 1px solid var(--border); }
-.closing p { margin-top: 17px; color: var(--muted-foreground); font-size: 15px; }
 .closingActions { display: flex; justify-content: center; flex-wrap: wrap; gap: 13px; margin-top: 26px; }
 
 @media (max-width: 1100px) {
@@ -152,20 +157,19 @@
   .feature:nth-child(even) { margin-top: 0; }
 }
 @media (max-width: 767px) {
-  .hero { padding-block: 40px 15px; }
+  .hero { padding-block: 40px 26px; }
   .hero h1 { font-size: clamp(32px, 6.4vw, 48px); line-height: 1.65; letter-spacing: -.8px; }
   .heroDescription { font-size: 15px; max-width: 520px; margin-top: 21px !important; }
   .heroActions { gap: 12px; margin-top: 24px; }
   .heroActions > a { min-width: 150px; }
   .heroPrimary { padding-inline: 23px; }
-  .networkSection { max-width: 560px; margin-top: 28px; }
+  .networkSection { max-width: 560px; margin-top: 44px; }
   .network { height: 345px; }
   .networkNode { width: 106px; gap: 7px; }
   .networkNode > span:last-child { font-size: 13px; }
   .nodeIcon { width: 57px; height: 57px; border-radius: 18px; }
-  .networkCenter { width: 108px; height: 128px; }
+  .networkCenter { width: 108px; height: 108px; }
   .networkLogo { width: 57px; height: 74px; }
-  .networkCenter > span:last-child { font-size: 16px; }
   .networkOrbit { width: 195px; height: 195px; }
   .nodeOne { right: 8%; top: 2px; }
   .nodeFour { left: 8%; top: 2px; }
@@ -187,7 +191,6 @@
   .demoTabs button { flex: 1; padding-inline: 13px; gap: 7px; font-size: 13px; white-space: nowrap; }
   .demoPanel { grid-template-columns: 1fr; gap: 16px; }
   .demoCopy { text-align: center; max-width: 500px; margin-inline: auto; }
-  .demoIndex { display: none; }
   .demoCopy h3 { font-size: 24px; }
   .demoCopy p { font-size: 14px; margin-top: 12px; }
   .demoCopy > a { margin-top: 20px; }
@@ -196,15 +199,12 @@
   .demoStageLabel { margin-bottom: 14px; }
   .faqSection { grid-template-columns: 1fr; gap: 25px; padding-block: 48px 55px; }
   .faqIntro { text-align: center; }
-  .faqIntro > p br { display: none; }
   .faqItem { padding-inline: 16px; }
   .faqAnswer { padding-inline-start: 0; padding-inline-end: 0; font-size: 13px; }
   .closing { padding-block: 32px 48px; }
-  .closing p { font-size: 14px; }
 }
 @media (max-width: 480px) {
   .hero h1 { font-size: 32px; }
-  .eyebrow { font-size: 12px; margin-bottom: 13px; }
   .heroActions { flex-direction: column; width: min(100%, 280px); margin-inline: auto; }
   .heroActions > a { width: 100%; }
   .networkSection { width: calc(100% - 30px); }
@@ -214,7 +214,7 @@
   .nodeFour, .nodeSix { left: 2%; }
   .nodeTwo { right: 0; }
   .nodeFive { left: 0; }
-  .networkCenter { width: 92px; height: 116px; }
+  .networkCenter { width: 92px; height: 92px; }
   .networkLogo { width: 49px; height: 65px; }
   .networkOrbit { width: 160px; height: 160px; }
   .demoTabs { display: grid; grid-template-columns: 1fr 1fr; }
@@ -228,7 +228,6 @@
   .featureAction { grid-column: 1 / -1; font-size: 12px; }
   .faqTitle { font-size: 13px; }
   .faqTrigger { gap: 12px; }
-  .faqIcon { width: 40px; height: 44px; }
   .closingActions { flex-direction: column; max-width: 290px; margin-inline: auto; }
 }
 @media (prefers-reduced-motion: reduce) {

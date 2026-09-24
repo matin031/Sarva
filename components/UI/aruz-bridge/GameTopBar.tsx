@@ -3,6 +3,7 @@
 import Link from "next/link";
 import MainLogo from "@/components/svgs/mainLogo";
 import GameReportButton from "@/components/UI/games/GameReportButton";
+import { GameBackButton, gameIconButton } from "@/components/UI/games/GameNav";
 
 /* نوارِ بالای بازی روی موبایل — جایگزینِ سربرگِ کاملِ سایت در حینِ بازی.
  *
@@ -30,8 +31,7 @@ export function GameTopBar({
      پس اندازه واقعی شد. بهایش ۱۴ پیکسل ارتفاعِ نوار است که از بومِ بازی کم
      می‌شود — معاملهٔ درستی است، چون هدفِ لمسیِ ۳۰ پیکسلی روی گوشی واقعاً
      خطا می‌دهد. */
-  const button =
-    "inline-flex size-11 items-center justify-center rounded-lg border border-border bg-card/70 text-muted-foreground transition-all hover:text-foreground active:scale-95";
+  const button = gameIconButton;
 
   return (
     <div
@@ -47,7 +47,7 @@ export function GameTopBar({
 
       <div className="flex items-center gap-2">
         {/* در حالتِ تمام‌صفحهٔ موبایل، نوارِ بالای پوسته وجود ندارد. */}
-        <GameReportButton compact variant="bare" className={`${button} inline-flex items-center [&>svg]:size-4`} />
+        <GameReportButton />
         <button
           type="button"
           onClick={onToggleMute}
@@ -65,11 +65,7 @@ export function GameTopBar({
             </svg>
           )}
         </button>
-        <Link href="/game" aria-label="خروج از بازی" className={button}>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="size-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-          </svg>
-        </Link>
+        <GameBackButton href="/game" compact />
       </div>
     </div>
   );

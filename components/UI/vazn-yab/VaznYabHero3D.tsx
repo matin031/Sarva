@@ -121,8 +121,7 @@ export default function VaznYabHero3D() {
           style={reduced ? undefined : layer(30)}
           className=" relative z-20 mx-auto mt-4 max-w-2xl text-pretty text-center leading-relaxed text-muted-foreground sm:text-lg"
         >
-          بیت یا مصراعت را بنویس تا وزن عروضی‌اش را بگوید و ریتمش را برایت
-          بنوازد — یا دکمهٔ بیتِ تصادفی را بزن و خودت را بیازما.
+          بیت یا مصراع را بنویس تا وزن و ریتمش را ببینی، یا یک بیت تصادفی بیاور.
         </motion.p>
       </div>
       <div

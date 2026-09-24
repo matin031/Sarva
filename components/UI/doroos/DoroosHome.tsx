@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { MotionConfig } from "motion/react";
-import { GRADES, faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
+import type { Grade } from "@/lib/doroos/types";
 import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
 import BookCard from "@/components/UI/doroos/BookCard";
 
@@ -12,7 +13,9 @@ import BookCard from "@/components/UI/doroos/BookCard";
  *  old layout gave the hero 70vh of its own and pushed the only thing you can
  *  actually click below the fold, so the first thing a reader saw was empty
  *  space. */
-export default function DoroosHome() {
+/** ⚠️ `grades` از صفحهٔ سروری می‌آید: وضعیتِ «آماده» از محتوا ساخته می‌شود و
+ *  محتوا نباید به bundleِ کلاینت برسد. */
+export default function DoroosHome({ grades: GRADES }: { grades: Grade[] }) {
   const total = GRADES.reduce((n, g) => n + g.lessons.length, 0);
   const ready = GRADES.reduce((n, g) => n + g.lessons.filter((l) => l.ready).length, 0);
 
@@ -31,13 +34,7 @@ export default function DoroosHome() {
           {/* ---------- the words ---------- */}
           <RevealGroup stagger={0.1} className="relative z-20 text-center lg:text-start">
             <RevealItem>
-              <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-card px-4 py-1.5 text-sm font-semibold text-primary shadow-lg">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
-                  <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                </span>
-                درسنامهٔ فارسیِ سروا
-              </span>
+              <span className="mb-4 block text-sm font-bold text-primary">درسنامه</span>
             </RevealItem>
 
             <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl">
@@ -51,10 +48,8 @@ export default function DoroosHome() {
 
             <RevealItem>
               <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-muted-foreground lg:mx-0">
-                هر درس بیت‌به‌بیت باز می‌شود: معنی و مفهوم، و بعد قلمرو زبانی،
-                ادبی و فکری — جدا از هم، تا بدانی هر نکته به کدام قلمرو تعلق
-                دارد. نقشِ دستوری و آرایه‌های هر بیت هم روی خودِ بیت کشیده
-                می‌شوند.
+                معنی، مفهوم و قلمرو زبانی، ادبی و فکری هر بیت، جدا جدا. نقش
+                دستوری و آرایه‌ها هم روی خود بیت مشخص شده‌اند.
               </p>
             </RevealItem>
 

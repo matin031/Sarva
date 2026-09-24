@@ -64,9 +64,7 @@ export default function PlusWelcome({
       {!renewal && (
         <>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            از این به بعد می‌توانی از سابقهٔ تمرینت برای مرور و تمرینِ هدفمند
-            استفاده کنی — سروا می‌گوید کدام وزن و کدام نقش دستوری را باید
-            تمرین کنی.
+            تحلیل اشتباه‌ها و تمرین پیشنهادی در پنل فعال شد.
           </p>
           <Link
             href="/panel/analysis"

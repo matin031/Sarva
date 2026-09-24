@@ -2,11 +2,16 @@
 
 import type { QuestionPhase } from "@/lib/grammar-circuit/reducer";
 
+const fa = (n: number) => n.toLocaleString("fa-IR");
+
 /** نوارِ کنترل — جایی که دانش‌آموز *عمداً* پاسخش را ثبت می‌کند.
  *
  *  دکمه تا وقتی همهٔ خانه‌ها پر نشده‌اند غیرفعال است، و بازی هیچ‌وقت خودکار
  *  بررسی نمی‌کند: فشردنِ آگاهانه هم فرصتِ مرورِ نهایی می‌دهد و هم لحظهٔ
- *  بررسی را معنادار می‌کند. */
+ *  بررسی را معنادار می‌کند.
+ *
+ *  ⚠️ دکمه همیشه در همان جا رندر می‌شود و فقط برچسب و حالتش عوض می‌شود؛
+ *  آمدن و رفتنش ردیف را بالا و پایین می‌برد. */
 export default function ValidationBar({
   phase,
   filled,
@@ -24,61 +29,52 @@ export default function ValidationBar({
   onNext: () => void;
   isLastQuestion: boolean;
 }) {
-  const remaining = required - filled;
+  const arranging = phase === "arranging" || phase === "readyToValidate";
+  const success =
+    phase === "successCurrent" || phase === "successReward" || phase === "questionComplete";
+
+  const hint = arranging
+    ? `${fa(filled)} از ${fa(required)} خانه`
+    : phase === "validating"
+      ? "در حال بررسی…"
+      : phase === "failureSequence"
+        ? "مدار بسته نشد"
+        : phase === "failureReview"
+          ? "خانه‌های قرمز را درست کن"
+          : success
+            ? "مدار کامل شد"
+            : "";
+
+  const tone = success ? "ok" : phase === "failureSequence" || phase === "failureReview" ? "bad" : undefined;
+
+  const button =
+    phase === "failureReview"
+      ? { label: "اصلاح", onClick: onCorrect, disabled: false }
+      : phase === "questionComplete"
+        ? { label: isLastQuestion ? "دیدن نتیجه" : "مدار بعدی", onClick: onNext, disabled: false }
+        : { label: "بررسی", onClick: arranging ? () => onValidate() : () => {}, disabled: phase !== "readyToValidate" };
 
   return (
-    <div className="gc-controls" style={{ flex: "0 0 auto" }}>
-      {(phase === "arranging" || phase === "readyToValidate") && (
-        <>
-          <span className="gc-controls-hint">
-            {remaining > 0
-              ? `${remaining.toLocaleString("fa-IR")} خانه هنوز خالی است`
-              : "همهٔ خانه‌ها پر شد — می‌توانی اتصال را بررسی کنی"}
+    <div className="gc-controls">
+      <span className="gc-controls-hint" data-tone={tone} aria-live="off">
+        {arranging && (
+          <span className="gc-fill-meter" aria-hidden>
+            {Array.from({ length: required }, (_, i) => (
+              <span key={i} data-on={i < filled || undefined} />
+            ))}
           </span>
-          <button
-            type="button"
-            className="gc-btn gc-btn-primary"
-            disabled={phase !== "readyToValidate"}
-            onClick={onValidate}
-          >
-            بررسی اتصال
-          </button>
-        </>
-      )}
-
-      {phase === "validating" && (
-        <span className="gc-controls-hint gc-controls-scanning">
-          در حالِ بررسیِ مدار…
-        </span>
-      )}
-
-      {phase === "failureSequence" && (
-        <span className="gc-controls-hint">مدار بسته نشد.</span>
-      )}
-
-      {phase === "failureReview" && (
-        <>
-          <span className="gc-controls-hint">
-            خانه‌های قرمز درست نیستند. اصلاحشان کن و دوباره بررسی کن.
-          </span>
-          <button type="button" className="gc-btn gc-btn-primary" onClick={onCorrect}>
-            اصلاح پاسخ
-          </button>
-        </>
-      )}
-
-      {(phase === "successCurrent" || phase === "successReward") && (
-        <span className="gc-controls-hint gc-controls-success">مدار کامل شد!</span>
-      )}
-
-      {phase === "questionComplete" && (
-        <>
-          <span className="gc-controls-hint gc-controls-success">مدار کامل شد!</span>
-          <button type="button" className="gc-btn gc-btn-primary" onClick={onNext}>
-            {isLastQuestion ? "دیدنِ نتیجه" : "مرحله بعدی"}
-          </button>
-        </>
-      )}
+        )}
+        {hint}
+      </span>
+      <button
+        type="button"
+        className="gc-btn gc-btn-primary"
+        data-busy={phase === "validating" || undefined}
+        disabled={button.disabled}
+        onClick={button.onClick}
+      >
+        {button.label}
+      </button>
     </div>
   );
 }

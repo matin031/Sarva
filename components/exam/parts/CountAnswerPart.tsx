@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText from "@/components/exam/HighlightedText";
+
 type CountAnswerContent = {
   type: "count-answer";
   questionText: string;
@@ -17,7 +19,7 @@ type Props = {
 export default function CountAnswerPart({ content, value, onChange, disabled }: Props) {
   return (
     <div dir="rtl" className="flex flex-col gap-3 text-right">
-      <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
+      <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.questionText} /></p>
       <input
         type="number"
         inputMode="numeric"

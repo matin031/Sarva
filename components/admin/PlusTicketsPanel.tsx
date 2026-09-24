@@ -168,7 +168,16 @@ export default function PlusTicketsPanel({ initial }: { initial: { tickets: Admi
                   {TICKET_CATEGORY_LABEL[open.category]}
                 </p>
                 {open.orderNumber && (
-                  <p className="mt-1 text-xs plus-ink">سفارش ضمیمه: {open.orderNumber}</p>
+                  <div className="mt-2 rounded-xl border border-gold/30 bg-gold/5 p-2.5 text-xs">
+                    <p className="font-bold plus-ink">سفارش ضمیمه: {open.orderNumber}</p>
+                    {open.order && (
+                      <p className="mt-1 text-muted-foreground">
+                        {open.order.statusLabel} • {open.order.amount}
+                        {open.order.paidAt ? ` • پرداخت ${jalaliLong(open.order.paidAt)}` : ""}
+                        {open.order.trackingId ? ` • پیگیری ${open.order.trackingId}` : ""}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 

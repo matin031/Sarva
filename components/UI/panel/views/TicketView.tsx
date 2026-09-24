@@ -45,7 +45,7 @@ export default function TicketView({ ticket }: { ticket: TicketDetail }) {
 
       <PanelPageHeader
         title="پشتیبانی سروا"
-        description="هر پاسخی که بدهیم همین‌جا می‌آید و برایت ایمیل هم می‌شود."
+        description="پاسخ ما اینجا نمایش داده می‌شود و ایمیل هم می‌شود."
         eyebrow="گفت‌وگو"
         tone="rose"
       />
@@ -62,9 +62,16 @@ export default function TicketView({ ticket }: { ticket: TicketDetail }) {
           <span aria-hidden className="text-border">·</span>
           <span>{TICKET_CATEGORY_LABEL[ticket.category]}</span>
           <span className={styles.statusPill}>{TICKET_STATUS_LABEL[ticket.status]}</span>
-          {ticket.orderNumber && (
+          {ticket.orderNumber && ticket.orderId ? (
+            <Link
+              href={`/panel/billing/${ticket.orderId}`}
+              className="text-primary underline underline-offset-4"
+            >
+              سفارش {ticket.orderNumber}
+            </Link>
+          ) : ticket.orderNumber ? (
             <span className="select-all">سفارش {ticket.orderNumber}</span>
-          )}
+          ) : null}
         </div>
       </div>
 

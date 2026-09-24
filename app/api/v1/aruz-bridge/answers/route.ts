@@ -6,6 +6,8 @@ import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { recordActivity } from "@/lib/activity/record";
+import { lockAssignment, markAssignmentCompleted } from "@/lib/teacher/assignments";
+import { subsetOfItems } from "@/lib/teacher/assignment-rules";
 
 /**
  * POST /api/v1/aruz-bridge/answers — ثبتِ نتیجهٔ یک دورِ «پلِ وزن».
@@ -35,6 +37,8 @@ import { recordActivity } from "@/lib/activity/record";
 const MAX_ANSWERS_PER_RUN = 60;
 
 const schema = z.object({
+  /** اگر این دور تکلیفِ دبیر است. فقط برچسب؛ همه‌چیز سمتِ سرور سنجیده می‌شود. */
+  assignmentId: z.uuid().optional(),
   answers: z
     .array(
       z.object({
@@ -120,9 +124,24 @@ export const POST = withRoute("/api/v1/aruz-bridge/answers", async (request: Req
 
     if (values.length === 0) return ok({ saved: 0 });
 
+    const { assignmentId } = body.data;
+
     // یک تراکنش برای کلِ دور: یا همهٔ نتیجهٔ دور ثبت می‌شود یا هیچ‌کدام. نصفهٔ
     // یک دور در تاریخچه، تحلیل را به‌شکلِ نامرئی کج می‌کند.
-    await transaction(async (tx) => {
+    const rejected = await transaction(async (tx) => {
+      /* ⚠️ تکلیف پیش از هر نوشتن قفل و سنجیده می‌شود. دور با اولین اشتباه
+         تمام می‌شود، پس هر زیرمجموعهٔ یکتا از سؤال‌های تکلیف پذیرفته است —
+         ولی سؤالی بیرون از آن، نه. */
+      let total = 0;
+      if (assignmentId) {
+        const lock = await lockAssignment(tx, assignmentId, user.id, "aruz_bridge");
+        if (!lock.ok) return lock;
+        if (!subsetOfItems(lock.items, body.data.answers.map((a) => a.questionId))) {
+          return { ok: false as const, error: "سؤال‌های این دور با تکلیف یکی نیست.", status: 400 };
+        }
+        total = lock.items.length;
+      }
+
       for (const v of values) {
         await tx.execute(
           `insert into aruz_bridge_answers
@@ -142,7 +161,23 @@ export const POST = withRoute("/api/v1/aruz-bridge/answers", async (request: Req
           ],
         );
       }
+
+      if (assignmentId) {
+        const miss = values.find((v) => !v.isCorrect);
+        await markAssignmentCompleted(tx, assignmentId, {
+          total,
+          answered: values.length,
+          correct: values.filter((v) => v.isCorrect).length,
+          timeouts: values.filter((v) => v.outcome === "timeout").length,
+          miss: miss
+            ? { phrase: miss.phrase, correctPattern: miss.correctPattern, chosenPattern: miss.chosenPattern }
+            : null,
+        });
+      }
+      return null;
     });
+
+    if (rejected) return fail(rejected.error, rejected.status);
 
 
     /* ⚠️ یک ردیفِ فعالیت به‌ازای هر **دور**، نه هر پاسخ.

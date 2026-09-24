@@ -74,18 +74,18 @@ test("نقشِ هدف و پاسخِ درست از خودِ پرسش می‌آی�
   const round = buildRoleHuntRound(healthy());
   assert.ok(round);
 
-  const holder = round.orbit.find((t) => t.id === round.correctTokenId);
+  const holder = round.orbit.find((t) => t.id === round.asks[0]!.correctTokenId);
   assert.ok(holder, "پاسخِ درست باید داخلِ مدار باشد");
 
-  const slot = healthy().tokens.find((t) => t.id === round.correctTokenId);
-  assert.ok(slot?.roleSlot?.acceptedRoleKeys.includes(round.roleKey));
+  const slot = healthy().tokens.find((t) => t.id === round.asks[0]!.correctTokenId);
+  assert.ok(slot?.roleSlot?.acceptedRoleKeys.includes(round.asks[0]!.roleKey));
 });
 
 test("انتخابِ نقش پایدار است — همان پرسش، همیشه همان نقش", () => {
   const a = buildRoleHuntRound(healthy());
   const b = buildRoleHuntRound(healthy());
-  assert.equal(a?.roleKey, b?.roleKey);
-  assert.equal(a?.correctTokenId, b?.correctTokenId);
+  assert.equal(a?.asks[0]?.roleKey, b?.asks[0]?.roleKey);
+  assert.equal(a?.asks[0]?.correctTokenId, b?.asks[0]?.correctTokenId);
 });
 
 test("جمله‌های درسنامه دور نمی‌سازند — این بازی دربارهٔ شعر است", () => {
@@ -122,7 +122,7 @@ test("نقشی که دو دارنده دارد هرگز هدف نمی‌شود",
   ]);
   const round = buildRoleHuntRound(q);
   assert.ok(round);
-  assert.notEqual(round.roleKey, "adjective");
+  assert.notEqual(round.asks[0]!.roleKey, "adjective");
 });
 
 test("پرسشی که هیچ نقشِ یکتایی ندارد اصلاً وارد بانک نمی‌شود", () => {
@@ -134,7 +134,7 @@ test("پرسشی که هیچ نقشِ یکتایی ندارد اصلاً وار�
   // subject یکتاست ولی مدار فقط سه عضو دارد → باید بسازد؛
   // اینجا هدف صریحاً subject است و نه adjective.
   const round = buildRoleHuntRound(q);
-  assert.equal(round?.roleKey, "subject");
+  assert.equal(round?.asks[0]?.roleKey, "subject");
 });
 
 test("کلیدِ نقشی که در کاتالوگ نیست هدف نمی‌شود", () => {
@@ -144,8 +144,52 @@ test("کلیدِ نقشی که در کاتالوگ نیست هدف نمی‌شو
     { id: "t3", text: "پ", sep: "", roles: ["subject"] },
   ]);
   const round = buildRoleHuntRound(q);
-  assert.equal(round?.roleKey, "subject");
-  assert.equal(round?.roleLabel, "نهاد");
+  assert.equal(round?.asks[0]?.roleKey, "subject");
+  assert.equal(round?.asks[0]?.roleLabel, "نهاد");
+});
+
+test("یک مصراع چند پرسش می‌سازد و نه یکی", () => {
+  const round = buildRoleHuntRound(healthy());
+  assert.ok(round);
+  /* «چشمه»=نهاد، «سنگی»=متمم، «جدا»=مسند — هر سه باید پرسیده شوند.
+     نسخهٔ قبلی یکی را با هش برمی‌داشت و دوتای دیگر هیچ‌وقت تمرین نمی‌شدند. */
+  assert.equal(round.asks.length, 3);
+  assert.deepEqual(
+    round.asks.map((a) => a.roleKey).sort(),
+    ["complement", "predicate", "subject"],
+  );
+});
+
+test("ترتیبِ پرسش‌ها قطعی است — سرور باید از اندیس بفهمد کدام نقش", () => {
+  /* ⚠️ اگر ترتیب تصادفی بود، مرورگر باید نقش را می‌فرستاد و آن‌وقت
+     می‌توانست دروغ بگوید. قطعی بودنِ ترتیب همان چیزی است که اجازه می‌دهد
+     فقط یک عدد رد و بدل شود. */
+  const a = buildRoleHuntRound(healthy())!;
+  const b = buildRoleHuntRound(healthy())!;
+  assert.deepEqual(a.asks.map((x) => x.roleKey), b.asks.map((x) => x.roleKey));
+});
+
+test("هر پرسش پاسخِ خودش را دارد", () => {
+  const q = healthy();
+  const round = buildRoleHuntRound(q)!;
+  round.asks.forEach((askItem, i) => {
+    const ok = resolveRoleHuntAnswer(q, i, askItem.correctTokenId);
+    assert.equal(ok?.isCorrect, true, `پرسشِ ${i}`);
+    assert.equal(ok?.ask.roleKey, askItem.roleKey);
+  });
+});
+
+test("پاسخِ درستِ یک پرسش، برای پرسشِ دیگر غلط است", () => {
+  const q = healthy();
+  const round = buildRoleHuntRound(q)!;
+  // پاسخِ پرسشِ دوم را به پرسشِ اول می‌دهیم.
+  const resolved = resolveRoleHuntAnswer(q, 0, round.asks[1]!.correctTokenId);
+  assert.equal(resolved?.isCorrect, false);
+  assert.equal(resolved?.ask.roleKey, round.asks[0]!.roleKey);
+});
+
+test("اندیسِ پرسشی که وجود ندارد هیچ چیزی ثبت نمی‌کند", () => {
+  assert.equal(resolveRoleHuntAnswer(healthy(), 99, "t3"), null);
 });
 
 /* ── واژه‌های تکراری ──────────────────────────────────────────────────────── */
@@ -166,8 +210,8 @@ test("دو «بود» دو رخدادِ مستقل‌اند و فقط یکی پ�
   assert.notEqual(duplicates[0]!.id, duplicates[1]!.id);
 
   // انتخابِ رخدادِ *دیگرِ* همان رشته نباید درست شمرده شود.
-  const wrongTwin = duplicates.find((t) => t.id !== round.correctTokenId)!;
-  const resolved = resolveRoleHuntAnswer(q, wrongTwin.id);
+  const wrongTwin = duplicates.find((t) => t.id !== round.asks[0]!.correctTokenId)!;
+  const resolved = resolveRoleHuntAnswer(q, 0, wrongTwin.id);
   assert.ok(resolved);
   assert.equal(resolved.isCorrect, false);
   assert.equal(resolved.chosenToken.text, resolved.correctToken.text);
@@ -201,7 +245,7 @@ test("جداکنندهٔ « / » بیت را به دو مصراع می‌شکن�
 test("پاسخِ درست", () => {
   const q = healthy();
   const round = buildRoleHuntRound(q)!;
-  const resolved = resolveRoleHuntAnswer(q, round.correctTokenId);
+  const resolved = resolveRoleHuntAnswer(q, 0, round.asks[0]!.correctTokenId);
   assert.equal(resolved?.isCorrect, true);
   assert.equal(resolved?.verse, "گشت یکی چشمه ز سنگی جدا");
 });
@@ -209,26 +253,26 @@ test("پاسخِ درست", () => {
 test("پاسخِ غلط", () => {
   const q = healthy();
   const round = buildRoleHuntRound(q)!;
-  const other = round.orbit.find((t) => t.id !== round.correctTokenId)!;
-  assert.equal(resolveRoleHuntAnswer(q, other.id)?.isCorrect, false);
+  const other = round.orbit.find((t) => t.id !== round.asks[0]!.correctTokenId)!;
+  assert.equal(resolveRoleHuntAnswer(q, 0, other.id)?.isCorrect, false);
 });
 
 test("واژهٔ بی‌سوکت قابلِ انتخاب است و غلط شمرده می‌شود", () => {
   /* ⚠️ «یکی» حالا روی مدار هست، پس انتخابش یک پاسخِ واقعی است. بهایش در
      `round.ts` نوشته شده: اگر واژه‌ای که سوکت ندارد در واقع همان نقش را
      داشته باشد، اینجا «غلط» ثبت می‌شود. */
-  const resolved = resolveRoleHuntAnswer(healthy(), "t2");
+  const resolved = resolveRoleHuntAnswer(healthy(), 0, "t2");
   assert.ok(resolved);
   assert.equal(resolved.isCorrect, false);
   assert.equal(resolved.chosenToken.text, "یکی");
 });
 
 test("شناسه‌ای که در مصراع نیست هیچ پاسخی نمی‌سازد", () => {
-  assert.equal(resolveRoleHuntAnswer(healthy(), "does-not-exist"), null);
+  assert.equal(resolveRoleHuntAnswer(healthy(), 0, "does-not-exist"), null);
 });
 
 test("پرسشی که واجدِ شرایط نیست هیچ پاسخی نمی‌پذیرد", () => {
-  assert.equal(resolveRoleHuntAnswer(healthy({ type: "sentence" }), "t3"), null);
+  assert.equal(resolveRoleHuntAnswer(healthy({ type: "sentence" }), 0, "t3"), null);
 });
 
 /* ── جمع‌بندیِ نشست ───────────────────────────────────────────────────────── */

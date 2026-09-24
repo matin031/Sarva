@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowLeft, Play } from "lucide-react";
 import styles from "../panel-design.module.css";
 import { Button } from "@/components/UI/kit/button";
-import { fa } from "@/lib/panel/format";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
+import { fa, scoreColor } from "@/lib/panel/format";
 import type { ResumeItem } from "@/lib/panel/derive";
 
 /**
@@ -15,6 +16,17 @@ import type { ResumeItem } from "@/lib/panel/derive";
  * ⚠️ هر سطر **دلیلِ خودش** را می‌نویسد و هر دلیل از یک عددِ واقعی می‌آید
  * (آخرین روزِ فعالیت، دقتِ همان بخش). سطری که دلیلش را نگوید، پیشنهادِ
  * تبلیغاتی به نظر می‌رسد و کاربر یاد می‌گیرد نادیده‌اش بگیرد.
+ *
+ * ── حلقه به‌جای نوار ──────────────────────────────────────────────────────
+ * ⚠️ درصدِ دقت تا دیروز یک نوارِ افقیِ دست‌ساز بود (یک `div` با
+ * `style={{ width: … }}`) که کنارِ یک مربعِ گلیف می‌نشست — یعنی همین صفحه
+ * دو زبانِ متفاوت برای یک چیز داشت: پایین‌تر، `AreaCards` دقیقاً همین عدد
+ * را با حلقهٔ `AnimatedCircularProgress` نشان می‌داد.
+ *
+ * حالا همان حلقه اینجا هم هست و نوار حذف شده. نتیجه‌اش سه چیز است که نوار
+ * نداشت: انیمیشنِ پر شدن با همان منحنیِ بقیهٔ پنل، رنگی که از `scoreColor`
+ * می‌آید (پس ۳۰٪ و ۹۰٪ یک رنگ نیستند)، و گلیفِ بخش به‌عنوان حالتِ «هنوز
+ * داده‌ای نیست» — به‌جای یک نوارِ خالی که شبیهِ صفر خوانده می‌شد.
  */
 export default function ResumeSection({ items }: { items: ResumeItem[] }) {
   return (
@@ -41,33 +53,30 @@ export default function ResumeSection({ items }: { items: ResumeItem[] }) {
               href={item.href}
               className={`group flex flex-wrap items-center gap-3 rounded-2xl border p-3.5 transition-colors duration-150 hover:border-primary/40 sm:flex-nowrap ${styles.resumeLink}`}
             >
-              <span
-                aria-hidden
-                className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/8 text-xl"
-              >
-                {item.glyph}
-              </span>
+              {/* ⚠️ همان قراردادِ `AreaCards`: تا وقتی داده‌ای نیست حلقه
+                  عدد نمی‌نویسد و گلیفِ بخش را نشان می‌دهد. «۰٪» به کسی که
+                  هنوز چیزی امتحان نکرده، یک قضاوت است و نه یک گزارش. */}
+              <AnimatedCircularProgress
+                value={item.percent ?? 0}
+                ready={item.percent !== null}
+                glyph={item.glyph}
+                color={
+                  item.percent !== null
+                    ? [scoreColor(item.percent), scoreColor(Math.min(100, item.percent + 18))]
+                    : undefined
+                }
+                valueColor={item.percent !== null ? scoreColor(item.percent) : undefined}
+                label={
+                  item.percent !== null
+                    ? `${item.title}: دقت ${fa(item.percent)} درصد`
+                    : `${item.title}: بدون تمرین`
+                }
+                className="size-12"
+              />
 
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">{item.title}</span>
                 <span className="block text-[11px] text-muted-foreground">{item.reason}</span>
-                {item.percent !== null && (
-                  <span className="mt-2 flex items-center gap-2.5">
-                    <span
-                      className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/8"
-                      role="img"
-                      aria-label={`دقت ${fa(item.percent)} درصد`}
-                    >
-                      <span
-                        className="block h-full rounded-full bg-linear-to-l from-primary to-primary-deep"
-                        style={{ width: `${item.percent}%` }}
-                      />
-                    </span>
-                    <span className="panel-num shrink-0 text-[11.5px] text-muted-foreground">
-                      {fa(item.percent)}٪ دقت
-                    </span>
-                  </span>
-                )}
               </span>
 
               {/* دکمه داخلِ لینک است، پس خودش لینک نیست — وگرنه لینکِ تودرتو

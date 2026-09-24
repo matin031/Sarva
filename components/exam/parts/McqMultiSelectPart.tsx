@@ -44,7 +44,7 @@ export default function McqMultiSelectPart({ content, options, value, onChange, 
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
+        <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.questionText} /></p>
         <p className="text-xs text-muted-foreground">
           دقیقاً {content.maxSelect} گزینه انتخاب کنید ({value.length} از {content.maxSelect})
         </p>

@@ -57,8 +57,7 @@ export default function BookmarkedQuestions({
     return (
       <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center">
         <p className=" text-muted-foreground">
-          هنوز سؤالی نشان نکرده‌ای. بالای هر سؤال در آزمون عروض، دکمهٔ
-          «نشان‌کردن» را بزن تا همین‌جا بماند.
+          هنوز سؤالی نشان نکرده‌ای.
         </p>
       </div>
     );
@@ -140,8 +139,8 @@ function BookmarkRow({
             type="button"
             onClick={remove}
             disabled={busy}
-            title="برداشتنِ نشان"
-            aria-label="برداشتنِ نشان"
+            title="برداشتن نشان"
+            aria-label="برداشتن نشان"
             className=" cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500"
           >
             <svg

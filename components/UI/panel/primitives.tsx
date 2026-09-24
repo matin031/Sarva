@@ -108,19 +108,25 @@ export function Block({
 export function ScoreBar({
   correct,
   total,
+  color,
+  className = "h-1.5",
 }: {
   correct: number;
   total: number;
+  /** رنگِ نوار؛ پیش‌فرض رنگِ برند. */
+  color?: string;
+  className?: string;
 }) {
   const p = total ? Math.round((correct / total) * 100) : 0;
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className={`w-full overflow-hidden rounded-full bg-muted ${className}`}>
       <motion.div
         initial={{ width: 0 }}
         whileInView={{ width: `${p}%` }}
         viewport={{ once: true }}
-        transition={{ duration: 0.6, ease: EASE }}
+        transition={{ duration: 0.9, ease: EASE }}
         className="h-full rounded-full bg-primary"
+        style={color ? { background: `linear-gradient(270deg, ${color}, color-mix(in oklch, ${color} 70%, white))` } : undefined}
       />
     </div>
   );

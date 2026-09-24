@@ -76,6 +76,11 @@ export type AuditAction =
   | "jasoos.level_save"
   | "jasoos.level_publish"
   | "jasoos.level_delete"
+  // رنگ‌آرا
+  | "rang_ara.verse_save"
+  | "rang_ara.verse_publish"
+  | "rang_ara.verse_delete"
+  | "rang_ara.verse_import"
 
   | "aruz_rapid.question_save"
   | "aruz_rapid.question_publish"
@@ -138,6 +143,7 @@ export type AuditTargetType =
   | "ninja_word"
   | "grammar_circuit_question"
   | "jasoos_level"
+  | "rang_ara_verse"
   | "aruz_rapid_question"
   | "club_post"
   | "club_comment"
@@ -188,6 +194,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "jasoos.level_save": "ذخیرهٔ پروندهٔ جاسوس",
   "jasoos.level_publish": "تغییر انتشار پروندهٔ جاسوس",
   "jasoos.level_delete": "حذف پروندهٔ جاسوس",
+  "rang_ara.verse_save": "ذخیرهٔ بیتِ رنگ‌آرا",
+  "rang_ara.verse_publish": "تغییر انتشار بیتِ رنگ‌آرا",
+  "rang_ara.verse_delete": "حذف بیتِ رنگ‌آرا",
+  "rang_ara.verse_import": "افزودنِ انبوهِ بیت‌های رنگ‌آرا",
   "aruz_rapid.question_save": "ذخیرهٔ مصراعِ کوتاه یا بلند",
   "aruz_rapid.question_publish": "تغییر انتشار مصراعِ کوتاه یا بلند",
   "aruz_rapid.question_delete": "حذف مصراعِ کوتاه یا بلند",
@@ -242,6 +252,7 @@ export const DESTRUCTIVE_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction
   "ninja.word_delete",
   "grammar_circuit.question_delete",
   "jasoos.level_delete",
+  "rang_ara.verse_delete",
   "club.post_delete",
   "club.comment_delete",
   "user.role_change",

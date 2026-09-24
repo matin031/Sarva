@@ -78,7 +78,7 @@ export default function AnimatedBarChart() {
 
       <Bar
         dataKey="y"
-        fill="#008687"
+        fill="var(--primary)"
         radius={[8, 8, 0, 0]}
         isAnimationActive
         animationBegin={0}

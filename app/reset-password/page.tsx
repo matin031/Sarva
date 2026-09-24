@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api/client";
 import { refreshCurrentUser } from "@/lib/auth/use-current-user";
 import { passwordField } from "@/lib/auth/schemas";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
 
 /**
  * جایی که لینک بازنشانی رمز فرود می‌آید.
@@ -82,21 +83,18 @@ export default function ResetPasswordPage() {
         {token === null && (
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              این لینک نامعتبر یا منقضی شده است. لطفاً از صفحهٔ ورود دوباره درخواست بازیابی رمز کن.
+              این لینک منقضی شده یا معتبر نیست.
             </p>
-            <button
-              onClick={() => router.push("/auth")}
-              className="mt-5 min-h-11 w-full rounded-xl bg-primary font-bold text-black"
-            >
+            <ShinyButton onClick={() => router.push("/auth")} className="mt-5 w-full">
               بازگشت به ورود
-            </button>
+            </ShinyButton>
           </div>
         )}
 
         {token &&
           (done ? (
             <p className="mt-6 text-center text-sm text-primary">
-              رمز عبورت با موفقیت تغییر کرد. در حال انتقال به پنل…
+              رمز عبور تغییر کرد.
             </p>
           ) : (
             <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
@@ -131,13 +129,12 @@ export default function ResetPasswordPage() {
                 />
               </div>
               {error && <p className="text-xs whitespace-pre-line text-red-500 sm:text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="min-h-11 w-full rounded-xl bg-primary font-bold text-black disabled:opacity-60"
-              >
+              {/* ⚠️ `type="submit"`ِ صریح — `ShinyButton` پیش‌فرض
+                  `type="button"` می‌گذارد و بدونِ این، Enter داخلِ فرم
+                  هیچ کاری نمی‌کرد. */}
+              <ShinyButton type="submit" disabled={loading} className="w-full">
                 {loading ? "در حال ذخیره…" : "ذخیرهٔ رمز جدید"}
-              </button>
+              </ShinyButton>
             </form>
           ))}
       </div>

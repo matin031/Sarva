@@ -32,7 +32,14 @@ export function bucketsFromDayCounts(
   days: number,
   now: Date = new Date(),
 ): { label: string; total: number; correct: number }[] {
-  const byDay = new Map(counts.map((c) => [c.day, c]));
+  /* ⚠️ جمع و نه `new Map(counts.map(...))`: `dayCounts` پنل برای هر روز یک
+     ردیف *به ازای هر بخش* دارد، و Map فقط ردیفِ آخر را نگه می‌داشت — یعنی
+     نمودار در روزی که هم عروض و هم واژه‌یاب تمرین شده، یکی را جا می‌انداخت. */
+  const byDay = new Map<string, DayCount>();
+  for (const c of counts) {
+    const hit = byDay.get(c.day);
+    byDay.set(c.day, hit ? { day: c.day, total: hit.total + c.total, correct: hit.correct + c.correct } : c);
+  }
   const label = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
     timeZone: TEHRAN,
     day: "numeric",

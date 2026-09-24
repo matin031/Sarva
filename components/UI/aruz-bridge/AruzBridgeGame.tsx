@@ -27,7 +27,8 @@ import {
   WebGLFallback,
   type ResultActions,
 } from "./Screens";
-import { useAruzBridgeGame } from "./useAruzBridgeGame";
+import { useAruzBridgeGame, type BridgeAssignment } from "./useAruzBridgeGame";
+import AssignmentNotice from "@/components/UI/AssignmentNotice";
 import { useGameControls } from "./useGameControls";
 import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
@@ -40,7 +41,7 @@ import { AccessibleOptions } from "./AccessibleOptions";
 const GameCanvas = dynamic(() => import("./runtime").then((m) => m.GameCanvas), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#060c14]">
+    <div className="absolute inset-0 flex items-center justify-center bg-[var(--game-night-3)]">
       <div className="flex flex-col items-center gap-3">
         <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
         <p className="text-xs text-muted-foreground">در حالِ ساختنِ پل…</p>
@@ -84,13 +85,13 @@ function SceneLoading() {
       aria-live="polite"
     >
       <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-      <p className="text-sm text-[#ffe9bd]/80">در حال آماده‌سازی پل…</p>
+      <p className="text-sm text-[var(--game-night-ink)]/80">در حال آماده‌سازی پل…</p>
     </div>
   );
 }
 
-export default function AruzBridgeGame() {
-  const game = useAruzBridgeGame();
+export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssignment } = {}) {
+  const game = useAruzBridgeGame({ assignment });
   const reducedMotion = useReducedMotion();
   const assets = useOptionalAssets();
   const debugHitTargets = useHitDebug();
@@ -242,7 +243,7 @@ export default function AruzBridgeGame() {
         </div>
 
         {/* تمامِ ارتفاعِ باقی‌مانده، و اجازهٔ کوچک‌شدن. */}
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#060c14]">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--game-night-3)]">
           {webgl === null ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
@@ -290,8 +291,16 @@ export default function AruzBridgeGame() {
         <GuestLimitModal section="aruz-bridge" onDismiss={() => setGuestPrompt(false)} />
       )}
 
+      {assignment && (
+        <AssignmentNotice
+          assignmentId={assignment.id}
+          save={isOver || isFinished ? game.assignmentSave : "open"}
+        />
+      )}
+
       {inSetup && (
         <SessionSetup
+          assignmentTitle={assignment?.title}
           session={game.session}
           onChange={game.setSession}
           onStart={() => guardGuest(() => void game.startRun())}
@@ -340,7 +349,7 @@ export default function AruzBridgeGame() {
               (`useGameViewportSize`), پس هیچ پرسمانِ CSSـی نمی‌تواند سرِ
               ارتفاع با دیگری رقابت کند. */}
           <div
-            className="relative w-full overflow-hidden bg-[#060c14]"
+            className="relative w-full overflow-hidden bg-[var(--game-night-3)]"
             style={{ height: viewport.height }}
           >
             {webgl === null ? (

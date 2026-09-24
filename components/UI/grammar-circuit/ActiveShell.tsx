@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import GameReportButton from "@/components/UI/games/GameReportButton";
-import CircuitPersianBackground from "./CircuitPersianBackground";
+import { GameBackButton, gameIconButton } from "@/components/UI/games/GameNav";
 import { useBoardPan } from "./hooks/useBoardPan";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
@@ -13,9 +13,8 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
  *  فوترِ سایت را می‌پوشاند، و اسکرول فقط داخلِ ناحیهٔ مدار اتفاق می‌افتد.
  *
  *  ترتیبِ عمودی عمداً همین است:
- *      نوارِ فشرده → صورتِ کاملِ سؤال → مدار → دکمهٔ بررسی → سینیِ نقش‌ها
- *  صورتِ سؤال *بیرونِ* ناحیهٔ اسکرولِ افقی است، چون دانش‌آموز هیچ‌وقت نباید
- *  برای خواندنِ سؤال صفحه را کنار بکشد.
+ *      نوارِ بالا → صورتِ کاملِ سؤال → مدار → داک (قطعه‌ها + دکمهٔ بررسی)
+ *  دکمهٔ بررسی پایینِ داک است تا روی گوشی زیرِ شست باشد.
  *
  *  همهٔ ویژگی‌های حیاتیِ چیدمان درون‌خطی‌اند نه فقط در کلاس: یک بار دیدیم که
  *  وقتی شیوه‌نامهٔ بازی به مرورگر نمی‌رسد، پوسته یک بلوکِ عادی می‌شود و
@@ -23,9 +22,6 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
 export interface ActiveShellProps {
   questionNumber: number;
   questionCount: number;
-  filled: number;
-  required: number;
-  attempts: number;
   soundOn: boolean;
   onToggleSound: () => void;
   onExit: () => void;
@@ -36,15 +32,11 @@ export interface ActiveShellProps {
   children: ReactNode;
   controls: ReactNode;
   tray: ReactNode;
-  banner: ReactNode;
 }
 
 export default function ActiveShell({
   questionNumber,
   questionCount,
-  filled,
-  required,
-  attempts,
   soundOn,
   onToggleSound,
   onExit,
@@ -55,11 +47,12 @@ export default function ActiveShell({
   children,
   controls,
   tray,
-  banner,
 }: ActiveShellProps) {
   // کشیدنِ تخته با انگشت — راهِ دومی که به اسکرولِ بومیِ مرورگر وابسته نیست.
   // دلیلش در خودِ هوک نوشته شده: روی سافاریِ آیفون اسکرولِ بومی نمی‌گرفت.
   useBoardPan(viewportRef, true);
+
+  const progress = questionCount > 0 ? (questionNumber / questionCount) * 100 : 0;
 
   return (
     <div
@@ -79,63 +72,55 @@ export default function ActiveShell({
         background: "var(--gc-bg, #f7f3ea)",
       }}
     >
-      {/* هندسهٔ ایرانیِ سروا، برق‌دار. زیرِ همه‌چیز و بی‌اثر روی ورودی. */}
-      <CircuitPersianBackground />
-
       <header className="gc-topbar" style={{ flex: "0 0 auto" }}>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={onExit} className="gc-topbar-btn">
-            خروج
-          </button>
+        <GameBackButton onClick={onExit} compact className="gc-nav" />
+
+        <div className="gc-progress">
+          <span className="gc-progress-text">
+            {fa(questionNumber)} <span className="gc-progress-of">از {fa(questionCount)}</span>
+          </span>
+          <span
+            className="gc-progress-track"
+            role="progressbar"
+            aria-label="پیشرفت تمرین"
+            aria-valuemin={1}
+            aria-valuemax={questionCount}
+            aria-valuenow={questionNumber}
+          >
+            <span className="gc-progress-fill" style={{ width: `${progress}%` }} />
+          </span>
+        </div>
+
+        <div className="gc-topbar-end">
           <button
             type="button"
             onClick={onClearBoard}
             disabled={clearDisabled}
-            className="gc-topbar-btn"
+            className={`${gameIconButton} gc-nav`}
+            aria-label="خالی کردن خانه‌ها"
+            title="خالی کردن خانه‌ها"
           >
-            بازچینی
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
+            </svg>
           </button>
-        </div>
-
-        <div className="flex flex-col items-center leading-tight">
-          <span className="text-xs font-bold">
-            مدارِ {fa(questionNumber)} از {fa(questionCount)}
-          </span>
-          <span className="flex items-center gap-1.5 text-[0.68rem] text-[var(--gc-text-muted)]">
-            <span>
-              {fa(filled)}/{fa(required)} خانه پر شده
-            </span>
-            {attempts > 0 && (
-              <>
-                <span aria-hidden className="inline-block size-1 rounded-full bg-current opacity-50" />
-                <span>بررسیِ {fa(attempts)}</span>
-              </>
-            )}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-start gap-1">
           {/* نوارِ بالای پوستهٔ بازی زیرِ این پوستهٔ `fixed` می‌ماند، پس دکمهٔ
               گزارش همین‌جا کنارِ صدا می‌نشیند. */}
-          <GameReportButton
-            compact
-            variant="bare"
-            className="gc-topbar-btn gc-topbar-icon inline-flex items-center [&>svg]:size-5"
-          />
+          <GameReportButton className="gc-nav" />
           <button
             type="button"
             onClick={onToggleSound}
             aria-pressed={soundOn}
-            aria-label={soundOn ? "خاموش کردنِ صدا" : "روشن کردنِ صدا"}
-            className="gc-topbar-btn gc-topbar-icon"
+            aria-label={soundOn ? "بی‌صدا" : "صدادار"}
+            className={`${gameIconButton} game-nav-toggle gc-nav`}
           >
             {soundOn ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5 6 9H3v6h3l5 4V5Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5 6 9H3v6h3l5 4V5Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="m16 9 5 6M21 9l-5 6" />
               </svg>
@@ -165,9 +150,6 @@ export default function ActiveShell({
             flex: "0 1 auto",
             marginBlock: "auto",
             marginInline: "auto",
-            /* `min-height` عمداً درون‌خطی نیست: کفِ ارتفاعِ تخته یک تصمیمِ
-               *واکنش‌گراست* و در شیوه‌نامه با media query تنظیم می‌شود. زنجیرهٔ
-               کوچک‌شدن روی *نیاکان* (پوسته و برد) تأمین شده، نه اینجا. */
             maxHeight: "100%",
             width: "fit-content",
             minWidth: "min(100%, 300px)",
@@ -180,9 +162,10 @@ export default function ActiveShell({
         </div>
       </div>
 
-      {controls}
-      {tray}
-      {banner}
+      <div className="gc-dock" style={{ flex: "0 0 auto" }}>
+        {tray}
+        {controls}
+      </div>
     </div>
   );
 }

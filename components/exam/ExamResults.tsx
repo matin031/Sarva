@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import confetti from "canvas-confetti";
+import { animate, motion, useReducedMotion } from "motion/react";
 import type { ClientExam } from "@/lib/exam/client-exam";
 import type { PartResult, QuestionResult } from "@/lib/exam/result-types";
+import { paletteHexColors } from "@/lib/theme/palette";
 
 type Props = {
   exam: ClientExam;
@@ -17,8 +20,27 @@ const statusStyles: Record<PartResult["status"], { label: string; className: str
   needs_review: { label: "در انتظار بررسی", className: "bg-muted text-muted-foreground" },
 };
 
+const fa = (n: number, digits = 2) => n.toLocaleString("fa-IR", { maximumFractionDigits: digits });
+
+/** The total ticks up from zero instead of just appearing. */
+function CountUp({ value }: { value: number }) {
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(reduce ? value : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const controls = animate(0, value, {
+      duration: Math.min(1.6, 0.5 + value / 15),
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (v) => setShown(Math.round(v * 4) / 4),
+    });
+    return () => controls.stop();
+  }, [value, reduce]);
+  return <>{fa(reduce ? value : shown)}</>;
+}
+
 export default function ExamResults({ exam, questionResults, onRetry }: Props) {
   const [confirmingRetry, setConfirmingRetry] = useState(false);
+  const reduce = useReducedMotion();
 
   const sections = exam.sections.map((section) => {
     let sectionScore = 0;
@@ -48,6 +70,21 @@ export default function ExamResults({ exam, questionResults, onRetry }: Props) {
     .flatMap((s) => s.questions)
     .flatMap((q) => q.parts)
     .filter((p) => p.status === "needs_review").length;
+  const gradedPercent = autoGradedMaxScore > 0 ? totalScore / autoGradedMaxScore : 0;
+  const tone = gradedPercent >= 0.85 ? "great" : gradedPercent >= 0.5 ? "ok" : "low";
+
+  // a strong paper earns one burst of confetti — once, on arrival
+  useEffect(() => {
+    if (tone !== "great" || reduce) return;
+    const t = window.setTimeout(() => {
+      const colors = paletteHexColors(["#22c55e"]);
+      void confetti({ particleCount: 90, spread: 100, startVelocity: 42, origin: { x: 0.5, y: 0.35 }, colors, zIndex: 60 });
+    }, 500);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const ring = 2 * Math.PI * 52;
 
   return (
     <div dir="rtl" className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-6 xs:px-5">
@@ -57,15 +94,37 @@ export default function ExamResults({ exam, questionResults, onRetry }: Props) {
       </div>
 
       <div className="glass flex flex-col items-center gap-2 rounded-2xl p-6 text-center">
-        <span className="text-4xl font-bold text-primary">
-          {totalScore.toFixed(2)}
-          <span className="text-lg font-normal text-muted-foreground"> / {maxScore}</span>
-        </span>
-        <span className="text-sm text-muted-foreground">{percent}٪ (بر اساس نمرهٔ کل)</span>
+        <div className="relative size-36">
+          <svg viewBox="0 0 120 120" className="size-full -rotate-90">
+            <circle cx="60" cy="60" r="52" fill="none" strokeWidth="10" className="stroke-muted" />
+            <motion.circle
+              cx="60"
+              cy="60"
+              r="52"
+              fill="none"
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={ring}
+              initial={{ strokeDashoffset: reduce ? ring * (1 - percent / 100) : ring }}
+              animate={{ strokeDashoffset: ring * (1 - percent / 100) }}
+              transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+              className={
+                tone === "great" ? "stroke-green-500" : tone === "ok" ? "stroke-gold" : "stroke-destructive/70"
+              }
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-black tabular-nums text-foreground">
+              <CountUp value={totalScore} />
+            </span>
+            <span className="text-xs text-muted-foreground">از {fa(maxScore)}</span>
+          </div>
+        </div>
+        <span className="text-sm text-muted-foreground">{fa(percent, 0)}٪ نمرهٔ کل</span>
         {pendingCount > 0 && (
           <p className="mt-2 rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            {pendingCount} بخش نیاز به بررسی معلم یا هوش مصنوعی دارد و هنوز در این نمره لحاظ نشده است. از{" "}
-            {autoGradedMaxScore} نمرهٔ قابل‌بررسیِ خودکار، {totalScore.toFixed(2)} گرفته‌اید.
+            {fa(pendingCount)} بخش خودارزیابی نشده و در این نمره حساب نشده. از {fa(autoGradedMaxScore)} نمرهٔ
+            تصحیح‌شده، {fa(totalScore)} گرفته‌ای.
           </p>
         )}
       </div>
@@ -75,8 +134,8 @@ export default function ExamResults({ exam, questionResults, onRetry }: Props) {
           <div key={section.title} className="flex flex-col gap-2">
             <h2 className="flex items-center justify-between rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">
               <span>{section.title}</span>
-              <span>
-                {section.score.toFixed(2)} / {section.maxScore}
+              <span className="tabular-nums">
+                {fa(section.score)} از {fa(section.maxScore)}
               </span>
             </h2>
             <div className="glass flex flex-col divide-y divide-border rounded-2xl px-4">
@@ -94,7 +153,7 @@ export default function ExamResults({ exam, questionResults, onRetry }: Props) {
                           className={`min-h-11 rounded-lg px-2.5 py-1 text-xs font-medium leading-relaxed ${style.className}`}
                         >
                           {part.label ? `${part.label}) ` : ""}
-                          {style.label} · {part.score.toFixed(2)}/{part.maxScore}
+                          {style.label} · {fa(part.score)} از {fa(part.maxScore)}
                         </span>
                       );
                     })}

@@ -25,76 +25,92 @@ export default function SessionResults({
     (acc, r) => ({
       attempts: acc.attempts + r.attempts,
       firstTry: acc.firstTry + (r.solvedOnFirstAttempt ? 1 : 0),
-      slots: acc.slots + r.requiredSlots,
       time: acc.time + r.activeTimeMs,
     }),
-    { attempts: 0, firstTry: 0, slots: 0, time: 0 },
+    { attempts: 0, firstTry: 0, time: 0 },
   );
 
   const rate =
     results.length === 0 ? 0 : Math.round((totals.firstTry / results.length) * 100);
+  const seconds = Math.round(totals.time / 1000);
+  const time =
+    seconds >= 60 ? `${fa(Math.floor(seconds / 60))}:${fa(seconds % 60).padStart(2, "۰")}` : `${fa(seconds)} ثانیه`;
 
   return (
-    <div dir="rtl" className="gc-root container mx-auto max-w-2xl py-10">
-      <div className="gc-setup text-center">
-        <h1 className="game-display gc-setup-title">مدارها کامل شد</h1>
-        {session && (
-          <p className="gc-setup-sub">
-            پایهٔ {gradeLabel(session.grade)} — درس‌های {formatLessonList(session.lessons)}
-          </p>
-        )}
-        <p className="gc-setup-note">
-          {fa(results.length)} مدار را بستی؛ {fa(rate)}٪ را در همان بررسیِ اول درست بستی.
-        </p>
+    <div dir="rtl" className="gc-root gc-setup-page">
+      <div className="gc-setup gc-result">
+        <header className="gc-setup-head">
+          {/* حلقهٔ درصدِ «بار اول درست» — تنها عددی که واقعاً مهارت را نشان می‌دهد. */}
+          <div
+            className="gc-result-ring"
+            style={{ "--gc-rate": `${rate}` } as React.CSSProperties}
+            role="img"
+            aria-label={`${fa(rate)} درصد بار اول درست`}
+          >
+            <svg viewBox="0 0 120 120" aria-hidden>
+              <circle className="gc-result-ring-track" cx="60" cy="60" r="52" />
+              <circle className="gc-result-ring-fill" cx="60" cy="60" r="52" pathLength="100" />
+            </svg>
+            <span className="gc-result-rate">
+              {fa(rate)}
+              <small>٪</small>
+            </span>
+          </div>
+          <h1 className="game-title gc-setup-title">مدارها کامل شد</h1>
+          {session && (
+            <p className="gc-setup-sub">
+              پایه {gradeLabel(session.grade)}، درس {formatLessonList(session.lessons)}
+            </p>
+          )}
+        </header>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="مدارِ کامل" value={fa(results.length)} />
-          <Stat label="بارِ اول درست" value={fa(totals.firstTry)} />
-          <Stat label="مجموعِ بررسی‌ها" value={fa(totals.attempts)} />
-          <Stat label="زمانِ فعال" value={`${fa(Math.round(totals.time / 1000))} ثانیه`} />
-        </div>
+        <dl className="gc-stats">
+          <div className="gc-stat">
+            <dt>مدار</dt>
+            <dd>{fa(results.length)}</dd>
+          </div>
+          <div className="gc-stat">
+            <dt>بار اول درست</dt>
+            <dd>{fa(totals.firstTry)}</dd>
+          </div>
+          <div className="gc-stat">
+            <dt>بررسی</dt>
+            <dd>{fa(totals.attempts)}</dd>
+          </div>
+          <div className="gc-stat">
+            <dt>زمان</dt>
+            <dd>{time}</dd>
+          </div>
+        </dl>
 
-        <ul className="mt-6 flex flex-col gap-2 text-right">
+        <ol className="gc-result-list">
           {results.map((r, i) => (
             <li key={`${r.questionId}-${i}`} className="gc-result-row">
-              <span className="font-semibold">
-                مدارِ {fa(i + 1)}
-                {r.lesson !== undefined && (
-                  <span className="text-[var(--gc-text-muted)]"> — درس {fa(r.lesson)}</span>
-                )}
+              <span className="gc-result-mark" data-first={r.solvedOnFirstAttempt || undefined} aria-hidden />
+              <span className="gc-result-name">
+                مدار {fa(i + 1)}
+                {r.lesson !== undefined && <span className="gc-result-dim"> · درس {fa(r.lesson)}</span>}
               </span>
-              <span className="text-[var(--gc-text-muted)]">
-                {fa(r.requiredSlots)} خانه •{" "}
-                {r.solvedOnFirstAttempt
-                  ? "بارِ اول"
-                  : `${fa(r.attempts)} بار بررسی`}{" "}
-                • {fa(Math.round(r.activeTimeMs / 1000))} ثانیه
+              <span className="gc-result-dim">
+                {r.solvedOnFirstAttempt ? "بار اول" : `${fa(r.attempts)} بار بررسی`} ·{" "}
+                {fa(Math.round(r.activeTimeMs / 1000))} ثانیه
               </span>
             </li>
           ))}
-        </ul>
+        </ol>
 
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <button onClick={onRestart} className="gc-btn gc-btn-primary">
-            تمرین دوباره
-          </button>
-          <button onClick={onChangeLessons} className="gc-btn gc-btn-ghost">
-            انتخابِ درس‌های دیگر
-          </button>
+        <footer className="gc-setup-actions">
           <Link href="/game" className="gc-btn gc-btn-ghost">
-            کهکشانِ بازی‌ها
+            بازی‌ها
           </Link>
-        </div>
+          <button type="button" onClick={onChangeLessons} className="gc-btn gc-btn-ghost">
+            درس‌های دیگر
+          </button>
+          <button type="button" onClick={onRestart} className="gc-btn gc-btn-primary gc-btn-lg">
+            دوباره
+          </button>
+        </footer>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="gc-stat">
-      <div className="gc-stat-value">{value}</div>
-      <div className="gc-stat-label">{label}</div>
     </div>
   );
 }

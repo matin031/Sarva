@@ -13,6 +13,7 @@ import {
   readyLessonParams,
 } from "@/lib/doroos";
 import LessonView from "@/components/UI/doroos/LessonView";
+import { toPublicLesson } from "@/lib/doroos/public";
 
 export function generateStaticParams() {
   return readyLessonParams();
@@ -90,7 +91,9 @@ export default async function Page({
             { name: lesson.title, path: `/doroos/${grade.key}/${number}` },
           ])}
         />
-        <LessonView grade={grade} lesson={lesson} />
+        {/* ⚠️ `toPublicLesson`: نقش‌ها و آرایه‌ها پشتِ سروا پلاس‌اند و در HTML
+            نمی‌آیند؛ کلاینت آن‌ها را از `/api/v1/doroos/analysis` می‌گیرد. */}
+        <LessonView grade={grade} lesson={toPublicLesson(lesson)} />
       </>
     );
 
@@ -124,9 +127,7 @@ export default async function Page({
           {ref?.title ? ` — ${ref.title}` : ""} هنوز آماده نیست
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-8 text-muted-foreground">
-          این درس از {grade.book} ({grade.label}) در فهرست هست، ولی شرحش هنوز
-          نوشته نشده. درس‌ها یکی‌یکی اضافه می‌شوند — فهرست را ببین تا آنچه آماده
-          است را پیدا کنی.
+          شرح این درس هنوز اضافه نشده است.
         </p>
 
         <div className="mt-7 flex flex-wrap justify-center gap-3">

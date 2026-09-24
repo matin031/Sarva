@@ -5,7 +5,13 @@ import { getSetting } from "@/lib/settings";
 import { logger } from "@/lib/observability";
 import { normalizeSmsDriver } from "./driver";
 import { SmsIrAdapter, parseTemplateId } from "./smsir";
-import type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult } from "./types";
+import type {
+  SmsAdapter,
+  SmsMessage,
+  SmsOtpMessage,
+  SmsSendResult,
+  SmsTemplateMessage,
+} from "./types";
 
 /**
  * ارسال پیامک، پشتِ یک واسط.
@@ -23,7 +29,7 @@ import type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult } from "./typ
  * دیتابیس است (با کشِ یک‌دقیقه‌ای).
  */
 
-export type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult };
+export type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult, SmsTemplateMessage };
 
 // -------------------------------------------------------------------- mock --
 
@@ -39,6 +45,17 @@ class MockSmsAdapter implements SmsAdapter {
       event: "sms.send.mocked",
       sms_driver: this.name,
       body_length: message.body.length,
+    });
+    return { providerMessageId: null };
+  }
+
+  async sendTemplate(message: SmsTemplateMessage): Promise<SmsSendResult> {
+    logger.debug("پیامکِ قالبیِ آزمایشی (ارسال واقعی انجام نشد)", {
+      event: "sms.send.mocked",
+      sms_driver: this.name,
+      sms_kind: "template",
+      // ⚠️ نه شماره و نه مقدارِ متغیرها — فقط اینکه کدام قالب صدا زده شد.
+      template_id: message.templateId,
     });
     return { providerMessageId: null };
   }
@@ -282,6 +299,72 @@ export async function sendSms(message: SmsMessage): Promise<void> {
     // تا در ‎/admin/activity‎ دیده شود — `sms_log` فقط تاریخچه است، این هشدار است.
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("sms", err, "ارسال پیامک");
+
+    throw err;
+  }
+}
+
+// -------------------------------------------------------- پیامکِ قالبی --
+
+/**
+ * ارسالِ پیامک با قالبِ تأییدشده + ثبت در `sms_log`.
+ *
+ * ⚠️ مصرف‌کننده‌اش `lib/notify` است و نه route ها. اینجا فقط «چطور فرستاده
+ * می‌شود» زندگی می‌کند؛ «آیا باید فرستاده شود» (رضایتِ کاربر، تکراری بودن،
+ * وجودِ شمارهٔ تأییدشده) تصمیمِ آن لایه است.
+ *
+ * ⚠️ آنچه در `sms_log.body` می‌نشیند فقط شمارهٔ قالب است و نه متغیرها.
+ * متغیرها نامِ کاربر و تاریخِ اشتراکش‌اند — دادهٔ شخصی‌ای که یک جدولِ
+ * تاریخچه دلیلی برای نگه داشتنش ندارد، و متنِ نهایی هم اصلاً دستِ ما نیست
+ * (در پنلِ سرویس است).
+ */
+export async function sendTemplateSms(message: SmsTemplateMessage): Promise<void> {
+  const adapter = await smsAdapter();
+  const startedAt = performance.now();
+  const logBody = `[قالب ${message.templateId}]`;
+
+  try {
+    const result = await adapter.sendTemplate(message);
+    const durationMs = Math.round(performance.now() - startedAt);
+    logger.info("پیامک قالبی ارسال شد", {
+      event: "sms.send.succeeded",
+      sms_driver: adapter.name,
+      sms_kind: "template",
+      template_id: message.templateId,
+      provider_message_id: result.providerMessageId,
+      duration_ms: durationMs,
+    });
+    await execute(
+      `insert into sms_log (id, to_number, body, provider, status, provider_message_id, duration_ms)
+       values (?, ?, ?, ?, 'sent', ?, ?)`,
+      [randomUUID(), message.to, logBody, adapter.name, result.providerMessageId, durationMs],
+    );
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - startedAt);
+    logger.error("ارسال پیامک قالبی ناموفق بود", {
+      event: "sms.send.failed",
+      err,
+      sms_driver: adapter.name,
+      sms_kind: "template",
+      template_id: message.templateId,
+      duration_ms: durationMs,
+    });
+
+    await execute(
+      `insert into sms_log (id, to_number, body, provider, status, error, duration_ms)
+       values (?, ?, ?, ?, 'failed', ?, ?)`,
+      [
+        randomUUID(),
+        message.to,
+        logBody,
+        adapter.name,
+        (err as Error).message.slice(0, 500),
+        durationMs,
+      ],
+    ).catch(() => {});
+
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("sms", err, "ارسال پیامک قالبی");
 
     throw err;
   }

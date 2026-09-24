@@ -7,12 +7,39 @@ import { requireAdmin } from "@/lib/require-admin";
 import { recordAudit } from "@/lib/admin/audit";
 import { enumArg, isUuid, uuidArg } from "@/lib/api/action-input";
 import { tomansToRials, formatRials } from "./money";
+import { formatPhone, normalizePhone } from "@/lib/auth/phone";
+import { orderStatusLabel } from "./labels";
 import { orderNumber, parseOrderNumber, parseTicketNumber, ticketNumber } from "./order-number";
 import { extendEntitlement, manualGrant, revokeEntitlement } from "./grants";
 import { settlePayment } from "./orders";
 import { isPilotGrantEnabled } from "./config";
 import { notify } from "./notifications";
-import type { OrderStatus, PlusSource, TicketCategory, TicketStatus } from "./types";
+import type {
+  OrderStatus,
+  PaymentState,
+  PlusSource,
+  TicketCategory,
+  TicketStatus,
+} from "./types";
+
+/**
+ * شناسهٔ قابلِ نمایشِ کاربر برای مدیر.
+ *
+ * ⚠️ از مهاجرت ۰۰۶ حسابِ موبایلی ایمیل ندارد. بدونِ این، ستونِ «کاربر» در
+ * فهرستِ سفارش‌ها و تیکت‌ها برای همهٔ آن‌ها خالی بود و مدیر نمی‌دانست
+ * سفارشِ چه کسی را می‌بیند.
+ */
+function contactOf(email: string | null, phone: string | null): string {
+  return email ?? formatPhone(phone) ?? "—";
+}
+
+/** جست‌وجوی مدیر روی ایمیل *یا* موبایل: «0912…» همان «98912…»ِ ذخیره‌شده است. */
+function contactSearch(search: string): { sql: string; values: unknown[] } {
+  const phone = normalizePhone(search);
+  return phone
+    ? { sql: "(u.email like ? or u.phone = ?)", values: [likePattern(search), phone] }
+    : { sql: "u.email like ?", values: [likePattern(search)] };
+}
 
 /**
  * پنل مدیریتِ سروا پلاس.
@@ -427,12 +454,13 @@ export async function adminListOrders(params: {
     // خوانا در اپ ساخته می‌شود. پس اگر مدیر «SRV-001040» یا «1040» را کپی
     // کرده باشد، روی عدد جست‌وجو می‌شود و در غیر این صورت روی ایمیل.
     const seq = parseOrderNumber(search);
+    const contact = contactSearch(search);
     if (seq !== null) {
-      values.push(seq, likePattern(search));
-      conditions.push("(o.order_seq = ? or u.email like ?)");
+      values.push(seq, ...contact.values);
+      conditions.push(`(o.order_seq = ? or ${contact.sql})`);
     } else {
-      values.push(likePattern(search));
-      conditions.push("u.email like ?");
+      values.push(...contact.values);
+      conditions.push(contact.sql);
     }
   }
   if (params.status) {
@@ -448,7 +476,8 @@ export async function adminListOrders(params: {
   const rows = await query<{
     id: string;
     order_seq: number;
-    email: string;
+    email: string | null;
+    phone: string | null;
     user_id: string;
     plan_title: string;
     amount_rials: number;
@@ -459,7 +488,7 @@ export async function adminListOrders(params: {
     has_entitlement: number;
     total_count: number;
   }>(
-    `select o.id, o.order_seq, u.email, o.user_id, o.plan_title, o.amount_rials,
+    `select o.id, o.order_seq, u.email, u.phone, o.user_id, o.plan_title, o.amount_rials,
             o.status, o.created_at, o.paid_at,
             (select a.state from plus_payment_attempts a
               where a.order_id = o.id order by a.created_at desc limit 1) as latest_state,
@@ -479,7 +508,7 @@ export async function adminListOrders(params: {
     orders: rows.map((r) => ({
       id: r.id,
       orderNumber: orderNumber(r.order_seq),
-      userEmail: r.email,
+      userEmail: contactOf(r.email, r.phone),
       userId: r.user_id,
       planTitle: r.plan_title,
       amountRials: r.amount_rials,
@@ -682,8 +711,8 @@ export async function adminListEntitlements(params: {
   if (search) {
     // دو `?` و دو بار همان الگو: در MySQL هر `?` پارامترِ بعدی را مصرف
     // می‌کند.
-    values.push(likePattern(search), likePattern(search));
-    conditions.push("(u.email like ? or u.full_name like ?)");
+    values.push(likePattern(search), likePattern(search), normalizePhone(search) ?? "");
+    conditions.push("(u.email like ? or u.full_name like ? or u.phone = ?)");
   }
   if (params.state === "active") {
     conditions.push("e.revoked_at is null and e.starts_at <= now(6) and (e.ends_at is null or e.ends_at > now(6))");
@@ -701,7 +730,8 @@ export async function adminListEntitlements(params: {
   const rows = await query<{
     id: string;
     user_id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     full_name: string | null;
     source: PlusSource;
     starts_at: string;
@@ -712,7 +742,7 @@ export async function adminListEntitlements(params: {
     is_active: number;
     total_count: number;
   }>(
-    `select e.id, e.user_id, u.email, u.full_name, e.source, e.starts_at, e.ends_at,
+    `select e.id, e.user_id, u.email, u.phone, u.full_name, e.source, e.starts_at, e.ends_at,
             e.revoked_at, e.reason, o.order_seq,
             (e.revoked_at is null and e.starts_at <= now(6)
              and (e.ends_at is null or e.ends_at > now(6))) as is_active,
@@ -731,7 +761,7 @@ export async function adminListEntitlements(params: {
     entitlements: rows.map((r) => ({
       id: r.id,
       userId: r.user_id,
-      userEmail: r.email,
+      userEmail: contactOf(r.email, r.phone),
       userName: r.full_name,
       source: r.source,
       startsAt: r.starts_at,
@@ -760,8 +790,12 @@ export async function adminGrantPlus(input: {
 }): Promise<ActionResult<{ endsAt: string | null; userEmail: string }>> {
   const admin = await requireAdmin();
 
+  // ایمیل یا موبایل: حسابِ موبایلی (مهاجرت ۰۰۶) ایمیل ندارد.
   const email = text(input.email, 200).toLowerCase();
-  if (!email.includes("@")) return { ok: false, errors: ["ایمیل کاربر را درست وارد کنید."] };
+  const phone = email.includes("@") ? null : normalizePhone(email);
+  if (!email.includes("@") && !phone) {
+    return { ok: false, errors: ["ایمیل یا شمارهٔ موبایل کاربر را درست وارد کنید."] };
+  }
 
   const why = text(input.reason, 300);
   if (why.length < 3) return { ok: false, errors: ["دلیل اعطای دسترسی را بنویسید."] };
@@ -777,11 +811,18 @@ export async function adminGrantPlus(input: {
 
   // ستونِ ایمیل با collation بی‌توجه به بزرگی/کوچکی حروف است
   // (`utf8mb4_unicode_ci`)، پس مقایسه خودبه‌خود همان رفتارِ citext را دارد.
-  const user = await queryOne<{ id: string; email: string; is_banned: boolean }>(
-    "select id, email, is_banned from users where email = ?",
-    [email],
+  const user = await queryOne<{
+    id: string;
+    email: string | null;
+    phone: string | null;
+    is_banned: boolean;
+  }>(
+    phone
+      ? "select id, email, phone, is_banned from users where phone = ?"
+      : "select id, email, phone, is_banned from users where email = ?",
+    [phone ?? email],
   );
-  if (!user) return { ok: false, errors: ["کاربری با این ایمیل پیدا نشد."] };
+  if (!user) return { ok: false, errors: ["کاربری با این مشخصات پیدا نشد."] };
 
   const granted = await manualGrant({
     userId: user.id,
@@ -804,12 +845,12 @@ export async function adminGrantPlus(input: {
     action: "plus.grant",
     targetType: "plus_entitlement",
     targetId: granted.id,
-    summary: `دسترسی ${permanent ? "دائمی" : `${days} روزه`} سروا پلاس به ${user.email} داده شد — ${why}`,
+    summary: `دسترسی ${permanent ? "دائمی" : `${days} روزه`} سروا پلاس به ${contactOf(user.email, user.phone)} داده شد — ${why}`,
     metadata: { userId: user.id, days, permanent, reason: why, banned: user.is_banned },
   });
 
   revalidatePath("/admin/plus");
-  return { ok: true, data: { endsAt: granted.endsAt, userEmail: user.email } };
+  return { ok: true, data: { endsAt: granted.endsAt, userEmail: contactOf(user.email, user.phone) } };
 }
 
 export async function adminExtendEntitlement(
@@ -916,12 +957,13 @@ export async function adminListTickets(params: {
   if (search) {
     // مثل سفارش: شمارهٔ تیکت یک عدد است و شکلِ خوانا در اپ ساخته می‌شود.
     const seq = parseTicketNumber(search);
+    const contact = contactSearch(search);
     if (seq !== null) {
-      values.push(seq, likePattern(search), likePattern(search));
-      conditions.push("(t.ticket_seq = ? or t.subject like ? or u.email like ?)");
+      values.push(seq, likePattern(search), ...contact.values);
+      conditions.push(`(t.ticket_seq = ? or t.subject like ? or ${contact.sql})`);
     } else {
-      values.push(likePattern(search), likePattern(search));
-      conditions.push("(t.subject like ? or u.email like ?)");
+      values.push(likePattern(search), ...contact.values);
+      conditions.push(`(t.subject like ? or ${contact.sql})`);
     }
   }
 
@@ -936,13 +978,14 @@ export async function adminListTickets(params: {
     subject: string;
     category: TicketCategory;
     status: TicketStatus;
-    email: string;
+    email: string | null;
+    phone: string | null;
     last_activity_at: string;
     admin_unread: boolean;
     order_seq: number | null;
     total_count: number;
   }>(
-    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email,
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email, u.phone,
             t.last_activity_at, t.admin_unread, o.order_seq,
             count(*) over () as total_count
        from plus_tickets t
@@ -962,7 +1005,7 @@ export async function adminListTickets(params: {
       subject: r.subject,
       category: r.category,
       status: r.status,
-      userEmail: r.email,
+      userEmail: contactOf(r.email, r.phone),
       lastActivityAt: r.last_activity_at,
       adminUnread: r.admin_unread,
       orderNumber: r.order_seq === null ? null : orderNumber(r.order_seq),
@@ -972,6 +1015,14 @@ export async function adminListTickets(params: {
 
 export type AdminTicketDetail = AdminTicketRow & {
   userId: string;
+  /** سفارشی که کاربر ضمیمه کرده — تا پشتیبان بدونِ جست‌وجو بداند چه شده. */
+  order: {
+    id: string;
+    statusLabel: string;
+    amount: string;
+    paidAt: string | null;
+    trackingId: string | null;
+  } | null;
   messages: { id: string; authorRole: "user" | "admin"; body: string; createdAt: string }[];
 };
 
@@ -993,14 +1044,28 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
     subject: string;
     category: TicketCategory;
     status: TicketStatus;
-    email: string;
+    email: string | null;
+    phone: string | null;
     user_id: string;
     last_activity_at: string;
     admin_unread: boolean;
     order_seq: number | null;
+    order_id: string | null;
+    order_status: OrderStatus | null;
+    order_amount: number | null;
+    order_paid_at: string | null;
+    order_attempt_state: PaymentState | null;
+    order_tracking: string | null;
   }>(
-    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email, t.user_id,
-            t.last_activity_at, t.admin_unread, o.order_seq
+    `select t.id, t.ticket_seq, t.subject, t.category, t.status, u.email, u.phone, t.user_id,
+            t.last_activity_at, t.admin_unread, o.order_seq,
+            o.id as order_id, o.status as order_status, o.amount_rials as order_amount,
+            o.paid_at as order_paid_at,
+            (select a.state from plus_payment_attempts a
+              where a.order_id = o.id order by a.created_at desc limit 1) as order_attempt_state,
+            (select a.provider_tracking_id from plus_payment_attempts a
+              where a.order_id = o.id and a.state = 'verified'
+              order by a.verified_at desc limit 1) as order_tracking
        from plus_tickets t
        join users u on u.id = t.user_id
        left join plus_orders o on o.id = t.order_id
@@ -1032,8 +1097,18 @@ export async function adminGetTicket(ticketId: unknown): Promise<AdminTicketDeta
     subject: row.subject,
     category: row.category,
     status: row.status,
-    userEmail: row.email,
+    userEmail: contactOf(row.email, row.phone),
     userId: row.user_id,
+    order:
+      row.order_id && row.order_status && row.order_amount !== null
+        ? {
+            id: row.order_id,
+            statusLabel: orderStatusLabel(row.order_status, row.order_attempt_state),
+            amount: formatRials(row.order_amount),
+            paidAt: row.order_paid_at,
+            trackingId: row.order_tracking,
+          }
+        : null,
     lastActivityAt: row.last_activity_at,
     adminUnread: row.admin_unread,
     orderNumber: row.order_seq === null ? null : orderNumber(row.order_seq),

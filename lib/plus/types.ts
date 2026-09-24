@@ -143,6 +143,8 @@ export type PlusOrderDetail = PlusOrderSummary & {
   /** بازهٔ دسترسی‌ای که این سفارش ساخته — فقط برای سفارشِ پرداخت‌شده. */
   accessFrom: string | null;
   accessTo: string | null;
+  /** دورهٔ این سفارش به انتهای اشتراکِ قبلی اضافه شده (تمدید). */
+  isRenewal: boolean;
   attempts: {
     id: string;
     provider: string;
@@ -180,6 +182,8 @@ export type TicketSummary = {
   createdAt: string;
   hasUnread: boolean;
   orderNumber: string | null;
+  /** برای لینکِ «سفارش …» به فاکتورش. */
+  orderId: string | null;
 };
 
 export type TicketMessage = {
@@ -215,6 +219,12 @@ export type PlusNotificationKind =
    *  استفادهٔ دوباره از `teacher_rejected` یعنی کاربری که فقط باید یک عکسِ
    *  واضح‌تر بفرستد، پیامِ «رد شد» بگیرد و دیگر تلاش نکند. */
   | "teacher_needs_revision"
+  /** خوش‌آمدِ حسابِ تازه (مهاجرت ۰۲۰).
+   *
+   *  ⚠️ عمداً `plus_activated` نیست: آن یکی کارتِ خوش‌آمدگوییِ *پلاس* را
+   *  روشن می‌کند (`getUnreadWelcome`)، پس استفاده‌اش برای ثبت‌نام یعنی هر
+   *  کاربرِ تازه onboardingِ خریدِ اشتراک را ببیند بی‌آنکه چیزی خریده باشد. */
+  | "welcome"
   /**
    * ⚠️ چهار نوعِ تازه از مهاجرت ۰۱۲ — کلاس و بازخورد.
    *
@@ -234,7 +244,9 @@ export type PlusNotificationKind =
    * لغو شد» می‌بیند سراغِ پشتیبانیِ خرید می‌رود، در حالی که چیزی که
    * واقعاً عوض شده نقشِ اوست.
    */
-  | "teacher_revoked";
+  | "teacher_revoked"
+  /** مهاجرت ۰۲۳ — دبیر تکلیف یا آزمونِ عروض گذاشت. */
+  | "teacher_assignment";
 
 export type PlusNotification = {
   id: string;

@@ -12,14 +12,18 @@ import type {
 /**
  * درگاهِ آزمایشی — برای توسعه و تست، هرگز برای فروش واقعی.
  *
- * ⚠️ **این فایل روی سرورِ اصلی اجرا نمی‌شود.** سازنده‌اش در production خطا
- * می‌دهد. دلیلش تعارف نیست: یک درگاهِ آزمایشی که بتواند در production یک
- * پرداختِ «تأییدشده» بسازد، دقیقاً یعنی هر کسی می‌تواند بدون پول اشتراک
- * بگیرد.
+ * ⚠️ **روی سرورِ اصلی فقط مدیر می‌تواند با آن پرداخت کند.** یک درگاهِ
+ * آزمایشی که در production برای همه کار کند، دقیقاً یعنی هر کسی بدون پول
+ * اشتراک بگیرد. ولی تا درگاه واقعی وصل نشده، مالک باید بتواند کلِ مسیرِ خرید
+ * را روی همان سایت ببیند؛ و مدیر همین حالا هم می‌تواند به هر کسی پلاس هدیه
+ * بدهد، پس پرداختِ آزمایشیِ او چیزِ تازه‌ای باز نمی‌کند. گیتش
+ * `testGatewayAllowedFor` است و در سه جا صدا زده می‌شود: شروعِ پرداخت،
+ * صفحهٔ شبیه‌ساز و تأیید.
  *
  * ── چطور «پرداخت» را شبیه‌سازی می‌کند ───────────────────────────────────────
  * کاربر به یک صفحهٔ داخلی (`/payment/sandbox`) می‌رود که نقشِ صفحهٔ بانک را
- * بازی می‌کند و دو دکمه دارد: «پرداخت موفق» و «انصراف».
+ * بازی می‌کند: پرداخت موفق، پرداخت ناموفق، انصراف، و «پرداخت شد ولی اتصال
+ * قطع شد» — همان حالتی که فقط «بررسی دوباره» نجاتش می‌دهد.
  *
  * ⚠️ نکتهٔ مهم: آن صفحه نتیجه را به‌صورت `?success=true` برنمی‌گرداند. چنین
  * چیزی یعنی هر کسی با تایپ کردنِ یک URL اشتراک بگیرد. به‌جایش یک **توکنِ
@@ -28,11 +32,60 @@ import type {
  * واقعی است و در روزِ وصلِ درگاه، چیزی «برای اولین بار» اجرا نمی‌شود.
  *
  * توکن یک‌بارمصرف نیست و لازم هم نیست: تکرارِ verify یک entitlement دوم
- * نمی‌سازد، چون ایندکس یکتای `plus_entitlements_order_idx` سرِ راه ایستاده.
- * (و همین یعنی تکرارِ callback در محیط تست هم واقعاً تست می‌شود.)
+ * نمی‌سازد، چون ایندکس یکتای `plus_entitlements_order_key` سرِ راه ایستاده.
  */
 
 const PROVIDER_NAME = "test";
+
+/** مهلتِ پرداخت در صفحهٔ بانک؛ بعدش تراکنشِ نیمه‌کاره باطل است. */
+export const SANDBOX_SESSION_MINUTES = 15;
+
+export type SandboxOutcome = "paid" | "failed" | "cancelled";
+const OUTCOMES: readonly SandboxOutcome[] = ["paid", "failed", "cancelled"];
+
+/**
+ * آیا این نقش می‌تواند با درگاهِ آزمایشی پرداخت کند؟
+ *
+ * بیرون از production همه؛ در production فقط مدیر — مگر مالک صریحاً
+ * `PLUS_ALLOW_TEST_GATEWAY=i-know` گذاشته باشد.
+ */
+export function testGatewayAllowedFor(role: string | null | undefined): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (process.env.PLUS_ALLOW_TEST_GATEWAY === "i-know") return true;
+  return role === "admin";
+}
+
+/**
+ * «دفترِ بانک» — آنچه صفحهٔ شبیه‌ساز ثبت کرده.
+ *
+ * ⚠️ درگاهِ واقعی سابقهٔ هر تراکنش را نزدِ خودش دارد و «بررسی دوباره» همان را
+ * می‌پرسد. شبیه‌ساز هم باید چنین چیزی داشته باشد، وگرنه سناریوی «پول کم شد
+ * و اتصال قطع شد» قابلِ آزمودن نبود. در حافظه است و نه در دیتابیس: این
+ * دفترِ *بانک* است، نه دادهٔ سروا. با ری‌استارتِ سرور پاک می‌شود و آن‌وقت
+ * پاسخ «نامعلوم» است — که همان رفتارِ امن است.
+ */
+type LedgerEntry = { outcome: SandboxOutcome; at: number };
+const LEDGER_KEY = Symbol.for("sarva.plus.test-gateway.ledger");
+
+function ledger(): Map<string, LedgerEntry> {
+  const g = globalThis as unknown as Record<symbol, Map<string, LedgerEntry> | undefined>;
+  g[LEDGER_KEY] ??= new Map();
+  return g[LEDGER_KEY];
+}
+
+/** نتیجه‌ای که کاربر در صفحهٔ شبیه‌ساز انتخاب کرد. اولین نتیجه می‌ماند:
+ *  بانکِ واقعی هم تراکنشِ پرداخت‌شده را با کلیکِ بعدی «لغو» نمی‌کند. */
+export function recordSandboxOutcome(providerRef: string, outcome: SandboxOutcome): SandboxOutcome {
+  const book = ledger();
+  const existing = book.get(providerRef);
+  if (existing) return existing.outcome;
+  book.set(providerRef, { outcome, at: Date.now() });
+  return outcome;
+}
+
+export function sandboxOutcomeOf(providerRef: string): SandboxOutcome | null {
+  return ledger().get(providerRef)?.outcome ?? null;
+}
 
 /**
  * کلیدِ امضا.
@@ -60,8 +113,8 @@ function signatureMatches(payload: string, provided: string): boolean {
   return timingSafeEqual(expected, got);
 }
 
-/** توکنی که صفحهٔ شبیه‌ساز به آدرس بازگشت اضافه می‌کند. */
-export function buildSandboxToken(providerRef: string, outcome: "paid" | "cancelled"): string {
+/** توکنی که شبیه‌ساز به آدرس بازگشت اضافه می‌کند. */
+export function buildSandboxToken(providerRef: string, outcome: SandboxOutcome): string {
   const payload = `${providerRef}.${outcome}`;
   return `${outcome}.${sign(payload)}`;
 }
@@ -70,17 +123,6 @@ export class TestPaymentProvider implements PaymentProvider {
   readonly name = PROVIDER_NAME;
   readonly isTest = true;
 
-  constructor() {
-    if (process.env.NODE_ENV === "production" && process.env.PLUS_ALLOW_TEST_GATEWAY !== "i-know") {
-      // ⚠️ عمداً throw و نه یک هشدارِ لاگ: اگر فقط هشدار می‌داد، اولین
-      // deploy با تنظیماتِ ناقص، یک فروشگاهِ رایگان می‌ساخت و کسی تا مدت‌ها
-      // نمی‌فهمید.
-      throw new Error(
-        "درگاه آزمایشی روی سرور اصلی اجازهٔ کار ندارد. در پنل مدیریت درگاه واقعی را انتخاب کنید.",
-      );
-    }
-  }
-
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
     if (input.amountRials <= 0) {
       return { ok: false, errorCode: "amount", errorMessage: "مبلغ سفارش معتبر نیست." };
@@ -88,13 +130,11 @@ export class TestPaymentProvider implements PaymentProvider {
 
     const providerRef = `test_${randomUUID().replace(/-/g, "")}`;
 
-    // آدرسِ بازگشت را *ما* ساخته‌ایم و همین‌جا دست‌نخورده به شبیه‌ساز داده
-    // می‌شود؛ شبیه‌ساز حق ندارد مقصدِ دیگری بسازد.
+    // ⚠️ آدرسِ بازگشت به شبیه‌ساز داده *نمی‌شود*: `/payment/sandbox/submit`
+    // آن را از روی سفارشِ همین تلاش می‌سازد. چیزی که از query نیاید، قابلِ
+    // دستکاری هم نیست.
     const url = new URL("/payment/sandbox", "https://placeholder.invalid");
     url.searchParams.set("ref", providerRef);
-    url.searchParams.set("amount", String(input.amountRials));
-    url.searchParams.set("order", input.orderNumber);
-    url.searchParams.set("back", input.returnUrl);
 
     return {
       ok: true,
@@ -103,6 +143,11 @@ export class TestPaymentProvider implements PaymentProvider {
       // به یک دامنهٔ بیرونی بفرستد.
       redirectUrl: `${url.pathname}${url.search}`,
     };
+  }
+
+  refFromReturn(returnParams: Record<string, string>): string | null {
+    const ref = returnParams.ref ?? "";
+    return /^test_[0-9a-f]{32}$/.test(ref) ? ref : null;
   }
 
   async verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult> {
@@ -115,7 +160,7 @@ export class TestPaymentProvider implements PaymentProvider {
       return { state: "unknown", errorCode: "missing_token", errorMessage: "نتیجهٔ پرداخت همراه نبود." };
     }
 
-    if (outcome !== "paid" && outcome !== "cancelled") {
+    if (!OUTCOMES.includes(outcome as SandboxOutcome)) {
       return { state: "unknown", errorCode: "bad_token", errorMessage: "نتیجهٔ پرداخت نامعتبر بود." };
     }
 
@@ -125,10 +170,35 @@ export class TestPaymentProvider implements PaymentProvider {
       return { state: "failed", errorCode: "bad_signature", errorMessage: "نتیجهٔ پرداخت معتبر نبود." };
     }
 
+    return this.resultFor(outcome as SandboxOutcome, input);
+  }
+
+  async getPaymentStatus(input: VerifyPaymentInput): Promise<PaymentStatusResult> {
+    if (input.returnParams.token) return this.verifyPayment(input);
+
+    // «بررسی دوباره» بدونِ بازگشتِ مرورگر: از دفترِ بانک می‌پرسیم.
+    const recorded = sandboxOutcomeOf(input.providerRef);
+    if (recorded) return this.resultFor(recorded, input);
+
+    // بانک نتیجه‌ای ثبت نکرده. اگر مهلتِ صفحهٔ بانک گذشته، تراکنش باطل است؛
+    // وگرنه کاربر هنوز می‌تواند پرداخت کند.
+    const startedAt = input.redirectedAt ? new Date(input.redirectedAt).getTime() : NaN;
+    if (!Number.isFinite(startedAt)) {
+      return { state: "unknown", errorCode: "no_record", errorMessage: "درگاه سابقه‌ای از این پرداخت ندارد." };
+    }
+    if (Date.now() - startedAt > SANDBOX_SESSION_MINUTES * 60_000) {
+      return { state: "cancelled", errorCode: "expired", errorMessage: "مهلت پرداخت در درگاه تمام شد." };
+    }
+    return { state: "pending", errorCode: "not_paid_yet", errorMessage: "پرداخت هنوز در درگاه انجام نشده است." };
+  }
+
+  private resultFor(outcome: SandboxOutcome, input: VerifyPaymentInput): VerifyPaymentResult {
     if (outcome === "cancelled") {
       return { state: "cancelled", errorCode: "cancelled", errorMessage: "پرداخت لغو شد." };
     }
-
+    if (outcome === "failed") {
+      return { state: "failed", errorCode: "declined", errorMessage: "بانک پرداخت را تأیید نکرد." };
+    }
     return {
       state: "verified",
       // شمارهٔ پیگیریِ ساختگی، با پیشوندی که هیچ‌وقت با یک شمارهٔ واقعی
@@ -136,19 +206,5 @@ export class TestPaymentProvider implements PaymentProvider {
       trackingId: `TEST-${input.providerRef.slice(5, 17).toUpperCase()}`,
       paidAmountRials: input.amountRials,
     };
-  }
-
-  async getPaymentStatus(input: VerifyPaymentInput): Promise<PaymentStatusResult> {
-    // شبیه‌ساز حافظهٔ سروری ندارد: بدونِ توکنِ بازگشت نمی‌تواند بگوید چه شد.
-    // این دقیقاً همان حالتی است که باید در رابط کاربری تست شود — «وضعیت
-    // هنوز نهایی نشده» به‌جای «ناموفق».
-    if (!input.returnParams.token) {
-      return {
-        state: "unknown",
-        errorCode: "no_record",
-        errorMessage: "درگاه آزمایشی سابقه‌ای از این پرداخت ندارد.",
-      };
-    }
-    return this.verifyPayment(input);
   }
 }

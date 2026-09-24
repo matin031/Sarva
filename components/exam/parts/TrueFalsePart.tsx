@@ -1,6 +1,7 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
+import HighlightedText from "@/components/exam/HighlightedText";
 
 type TrueFalseContent = {
   type: "true-false";
@@ -26,7 +27,7 @@ export default function TrueFalsePart({ content, value, onChange, disabled }: Pr
           <RichPassageView passage={content.stimulus} />
         </div>
       )}
-      <p className="text-base leading-relaxed xs:text-lg">{content.statementText}</p>
+      <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.statementText} /></p>
       <div className="flex gap-3">
         {[
           { label: trueLabel, val: true },

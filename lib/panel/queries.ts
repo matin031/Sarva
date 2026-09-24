@@ -1,5 +1,6 @@
 import "server-only";
 import { query, queryOne, placeholders } from "@/lib/db";
+import { quizQuestionWeight } from "@/lib/quiz/weight";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { tehranDayAvailable } from "@/lib/analytics/timezone";
 import type { DailyState } from "@/lib/analytics/daily";
@@ -9,9 +10,10 @@ import type {
   Bookmark,
   BookmarkArea,
   ExamAttempt,
-  JasoosAnswer,
   PanelOverview,
   PanelUser,
+  PracticeArea,
+  RangAraAnswer,
   VocabAnswer,
 } from "@/lib/panel/types";
 
@@ -209,47 +211,48 @@ export async function getAruzActivity(userId: string): Promise<{ at: string; ok:
 
 /** دقت به تفکیک وزن عروضی.
  *
- *  فقط دو شکل از سؤال‌ها اصلاً وزن را نام می‌برند: `weight-to-audio` آن را در
- *  poem[0] دارد و `audio-to-weight` در برچسبِ گزینهٔ درست. سؤال بیت→صوت دربارهٔ
- *  یک بیت است و هرگز ثبت نمی‌کند به کدام وزن تعلق دارد، پس آن پاسخ‌ها در جمع
- *  کل هستند ولی به هیچ وزنی نسبت داده نمی‌شوند — وانمود کردن خلافش یعنی ساختن
- *  داده‌ای که وجود ندارد. */
-export async function getAruzWeightStats(
+ *  وزنِ هر سؤال از `quizQuestionWeight` می‌آید — برای بیت→صوت و صوت→بیت از
+ *  نامِ فایلِ صوتی، و فقط وقتی آن فایل یکی از ضبط‌های شناخته‌شدهٔ وزن باشد.
+ *  سؤالی که وزنش قابلِ خواندن نیست در جمعِ کل هست ولی به هیچ وزنی نسبت داده
+ *  نمی‌شود — وانمود کردن خلافش یعنی ساختنِ داده‌ای که وجود ندارد. */
+/** هر پاسخِ عروض با وزنِ درستش — ورودیِ `toSkillTiles` برای کاشی‌های وزن. */
+export async function getAruzWeightAnswers(
   userId: string,
-): Promise<{ weight: string; total: number; correct: number }[]> {
+): Promise<{ key: string; label: string; correct: boolean; at: string }[]> {
   const rows = await query<{
     is_correct: boolean;
+    answered_at: string;
     type: string | null;
-    poem: string[] | null;
+    poem: unknown;
+    audio_url: string | null;
     correct_label: string | null;
+    correct_audio: string | null;
   }>(
-    `select ua.is_correct, q.type, q.poem,
-            (select o.label from question_options o
-              where o.question_id = q.id and o.is_correct limit 1) as correct_label
+    `select ua.is_correct, ua.answered_at, q.type, q.poem, q.audio_url,
+            o.label as correct_label, o.audio_url as correct_audio
        from user_answers ua
        join questions q on q.id = ua.question_id
+       left join question_options o
+         on o.id = (select o2.id from question_options o2
+                     where o2.question_id = q.id and o2.is_correct limit 1)
       where ua.user_id = ?
+      order by ua.answered_at desc
       limit 3000`,
     [userId],
   );
 
-  const buckets = new Map<string, { total: number; correct: number }>();
-
+  const out: { key: string; label: string; correct: boolean; at: string }[] = [];
   for (const row of rows) {
-    let weight: string | null = null;
-    if (row.type === "weight-to-audio") weight = row.poem?.[0]?.trim() || null;
-    else if (row.type === "audio-to-weight") weight = row.correct_label?.trim() || null;
-    if (!weight) continue;
-
-    const b = buckets.get(weight) ?? { total: 0, correct: 0 };
-    b.total += 1;
-    if (row.is_correct) b.correct += 1;
-    buckets.set(weight, b);
+    const weight = quizQuestionWeight({
+      type: row.type,
+      poem: row.poem,
+      audioUrl: row.audio_url,
+      correctLabel: row.correct_label,
+      correctAudioUrl: row.correct_audio,
+    });
+    if (weight) out.push({ key: weight, label: weight, correct: row.is_correct, at: row.answered_at });
   }
-
-  return [...buckets.entries()]
-    .map(([weight, b]) => ({ weight, ...b }))
-    .sort((a, b) => a.correct / a.total - b.correct / b.total);
+  return out;
 }
 
 // ------------------------------------------------------------ واژه‌یاب ----
@@ -293,6 +296,52 @@ export async function getVocabAnswers(
   };
 }
 
+/**
+ * واژه‌یاب به تفکیکِ پایه، درس و واژه — برای نقشهٔ درس‌های پنل.
+ *
+ * `last_ok` نتیجهٔ *آخرین* بارِ همان واژه است: «الان بلدی یا نه» را همان
+ * می‌گوید، نه میانگینِ همهٔ تاریخ.
+ */
+export async function getVocabLessonWords(userId: string): Promise<
+  { grade: string; lesson: number; word: string; total: number; correct: number; lastOk: boolean; lastAt: string }[]
+> {
+  const rows = await query<{
+    grade: string;
+    lesson: number;
+    word: string;
+    total: number;
+    correct: number;
+    last_ok: string;
+    last_at: string;
+  }>(
+    `select grade, lesson, word, count(*) as total, sum(is_correct) as correct,
+            substring_index(group_concat(is_correct order by answered_at desc), ',', 1) as last_ok,
+            max(answered_at) as last_at
+       from vocab_answers
+      where user_id = ?
+      group by grade, lesson, word
+      limit 5000`,
+    [userId],
+  );
+  return rows.map((r) => ({
+    grade: r.grade,
+    lesson: Number(r.lesson),
+    word: r.word,
+    total: Number(r.total),
+    correct: Number(r.correct),
+    lastOk: String(r.last_ok) === "1",
+    lastAt: r.last_at,
+  }));
+}
+
+/** تعدادِ واژه‌های هر درس در بانک — مخرجِ «چند واژه از این درس را دیده‌ای». */
+export async function getVocabLessonTotals(): Promise<{ grade: string; lesson: number; words: number }[]> {
+  const rows = await query<{ grade: string; lesson: number; words: number }>(
+    `select grade, lesson, count(*) as words from vocab_words group by grade, lesson`,
+  );
+  return rows.map((r) => ({ grade: r.grade, lesson: Number(r.lesson), words: Number(r.words) }));
+}
+
 /** هر پاسخ واژه‌یاب، سه ستون عرض — برای دقت، streak، روند روزانه و تفکیک
  *  کتاب کافی است، بدون کشیدن واژه و معنی و آدرس تصویر برای رسیدن به یک عدد. */
 export async function getVocabSummary(
@@ -310,35 +359,51 @@ export async function getVocabSummary(
   return rows.map((r) => ({ grade: r.grade ?? "", ok: r.is_correct, at: r.answered_at }));
 }
 
-// -------------------------------------------------------------- جاسوس ----
+// ------------------------------------------------------------- رنگ‌آرا ----
 
-export async function getJasoosAnswers(userId: string): Promise<JasoosAnswer[]> {
+export async function getRangAraAnswers(userId: string): Promise<RangAraAnswer[]> {
   const rows = await query<{
-    id: string;
-    level_id: number;
-    category: string;
-    chosen_role: string;
-    correct_role: string;
+    play_id: string;
+    verse_key: string;
+    grade: string | null;
+    lesson: number | null;
+    verse: string;
+    step_index: number;
+    concept: string;
+    mistakes: number;
     is_correct: boolean;
     answered_at: string;
   }>(
-    `select id, level_id, category, chosen_role, correct_role, is_correct, answered_at
-       from jasoos_answers
+    `select play_id, verse_key, grade, lesson, verse, step_index, concept, mistakes, is_correct, answered_at
+       from rang_ara_answers
       where user_id = ?
-      order by answered_at desc
-      limit 2000`,
+      order by answered_at desc, step_index
+      limit 3000`,
     [userId],
   );
-
   return rows.map((r) => ({
-    id: r.id,
-    levelId: r.level_id,
-    category: r.category ?? "",
-    chosenRole: r.chosen_role ?? "",
-    correctRole: r.correct_role ?? "",
+    playId: r.play_id,
+    verseKey: r.verse_key,
+    grade: r.grade,
+    lesson: r.lesson,
+    verse: r.verse,
+    step: Number(r.step_index),
+    concept: r.concept,
+    mistakes: Number(r.mistakes),
     isCorrect: r.is_correct,
     answeredAt: r.answered_at,
   }));
+}
+
+/** چند بیتِ منتشرشده در هر درس — مخرجِ «چند بیت از این درس را رفته‌ای». */
+export async function getRangAraLessonTotals(): Promise<{ grade: string; lesson: number; verses: number }[]> {
+  const rows = await query<{ grade: string; lesson: number; verses: number }>(
+    `select grade, lesson, count(*) as verses
+       from rang_ara_verses
+      where is_published = 1 and grade is not null
+      group by grade, lesson`,
+  );
+  return rows.map((r) => ({ grade: r.grade, lesson: Number(r.lesson), verses: Number(r.verses) }));
 }
 
 // ------------------------------------------------------- امتحان نهایی ----
@@ -452,7 +517,7 @@ export async function getExamAttempts(
 
 // ----------------------------------------------------- خلاصهٔ همهٔ بخش‌ها ----
 
-type ActivityRow = { area: BookmarkArea; day: string | null; total: number; correct: number };
+type ActivityRow = { area: PracticeArea; day: string | null; total: number; correct: number };
 
 /* ⚠️ دو رشتهٔ **کاملِ** جدا، با بدنهٔ تکراری — عمداً.
 
@@ -492,6 +557,15 @@ const OVERVIEW_BY_DAY = `select area,
            union all
            select 'jasoos', is_correct, answered_at
              from jasoos_answers where user_id = ?
+           union all
+           select 'jasoos', is_correct, answered_at
+             from grammar_circuit_answers where user_id = ?
+           union all
+           select 'jasoos', is_correct, answered_at
+             from role_hunt_answers where user_id = ?
+           union all
+           select 'rangAra', is_correct, answered_at
+             from rang_ara_answers where user_id = ?
          ) t
         where at is not null
         group by area, 2
@@ -513,13 +587,22 @@ const OVERVIEW_BY_AREA = `select area,
            union all
            select 'jasoos', is_correct, answered_at
              from jasoos_answers where user_id = ?
+           union all
+           select 'jasoos', is_correct, answered_at
+             from grammar_circuit_answers where user_id = ?
+           union all
+           select 'jasoos', is_correct, answered_at
+             from role_hunt_answers where user_id = ?
+           union all
+           select 'rangAra', is_correct, answered_at
+             from rang_ara_answers where user_id = ?
          ) t
         where at is not null
         group by area`;
 
 /** یک خواندن برای صفحهٔ اول پنل.
  *
- *  سه جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای سه رفت‌وبرگشت
+ *  شش جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای شش رفت‌وبرگشت
  *  جدا. ستون area در خودِ SQL ساخته می‌شود، پس کد فقط ردیف‌ها را می‌شمارد و
  *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
 export async function getPanelOverview(userId: string): Promise<PanelOverview> {
@@ -562,8 +645,8 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
        هزار ردیفِ خام می‌آورد تا چند شمارنده و یک نمودارِ سی‌روزه ساخته
        شود، و سقف‌هایش شمارندهٔ کاربرِ پرکار را بی‌صدا می‌برید. */
     dayReady
-      ? query<ActivityRow>(OVERVIEW_BY_DAY, [userId, userId, userId])
-      : query<ActivityRow>(OVERVIEW_BY_AREA, [userId, userId, userId]),
+      ? query<ActivityRow>(OVERVIEW_BY_DAY, Array(6).fill(userId))
+      : query<ActivityRow>(OVERVIEW_BY_AREA, Array(6).fill(userId)),
     queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = ?`, [userId]),
     // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
     // جزئیاتِ تک‌تکِ سؤال‌هایش خوانده می‌شد تا سه عدد ساخته شود.
@@ -575,6 +658,7 @@ export async function getPanelOverview(userId: string): Promise<PanelOverview> {
     aruz: { total: 0, correct: 0 },
     vocab: { total: 0, correct: 0 },
     jasoos: { total: 0, correct: 0 },
+    rangAra: { total: 0, correct: 0 },
     exam: { total: 0, correct: 0 },
   };
 

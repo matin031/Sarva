@@ -1,3 +1,5 @@
+import type { RapidAruzQuestion } from "./types";
+
 /** حالتِ منبعِ صدا.
  *
  *  «procedural» یعنی هیچ فایلی از شبکه خواسته نمی‌شود — صداها همان‌جا با
@@ -8,6 +10,9 @@ export type AudioSourceMode = "procedural" | "assets";
 export interface RapidAruzConfig {
   /** فرصتِ خواندنِ مصراعِ کامل، پیش از پوشیده‌شدنش. */
   previewDurationMs: number;
+
+  /** مصراعِ اختیاردار: فرصتِ خواندنِ یادداشتِ اختیارِ شاعری. */
+  licensePreviewExtraMs: number;
 
   /** مهلتِ پاسخ برای هر واحد. یک مدلِ منصف، بدونِ درجه‌بندیِ سختی. */
   answerTimeMs: number;
@@ -54,6 +59,7 @@ export interface RapidAruzConfig {
  */
 export const DEFAULT_RAPID_ARUZ_CONFIG: RapidAruzConfig = {
   previewDurationMs: 7000,
+  licensePreviewExtraMs: 2500,
 
   answerTimeMs: 2800,
   firstUnitExtraTimeMs: 1200,
@@ -86,6 +92,11 @@ export const DEFAULT_RAPID_ARUZ_CONFIG: RapidAruzConfig = {
  *
  * هیچ کامپوننتی حق ندارد عددِ زمانی خودش داشته باشد.
  */
+export function getPreviewDuration(config: RapidAruzConfig, question: RapidAruzQuestion | null): number {
+  const licensed = question?.units.some((u) => u.license) ?? false;
+  return config.previewDurationMs + (licensed ? config.licensePreviewExtraMs : 0);
+}
+
 export function getUnitDuration(config: RapidAruzConfig, unitIndex: number): number {
   // واحدِ اولِ هر دور کمی وقتِ بیشتر می‌گیرد: با ریست کامل، بازیکن بارها به
   // این واحد برمی‌گردد و باید فرصتِ دوباره جا افتادن داشته باشد.

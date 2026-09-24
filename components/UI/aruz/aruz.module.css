@@ -1,0 +1,500 @@
+/* صفحهٔ عروض — همهٔ رنگ‌ها از توکن‌های پالت؛ هیچ هگزِ ثابتی اینجا نیست تا با
+   عوض شدنِ پالت کلِ صفحه با آن عوض شود. */
+
+/* ── نوارِ وزن زیرِ تیتر: کوتاه و بلندهای «مفاعیلن» با یک نشانگرِ پخش ── */
+.meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 40px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  border-radius: 18px;
+  background: color-mix(in oklch, var(--card) 60%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.meterFeet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  direction: rtl;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.syl {
+  height: 8px;
+  border-radius: 99px;
+  background: color-mix(in oklch, var(--primary) 28%, transparent);
+  animation: sylBeat 4s linear infinite;
+  animation-delay: calc(var(--i) * 0.25s);
+}
+
+.syl[data-long] {
+  width: 22px;
+}
+
+.syl:not([data-long]) {
+  width: 8px;
+}
+
+@keyframes sylBeat {
+  0%, 5% {
+    background: var(--primary);
+    transform: scaleY(1.5);
+    box-shadow: 0 0 12px color-mix(in oklch, var(--primary) 60%, transparent);
+  }
+  12%, 100% {
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.meterLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* در موبایل نوار نباید ستونِ تیتر را از صفحه پهن‌تر کند. */
+.meter {
+  max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  .meter {
+    gap: 10px;
+    margin-top: 28px;
+    padding: 10px 12px;
+  }
+  .meterFeet {
+    gap: 6px;
+  }
+  .foot {
+    gap: 3px;
+  }
+  .syl[data-long] {
+    width: 13px;
+  }
+  .syl:not([data-long]) {
+    width: 6px;
+  }
+  .syl {
+    height: 6px;
+  }
+  .meterLabel {
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 419px) {
+  .meterLabel {
+    display: none;
+  }
+}
+
+/* ── کارت‌های سه نوع پرسش ─────────────────────────────────────────────── */
+.feature {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  border-radius: 28px;
+  background: var(--card);
+  transition: border-color 250ms, transform 350ms cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 350ms;
+}
+
+.feature:hover {
+  border-color: color-mix(in oklch, var(--tone) 45%, transparent);
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px -28px color-mix(in oklch, var(--tone) 60%, transparent);
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 150px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in oklch, var(--tone) 16%, transparent), transparent 70%),
+    color-mix(in oklch, var(--foreground) 2.5%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+.featureBody {
+  padding: 22px 24px 26px;
+}
+
+.route {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--tone-ink, var(--tone));
+}
+
+/* تصویرِ ۱: اکولایزر و ارکان */
+.eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 46px;
+}
+
+.eq span {
+  width: 5px;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--tone);
+  transform-origin: bottom;
+  animation: eqBounce 1.1s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -0.13s);
+}
+
+@keyframes eqBounce {
+  from { transform: scaleY(0.2); opacity: 0.55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+.chip[data-on] {
+  color: var(--tone-fg, var(--primary-foreground));
+  background: var(--tone);
+  animation: chipPick 3.2s ease-in-out infinite;
+}
+
+@keyframes chipPick {
+  0%, 30% { filter: saturate(0.2); opacity: 0.6; }
+  40%, 100% { filter: none; opacity: 1; }
+}
+
+/* تصویرِ ۲: موج به سطر */
+.wave {
+  width: 170px;
+  height: 36px;
+  color: var(--tone);
+}
+
+.wave path {
+  stroke-dasharray: 260;
+  animation: waveDraw 3.2s ease-in-out infinite;
+}
+
+@keyframes waveDraw {
+  0% { stroke-dashoffset: 260; }
+  45%, 100% { stroke-dashoffset: 0; }
+}
+
+.lines {
+  display: grid;
+  gap: 7px;
+  width: 170px;
+  margin-top: 14px;
+}
+
+.lines span {
+  height: 8px;
+  border-radius: 99px;
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+}
+
+.lines span[data-on] {
+  background: var(--tone);
+  animation: lineIn 3.2s ease-in-out infinite;
+}
+
+@keyframes lineIn {
+  0%, 40% { opacity: 0.25; transform: scaleX(0.6); transform-origin: right; }
+  55%, 100% { opacity: 1; transform: none; }
+}
+
+/* تصویرِ ۳: بیت به صدا */
+.players {
+  display: grid;
+  gap: 8px;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 168px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
+}
+
+.player i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  background: color-mix(in oklch, var(--tone) 22%, transparent);
+}
+
+.player i::after {
+  content: "";
+  border-block: 4px solid transparent;
+  border-inline-end: 6px solid var(--tone);
+}
+
+.player b {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: repeating-linear-gradient(90deg, color-mix(in oklch, var(--tone) 40%, transparent) 0 3px, transparent 3px 6px);
+}
+
+.player[data-on] {
+  background: color-mix(in oklch, var(--tone) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tone) 50%, transparent);
+}
+
+.player[data-on] b {
+  background: repeating-linear-gradient(90deg, var(--tone) 0 3px, transparent 3px 6px);
+}
+
+/* ── بازی‌ها ──────────────────────────────────────────────────────────── */
+.game {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  border-radius: 28px;
+  background: var(--card);
+  transition: border-color 250ms, transform 350ms cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 350ms;
+}
+
+.game:hover {
+  border-color: color-mix(in oklch, var(--tone) 50%, transparent);
+  transform: translateY(-5px);
+  box-shadow: 0 30px 60px -30px color-mix(in oklch, var(--tone) 70%, transparent);
+}
+
+.gameArt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 190px;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 100% at 50% 100%, color-mix(in oklch, var(--tone) 24%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklch, var(--foreground) 3%, transparent), transparent);
+}
+
+.gameArt::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--tone) 45%, transparent), transparent);
+}
+
+.gameBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 22px 24px 24px;
+}
+
+.newTag {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tone-fg, var(--primary-foreground));
+  background: var(--tone);
+}
+
+.play {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: auto;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tone-ink, var(--tone));
+  background: color-mix(in oklch, var(--tone) 13%, transparent);
+  transition: background 200ms, color 200ms;
+}
+
+.game:hover .play {
+  color: var(--tone-fg, var(--primary-foreground));
+  background: var(--tone);
+}
+
+.play svg {
+  transition: transform 200ms;
+}
+
+.game:hover .play svg {
+  transform: translateX(-3px);
+}
+
+/* هنرِ کیمیا: سه لوله با مایعِ رنگی */
+.tubes {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.tube {
+  position: relative;
+  width: 30px;
+  height: 104px;
+  overflow: hidden;
+  border: 2px solid color-mix(in oklch, var(--foreground) 22%, transparent);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
+}
+
+.tube::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -5px;
+  right: -5px;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+.liquid {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--h);
+  background: linear-gradient(180deg, color-mix(in oklch, var(--c) 70%, #fff), var(--c));
+  animation: fill 4.5s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+  animation-delay: var(--d);
+}
+
+.liquid::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -50%;
+  width: 200%;
+  height: 10px;
+  border-radius: 45%;
+  background: color-mix(in oklch, var(--c) 70%, #fff);
+  animation: slosh 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes fill {
+  0% { height: 8%; }
+  40%, 85% { height: var(--h); }
+  100% { height: 8%; }
+}
+
+@keyframes slosh {
+  from { transform: translateX(-10%) rotate(-3deg); }
+  to { transform: translateX(10%) rotate(3deg); }
+}
+
+/* هنرِ تقطیعِ سریع */
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  direction: rtl;
+}
+
+.bars span {
+  width: 12px;
+  border-radius: 99px;
+  background: color-mix(in oklch, var(--tone) 30%, transparent);
+  animation: barLight 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.2s);
+}
+
+@keyframes barLight {
+  0%, 8% { background: var(--tone); transform: translateY(-4px); }
+  20%, 100% { background: color-mix(in oklch, var(--tone) 30%, transparent); transform: none; }
+}
+
+/* هنرِ پلِ وزن */
+.bridge {
+  display: flex;
+  gap: 12px;
+  perspective: 400px;
+}
+
+.pane {
+  width: 44px;
+  height: 58px;
+  border: 1.5px solid color-mix(in oklch, var(--tone) 55%, transparent);
+  border-radius: 8px;
+  background: linear-gradient(160deg, color-mix(in oklch, var(--tone) 20%, transparent), color-mix(in oklch, var(--tone) 4%, transparent));
+  transform: rotateX(48deg);
+  animation: paneHop 3s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.5s);
+}
+
+@keyframes paneHop {
+  0%, 12% { transform: rotateX(48deg) translateY(-6px); box-shadow: 0 10px 22px -6px color-mix(in oklch, var(--tone) 70%, transparent); }
+  25%, 100% { transform: rotateX(48deg); box-shadow: none; }
+}
+
+/* ── دعوت پایانی ─────────────────────────────────────────────────────── */
+.cta {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--primary) 22%, transparent);
+  border-radius: 36px;
+  background:
+    radial-gradient(70% 120% at 50% -20%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 70%),
+    var(--card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syl, .eq span, .chip, .wave path, .lines span, .liquid, .liquid::before, .bars span, .pane {
+    animation: none !important;
+  }
+}
+
+/* روی اسکرول و کیفیتِ پایین، انیمیشن‌های تزئینی می‌خوابند. */
+:global(html[data-scrolling]) :is(.syl, .eq span, .liquid, .bars span, .pane) {
+  animation-play-state: paused;
+}
+
+:global(html[data-quality="low"]) :is(.syl, .eq span, .chip, .wave path, .lines span, .liquid, .bars span, .pane) {
+  animation: none;
+}

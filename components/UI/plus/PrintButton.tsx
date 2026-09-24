@@ -18,7 +18,7 @@ export default function PrintButton() {
       onClick={() => window.print()}
       className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      چاپ رسید
+      چاپ فاکتور
     </button>
   );
 }

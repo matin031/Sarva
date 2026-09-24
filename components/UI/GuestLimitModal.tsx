@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
 import {
   guestContinueLabel,
   guestLimitMessage,
@@ -67,13 +68,13 @@ function GuestLimitModal({ section, onContinue, onDismiss }: GuestLimitModalProp
         </p>
 
         <div className=" w-full flex flex-col sm:flex-row items-center gap-3 mt-2">
-          <Link
-            href="/auth"
-            className=" w-full font-bold bg-primary py-2 text-center rounded-xl
-            brightness-90 hover:brightness-100 transition-all text-white"
-          >
-            ورود / ثبت‌نام
-          </Link>
+          {/* ⚠️ `text-white`ِ هاردکد رفت. با کلیدِ پالتِ سروا، بعضی
+              پوسته‌ها پس‌زمینهٔ روشن می‌دهند و متنِ سفید روی آن‌ها تقریباً
+              ناخوانا بود؛ `ShinyButton` رنگِ متنش را از
+              `--primary-foreground` می‌گیرد که با پالت عوض می‌شود. */}
+          <ShinyButton asChild className="w-full">
+            <Link href="/auth">ورود / ثبت‌نام</Link>
+          </ShinyButton>
           {onContinue && (
             <button
               onClick={onContinue}

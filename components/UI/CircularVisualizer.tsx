@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { usePrimaryRgb } from "@/lib/theme/use-primary-rgb";
 
 interface CircularVisualizerProps {
   audioSrc: string;
@@ -18,6 +19,13 @@ export default function CircularVisualizer({
   const [playing, setPlaying] = useState(false);
   // فایل صوتی پیدا نشد — به‌جای کرش، همین گزینه را ساکت نشان می‌دهیم.
   const [failed, setFailed] = useState(false);
+  // رنگِ حباب همان --primary است؛ در ref تا حلقهٔ rAF با عوض شدنِ پالت از نو
+  // ساخته نشود و فریمِ بعدی خودش رنگِ تازه را بگیرد.
+  const rgb = usePrimaryRgb();
+  const rgbRef = useRef(rgb);
+  useEffect(() => {
+    rgbRef.current = rgb;
+  }, [rgb]);
 
   const SIZE = 260;
   const cx = SIZE / 2;
@@ -30,6 +38,7 @@ export default function CircularVisualizer({
     if (!cv) return;
     const ctx = cv.getContext("2d")!;
     ctx.clearRect(0, 0, SIZE, SIZE);
+    const c = rgbRef.current;
 
     const base = INNER_R;
     const pts: [number, number][] = [];
@@ -57,15 +66,15 @@ export default function CircularVisualizer({
     ctx.closePath();
 
     const rg = ctx.createRadialGradient(cx, cy, base * 0.4, cx, cy, base + 55);
-    rg.addColorStop(0, "rgba(31,209,164,0.05)");
-    rg.addColorStop(0.7, "rgba(31,209,164,0.25)");
-    rg.addColorStop(1, "rgba(20,150,120,0.45)");
+    rg.addColorStop(0, `rgba(${c},0.05)`);
+    rg.addColorStop(0.7, `rgba(${c},0.25)`);
+    rg.addColorStop(1, `rgba(${c},0.45)`);
     ctx.fillStyle = rg;
     ctx.fill();
 
-    ctx.shadowColor = "rgba(31,209,164,0.6)";
+    ctx.shadowColor = `rgba(${c},0.6)`;
     ctx.shadowBlur = 16;
-    ctx.strokeStyle = "rgba(31,209,164,0.9)";
+    ctx.strokeStyle = `rgba(${c},0.9)`;
     ctx.lineWidth = 3;
     ctx.lineJoin = "round";
     ctx.stroke();

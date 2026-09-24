@@ -5,6 +5,7 @@ import { withRoute } from "@/lib/api/route";
 import { isUuid } from "@/lib/api/action-input";
 import { settlePayment } from "@/lib/plus/orders";
 import { logger } from "@/lib/observability";
+import { siteOrigin } from "@/lib/seo/site";
 
 /**
  * GET /payment/return — جایی که مرورگر بعد از درگاه به آن برمی‌گردد.
@@ -31,20 +32,25 @@ export const GET = withRoute("/payment/return", async (request: NextRequest) => 
   const url = request.nextUrl;
   const orderId = url.searchParams.get("order") ?? "";
 
-  const fallback = new URL("/panel/billing", url.origin);
+  // دامنهٔ کانونی و نه `url.origin`: پشتِ Caddy میزبانِ درخواست می‌تواند داخلی باشد.
+  const fallback = new URL("/panel/billing", siteOrigin());
 
   const user = await getCurrentUser();
   if (!user) {
     // کاربر در حین پرداخت از حساب خارج شده یا کوکی‌اش رفته. سفارش سرِ جایش
-    // است؛ فقط باید دوباره وارد شود و از «خریدهای من» وضعیت را ببیند.
-    const login = new URL("/auth", url.origin);
-    login.searchParams.set("returnTo", "/panel/billing");
+    // است. بعد از ورود، همین بازگشت با همان پارامترهای درگاه دوباره اجرا
+    // می‌شود و کاربر مستقیم نتیجه را می‌بیند.
+    const login = new URL("/auth", siteOrigin());
+    login.searchParams.set(
+      "returnTo",
+      isUuid(orderId) ? `${url.pathname}${url.search}` : "/panel/billing",
+    );
     return NextResponse.redirect(login);
   }
 
   if (!isUuid(orderId)) return NextResponse.redirect(fallback);
 
-  const result = new URL("/payment/result", url.origin);
+  const result = new URL("/payment/result", siteOrigin());
   result.searchParams.set("order", orderId);
 
   try {
@@ -68,6 +74,25 @@ export const GET = withRoute("/payment/return", async (request: NextRequest) => 
   }
 
   return NextResponse.redirect(result);
+});
+
+/**
+ * بعضی درگاه‌ها (آقای پرداخت) نتیجه را با POST فرم برمی‌گردانند. کوکیِ
+ * SameSite=Lax روی POSTِ بین‌سایتی فرستاده نمی‌شود، پس اینجا فقط فرم را به
+ * query تبدیل می‌کنیم و با 303 به همان GET می‌فرستیم که کوکی دارد.
+ */
+export const POST = withRoute("/payment/return", async (request: NextRequest) => {
+  const target = new URL(request.nextUrl.pathname, siteOrigin());
+  request.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+  try {
+    const form = await request.formData();
+    form.forEach((value, key) => {
+      if (key !== "order" && typeof value === "string") target.searchParams.set(key, value);
+    });
+  } catch {
+    // بدنهٔ خالی یا نامعتبر: GET خودش بدونِ پارامتر «نامعلوم» برمی‌گرداند.
+  }
+  return NextResponse.redirect(target, 303);
 });
 
 export const dynamic = "force-dynamic";

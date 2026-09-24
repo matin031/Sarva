@@ -31,11 +31,35 @@ export type AccessClaims = {
   role: UserRole;
   /** شناسهٔ سشنی که این توکن از آن زاده شده — برای ردیابی و ابطال */
   sid: string;
+  /**
+   * «این حساب هنوز نام و نام خانوادگی ندارد.»
+   *
+   * ⚠️ این ادعا فقط برای آن است که `proxy.ts` بتواند **بدونِ زدن به
+   * دیتابیس** جلوی کاربرِ نیمه‌ساخته را بگیرد و به صفحهٔ تکمیل بفرستدش.
+   * proxy روی *هر* درخواست اجرا می‌شود؛ یک کوئری در آن مسیر یعنی یک کوئری
+   * به ازای هر ناوبری، هر prefetch و هر درخواستِ RSC.
+   *
+   * ⚠️ مثل `role`، این یک تصمیمِ دسترسی نیست و نباید بشود — فقط هدایت است.
+   * قاعدهٔ واقعی در `lib/auth/onboarding.ts` است و از ردیفِ دیتابیس خوانده
+   * می‌شود.
+   *
+   * ⚠️ و **اختیاری** است. توکن‌هایی که پیش از این تغییر صادر شده‌اند این
+   * کلید را ندارند؛ اگر اجباری بود، همان لحظهٔ انتشار هر کاربرِ واردشده‌ای
+   * بیرون می‌افتاد. نبودنش «نیازی نیست» معنی می‌شود، و حداکثر تا عمرِ یک
+   * توکنِ دسترسی (۱۵ دقیقه) طول می‌کشد تا مقدارِ واقعی جایش بنشیند.
+   */
+  needsProfile?: boolean;
 };
 
 export async function signAccessToken(claims: AccessClaims): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ role: claims.role, sid: claims.sid })
+  return new SignJWT({
+    role: claims.role,
+    sid: claims.sid,
+    // ⚠️ فقط وقتی true است نوشته می‌شود. یک `false` صریح در هر توکنِ سایت
+    // چیزی اضافه نمی‌کند جز چند بایت در هر درخواست.
+    ...(claims.needsProfile ? { np: true } : {}),
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
     .setIssuedAt(now)
@@ -54,9 +78,15 @@ export async function verifyAccessToken(token: string): Promise<AccessClaims | n
 
     // یک توکن با امضای درست ولی محتوای ناقص نباید نیمه‌قبول شود.
     if (typeof sub !== "string" || typeof sid !== "string") return null;
-    if (role !== "student" && role !== "admin") return null;
+    /* ⚠️ `teacher` هم یک نقشِ واقعی است.
+       این فهرست از پیش از مهاجرت ۰۰۹ مانده بود و آن مهاجرت نقشِ سوم را
+       اضافه کرد. نتیجه‌اش بی‌صدا بود و بد: توکنِ دسترسیِ *هر دبیری* اینجا
+       نامعتبر خوانده می‌شد، پس هر درخواستش به شاخهٔ «توکن ندارم» می‌افتاد و
+       یک چرخشِ refresh و یک کوئریِ دیتابیس تحمیل می‌کرد — به ازای هر
+       درخواست، نه هر ۱۵ دقیقه. */
+    if (role !== "student" && role !== "teacher" && role !== "admin") return null;
 
-    return { sub, role, sid };
+    return { sub, role, sid, needsProfile: payload.np === true };
   } catch {
     // منقضی، امضای غلط، الگوریتم غلط، JSON خراب — همه یک معنی دارند: نامعتبر.
     return null;

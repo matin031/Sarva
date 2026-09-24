@@ -4,11 +4,18 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Beyt } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
-import type { WordRole } from "@/lib/doroos/types";
-import { faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
-import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
 import ReportButton from "@/components/UI/ReportButton";
+import { AiNotice, AiThinking, useAiSyntax } from "@/components/UI/doroos/BeytAi";
+import {
+  DiagramScroller,
+  PlusGatePanel,
+  useAnalysisViews,
+  ViewBar,
+} from "@/components/UI/doroos/AnalysisViews";
+import { hasAiLesson } from "@/lib/doroos/ai-catalog";
+import styles from "./beyt-ai.module.css";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -25,18 +32,28 @@ export default function BeytCard({
   lessonRef?: { grade: string; number: number; title: string };
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
-  /** which diagram is drawn over the بیت — grammar, figures of speech, or the
-   *  plain couplet. Only one at a time: both at once is unreadable. */
-  const [view, setView] = useState<"syntax" | "devices" | "plain">("syntax");
 
-  const VIEWS = [
-    { id: "syntax", label: "نقش دستوری", roles: beyt.syntax },
-    { id: "devices", label: "آرایه‌ها", roles: beyt.devices },
-  ] as const;
-  const available = VIEWS.filter(
-    (v): v is (typeof VIEWS)[number] & { roles: WordRole[] } => !!v.roles?.length,
-  );
-  const active = available.find((v) => v.id === view);
+  const aiAvailable = !!lessonRef && hasAiLesson(lessonRef.grade, lessonRef.number);
+
+  /* نوارِ نماها و دروازهٔ پلاس مشترک‌اند با `PassageCard` — هر دو از
+     `AnalysisViews` می‌آیند تا قفل در یکی از آن دو جا نماند. */
+  const { gate, views, view, current, locked, lockedUnknown, rolesFailed, pick } =
+    useAnalysisViews({
+      grade: lessonRef?.grade ?? "",
+      lesson: lessonRef?.number ?? 0,
+      n: beyt.n,
+      flags: beyt.analysis,
+      aiAvailable,
+    });
+
+  /* ⚠️ فقط وقتی این نما انتخاب شده بار می‌گیرد. دانش‌آموزی که هوشواره را
+     نمی‌زند، حتی یک بایت از فایلش دانلود نمی‌کند. */
+  const ai = useAiSyntax({
+    grade: lessonRef?.grade ?? "",
+    lesson: lessonRef?.number ?? 0,
+    n: beyt.n,
+    active: view === "ai" && gate.unlocked,
+  });
 
   return (
     <article id={`beyt-${beyt.n}`} className="relative z-20 scroll-mt-28">
@@ -66,8 +83,11 @@ export default function BeytCard({
         />
 
         <div className="relative z-20">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+          {/* ⚠️ `items-start` و نه `items-center`: زیرِ ۶۴۰ پیکسل نوارِ نماها
+              به خطِ خودش می‌رود و اگر وسط‌چین بود، شمارهٔ بیت نسبت به آن
+              می‌لغزید. */}
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5">
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
               بیت {faNum(beyt.n)}
               {lessonRef && (
                 <ReportButton
@@ -88,61 +108,63 @@ export default function BeytCard({
               )}
             </span>
 
-            {/* a diagram is on by default — the point is to see the analysis
-                the moment you look at the بیت — but it is a lot to take in, so
-                the plain couplet stays one click away */}
-            {available.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {[...available, { id: "plain", label: "ساده" } as const].map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setView(v.id)}
-                    aria-pressed={view === v.id}
-                    className={`rounded-full border px-3 py-1 text-[0.7rem] font-bold transition-colors ${
-                      view === v.id
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            {/* یک نما همیشه روشن است — نقطهٔ کلِ صفحه این است که تحلیل را
+                همان لحظه ببینی — ولی «ساده» یک کلیک دورتر می‌ماند. */}
+            <ViewBar views={views} view={view} gate={gate} onPick={pick} busy={ai.busy} />
           </div>
 
-          {active ? (
-            <div className="mt-8 overflow-x-auto pb-1">
-              {/* the wires need the couplet's real width; on a narrow screen
-                  that is wider than the card, so the diagram scrolls rather
-                  than reflowing into something the arrows no longer match */}
-              {/* keyed on the view so switching remounts rather than carrying
-                  the previous diagram's measurements into the new one */}
-              <div className="min-w-[30rem]">
-                <BeytSyntaxMap
-                  key={active.id}
-                  lines={beyt.hemistichs}
-                  roles={active.roles}
-                />
+          {/* ⚠️ کلید روی «کدام نما» است: با عوض شدنش ری‌اکت زیردرخت را از نو
+              می‌سازد، پس هم انیمیشنِ ورود دوباره اجرا می‌شود و هم نمودار
+              اندازه‌گیریِ نمای قبلی را با خودش نمی‌آورد. */}
+          <div key={`${view}-${locked}-${ai.busy}-${!!current?.roles}`} className={styles.reveal}>
+            {locked || (view === "ai" && ai.forbidden) ? (
+              <PlusGatePanel unknown={lockedUnknown || ai.forbidden === "unavailable"} />
+            ) : rolesFailed ? (
+              <p className={styles.error}>بارگذاری نشد. صفحه را دوباره باز کن.</p>
+            ) : view === "plain" || (view !== "ai" && !current?.roles) ? (
+              /* ⚠️ «ساده»، یا نمای پولی‌ای که نقش‌هایش هنوز از سرور نرسیده: تا
+                 آمدنِ نمودار خودِ بیت نشان داده می‌شود و نه یک جای خالی. */
+              <div className="mt-6 space-y-3 text-center">
+                {beyt.hemistichs.map((h, i) => (
+                  <motion.p
+                    key={i}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.6 }}
+                    transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
+                    className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
+                  >
+                    {h}
+                  </motion.p>
+                ))}
               </div>
-            </div>
-          ) : (
-            <div className="mt-6 space-y-3 text-center">
-              {beyt.hemistichs.map((h, i) => (
-                <motion.p
-                  key={i}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.6 }}
-                  transition={{ duration: 0.6, delay: 0.1 + i * 0.12, ease: EASE }}
-                  className="font-serif text-xl leading-[2] font-bold text-foreground sm:text-2xl md:text-[1.7rem]"
-                >
-                  {h}
-                </motion.p>
-              ))}
-            </div>
-          )}
+            ) : view === "ai" ? (
+              ai.busy ? (
+                <AiThinking stage={ai.stage} />
+              ) : ai.failed ? (
+                /* ⚠️ شکست پنهان نمی‌شود و نماهای دیگر هم پاک نمی‌شوند:
+                   تحلیلِ دست‌نویس سرِ جایش است و فقط این یکی نیامده. */
+                <p className={styles.error}>
+                  بارگذاری نشد. دوباره امتحان کن.
+                </p>
+              ) : ai.roles ? (
+                <>
+                  <DiagramScroller
+                    lines={beyt.hemistichs}
+                    roles={ai.roles}
+                    viewKey="ai"
+                  />
+                  <AiNotice />
+                </>
+              ) : null
+            ) : current?.roles ? (
+              <DiagramScroller
+                lines={beyt.hemistichs}
+                roles={current.roles}
+                viewKey={current.id}
+              />
+            ) : null}
+          </div>
 
           {/* معنی و مفهوم */}
           <div className="mt-7 grid gap-3 sm:grid-cols-5">
@@ -257,7 +279,7 @@ export default function BeytCard({
             aria-expanded={showAnswer}
             className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-all hover:brightness-95 active:scale-95"
           >
-            {showAnswer ? "پنهان کردنِ پاسخ" : "نمایشِ پاسخ"}
+            {showAnswer ? "پنهان کردن پاسخ" : "نمایش پاسخ"}
           </button>
 
           <AnimatePresence initial={false}>

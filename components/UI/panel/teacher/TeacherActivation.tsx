@@ -78,8 +78,7 @@ export default function TeacherActivation({
           <div className="min-w-0">
             <h2 className="font-bold">حساب دبیری‌ات فعال است</h2>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              می‌توانی مدرسه و کلاس بسازی و عملکرد دانش‌آموزانت را ببینی. سروا پلاس هم برایت
-              به‌صورت دائمی روشن است.
+              می‌توانی مدرسه و کلاس بسازی و عملکرد دانش‌آموزانت را ببینی. سروا پلاس هم برایت دائمی فعال است.
             </p>
             {state.request?.reviewedAt && (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -162,7 +161,7 @@ function PendingCard({ request }: { request: TeacherRequestView }) {
         </span>
         <div>
           <h2>درخواستت در انتظار بررسی است</h2>
-          <p>به‌محضِ تعیین تکلیف، همین‌جا و در اعلان‌هایت می‌بینی.</p>
+          <p>نتیجه را در اعلان‌ها می‌بینی.</p>
         </div>
       </div>
       <CardContent>
@@ -314,7 +313,7 @@ function RequestForm({
         </span>
         <div>
           <h2>فعال‌سازی حساب دبیر</h2>
-          <p>مدارکت را بفرست؛ بعد از بررسی، پنل دبیر برایت باز می‌شود.</p>
+          <p>مدارکت را بفرست. بعد از تأیید، پنل دبیر فعال می‌شود.</p>
         </div>
       </div>
 
@@ -441,14 +440,35 @@ function RequestForm({
             htmlFor="document"
             hint="PDF یا تصویر (jpg، png، webp) تا ۸ مگابایت. فقط مدیران سروا آن را می‌بینند."
           >
-            <input
-              id="document"
-              type="file"
-              accept="application/pdf,image/png,image/jpeg,image/webp"
-              disabled={blocked}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full cursor-pointer rounded-xl border border-border bg-background/40 p-2.5 text-sm file:me-3 file:rounded-lg file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
-            />
+            {/* ⚠️ ورودیِ فایلِ بومی متنش را از زبانِ مرورگر می‌گیرد («Choose File /
+                No file chosen») و نمی‌شود فارسی‌اش کرد. خودِ ورودی پنهان است و
+                این قاب هم کلیک می‌گیرد و هم رها کردنِ فایل. */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (!blocked) setFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className="relative flex items-center gap-3 rounded-xl border border-dashed border-border bg-background/40 p-3.5 transition-colors hover:border-primary/60 has-[:disabled]:opacity-55 has-[:focus-visible]:border-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/25"
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <FileUp aria-hidden className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{file ? file.name : "انتخاب فایل"}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {file ? `${(file.size / 1024 / 1024).toLocaleString("fa-IR", { maximumFractionDigits: 1 })} مگابایت` : "یا فایل را اینجا رها کن"}
+                </span>
+              </span>
+              <input
+                id="document"
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                disabled={blocked}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+              />
+            </div>
           </Field>
 
           {error && (

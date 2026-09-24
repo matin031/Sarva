@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { absoluteUrl } from "@/lib/seo/site";
 import DoroosHome from "@/components/UI/doroos/DoroosHome";
+import { GRADES } from "@/lib/doroos";
 
 export const metadata: Metadata = {
   /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
@@ -11,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <DoroosHome />;
+  return <DoroosHome grades={GRADES} />;
 }

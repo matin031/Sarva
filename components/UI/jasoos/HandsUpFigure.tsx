@@ -20,10 +20,16 @@ export default function HandsUpFigure({
   mood = "calm",
   eyeX,
   eyeY,
+  interactive = false,
+  outfit = 0,
 }: {
   mood?: FigureMood;
   eyeX?: MotionValue<number>;
   eyeY?: MotionValue<number>;
+  /** Only the painted silhouette receives pointer events; face details do not. */
+  interactive?: boolean;
+  /** Visual variety depends on position only, never on the suspect's answer. */
+  outfit?: number;
 }) {
   const scared = mood === "scared";
   const smug = mood === "smug";
@@ -38,10 +44,11 @@ export default function HandsUpFigure({
   const eyeRy = smug ? 2.1 : scared ? 6.4 : 4.6;
 
   return (
-    <svg viewBox="0 0 120 220" className="h-full w-full overflow-visible">
+    <svg viewBox="0 0 120 220" className="h-full w-full overflow-visible" pointerEvents={interactive ? "none" : undefined}>
       {/* left arm raised */}
       <path
-        d={scared ? "M44 68 Q14 40 6 -6" : "M44 68 Q18 44 10 2"}
+        d={scared && !interactive ? "M44 68 Q14 40 6 -6" : "M44 68 Q18 44 10 2"}
+        pointerEvents={interactive ? "visiblePainted" : undefined}
         stroke="currentColor"
         strokeWidth="13"
         strokeLinecap="round"
@@ -49,7 +56,8 @@ export default function HandsUpFigure({
       />
       {/* right arm raised */}
       <path
-        d={scared ? "M76 68 Q106 40 114 -6" : "M76 68 Q102 44 110 2"}
+        d={scared && !interactive ? "M76 68 Q106 40 114 -6" : "M76 68 Q102 44 110 2"}
+        pointerEvents={interactive ? "visiblePainted" : undefined}
         stroke="currentColor"
         strokeWidth="13"
         strokeLinecap="round"
@@ -57,7 +65,7 @@ export default function HandsUpFigure({
       />
 
       {/* head */}
-      <circle cx="60" cy="34" r="22" fill="currentColor" />
+      <circle cx="60" cy="34" r="22" fill="currentColor" pointerEvents={interactive ? "visiblePainted" : undefined} />
 
       {/* ---------------- face ---------------- */}
       {/* eye whites: wide when frightened, narrowed to slits when smug */}
@@ -145,10 +153,30 @@ export default function HandsUpFigure({
       )}
 
       {/* torso */}
-      <path d="M38 60 L82 60 L92 152 L28 152 Z" fill="currentColor" />
+      <path d="M38 60 L82 60 L92 152 L28 152 Z" fill="currentColor" pointerEvents={interactive ? "visiblePainted" : undefined} />
       {/* legs */}
-      <path d="M40 152 L33 218 L50 218 L55 152 Z" fill="currentColor" />
-      <path d="M80 152 L87 218 L70 218 L65 152 Z" fill="currentColor" />
+      <path d="M40 152 L33 218 L50 218 L55 152 Z" fill="currentColor" pointerEvents={interactive ? "visiblePainted" : undefined} />
+      <path d="M80 152 L87 218 L70 218 L65 152 Z" fill="currentColor" pointerEvents={interactive ? "visiblePainted" : undefined} />
+
+      {/* Clothing adds personality without adding to the pointer silhouette. */}
+      <g pointerEvents="none">
+        <path d="M38 60 51 81 60 65 69 81 82 60" fill="var(--card)" fillOpacity="0.65" />
+        {outfit % 2 === 0 ? (
+          <>
+            <path d="m56 72 8 0-1 9 7 32-10 13-10-13 7-32Z" fill="var(--foreground)" fillOpacity="0.5" />
+            <path d="M72 97h11v12H72z" fill="var(--card)" fillOpacity="0.24" />
+          </>
+        ) : (
+          <>
+            <path d="M39 65 55 92 49 148H29M81 65 65 92 71 148H91" fill="var(--foreground)" fillOpacity="0.22" />
+            <path d="M60 89v57" stroke="var(--card)" strokeOpacity="0.3" strokeWidth="2" />
+            <circle cx="60" cy="106" r="2.3" fill="var(--card)" fillOpacity="0.6" />
+            <circle cx="60" cy="122" r="2.3" fill="var(--card)" fillOpacity="0.6" />
+          </>
+        )}
+        <path d="M31 144h58v8H31z" fill="var(--foreground)" fillOpacity="0.3" />
+        <path d="M55 145h10v6H55z" fill="var(--gold)" />
+      </g>
     </svg>
   );
 }

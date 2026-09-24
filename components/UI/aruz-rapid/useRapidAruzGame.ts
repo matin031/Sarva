@@ -5,12 +5,13 @@ import {
   activeNow,
   canAcceptInput,
   createInitialState,
+  currentQuestion,
   isPaused,
   rapidAruzReducer,
   type PauseReason,
   type RapidAruzState,
 } from "@/lib/aruz-rapid/machine";
-import type { RapidAruzConfig } from "@/lib/aruz-rapid/config";
+import { getPreviewDuration, type RapidAruzConfig } from "@/lib/aruz-rapid/config";
 import type { RapidAruzInputMethod, ScansionLength } from "@/lib/aruz-rapid/types";
 import type { RapidAruzQuestionSource } from "@/lib/aruz-rapid/source";
 import { useSuspendableTimeout } from "./useSuspendableTimeout";
@@ -238,7 +239,7 @@ export function useRapidAruzGame({
 
   useSuspendableTimeout({
     timeoutKey: state.phase === "preview" ? `preview:${epochKey}` : null,
-    durationMs: config.previewDurationMs,
+    durationMs: getPreviewDuration(config, currentQuestion(state)),
     paused,
     onDone: useCallback(() => dispatch({ type: "PREVIEW_DONE" }), []),
   });

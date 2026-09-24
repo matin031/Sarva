@@ -64,6 +64,7 @@ export const GAME_LABEL: Record<GameKey, string> = {
   kimia: "کیمیای وزن",
   ninja: "نینجای دستور",
   pairs: "جفت‌های ادبی",
+  "rang-ara": "رنگ‌آرا",
   "role-hunt": "شکار نقش‌ها",
   vocab: "واژه‌یاب",
 };
@@ -72,6 +73,8 @@ export type StudentReport = {
   student: TeacherStudentRef;
   /** دقتِ عروضِ سماعی — پاسخِ تکیِ `user_answers`، نه تلاش. */
   aruz: { total: number; correct: number; accuracy: number | null; lastAt: string | null };
+  /** آخرین دورهای عروضِ سماعی — هر کدام یک ردیفِ `quiz_attempts`. */
+  quizRecent: { id: string; total: number; correct: number; at: string }[];
   weights: SkillAnalysis;
   roles: SkillAnalysis;
   trend: ProgressPoint[];
@@ -102,8 +105,9 @@ export async function getStudentReport(
   const student = await getStudentForTeacher(teacherId, studentId, classId);
   if (!student) return null;
 
-  const [aruz, weights, roles, trend, examStats, recentExams, games] = await Promise.all([
+  const [aruz, quizRecent, weights, roles, trend, examStats, recentExams, games] = await Promise.all([
     aruzSummary(studentId),
+    recentQuizAttempts(studentId),
     getWeightAnalysis(studentId),
     getRoleAnalysis(studentId),
     getProgressTrend(studentId, 8),
@@ -115,6 +119,7 @@ export async function getStudentReport(
   return {
     student,
     aruz,
+    quizRecent,
     weights,
     roles,
     trend,
@@ -142,6 +147,24 @@ async function aruzSummary(studentId: string) {
   const total = Number(rows[0]?.total ?? 0);
   const correct = Number(rows[0]?.correct ?? 0);
   return { total, correct, accuracy: accuracyOrNull(correct, total), lastAt: rows[0]?.last_at ?? null };
+}
+
+/** «عملکردِ اخیر»: پنج دورِ آخر، تازه‌ترین اول. */
+async function recentQuizAttempts(studentId: string) {
+  const rows = await query<{ id: string; total: number; correct: number; created_at: string }>(
+    `select id, total, correct, created_at
+       from quiz_attempts
+      where user_id = ?
+      order by created_at desc, id
+      limit 5`,
+    [studentId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    total: Number(r.total),
+    correct: Number(r.correct),
+    at: r.created_at,
+  }));
 }
 
 /* ──────────────────────────── آزمون‌ها ────────────────────────────────── */
@@ -221,7 +244,7 @@ async function recentExamList(studentId: string) {
  * نمی‌کنیم. تفاوتِ «نکرده» با «نمی‌دانیم» دقیقاً همان چیزی است که این
  * صفحه باید صادقانه نشان دهد.
  *
- * شش شاخه و نه نُه: سه بازیِ بی‌داده جدولی ندارند که از آن بخوانیم.
+ * هفت شاخه و نه ده: سه بازیِ بی‌داده جدولی ندارند که از آن بخوانیم.
  */
 async function gameLines(studentId: string): Promise<GameLine[]> {
   const rows = await query<{
@@ -247,6 +270,10 @@ async function gameLines(studentId: string): Promise<GameLine[]> {
          select 'role-hunt', is_correct, answered_at
            from role_hunt_answers where user_id = ?
          union all
+         /* یک ردیف به‌ازای هر گام؛ «درست» یعنی بار اول پیدا شد. */
+         select 'rang-ara', is_correct, answered_at
+           from rang_ara_answers where user_id = ?
+         union all
          /* ⚠️ «کیمیای وزن» یک ردیف به‌ازای هر *دور* دارد و نه هر تلاش، و
             درستی‌اش همان تلاشِ اول است. دورِ رهاشده (بدونِ هیچ آزمایشی)
             اصلاً شمرده نمی‌شود — نه درست و نه غلط. */
@@ -254,7 +281,7 @@ async function gameLines(studentId: string): Promise<GameLine[]> {
            from kimia_rounds where user_id = ? and answered_at is not null
        ) t
       group by game`,
-    [studentId, studentId, studentId, studentId, studentId, studentId],
+    Array(7).fill(studentId),
   );
 
   const byGame = new Map(rows.map((r) => [r.game, r]));

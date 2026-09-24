@@ -67,18 +67,28 @@ function durationFor(
   return table[state];
 }
 
+/** تکلیفِ دبیر: سؤال‌ها را سرور انتخاب کرده و صفحه همان‌ها را فرستاده. */
+export type BridgeAssignment = { id: string; title: string; questions: AruzBridgeQuestion[] };
+
+/** وضعیتِ ثبتِ تکلیف: هنوز ثبت نشده، ثبت شد، یا ارسال شکست خورد. */
+export type AssignmentSave = "open" | "saved" | "failed";
+
 export interface UseAruzBridgeGameOptions {
   source?: QuestionSource;
   configOverrides?: Partial<AruzBridgeConfig>;
+  assignment?: BridgeAssignment;
 }
 
 export function useAruzBridgeGame({
   source,
   configOverrides,
+  assignment,
 }: UseAruzBridgeGameOptions = {}) {
   /* پیکربندیِ دور: چیزی که بازیکن در صفحهٔ تنظیمات انتخاب کرده. تا وقتی
      خودش عوضش نکند، «دوباره» با همین اجرا می‌شود. */
-  const [session, setSession] = useState<AruzBridgeSessionConfig>(defaultSessionConfig);
+  const [session, setSession] = useState<AruzBridgeSessionConfig>(() =>
+    assignment ? { ...defaultSessionConfig, allowRepeatQuestions: false } : defaultSessionConfig,
+  );
 
   const config = useMemo(() => {
     // سرعت تنها چیزی است که زمان‌بندی را تعیین می‌کند؛ اعداد در session.ts‌اند.
@@ -99,7 +109,15 @@ export function useAruzBridgeGame({
   /* پرسش‌ها از دیتابیس می‌آیند. اگر مسیر در دسترس نباشد، خطا نشان داده
      می‌شود و به دادهٔ نمایشی عقب‌نشینی نمی‌کنیم: نمایشِ محتوای تأییدنشده
      به‌جای محتوای واقعی، بدتر از یک پیامِ خطای صادق است. */
-  const questionSource = useMemo(() => source ?? new RemoteQuestionSource(), [source]);
+  const assignmentQuestions = assignment?.questions;
+  const questionSource = useMemo<QuestionSource>(
+    () =>
+      source ??
+      (assignmentQuestions
+        ? { id: "assignment", isDemo: false, load: async () => assignmentQuestions }
+        : new RemoteQuestionSource()),
+    [source, assignmentQuestions],
+  );
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   /* بی‌صدایی مشتقِ همان `session.soundEnabled` است و حالتِ دومی ندارد؛ پس
@@ -147,6 +165,8 @@ export function useAruzBridgeGame({
      هنگامِ ثبتِ effect گرفتش و در پاک‌سازی به همان اشاره کرد — که دقیقاً
      همان کاری است که قاعدهٔ «ref در cleanup» می‌خواهد. */
   const lifecycleRef = useRef({ runId: 0, controller: null as AbortController | null });
+  /** آیا دورِ جاری «مرورِ اشتباه‌ها» است — برای ثبتِ تکلیف (پایین‌تر). */
+  const reviewRunRef = useRef(false);
 
   /* مخزنِ پرسش‌ها یک بار گرفته می‌شود و کَش می‌ماند.
      ref منبعِ حقیقت است (منطق هر لحظه ممکن است لازمش داشته باشد) و state
@@ -205,6 +225,7 @@ export function useAruzBridgeGame({
       lifecycle.controller = controller;
 
       const activeSession = overrides?.sessionOverride ?? session;
+      reviewRunRef.current = Boolean(overrides?.reviewIds?.length);
 
       /* ⚠️ هر دورِ تازه از نو منتظرِ صحنه می‌ماند.
          `beginRun` تنها راهِ ورود به دور است — «شروع»، «دوباره» و «مرورِ
@@ -226,8 +247,9 @@ export function useAruzBridgeGame({
           ? buildReviewQuestions({ pool: rows, failedIds: overrides.reviewIds })
           : sampleSessionQuestions({
               pool: rows,
-              count: activeSession.questionCount,
-              allowRepeat: activeSession.allowRepeatQuestions,
+              /* در تکلیف، تعداد همان سؤال‌هایی است که سرور انتخاب کرده. */
+              count: assignmentQuestions ? rows.length : activeSession.questionCount,
+              allowRepeat: assignmentQuestions ? false : activeSession.allowRepeatQuestions,
             }).questions;
 
         if (!questions.length) throw new Error("پرسشی برای این دور پیدا نشد.");
@@ -247,7 +269,7 @@ export function useAruzBridgeGame({
         if (runId === lifecycle.runId) setLoading(false);
       }
     },
-    [session, loadPool, configOverrides],
+    [session, loadPool, configOverrides, assignmentQuestions],
   );
 
   useEffect(() => {
@@ -282,13 +304,29 @@ export function useAruzBridgeGame({
      مهمان هم بازی می‌کند؛ سرور برای او چیزی ثبت نمی‌کند و ۲۰۰ برمی‌گرداند. */
   const reportedEpochRef = useRef<number | null>(null);
 
+  /* ⚠️ تکلیف با *اولین دورِ کاملِ* سؤال‌هایش ثبت می‌شود و نه با «مرورِ
+     اشتباه‌ها». دورهای بعدی تمرینِ عادی‌اند و فقط به تاریخچه می‌روند. اگر
+     ثبت شکست بخورد، دورِ بعد دوباره تلاش می‌کند. */
+  const assignmentId = assignment?.id;
+  const assignmentOpenRef = useRef(Boolean(assignmentId));
+  const [assignmentSave, setAssignmentSave] = useState<AssignmentSave>("open");
+
   useEffect(() => {
     if (machine.state !== "finished" && machine.state !== "gameOver") return;
     if (reportedEpochRef.current === machine.epoch) return;
     reportedEpochRef.current = machine.epoch;
 
-    void reportBridgeRun(runOutcomes(machine));
-  }, [machine]);
+    const outcomes = runOutcomes(machine);
+    if (assignmentId && assignmentOpenRef.current && !reviewRunRef.current && outcomes.length > 0) {
+      assignmentOpenRef.current = false;
+      void reportBridgeRun(outcomes, assignmentId).then((saved) => {
+        assignmentOpenRef.current = !saved;
+        setAssignmentSave(saved ? "saved" : "failed");
+      });
+      return;
+    }
+    void reportBridgeRun(outcomes);
+  }, [machine, assignmentId]);
 
   /* ── ساعتِ بازی ────────────────────────────────────────────────────────── */
   /* یک تایمر برای هر حالت. کلیدِ اثر `[state, epoch]` است، پس هر گذارِ
@@ -450,6 +488,7 @@ export function useAruzBridgeGame({
     retry,
     reviewMistakes,
     backToSetup,
+    assignmentSave,
   };
 }
 

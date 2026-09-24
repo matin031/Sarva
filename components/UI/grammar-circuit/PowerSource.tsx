@@ -1,12 +1,13 @@
 "use client";
 
-/** منبعِ تغذیه — ابتدای مسیرِ مدار، سمتِ راست.
+/** منبعِ تغذیه — ابتدای مسیرِ مدار.
  *
- *  چیدمان عمداً از راست به چپ است: باتری سمتِ راست، خانه‌ها به ترتیبِ خواندنِ
- *  فارسی، و لامپ در انتهای سمتِ چپ. همان جهتی که پالسِ تشخیصی هم می‌رود.
+ *  افقی: سمتِ راست، سرِ باتری رو به خانه‌ها (چپ). ایستاده (گوشی): بالای ستون
+ *  و سیم از زیرش بیرون می‌آید. جای `data-gc-terminal` را شیوه‌نامه تعیین
+ *  می‌کند، نه این فایل، چون در دو چیدمان فرق دارد؛ مختصاتش از خودِ DOM
+ *  خوانده می‌شود.
  *
- *  کاملاً تزئینی است و هیچ رویدادی نمی‌گیرد؛ `data-gc-terminal` نقطه‌ای است
- *  که سیم از آن بیرون می‌آید و مختصاتش از خودِ DOM خوانده می‌شود. */
+ *  کاملاً تزئینی است و هیچ رویدادی نمی‌گیرد. */
 export default function PowerSource({
   live,
   hostRef,
@@ -16,40 +17,16 @@ export default function PowerSource({
 }) {
   return (
     <div ref={hostRef} className="gc-power" data-live={live || undefined} aria-hidden>
-      <svg width="52" height="72" viewBox="0 0 52 72" fill="none">
-        <rect x="8" y="4" width="14" height="5" rx="1.6" fill="var(--gc-metal)" />
-        <rect
-          x="4"
-          y="9"
-          width="44"
-          height="54"
-          rx="7"
-          fill="var(--gc-board-elevated)"
-          stroke="var(--gc-border-strong)"
-          strokeWidth="1.6"
-        />
-        {/* نوارِ شارژ — سه پله، برای حسِ «دستگاه» بدونِ شلوغی. */}
-        <rect className="gc-power-cell" x="11" y="16" width="30" height="8" rx="2.5" />
-        <rect className="gc-power-cell" x="11" y="28" width="30" height="8" rx="2.5" />
-        <rect className="gc-power-cell" x="11" y="40" width="30" height="8" rx="2.5" />
-        <path
-          d="M22 53h8M26 53v5"
-          stroke="var(--gc-text-muted)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="gc-endcap-label">باتری</span>
-      <span
-        data-gc-terminal
-        style={{
-          position: "absolute",
-          top: "36px",
-          insetInlineEnd: "4px",
-          width: 2,
-          height: 2,
-        }}
-      />
+      <span className="gc-endcap-art">
+        <svg viewBox="0 0 64 40" fill="none">
+          <rect className="gc-power-nub" x="2" y="14" width="6" height="12" rx="2" />
+          <rect className="gc-power-body" x="8" y="5" width="52" height="30" rx="7" />
+          <rect className="gc-power-cell" x="14" y="11" width="11" height="18" rx="2.5" />
+          <rect className="gc-power-cell" x="28.5" y="11" width="11" height="18" rx="2.5" />
+          <rect className="gc-power-cell" x="43" y="11" width="11" height="18" rx="2.5" />
+        </svg>
+        <span data-gc-terminal className="gc-terminal" />
+      </span>
     </div>
   );
 }

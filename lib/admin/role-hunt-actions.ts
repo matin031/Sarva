@@ -94,6 +94,9 @@ async function scan(): Promise<RoleHuntAdminRow[]> {
     const result = explainRoleHuntEligibility(q);
     if (result.ok) {
       const { round } = result;
+      /* ⚠️ یک مصراع چند پرسش دارد؛ ستونِ «نقش» همه را نشان می‌دهد و نه
+         اولی را، وگرنه پنل کمتر از واقعیت گزارش می‌کرد. */
+      const first = round.asks[0];
       return {
         questionId: q.id,
         sourceId: q.sourceId ?? null,
@@ -101,9 +104,11 @@ async function scan(): Promise<RoleHuntAdminRow[]> {
         lesson: q.lesson ?? null,
         verse: verseTextOfRound(round),
         eligible: true,
-        roleKey: round.roleKey,
-        roleLabel: round.roleLabel,
-        answer: round.orbit.find((t) => t.id === round.correctTokenId)?.text ?? null,
+        roleKey: first?.roleKey ?? null,
+        roleLabel: round.asks.map((a) => a.roleLabel).join("، "),
+        answer: round.asks
+          .map((a) => round.orbit.find((t) => t.id === a.correctTokenId)?.text ?? "?")
+          .join("، "),
         words: round.orbit.length,
         reason: null,
         reasonLabel: null,

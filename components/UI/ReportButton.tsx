@@ -74,8 +74,8 @@ export default function ReportButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="گزارش مشکلِ این پرسش"
-        title="گزارش مشکلِ این پرسش"
+        aria-label="گزارش مشکل این پرسش"
+        title="گزارش مشکل این پرسش"
         className={variant === "bare" ? className : `${PILL} ${className}`}
       >
         <FlagIcon />
@@ -89,6 +89,8 @@ export default function ReportButton({
   );
 }
 
+/* ⚠️ پرچمِ قبلی باریک بود و در ۱۴ پیکسل شبیهِ حرفِ «P» دیده می‌شد. این یکی
+   پهن‌تر است و لبهٔ موج‌دار دارد، پس در اندازهٔ کوچک هم پرچم خوانده می‌شود. */
 function FlagIcon() {
   return (
     <svg
@@ -96,13 +98,13 @@ function FlagIcon() {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.9}
-      className="size-3.5 shrink-0"
+      className="size-4 shrink-0"
       aria-hidden
     >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M4 21V4.5m0 0c3.5-1.8 6.5 1.8 10 0v9c-3.5 1.8-6.5-1.8-10 0"
+        d="M5 21.5V4.2M5 4.2c1.6-1 3.3-1.2 5-.5 2 .8 3.7 2 6 1.2 1.1-.4 2-.9 3-1.6v9.5c-1 .7-1.9 1.2-3 1.6-2.3.8-4-.4-6-1.2-1.7-.7-3.4-.5-5 .5"
       />
     </svg>
   );
@@ -265,8 +267,8 @@ function ReportDialog({
                   aria-required={noteRequired}
                   placeholder={
                     noteRequired
-                      ? "بنویس دقیقاً چه ایرادی دارد — بدونِ آن، گزارش قابلِ پیگیری نیست."
-                      : "اگر می‌دانی پاسخِ درست چیست یا کجای کار می‌لنگد، همین‌جا بنویس."
+                      ? "بنویس چه ایرادی دارد."
+                      : "اگر جواب درست را می‌دانی، بنویس."
                   }
                   className={`w-full resize-y rounded-xl border bg-background p-3 text-sm outline-none focus:border-primary ${
                     noteMissing ? "border-destructive/60" : "border-border"

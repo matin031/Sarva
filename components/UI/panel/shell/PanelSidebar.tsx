@@ -39,8 +39,7 @@ export function PanelSidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           س
         </span>
         <span className="min-w-0">
-          <span className="block text-[17px] font-bold">سروا</span>
-          <span className="block text-[12px] text-muted-foreground">ادبیات، قدم‌به‌قدم</span>
+                    <span className="block text-[17px] font-bold">سروا</span>
         </span>
       </Link>
 

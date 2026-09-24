@@ -1,0 +1,196 @@
+.section {
+  --lb-line: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --lb-muted: var(--muted-foreground);
+  --lb-play: paused;
+  position: relative;
+  z-index: 20;
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-block: 88px;
+  scroll-margin-top: 96px;
+  color: var(--foreground);
+  isolation: isolate;
+}
+
+.section[data-animate="true"] { --lb-play: running; }
+.section[data-paused="true"] .podiumStudent { animation: none; }
+.section, .section * { box-sizing: border-box; line-height: 1.7; }
+.section button, .section select { font: inherit; }
+.section button { cursor: pointer; }
+.section :is(button, select):focus-visible { outline: 2px solid var(--primary); outline-offset: 5px; }
+.heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+.eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--gold-ink); font-size: 12px; font-weight: 650; }
+.eyebrow > span { width: 35px; height: 1px; margin-inline-start: 5px; background: color-mix(in oklch, var(--gold) 55%, transparent); }
+.heading h2 { margin: 0; font-family: var(--font-morabba), var(--font-sans); font-size: clamp(26px, 3.3vw, 40px); font-weight: 700; line-height: 1.35; }
+.subtitle { margin: 12px 0 0; font-size: 13px; color: var(--lb-muted); }
+.headingAside { display: flex; align-items: end; flex-direction: column; gap: 12px; flex-shrink: 0; }
+.demoBadge { font-size: 10px; color: var(--lb-muted); }
+.periods { display: flex; padding: 4px; gap: 3px; border: 1px solid var(--lb-line); border-radius: 13px; background: color-mix(in oklch, var(--card) 65%, transparent); }
+.periods button { min-height: 38px; padding: 7px 18px; border: 0; border-radius: 9px; font-size: 12px; color: var(--lb-muted); background: transparent; transition: background 180ms, color 180ms, box-shadow 180ms; }
+.periods button[aria-pressed="true"] { background: var(--foreground); color: var(--background); box-shadow: 0 2px 6px #00000012; }
+.periods button[aria-pressed="false"]:hover { background: var(--surface-2); color: var(--foreground); }
+
+.board { position: relative; border: 1px solid var(--lb-line); border-radius: 28px; background: var(--card); box-shadow: 0 12px 60px -35px color-mix(in oklch, var(--foreground) 22%, transparent); }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 21px 30px; border-bottom: 1px solid var(--lb-line); }
+.boardPicker { display: flex; align-items: center; position: relative; gap: 9px; }
+.pickerIcon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: var(--primary); background: color-mix(in oklch, var(--primary) 8%, transparent); }
+.boardPicker select { width: 215px; min-height: 44px; padding: 8px 0 8px 26px; appearance: none; border: 0; border-radius: 6px; background: transparent; color: var(--foreground); font-size: 13px; font-weight: 650; cursor: pointer; }
+.boardPicker select option { color: var(--foreground); background: var(--card); }
+.boardPicker > svg { position: absolute; left: 0; pointer-events: none; color: var(--lb-muted); }
+.boardCaption { display: flex; align-items: center; gap: 7px; color: var(--lb-muted); font-size: 11px; }
+.boardCaption svg { color: var(--gold-ink); }
+
+/* The stage is CSS/SVG only: no extra WebGL context or animation loop. */
+.stage { position: relative; padding: 30px 60px 0; overflow: hidden; }
+.stageGlow { position: absolute; width: 650px; height: 430px; top: -90px; left: 50%; translate: -50% 0; pointer-events: none; background: radial-gradient(ellipse, color-mix(in oklch, var(--gold) 10%, transparent), transparent 65%); }
+.floor { position: absolute; left: 50%; bottom: -32px; width: 85%; height: 150px; border: 1px solid color-mix(in oklch, var(--gold) 10%, transparent); border-radius: 50%; translate: -50% 0; background: radial-gradient(ellipse, color-mix(in oklch, var(--gold) 6%, transparent), transparent 65%); pointer-events: none; }
+.floor::after { content: ""; position: absolute; inset: 20px 50px; border: inherit; border-radius: inherit; }
+.podium { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 20px; direction: ltr; list-style: none; margin: 0 auto; padding: 0; max-width: 800px; }
+.podiumStudent { --medal: #a8b8c6; --pedestal-height: 78px; position: relative; direction: rtl; min-width: 0; grid-row: 1; animation: arrive 650ms both; }
+.podiumStudent[data-rank="1"] { --medal: #e6b854; --pedestal-height: 118px; grid-column: 2; z-index: 2; }
+.podiumStudent[data-rank="2"] { grid-column: 1; animation-delay: 90ms; }
+.podiumStudent[data-rank="3"] { --medal: #bd927b; --pedestal-height: 58px; grid-column: 3; animation-delay: 160ms; }
+.podiumCard { padding-top: 34px; text-align: center; }
+.medalArea { position: relative; width: 120px; height: 130px; margin: 0 auto 6px; display: grid; place-items: center; transform: translateZ(20px); }
+.medal { position: relative; display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(140deg, #f7fafc 0%, var(--medal) 42%, color-mix(in srgb, var(--medal) 65%, #374452) 100%); border: 1px solid #ffffffb3; box-shadow: 3px 5px 0 color-mix(in srgb, var(--medal) 65%, #374452), 6px 14px 18px -7px #182e4a30, inset 2px 2px 4px #fff8, inset -3px -5px 8px #0002; transform: rotate(-9deg); }
+.medal::before { content: ""; position: absolute; inset: 7px; border: 1px solid #ffffffa6; border-radius: 50%; box-shadow: inset 1px 2px 4px #0002, 0 1px 1px #fff8; }
+.medal span { font-family: var(--font-morabba), var(--font-sans); font-size: 28px; font-weight: 650; color: #293d4f; text-shadow: 0 1px 1px #ffffff99; transform: rotate(9deg); }
+.medal i { position: absolute; inset: 2px; border-radius: 50%; background: linear-gradient(115deg, transparent 25%, #ffffff65 45%, transparent 62%); pointer-events: none; }
+.podiumStudent[data-rank="1"] .medalArea { width: 150px; height: 150px; }
+.podiumStudent[data-rank="1"] .medal { width: 106px; height: 106px; background: linear-gradient(140deg, #fff6cf, #f4d788 33%, #d0a34b 68%, #f2d68a); box-shadow: 4px 6px 0 #ab803b, 8px 18px 22px -10px #87651e50, inset 2px 3px 6px #fff9, inset -4px -5px 8px #93672445; transform: rotate(-8deg); animation: medalFloat 5s ease-in-out infinite; animation-play-state: var(--lb-play); }
+.podiumStudent[data-rank="1"] .medal span { color: #725122; font-size: 35px; }
+.podiumStudent[data-rank="3"] .medal span { color: #54392f; }
+.rankSeal { position: absolute; bottom: 9px; left: 50%; translate: -50% 0; display: grid; place-items: center; width: 27px; height: 27px; border: 3px solid var(--card); border-radius: 50%; background: color-mix(in srgb, var(--medal) 80%, white); color: #283741; font-size: 12px; font-weight: 800; z-index: 3; }
+.podiumStudent[data-rank="1"] .rankSeal { bottom: 11px; width: 31px; height: 31px; background: #e9c46d; color: #553e1c; }
+.crown { position: absolute; top: -31px; width: 77px; height: 62px; z-index: 4; rotate: -9deg; filter: drop-shadow(2px 5px 3px #85601626); animation: crownFloat 5s ease-in-out infinite; animation-play-state: var(--lb-play); }
+.halo { position: absolute; inset: -35px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in oklch, var(--gold) 22%, transparent), transparent); }
+.orbit { position: absolute; inset: 8px -16px; border: 1px solid color-mix(in oklch, var(--gold) 27%, transparent); border-radius: 50%; transform: rotate(-26deg) scaleY(.67); }
+.orbit::after { content: ""; position: absolute; width: 5px; height: 5px; top: 20px; right: 13px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px color-mix(in oklch, var(--gold) 65%, transparent); }
+.sparkleOne, .sparkleTwo, .sparkleThree { position: absolute; color: var(--gold-ink); animation: twinkle 4s ease-in-out infinite; animation-play-state: var(--lb-play); }
+.sparkleOne { top: 9px; right: -13px; font-size: 20px; }
+.sparkleTwo { bottom: 25px; left: -13px; font-size: 12px; animation-delay: -1.6s; }
+.sparkleThree { top: -14px; left: 9px; font-size: 12px; animation-delay: -.8s; }
+.studentInfo { position: relative; padding: 0 3px 27px; transform: translateZ(12px); }
+.rankLabel { display: block; color: var(--lb-muted); font-size: 10px; margin-bottom: 4px; }
+.podiumStudent[data-rank="1"] .rankLabel { color: var(--gold-ink); }
+.studentInfo h3 { font-size: 17px; margin: 0 0 9px; font-weight: 750; overflow-wrap: anywhere; }
+.podiumStudent[data-rank="1"] .studentInfo h3 { font-size: 20px; }
+.details { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0; font-size: 11px; color: var(--lb-muted); }
+.details > div, .details dt { display: flex; justify-content: center; align-items: baseline; gap: 4px; }
+.details > div { flex-wrap: wrap; }
+.details dt { white-space: nowrap; }
+.details dt svg { align-self: center; opacity: .7; flex-shrink: 0; }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+
+/* The top and front faces make a shallow, architectural podium. */
+.pedestal { position: relative; padding-top: 18px; filter: drop-shadow(0 7px 5px #00000006); }
+.pedestalTop { position: absolute; top: 0; right: 0; left: 0; height: 19px; clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%); background: linear-gradient(160deg, color-mix(in srgb, var(--card) 85%, var(--medal)), color-mix(in srgb, var(--card) 66%, var(--medal))); }
+.pedestalTop::after { content: ""; position: absolute; inset: 1px 1px 0; clip-path: inherit; background: linear-gradient(160deg, #ffffff30, transparent); }
+.pedestalFront { position: relative; height: var(--pedestal-height); display: flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--medal) 25%, var(--card)); border-top-color: #ffffff60; border-radius: 0 0 8px 8px; background: linear-gradient(110deg, color-mix(in srgb, var(--card) 93%, var(--medal)), color-mix(in srgb, var(--card) 79%, var(--medal))); box-shadow: inset -8px 0 16px -10px #0001; overflow: hidden; }
+.podiumStudent[data-rank="1"] .pedestalFront { background: linear-gradient(110deg, color-mix(in srgb, var(--card) 89%, var(--medal)), color-mix(in srgb, var(--card) 69%, var(--medal))); }
+.pedestalNumber { position: absolute; left: 15px; bottom: -20px; color: color-mix(in oklch, var(--medal) 20%, transparent); font-size: 100px; font-weight: 900; line-height: 1.2; }
+.podiumScore { position: relative; display: flex; flex-direction: column; align-items: center; }
+.podiumScore strong { font-size: 25px; line-height: 1.3; font-weight: 800; font-variant-numeric: tabular-nums; }
+.podiumScore > span { font-size: 10px; color: var(--lb-muted); }
+.podiumStudent[data-rank="1"] .podiumScore strong { font-size: 32px; color: var(--gold-ink); }
+.championLaurel { position: absolute; right: 17px; top: 23px; font-size: 32px; color: color-mix(in oklch, var(--gold) 50%, transparent); }
+
+.rankings { position: relative; margin: 34px 36px 0; }
+.listHeading { display: flex; justify-content: space-between; padding: 0 16px 12px; color: var(--lb-muted); font-size: 10px; }
+.list { list-style: none; padding: 0; margin: 0; }
+.row { display: flex; align-items: center; gap: 16px; min-height: 82px; padding: 15px 16px; border-top: 1px solid var(--lb-line); transition: background 180ms; }
+.row:hover { background: color-mix(in oklch, var(--primary) 3%, transparent); }
+.rowRank { flex: 0 0 20px; font-size: 12px; text-align: center; color: var(--lb-muted); font-variant-numeric: tabular-nums; }
+.smallAvatar { display: grid; place-items: center; flex: 0 0 39px; height: 39px; border-radius: 13px; border: 1px solid color-mix(in oklch, var(--primary) 12%, transparent); background: color-mix(in oklch, var(--primary) 8%, var(--card)); color: var(--primary); font-size: 14px; font-family: var(--font-morabba), var(--font-sans); }
+.smallAvatar[data-tone="1"] { color: var(--gold-ink); background: color-mix(in oklch, var(--gold) 10%, var(--card)); border-color: color-mix(in oklch, var(--gold) 20%, transparent); }
+.smallAvatar[data-tone="2"] { color: var(--lb-muted); background: var(--surface-2); border-color: var(--lb-line); }
+.rowStudent { flex: 1; min-width: 0; }
+.rowStudent h3 { margin: 0 0 3px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.rowStudent .details { flex-direction: row; justify-content: start; flex-wrap: wrap; column-gap: 16px; row-gap: 2px; }
+.rowScore { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.expand { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; padding: 10px; margin-top: 3px; color: var(--lb-muted); border: 0; border-top: 1px solid var(--lb-line); background: transparent; font-size: 11px !important; }
+.expand:hover { color: var(--primary); }
+.boardFooter { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 19px 32px; margin-top: 16px; border-top: 1px solid var(--lb-line); font-size: 11px; color: var(--lb-muted); }
+.boardFooter > span { display: flex; align-items: center; gap: 8px; }
+.footerStar { color: var(--gold-ink); font-size: 17px; }
+.boardFooter button { display: flex; align-items: center; gap: 7px; border: 0; background: transparent; min-height: 30px; color: var(--lb-muted); font-size: 10px; }
+.motionIndicator { width: 8px; height: 8px; border: 1px solid currentColor; border-radius: 50%; background: var(--primary); }
+.motionIndicator[data-paused="true"] { background: transparent; }
+.empty { padding: 80px 24px; text-align: center; }
+.empty > svg { margin: 0 auto 20px; color: var(--gold-ink); }
+.empty h3 { font-size: 18px; }
+.empty p { font-size: 13px; color: var(--lb-muted); }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@keyframes medalFloat { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-5px) rotate(-4deg); } }
+@keyframes crownFloat { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-7px) rotate(5deg); } }
+@keyframes twinkle { 0%, 100% { opacity: .45; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes arrive { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+
+@media (max-width: 760px) {
+  .section { width: calc(100% - 32px); padding-block: 56px; }
+  .heading { align-items: start; flex-direction: column; gap: 22px; }
+  .headingAside { width: 100%; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; }
+  .demoBadge { max-width: 120px; text-align: left; font-size: 9px; }
+  .toolbar { padding: 14px 20px; }
+  .boardCaption { display: none; }
+  .board { border-radius: 22px; }
+  .stage { padding: 24px 20px 0; }
+  .podium { gap: 12px; }
+  .rankings { margin: 28px 20px 0; }
+  .boardFooter { padding: 15px 20px; }
+}
+
+@media (max-width: 480px) {
+  .section { width: calc(100% - 24px); }
+  .heading { margin-bottom: 22px; }
+  .heading h2 { font-size: 28px; }
+  .subtitle { font-size: 11px; }
+  .periods button { min-height: 36px; padding-inline: 13px; font-size: 11px; }
+  .stage { padding-inline: 10px; }
+  .podium { gap: 7px; }
+  .medalArea { width: 78px; height: 101px; }
+  .medal { width: 64px; height: 64px; }
+  .medal span { font-size: 23px; }
+  .medal::before { inset: 5px; }
+  .podiumStudent[data-rank="1"] .medalArea { width: 95px; height: 119px; }
+  .podiumStudent[data-rank="1"] .medal { width: 80px; height: 80px; }
+  .podiumStudent[data-rank="1"] .medal span { font-size: 28px; }
+  .crown { top: -25px; width: 62px; height: 50px; }
+  .orbit { inset: 13px -11px; }
+  .sparkleOne { right: -4px; font-size: 15px; }
+  .sparkleTwo { left: -6px; }
+  .rankSeal { bottom: 5px; width: 24px; height: 24px; font-size: 10px; }
+  .podiumStudent[data-rank="1"] .rankSeal { bottom: 6px; width: 26px; height: 26px; }
+  .studentInfo { padding-bottom: 22px; }
+  .studentInfo h3, .podiumStudent[data-rank="1"] .studentInfo h3 { font-size: 13px; margin-bottom: 8px; }
+  .rankLabel { font-size: 9px; }
+  .details { font-size: 10px; }
+  .details dt svg { display: none; }
+  .details > div { gap: 2px; }
+  .pedestal { padding-top: 12px; }
+  .pedestalTop { height: 13px; }
+  .podiumStudent { --pedestal-height: 67px; }
+  .podiumStudent[data-rank="1"] { --pedestal-height: 98px; }
+  .podiumStudent[data-rank="3"] { --pedestal-height: 49px; }
+  .podiumScore strong { font-size: 20px; }
+  .podiumStudent[data-rank="1"] .podiumScore strong { font-size: 25px; }
+  .pedestalNumber { font-size: 70px; left: 3px; bottom: -15px; }
+  .championLaurel { font-size: 15px; right: 6px; top: 8px; }
+  .rankings { margin: 25px 12px 0; }
+  .listHeading { padding-inline: 6px; }
+  .row { gap: 9px; min-height: 78px; padding: 13px 4px; }
+  .rowRank { flex-basis: 14px; font-size: 11px; }
+  .smallAvatar { flex-basis: 31px; height: 34px; border-radius: 10px; font-size: 12px; }
+  .rowStudent h3 { font-size: 12px; }
+  .rowStudent .details { font-size: 10px; column-gap: 7px; }
+  .rowScore { font-size: 14px; }
+  .boardFooter { padding: 13px 16px; font-size: 10px; }
+  .boardFooter button { font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section *, .section *::before, .section *::after { animation: none !important; transition: none !important; }
+}
+
+:global(html[data-quality="low"]) .section * { animation: none !important; }

@@ -14,9 +14,11 @@ import { fail, handleError, ok, readJson, requestMeta, withCookies } from "@/lib
 import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { withRoute } from "@/lib/api/route";
 import { normalizePhone } from "@/lib/auth/phone";
+import { firstNameField, lastNameField } from "@/lib/profile/name";
 import { checkPhoneOtp } from "@/lib/auth/phone-otp";
 import { queryOne } from "@/lib/db";
 import { attachUserId, logger } from "@/lib/observability";
+import { sendWelcome } from "@/lib/notify/welcome";
 
 /**
  * POST /api/v1/auth/mobile/verify — تأییدِ کد، و ورود یا ثبت‌نام.
@@ -38,9 +40,19 @@ import { attachUserId, logger } from "@/lib/observability";
  * اگر بعداً ایمیل و رمز اضافه کند، هر دو راه برایش باز است.
  */
 
+/**
+ * ⚠️ نام **اختیاری** است و فقط از فرمِ ثبت‌نام می‌آید.
+ *
+ * همین یک مسیر هم ورود است و هم ثبت‌نام (چرایی‌اش بالای همین فایل). فرمِ
+ * *ورود* نامی نمی‌فرستد چون حسابی که قرار است واردش شود از قبل نامی دارد؛
+ * فرمِ *ثبت‌نام* می‌فرستد تا حسابِ تازه همان لحظه کامل ساخته شود و کاربر
+ * بعدش به صفحهٔ «تکمیل حساب» پرت نشود.
+ */
 const schema = z.object({
   phone: z.string().trim().min(1, "شمارهٔ موبایل را وارد کنید."),
   code: z.string().trim().min(4).max(8),
+  firstName: firstNameField.optional(),
+  lastName: lastNameField.optional(),
 });
 
 /** ارقامِ فارسی به لاتین — کاربر با کیبورد فارسی «۱۲۳۴۵۶» می‌نویسد. */
@@ -85,10 +97,18 @@ export const POST = withRoute("/api/v1/auth/mobile/verify", async (request: Requ
       /* ⚠️ `phone_verified_at` همین حالا پر می‌شود و نه بعداً.
          شماره با همین کد تأیید شد؛ گذاشتنش برای «بعد» یعنی کاربری که تازه
          کدِ پیامکی‌اش را زده، در پنل ببیند شماره‌اش تأیید نشده. */
+      /* ⚠️ نام فقط در **ساختِ** حساب به کار می‌رود.
+         اگر در شاخهٔ «حساب از قبل هست» هم نوشته می‌شد، این مسیر به راهی
+         برای عوض کردنِ نامِ یک حسابِ موجود تبدیل می‌شد — و بدتر، فرمِ
+         ثبت‌نام بی‌سروصدا نامِ کسی را که فقط می‌خواست وارد شود بازنویسی
+         می‌کرد.
+         خالی بودنشان هم کاملاً مجاز است: ورود با کدِ پیامکی نامی نمی‌فرستد
+         و آن حساب از گیتِ `lib/auth/onboarding.ts` رد می‌شود تا نامش را
+         بنویسد. */
       await execute(
-        `insert into users (id, phone, phone_verified_at, role)
-         values (?, ?, now(6), 'student')`,
-        [userId, phone],
+        `insert into users (id, phone, phone_verified_at, role, first_name, last_name)
+         values (?, ?, now(6), 'student', ?, ?)`,
+        [userId, phone, body.data.firstName ?? null, body.data.lastName ?? null],
       );
 
       const row = await queryOne<UserRow>(
@@ -123,6 +143,13 @@ export const POST = withRoute("/api/v1/auth/mobile/verify", async (request: Requ
       event: "auth.mobile.login.succeeded",
       user_id: user.id,
     });
+
+    /* ⚠️ فقط وقتی حساب همین حالا ساخته شد. این مسیر هم ورود است و هم
+       ثبت‌نام (چرایی‌اش بالای همین فایل)، و بدونِ این شرط هر ورودِ روزمره
+       یک «خوش آمدی» می‌فرستاد. `dedupeKey` نگهبانِ دومش است. */
+    if (created) {
+      await sendWelcome(user.id);
+    }
 
     return withCookies(ok({ user, created }), [
       accessCookie(tokens.accessToken),

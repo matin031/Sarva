@@ -87,19 +87,25 @@ export function runOutcomes(state: MachineState): BridgeOutcome[] {
  *
  * سرور خودش درستی را می‌سنجد؛ اینجا فقط «چه چیزی انتخاب شد» فرستاده می‌شود.
  */
-export async function reportBridgeRun(outcomes: BridgeOutcome[]): Promise<void> {
-  if (outcomes.length === 0) return;
+export async function reportBridgeRun(
+  outcomes: BridgeOutcome[],
+  /** اگر این دور تکلیفِ دبیر است — خروجیِ `true` یعنی تکلیف ثبت شد. */
+  assignmentId?: string,
+): Promise<boolean> {
+  if (outcomes.length === 0) return false;
 
   try {
-    await fetch("/api/v1/aruz-bridge/answers", {
+    const res = await fetch("/api/v1/aruz-bridge/answers", {
       method: "POST",
       headers: { "content-type": "application/json" },
       cache: "no-store",
-      body: JSON.stringify({ answers: outcomes }),
+      body: JSON.stringify({ answers: outcomes, ...(assignmentId ? { assignmentId } : {}) }),
       // اگر بازیکن همان لحظه صفحه را ببندد، درخواست نباید صفحه را نگه دارد.
       keepalive: true,
     });
+    return res.ok;
   } catch {
     /* شبکه قطع است. تاریخچه یک دور کم‌تر دارد؛ بازی دست‌نخورده می‌ماند. */
+    return false;
   }
 }

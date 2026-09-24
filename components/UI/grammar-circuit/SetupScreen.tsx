@@ -9,7 +9,6 @@ import {
 } from "@/lib/grammar-circuit/curriculum";
 import type { GrammarCircuitAvailability } from "@/lib/grammar-circuit";
 import { GRAMMAR_CIRCUIT_CONFIG } from "@/lib/grammar-circuit/config";
-import CircuitPersianBackground from "./CircuitPersianBackground";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -85,57 +84,36 @@ export default function SetupScreen({
 
   return (
     <div dir="rtl" className="gc-root gc-setup-page">
-      <CircuitPersianBackground />
       <div className="gc-setup">
         <header className="gc-setup-head">
-          <span className="gc-setup-badge">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-4">
-              <path
-                d="M4 12h3l2-4 3 8 2.5-5 1.5 3h4"
-                stroke="currentColor"
-                strokeWidth="1.9"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            بازیِ نقشِ دستوری
-          </span>
+          <SetupArt />
           <h1 className="game-title gc-setup-title">مدار دستور</h1>
-          <p className="gc-setup-sub">
-            نقشِ هر واژه را در جای درست بگذار، مدار را ببند و لامپ را روشن کن.
-          </p>
+          <p className="gc-setup-sub">نقش هر واژه را در خانه‌اش بگذار تا لامپ روشن شود.</p>
         </header>
 
-        {/* ── پایه ── */}
-        <section className="gc-setup-block">
-          <div className="gc-setup-legend">
-            <span className="gc-setup-step">۱</span>
-            <h2 className="gc-setup-label">کتاب و پایه را انتخاب کن</h2>
-          </div>
-          <div className="gc-grade-row" role="radiogroup" aria-label="انتخابِ پایه">
+        <section className="gc-field">
+          <h2 className="gc-field-label">پایه</h2>
+          <div className="gc-seg gc-seg-grade" role="radiogroup" aria-label="انتخاب پایه">
             {GRAMMAR_CIRCUIT_GRADES.map((g) => (
               <button
                 key={g.key}
                 type="button"
                 role="radio"
                 aria-checked={grade === g.key}
-                className="gc-grade-chip"
+                className="gc-seg-item"
                 data-selected={grade === g.key || undefined}
                 onClick={() => changeGrade(g.key)}
               >
-                <span className="gc-grade-name">{g.label}</span>
-                <span className="gc-grade-book">{g.book}</span>
+                <span className="gc-seg-main">{g.label}</span>
+                <span className="gc-seg-meta">{g.book}</span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* ── درس‌ها ── */}
-        <section className="gc-setup-block">
-          <div className="gc-setup-legend">
-            <span className="gc-setup-step">۲</span>
-            <h2 className="gc-setup-label">درس‌ها را انتخاب کن</h2>
-            <span className="gc-setup-legend-note">می‌توانی چند درس را با هم تمرین کنی</span>
+        <section className="gc-field">
+          <div className="gc-field-head">
+            <h2 className="gc-field-label">درس</h2>
             {availableLessons.length > 0 && (
               <button
                 type="button"
@@ -148,28 +126,30 @@ export default function SetupScreen({
                   )
                 }
               >
-                {selected.length === availableLessons.length
-                  ? "برداشتنِ همه"
-                  : "انتخابِ همه"}
+                {selected.length === availableLessons.length ? "برداشتن همه" : "انتخاب همه"}
               </button>
             )}
           </div>
 
-          {loading && <p className="gc-setup-note">در حالِ خواندنِ فهرستِ درس‌ها…</p>}
+          {loading && (
+            <div className="gc-lesson-grid" aria-busy="true" aria-label="در حال بارگذاری">
+              {Array.from({ length: 12 }, (_, i) => (
+                <span key={i} className="gc-lesson-skeleton" />
+              ))}
+            </div>
+          )}
 
           {error && (
             <div className="gc-setup-error">
               <p>{error}</p>
               <button type="button" className="gc-btn gc-btn-ghost" onClick={onRetry}>
-                تلاشِ دوباره
+                تلاش دوباره
               </button>
             </div>
           )}
 
           {!loading && !error && availableLessons.length === 0 && (
-            <p className="gc-setup-note">
-              برای این پایه هنوز محتوایی آمادهٔ تمرین نیست. پایهٔ دیگری را امتحان کن.
-            </p>
+            <p className="gc-setup-note">برای این پایه هنوز پرسشی آماده نیست.</p>
           )}
 
           {!loading && !error && (
@@ -181,42 +161,27 @@ export default function SetupScreen({
                   className="gc-lesson-chip"
                   disabled={!available}
                   aria-pressed={selected.includes(lesson)}
+                  aria-label={`درس ${fa(lesson)}، ${available ? `${fa(questionCount)} پرسش` : "به‌زودی"}`}
                   data-selected={selected.includes(lesson) || undefined}
                   onClick={() => toggle(lesson)}
-                  title={available ? `${fa(questionCount)} پرسش` : "به‌زودی"}
                 >
                   <span className="gc-lesson-num">{fa(lesson)}</span>
                   <span className="gc-lesson-meta">
                     {available ? `${fa(questionCount)} پرسش` : "به‌زودی"}
                   </span>
-                  {selected.includes(lesson) && (
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden className="gc-lesson-tick">
-                      <path
-                        d="m5 13 4 4L19 7"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        {/* ── طولِ تمرین ── */}
         {selected.length > 0 && (
-          <section className="gc-setup-block">
-            <div className="gc-setup-legend">
-              <span className="gc-setup-step">۳</span>
-              <h2 className="gc-setup-label">چند پرسش تمرین کنی؟</h2>
-              <span className="gc-setup-hint">
-                از {fa(totalQuestions)} پرسشِ موجود
-              </span>
+          <section className="gc-field">
+            <div className="gc-field-head">
+              <h2 className="gc-field-label">تعداد پرسش</h2>
+              <span className="gc-field-hint">از {fa(totalQuestions)}</span>
             </div>
-            <div className="gc-length-row" role="radiogroup" aria-label="طولِ تمرین">
+            <div className="gc-seg" role="radiogroup" aria-label="تعداد پرسش">
               {GRAMMAR_CIRCUIT_CONFIG.sessionLengthOptions.map((option) => {
                 const disabled = option !== 0 && option > totalQuestions;
                 return (
@@ -227,15 +192,10 @@ export default function SetupScreen({
                     aria-checked={length === option}
                     disabled={disabled}
                     data-selected={length === option || undefined}
-                    className="gc-length-chip"
+                    className="gc-seg-item"
                     onClick={() => setLength(option)}
                   >
-                    <span className="gc-length-num">
-                      {option === 0 ? "همه" : fa(option)}
-                    </span>
-                    <span className="gc-length-meta">
-                      {option === 0 ? `${fa(totalQuestions)} پرسش` : "پرسش"}
-                    </span>
+                    <span className="gc-seg-main">{option === 0 ? "همه" : fa(option)}</span>
                   </button>
                 );
               })}
@@ -245,53 +205,54 @@ export default function SetupScreen({
 
         {startError && <p className="gc-setup-error-inline">{startError}</p>}
 
-        <div className="gc-setup-actions">
-          <div className="gc-setup-summary">
-            {selected.length > 0 ? (
-              <>
-                <span className="gc-setup-count">
-                  {fa(selected.length)} درس · {fa(plannedCount)} پرسش
-                </span>
-                <span className="gc-setup-chips">
-                  {selected.map((n) => (
-                    <span key={n} className="gc-setup-chip">
-                      درس {fa(n)}
-                    </span>
-                  ))}
-                </span>
-              </>
-            ) : (
-              <span className="gc-setup-count gc-setup-count-empty">
-                برای شروع، دستِ‌کم یک درس انتخاب کن
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2.5">
-            <Link href="/game" className="gc-btn gc-btn-ghost">
-              بازگشت
-            </Link>
-            <button
-              type="button"
-              className="gc-btn gc-btn-primary gc-btn-lg"
-              disabled={!canStart}
-              onClick={() => onStart(grade, selected, length)}
-            >
-              {starting ? "در حالِ آماده‌سازی…" : "شروع تمرین"}
-              {!starting && (
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden className="size-[18px]">
-                  <path
-                    d="M9 6 3 12l6 6M21 12H4"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
+        <footer className="gc-setup-actions">
+          <span className="gc-setup-count" data-empty={selected.length === 0 || undefined}>
+            {selected.length > 0
+              ? `${fa(selected.length)} درس، ${fa(plannedCount)} پرسش`
+              : "یک درس انتخاب کن"}
+          </span>
+          <Link href="/game" className="gc-btn gc-btn-ghost">
+            بازگشت
+          </Link>
+          <button
+            type="button"
+            className="gc-btn gc-btn-primary gc-btn-lg"
+            disabled={!canStart}
+            data-busy={starting || undefined}
+            onClick={() => onStart(grade, selected, length)}
+          >
+            شروع
+          </button>
+        </footer>
       </div>
     </div>
+  );
+}
+
+/** مدارِ کوچکِ سرِ صفحه: باتری، سه خانهٔ پر، لامپِ روشن، و یک تپشِ جریان
+ *  که مدام از باتری تا لامپ می‌رود. تزئینی است و با کاهشِ حرکت می‌ایستد. */
+function SetupArt() {
+  return (
+    <svg className="gc-setup-art" viewBox="0 0 320 72" fill="none" aria-hidden>
+      <circle className="gc-art-glow" cx="30" cy="30" r="30" />
+      <path className="gc-art-wire" d="M272 36H250M200 36H186M136 36H122M72 36H44" />
+      <path className="gc-art-pulse" pathLength="100" d="M272 36H44" />
+      <rect className="gc-art-chip" x="200" y="23" width="50" height="26" rx="8" />
+      <rect className="gc-art-chip" x="136" y="23" width="50" height="26" rx="8" />
+      <rect className="gc-art-chip" x="72" y="23" width="50" height="26" rx="8" />
+      <rect className="gc-art-cell" x="211" y="33" width="28" height="6" rx="3" />
+      <rect className="gc-art-cell" x="147" y="33" width="28" height="6" rx="3" />
+      <rect className="gc-art-cell" x="83" y="33" width="28" height="6" rx="3" />
+      <rect className="gc-art-body" x="276" y="22" width="40" height="28" rx="6" />
+      <rect className="gc-art-body" x="272" y="31" width="4" height="10" rx="1.5" />
+      <rect className="gc-art-fill" x="281" y="27" width="8" height="18" rx="2" />
+      <rect className="gc-art-fill" x="292" y="27" width="8" height="18" rx="2" />
+      <rect className="gc-art-fill" x="303" y="27" width="8" height="18" rx="2" />
+      <path
+        className="gc-art-bulb"
+        d="M30 12a14 14 0 0 0-8.5 25.1c1.6 1.3 2.5 3 2.5 5.1V45h12v-2.8c0-2.1.9-3.8 2.5-5.1A14 14 0 0 0 30 12Z"
+      />
+      <path className="gc-art-base" d="M25 50h10M26 55h8" />
+    </svg>
   );
 }

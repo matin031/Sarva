@@ -6,6 +6,7 @@ import { useQuality, useScrolling, useFinePointer } from "@/lib/perf/use-perf";
 import { motion } from "motion/react";
 import ArkanSphere from "./ArkanSphere";
 import { RevealGroup, RevealItem, RevealLine } from "@/components/UI/aruz/reveal";
+import styles from "./aruz.module.css";
 
 /** The عروض سماعی hero: an aurora-lit stage with a perspective grid floor, a
  *  cursor spotlight, the interactive arkān sphere, and a headline. */
@@ -129,16 +130,6 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
           className="pointer-events-none absolute -left-[600px] -top-[600px] size-[1200px] -z-10"
         />
       )}
-      {/* fine grain texture */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] mix-blend-overlay"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-        }}
-      />
-
       {/* ---------- background layers ---------- */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         {/* Aurora blobs. These used to be solid circles behind `filter: blur()`.
@@ -172,23 +163,6 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
                 }),
           }}
         />
-        <div
-          className="absolute -bottom-24 left-1/4 size-[500px] rounded-full"
-          style={{
-            background:
-              "radial-gradient(closest-side, color-mix(in oklch, var(--color-lapis-light) 26%, transparent), transparent)",
-          }}
-        />
-        {/* perspective 3D grid floor */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-[45vh] [mask-image:linear-gradient(to_top,black,transparent)]"
-          style={{ perspective: "500px" }}
-        >
-          <div
-            className="aruz-grid-floor absolute inset-0 origin-bottom"
-            style={{ transform: "rotateX(68deg)" }}
-          />
-        </div>
         {/* vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-background)_92%)]" />
       </div>
@@ -198,24 +172,14 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
         {/* text column */}
         <RevealGroup
           stagger={0.14}
-          className="relative z-10 text-center lg:text-right"
+          className="relative z-10 min-w-0 text-center lg:text-right"
         >
-          <RevealItem>
-            <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary backdrop-blur-sm">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-primary" />
-              </span>
-              عروضِ سماعی سروا
-            </span>
-          </RevealItem>
-
           <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl xl:text-7xl">
             <RevealLine className="text-foreground" delay={0.1}>
               آرزویی دست‌یافتنی
             </RevealLine>
             <RevealLine className="aruz-gradient-text" delay={0.24}>
-              به سادگیِ گوش دادن
+              به سادگی گوش دادن
             </RevealLine>
           </h1>
 
@@ -238,22 +202,9 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
             </div>
           </RevealItem>
 
-          {/* mini stats */}
-          {/* <RevealItem>
-            <div className="mt-10 flex items-center justify-center gap-5 text-center sm:gap-7 lg:justify-start">
-              {[
-                ["+۲۵۰۰", "شعر و بیت"],
-                ["+۱۲", "وزنِ اصلی"],
-                ["+۹۸٪", "دقتِ تشخیص"],
-                ["+۱۰K", "کاربرِ فعال"],
-              ].map(([n, l]) => (
-                <div key={l}>
-                  <div className="text-xl font-black text-primary sm:text-3xl">{n}</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{l}</div>
-                </div>
-              ))}
-            </div>
-          </RevealItem> */}
+          <RevealItem>
+            <MeterStrip />
+          </RevealItem>
         </RevealGroup>
 
         {/* visual column — the interactive arkān sphere */}
@@ -267,6 +218,31 @@ export default function AruzHero({ reduced }: { reduced: boolean }) {
         </motion.div>
       </div>
     </section>
+  );
+}
+
+/** «مفاعیلن مفاعیلن مفاعیلن مفاعیلن» به زبانِ کوتاه و بلند؛ یک نشانگر روی
+ *  هجاها جلو می‌رود، مثلِ گوشی که بیت را دنبال می‌کند. */
+function MeterStrip() {
+  const foot = [false, true, true, true];
+  return (
+    <div className={styles.meter}>
+      <span className={styles.meterFeet} aria-hidden>
+        {[0, 1, 2, 3].map((f) => (
+          <span key={f} className={styles.foot}>
+            {foot.map((long, j) => (
+              <span
+                key={j}
+                className={styles.syl}
+                data-long={long || undefined}
+                style={{ "--i": String(f * 4 + j) } as React.CSSProperties}
+              />
+            ))}
+          </span>
+        ))}
+      </span>
+      <span className={styles.meterLabel}>هزج مثمن سالم</span>
+    </div>
   );
 }
 
@@ -286,7 +262,7 @@ function GlowCTA() {
           animation: "aruzConic 2.5s linear infinite",
         }}
       />
-      شروع آزمونِ صوتی
+      شروع آزمون صوتی
       <svg
         viewBox="0 0 24 24"
         fill="none"

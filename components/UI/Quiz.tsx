@@ -15,6 +15,8 @@ import { guestLimit } from "@/lib/guest/policy";
 import SarvaLoader from "@/components/UI/SarvaLoader";
 import BookmarkButton from "@/components/UI/BookmarkButton";
 import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
+import AssignmentNotice from "@/components/UI/AssignmentNotice";
+import Link from "next/link";
 
 // سقف از سیاستِ مرکزی می‌آید، نه از ثابتِ محلی — تا عوض کردنش یک‌جا باشد.
 const GUEST_QUESTION_LIMIT = guestLimit("quiz") ?? 5;
@@ -38,9 +40,20 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-function Quiz({ data }: { data: Question[] }) {
+function Quiz({
+  data,
+  assignment,
+}: {
+  data: Question[];
+  /** آزمونی که دبیر گذاشته: `data` دقیقاً سؤال‌های همان آزمون است. */
+  assignment?: { id: string; title: string };
+}) {
   // all questions fetched from the server (quiz page)
   const allQuestions = data;
+  /* ⚠️ پیشرفتِ آزمونِ دبیر کلیدِ جدا دارد تا با دورِ آزادِ همین دستگاه
+     قاطی نشود — نه تکلیف دورِ آزاد را از سر بگیرد و نه برعکس. */
+  const storageKey = assignment ? `quiz-progress:${assignment.id}` : "quiz-progress";
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // the actual set of questions the user is playing this round
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -73,7 +86,7 @@ function Quiz({ data }: { data: Question[] }) {
 
   // try to resume a saved session first, before we even know the user
   useEffect(() => {
-    const saved = localStorage.getItem("quiz-progress");
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -101,14 +114,14 @@ function Quiz({ data }: { data: Question[] }) {
         } else {
           // old/legacy saved session without an owner tag — can't verify
           // who it belongs to, so don't trust it
-          localStorage.removeItem("quiz-progress");
+          localStorage.removeItem(storageKey);
         }
       } catch {
-        localStorage.removeItem("quiz-progress");
+        localStorage.removeItem(storageKey);
       }
     }
     setRestoredFromStorage(true);
-  }, []);
+  }, [storageKey]);
 
 
   useEffect(() => {
@@ -118,7 +131,7 @@ function Quiz({ data }: { data: Question[] }) {
     const currentOwner = user ? user.id : "guest";
     if (currentOwner !== restoredOwnerRef.current) {
       restoredOwnerRef.current = null;
-      localStorage.removeItem("quiz-progress");
+      localStorage.removeItem(storageKey);
       setQuizStarted(false);
       setQuestions([]);
       setCurrentIndex(0);
@@ -127,7 +140,7 @@ function Quiz({ data }: { data: Question[] }) {
       setScore(0);
       setAnswersLog([]);
     }
-  }, [user, restoredFromStorage, quizStarted]);
+  }, [user, restoredFromStorage, quizStarted, storageKey]);
 
   // once we know who the user is, fetch which of these questions they've already answered
   useEffect(() => {
@@ -254,11 +267,12 @@ function Quiz({ data }: { data: Question[] }) {
     if (!result.ok) console.error("quiz answer save failed:", result.errors.join(" "));
   };
 
-  const saveQuizAttempt = async () => {
-    if (!user) return;
+  /** `false` فقط یعنی «ثبتِ آزمونِ دبیر شکست خورد» — دورِ آزاد همیشه `true`. */
+  const saveQuizAttempt = async (): Promise<boolean> => {
+    if (!user) return true;
 
     const anyAnswered = answersLog.some((e) => e?.answered && e.selected !== null);
-    if (!anyAnswered) return;
+    if (!anyAnswered && !assignment) return true;
 
     // فقط «کدام گزینه برای کدام سؤال» فرستاده می‌شود. تعداد پاسخ‌های درست و
     // درستیِ تک‌تک ردیف‌ها را سرور حساب می‌کند — قبلاً هر دو از مرورگر می‌آمدند.
@@ -274,14 +288,26 @@ function Quiz({ data }: { data: Question[] }) {
       };
     });
 
-    const result = await apiPost("/api/v1/quiz/attempt", { answers });
-    if (!result.ok) console.error("quiz attempt save failed:", result.errors.join(" "));
+    const result = await apiPost("/api/v1/quiz/attempt", {
+      answers,
+      ...(assignment ? { assignmentId: assignment.id } : {}),
+    });
+    if (!result.ok) {
+      console.error("quiz attempt save failed:", result.errors.join(" "));
+      if (assignment) {
+        setSaveError(result.errors.join(" "));
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleNext = async () => {
     if (currentIndex + 1 >= questions.length) {
-      await saveQuizAttempt();
-      localStorage.removeItem("quiz-progress");
+      /* ⚠️ آزمونِ دبیر اگر ثبت نشد، صفحه همین‌جا می‌ماند تا دانش‌آموز
+         دوباره بفرستد — رفتن به صفحهٔ نتیجه یعنی خیال کند تحویل داده. */
+      if (!(await saveQuizAttempt())) return;
+      localStorage.removeItem(storageKey);
       router.push(`/result?score=${score}&total=${questions.length}`);
       return;
     }
@@ -310,6 +336,12 @@ function Quiz({ data }: { data: Question[] }) {
   };
 
   const handleExitQuiz = async () => {
+    /* آزمونِ دبیرِ نیمه‌کاره تحویل داده نمی‌شود؛ تکلیف باز می‌ماند. */
+    if (assignment) {
+      localStorage.removeItem(storageKey);
+      router.push("/panel/classes#assignments");
+      return;
+    }
     await saveQuizAttempt();
     localStorage.removeItem("quiz-progress");
     router.push(`/result?score=${score}&total=${questions.length}`);
@@ -318,7 +350,7 @@ function Quiz({ data }: { data: Question[] }) {
   useEffect(() => {
     if (!quizStarted || !restoredOwnerRef.current) return;
     localStorage.setItem(
-      "quiz-progress",
+      storageKey,
       JSON.stringify({
         quizStarted,
         ownerId: restoredOwnerRef.current,
@@ -338,6 +370,7 @@ function Quiz({ data }: { data: Question[] }) {
     answered,
     score,
     answersLog,
+    storageKey,
   ]);
 
   const [playingId, setPlayingId] = useState<number | null>(null);
@@ -346,6 +379,35 @@ function Quiz({ data }: { data: Question[] }) {
     return (
       <div className=" container my-15 flex flex-col items-center">
         <SarvaLoader size={110} label="در حال آماده‌سازی آزمون" />
+      </div>
+    );
+  }
+
+  if (!quizStarted && assignment) {
+    if (user === undefined) {
+      return (
+        <div className=" container my-15 flex flex-col items-center">
+          <SarvaLoader size={110} label="در حال آماده‌سازی آزمون" />
+        </div>
+      );
+    }
+    return (
+      <div className="container my-15 flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border bg-card p-8 text-center">
+        <AssignmentNotice assignmentId={assignment.id} save="open" />
+        <p className="text-lg font-bold">{assignment.title}</p>
+        {user ? (
+          <button
+            type="button"
+            onClick={() => startSession({ questionCount: allQuestions.length, excludeRepeated: false })}
+            className="rounded-xl bg-primary px-8 py-3 font-bold text-primary-foreground hover:brightness-90"
+          >
+            شروع آزمون
+          </button>
+        ) : (
+          <Link href="/auth?returnTo=%2Fpanel%2Fclasses" className="font-semibold text-primary">
+            ورود به حساب
+          </Link>
+        )}
       </div>
     );
   }
@@ -525,6 +587,12 @@ function Quiz({ data }: { data: Question[] }) {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <p role="alert" className="mt-4 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-sm">
+          ثبت آزمون انجام نشد: {saveError}
+        </p>
+      )}
 
       <audio ref={dingRef} src="/currectsound.mp3" preload="auto" />
     </div>

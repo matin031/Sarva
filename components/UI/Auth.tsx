@@ -44,26 +44,18 @@ function Auth({
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="flex flex-col items-center justify-center mt-10 mx-auto"
+          dir="rtl"
+          className="mx-auto mt-10 flex flex-col items-center justify-center"
         >
-          <motion.span
-            variants={itemVariants}
-            className=" cursor-default max-w-48 mb-3 sm:mb-0 rounded-full text-xs px-4 font-semibold py-1 bg-primary/10 text-primary"
-          >
-            رایگان و سریع
-          </motion.span>
+          {/* ⚠️ فقط تیتر. «قرصِ کوچکِ بالای تیتر + تیتر + زیرعنوانِ خاکستری»
+              قالبِ آشنای صفحه‌های قالبی است و هر سه‌اش اینجا حرفی نمی‌زد: فرم
+              خودش نشان می‌دهد با ایمیل است یا موبایل. */}
           <motion.h1
             variants={itemVariants}
-            className=" cursor-default font-extrabold text-3xl text-muted-foreground dark:text-white"
+            className="cursor-default text-3xl font-extrabold text-foreground"
           >
-            ساخت حساب کاربری
+            ثبت‌نام
           </motion.h1>
-          <motion.p
-            variants={itemVariants}
-            className=" cursor-default text-muted-foreground"
-          >
-            سفر یادگیری عروض را امروز آغاز کن
-          </motion.p>
           <motion.div
             variants={itemVariants}
             className=" flex items-center justify-center w-full"
@@ -82,26 +74,15 @@ function Auth({
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="flex flex-col  items-center justify-center mt-10 mx-auto"
+          dir="rtl"
+          className="mx-auto mt-10 flex flex-col items-center justify-center"
         >
-          <motion.span
-            variants={itemVariants}
-            className=" cursor-default max-w-48 mb-3 sm:mb-0 rounded-full text-xs px-4 font-semibold py-1 bg-primary/10 text-primary"
-          >
-            خوش آمدید
-          </motion.span>
           <motion.h1
             variants={itemVariants}
-            className=" cursor-default font-extrabold text-3xl text-muted-foreground dark:text-white"
+            className="cursor-default text-3xl font-extrabold text-foreground"
           >
-            ورود به سروا
+            ورود
           </motion.h1>
-          <motion.p
-            variants={itemVariants}
-            className=" cursor-default text-muted-foreground"
-          >
-            برای ادامهٔ یادگیری وارد حساب خود شو
-          </motion.p>
           <motion.div
             variants={itemVariants}
             className=" flex items-center justify-center w-full"

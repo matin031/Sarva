@@ -41,8 +41,6 @@ function RoleModuleImpl({
       onPointerDown={(event) => onPointerDown(event, pieceId)}
       onClick={(event) => onActivate(pieceId, event.detail === 0)}
     >
-      <span aria-hidden className="gc-module-pin" style={{ insetInlineStart: 10 }} />
-      <span aria-hidden className="gc-module-pin" style={{ insetInlineEnd: 10 }} />
       <span className="gc-module-label">{label}</span>
     </button>
   );

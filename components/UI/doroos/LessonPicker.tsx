@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, MotionConfig } from "motion/react";
 import type { Grade } from "@/lib/doroos/types";
-import { faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
 import {
   RevealGroup,
   RevealItem,
@@ -81,7 +81,7 @@ export default function LessonPicker({ grade }: { grade: Grade }) {
                   <p className="mt-4 text-sm text-muted-foreground">
                     {ready
                       ? `${faNum(ready)} درس از ${faNum(grade.lessons.length)} درس آمادهٔ خواندن است.`
-                      : `هر ${faNum(grade.lessons.length)} درسِ این کتاب به‌زودی افزوده می‌شود.`}
+                      : `هر ${faNum(grade.lessons.length)} درس این کتاب به‌زودی افزوده می‌شود.`}
                   </p>
                 </div>
               </div>

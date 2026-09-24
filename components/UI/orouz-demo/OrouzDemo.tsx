@@ -7,6 +7,7 @@ import {
   useScrolling,
 } from "@/lib/perf/use-perf";
 import { motion, AnimatePresence } from "motion/react";
+import { usePrimaryRgb } from "@/lib/theme/use-primary-rgb";
 
 /** Self-playing preview of the عروض سماعی quiz for the homepage. It reuses the
  *  exact quiz styling (the glass question card with its gradient edges, the
@@ -237,6 +238,8 @@ function DemoBlob({ running }: { running: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const phaseRef = useRef(0);
+  // رنگِ حباب همان --primary است و با پالت و تم عوض می‌شود.
+  const rgb = usePrimaryRgb();
   /** یک بار ساخته می‌شود و در هر فریم دوباره پر می‌شود — نه از نو ساخته. */
   const ptsRef = useRef<Float32Array | null>(null);
 
@@ -259,9 +262,9 @@ function DemoBlob({ running }: { running: boolean }) {
     // فریم کلِ مسیر را تار می‌کند — گران‌ترین کارِ این بوم. هالهٔ ثابت حالا
     // یک بار روی یک بومِ جدا رسم می‌شود و بعد فقط کپی می‌شود.
     const rg = ctx.createRadialGradient(cx, cy, INNER_R * 0.4, cx, cy, INNER_R + 55);
-    rg.addColorStop(0, "rgba(31,209,164,0.05)");
-    rg.addColorStop(0.7, "rgba(31,209,164,0.25)");
-    rg.addColorStop(1, "rgba(20,150,120,0.45)");
+    rg.addColorStop(0, `rgba(${rgb},0.05)`);
+    rg.addColorStop(0.7, `rgba(${rgb},0.25)`);
+    rg.addColorStop(1, `rgba(${rgb},0.45)`);
 
     const glow = document.createElement("canvas");
     glow.width = SIZE;
@@ -269,9 +272,9 @@ function DemoBlob({ running }: { running: boolean }) {
     const gctx = glow.getContext("2d");
     if (gctx) {
       const halo = gctx.createRadialGradient(cx, cy, INNER_R * 0.6, cx, cy, INNER_R + 34);
-      halo.addColorStop(0, "rgba(31,209,164,0)");
-      halo.addColorStop(0.62, "rgba(31,209,164,0.20)");
-      halo.addColorStop(1, "rgba(31,209,164,0)");
+      halo.addColorStop(0, `rgba(${rgb},0)`);
+      halo.addColorStop(0.62, `rgba(${rgb},0.2)`);
+      halo.addColorStop(1, `rgba(${rgb},0)`);
       gctx.fillStyle = halo;
       gctx.fillRect(0, 0, SIZE, SIZE);
     }
@@ -303,7 +306,7 @@ function DemoBlob({ running }: { running: boolean }) {
       ctx.closePath();
       ctx.fillStyle = rg;
       ctx.fill();
-      ctx.strokeStyle = "rgba(31,209,164,0.9)";
+      ctx.strokeStyle = `rgba(${rgb},0.9)`;
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
       ctx.stroke();
@@ -335,7 +338,7 @@ function DemoBlob({ running }: { running: boolean }) {
         rafRef.current = null;
       }
     };
-  }, [running]);
+  }, [running, rgb]);
 
   return (
     <div className="relative size-32">
@@ -379,7 +382,7 @@ function OptionWaveform({ seed }: { seed: number }) {
         {bars.map((h, i) => (
           <span
             key={i}
-            className="w-0.75 mx-0.5 shrink-0 rounded-full bg-[#64748b]"
+            className="w-0.75 mx-0.5 shrink-0 rounded-full bg-muted-foreground/60"
             style={{ height: `${h}%` }}
           />
         ))}

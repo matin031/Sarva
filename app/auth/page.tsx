@@ -43,8 +43,25 @@ export default async function Page({
   // نه کلید و نه آدرسی.
   const googleEnabled = googleConfig() !== null;
 
+  /* کسی که از وسطِ خرید به اینجا آمده، باید بداند چرا — و بداند انتخابش
+     گم نمی‌شود. */
+  const purchaseHint = destination.startsWith("/checkout")
+    ? "برای ادامهٔ خرید وارد حسابت شو."
+    : destination.startsWith("/payment/")
+      ? "برای دیدن نتیجهٔ پرداخت وارد حسابت شو."
+      : null;
+
   return (
-    <main className=" container ">
+    <main dir="rtl" className="container">
+      {purchaseHint && !message && (
+        <p
+          dir="rtl"
+          role="status"
+          className="mx-auto mt-6 max-w-md rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-center text-sm text-foreground"
+        >
+          {purchaseHint}
+        </p>
+      )}
       {message && (
         <p
           dir="rtl"

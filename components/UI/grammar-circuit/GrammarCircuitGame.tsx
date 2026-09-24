@@ -4,7 +4,6 @@ import GuestLimitModal from "@/components/UI/GuestLimitModal";
 
 // شیوه‌نامهٔ همین بازی، کنارِ خودش. توضیحِ دلیلش بالای همان فایل است.
 import "./grammar-circuit.css";
-import "./grammar-circuit-atelier.css";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -692,9 +691,6 @@ export default function GrammarCircuitGame() {
       <ActiveShell
         questionNumber={state.questionIndex + 1}
         questionCount={state.questions.length}
-        filled={filled}
-        required={prepared.requiredSlotCount}
-        attempts={state.attempts}
         soundOn={soundOn}
         onToggleSound={toggleSound}
         onExit={() => dispatch({ type: "EXIT_TO_SETUP" })}
@@ -731,7 +727,6 @@ export default function GrammarCircuitGame() {
             onActivate={onModuleActivate}
           />
         }
-        banner={null}
       >
         <CircuitContent
           prepared={prepared}
@@ -802,7 +797,11 @@ function scrollLampIntoView(
   if (!viewport || !lamp) return;
   const vr = viewport.getBoundingClientRect();
   const lr = lamp.getBoundingClientRect();
-  if (lr.left >= vr.left && lr.right <= vr.right) return;
-  const delta = lr.left < vr.left ? lr.left - vr.left - 24 : lr.right - vr.right + 24;
-  viewport.scrollBy({ left: delta, behavior: reducedMotion ? "auto" : "smooth" });
+  /* روی گوشیِ ایستاده لامپ پایینِ ستون است و اگر ستون بلند باشد، پایین‌تر از
+     قاب می‌افتد؛ پس هر دو محور. */
+  const left =
+    lr.left < vr.left ? lr.left - vr.left - 24 : lr.right > vr.right ? lr.right - vr.right + 24 : 0;
+  const top = lr.bottom > vr.bottom ? lr.bottom - vr.bottom + 16 : lr.top < vr.top ? lr.top - vr.top - 16 : 0;
+  if (!left && !top) return;
+  viewport.scrollBy({ left, top, behavior: reducedMotion ? "auto" : "smooth" });
 }

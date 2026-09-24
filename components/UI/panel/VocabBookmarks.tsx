@@ -73,8 +73,7 @@ export default function VocabBookmarks({
     return (
       <div className=" mt-3 rounded-2xl bg-card p-6 text-center shadow sm:p-8">
         <p className=" text-muted-foreground">
-          هنوز واژه‌ای نشان نکرده‌ای. بعد از پاسخ‌دادن به هر واژه در بازی، دکمهٔ
-          «نشان‌کردن» را بزن تا همین‌جا بماند.
+          هنوز واژه‌ای نشان نکرده‌ای.
         </p>
       </div>
     );
@@ -192,8 +191,8 @@ function BookmarkRow({
             type="button"
             onClick={remove}
             disabled={busy}
-            title="برداشتنِ نشان"
-            aria-label="برداشتنِ نشان"
+            title="برداشتن نشان"
+            aria-label="برداشتن نشان"
             className=" cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <svg

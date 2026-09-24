@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { Passage, WordRole } from "@/lib/doroos/types";
+import type { Passage } from "@/lib/doroos/types";
 import { REALMS } from "@/lib/doroos/types";
-import { faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
 import RealmPanel from "@/components/UI/doroos/RealmPanel";
-import BeytSyntaxMap from "@/components/UI/doroos/BeytSyntaxMap";
+import {
+  DiagramScroller,
+  PlusGatePanel,
+  useAnalysisViews,
+  ViewBar,
+} from "@/components/UI/doroos/AnalysisViews";
+import { AiNotice, AiThinking, useAiSyntax } from "@/components/UI/doroos/BeytAi";
+import { hasAiLesson } from "@/lib/doroos/ai-catalog";
+import styles from "./beyt-ai.module.css";
 import ReportButton from "@/components/UI/ReportButton";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -31,21 +39,35 @@ export default function PassageCard({
   lessonRef?: { grade: string; number: number; title: string };
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
-  const [view, setView] = useState<"syntax" | "devices" | "plain">("syntax");
 
   const isVerse = passage.form === "verse";
   const isQuote = passage.form === "quotation";
 
-  const VIEWS = [
-    { id: "syntax", label: "نقش دستوری", roles: passage.syntax },
-    { id: "devices", label: "آرایه‌ها", roles: passage.devices },
-  ] as const;
-  const available = isVerse
-    ? VIEWS.filter(
-        (v): v is (typeof VIEWS)[number] & { roles: WordRole[] } => !!v.roles?.length,
-      )
-    : [];
-  const active = available.find((v) => v.id === view);
+  const aiAvailable = !!lessonRef && hasAiLesson(lessonRef.grade, lessonRef.number);
+
+  /* ⚠️ همان نوار و همان دروازهٔ `BeytCard`، از یک ماژولِ مشترک.
+     تا امروز اینجا یک کپیِ جدا بود؛ وقتی قفلِ پلاس فقط به شعر اضافه شد،
+     همان تحلیلِ پولی در هر درسِ نثری رایگان دیده می‌شد. قفلی که در یکی از
+     دو در گذاشته شود، قفل نیست.
+
+     ⚠️ `enabled: isVerse` — فقط بیت‌های داخلِ نثر نمودار دارند؛ برای یک بندِ
+     نثر یا یک آیه، نوار اصلاً ساخته نمی‌شود. */
+  const { gate, views, view, current, locked, lockedUnknown, rolesFailed, pick } =
+    useAnalysisViews({
+      grade: lessonRef?.grade ?? "",
+      lesson: lessonRef?.number ?? 0,
+      n: passage.n,
+      flags: passage.analysis,
+      aiAvailable,
+      enabled: isVerse,
+    });
+
+  const ai = useAiSyntax({
+    grade: lessonRef?.grade ?? "",
+    lesson: lessonRef?.number ?? 0,
+    n: passage.n,
+    active: view === "ai" && gate.unlocked,
+  });
 
   return (
     <article id={`band-${passage.n}`} className="relative z-20 scroll-mt-28">
@@ -65,8 +87,8 @@ export default function PassageCard({
         className="relative z-20 overflow-hidden rounded-3xl border border-primary/25 bg-card p-6 shadow-xl sm:p-9"
       >
         <div className="relative z-20">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5">
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
               {isVerse ? "بیت" : isQuote ? "آیه / حدیث" : "بند"} {faNum(passage.n)}
               {lessonRef && (
                 <ReportButton
@@ -87,38 +109,33 @@ export default function PassageCard({
               )}
             </span>
 
-            {available.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {[...available, { id: "plain", label: "ساده" } as const].map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setView(v.id)}
-                    aria-pressed={view === v.id}
-                    className={`rounded-full border px-3 py-1 text-[0.7rem] font-bold transition-colors ${
-                      view === v.id
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            <ViewBar views={views} view={view} gate={gate} onPick={pick} busy={ai.busy} />
           </div>
 
           {/* ---------- the text ---------- */}
-          {active ? (
-            <div className="mt-8 overflow-x-auto pb-1">
-              <div className="min-w-[30rem]">
-                <BeytSyntaxMap
-                  key={active.id}
-                  lines={passage.lines}
-                  roles={active.roles}
-                />
-              </div>
-            </div>
+          {locked || (view === "ai" && ai.forbidden) ? (
+            <PlusGatePanel unknown={lockedUnknown || ai.forbidden === "unavailable"} />
+          ) : rolesFailed ? (
+            <p className={styles.error}>بارگذاری نشد. صفحه را دوباره باز کن.</p>
+          ) : view === "ai" ? (
+            ai.busy ? (
+              <AiThinking stage={ai.stage} />
+            ) : ai.failed ? (
+              <p className={styles.error}>
+                بارگذاری نشد. دوباره امتحان کن.
+              </p>
+            ) : ai.roles ? (
+              <>
+                <DiagramScroller lines={passage.lines} roles={ai.roles} viewKey="ai" />
+                <AiNotice />
+              </>
+            ) : null
+          ) : current?.roles ? (
+            <DiagramScroller
+              lines={passage.lines}
+              roles={current.roles}
+              viewKey={current.id}
+            />
           ) : isVerse ? (
             <div className="mt-6 space-y-3 text-center">
               {passage.lines.map((line, i) => (
@@ -260,7 +277,7 @@ export default function PassageCard({
             aria-expanded={showAnswer}
             className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-all hover:brightness-95 active:scale-95"
           >
-            {showAnswer ? "پنهان کردنِ پاسخ" : "نمایشِ پاسخ"}
+            {showAnswer ? "پنهان کردن پاسخ" : "نمایش پاسخ"}
           </button>
 
           <AnimatePresence initial={false}>

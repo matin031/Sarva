@@ -155,7 +155,7 @@ export default function BookmarksClient({
                       </div>
                       <button
                         onClick={() => drop(b.id)}
-                        aria-label="برداشتنِ نشان"
+                        aria-label="برداشتن نشان"
                         className="shrink-0 rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-3.5">
@@ -194,7 +194,7 @@ export default function BookmarksClient({
                           }}
                           className="w-full text-right text-[11px] text-muted-foreground transition-colors hover:text-primary"
                         >
-                          {b.note ? `📝 ${b.note}` : "افزودنِ یادداشت…"}
+                          {b.note ? `📝 ${b.note}` : "افزودن یادداشت…"}
                         </button>
                       )}
                     </div>

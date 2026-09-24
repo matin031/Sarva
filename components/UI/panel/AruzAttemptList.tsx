@@ -4,7 +4,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 import QuizStyleQuestion from "@/components/UI/panel/QuizStyleQuestion";
-import { jalali, scoreColor } from "@/lib/panel/format";
+import { AnimatedCircularProgress } from "@/components/UI/kit/animated-circular-progress";
+import { jalali, relativeDay } from "@/lib/panel/format";
 import { ARUZ_TYPE_LABEL } from "@/lib/panel/types";
 import type { AruzAnswer, AruzAttempt } from "@/lib/panel/types";
 
@@ -35,17 +36,16 @@ export default function AruzAttemptList({
 
   if (!attempts.length) {
     return (
-      <div className=" bg-card shadow rounded-xl p-8 mt-3 text-center">
+      <div className=" mt-4 rounded-2xl border border-dashed border-border p-6 text-center">
         <p className=" text-muted-foreground">
-          هنوز آزمون عروضی نداده‌ای. اولین آزمونت که تمام شود، همین‌جا با همهٔ
-          سؤال‌هایش می‌آید.
+          هنوز آزمون عروضی نداده‌ای.
         </p>
       </div>
     );
   }
 
   return (
-    <div className=" mt-3 flex flex-col gap-y-3">
+    <div className=" mt-4 flex flex-col gap-y-2.5">
       {attempts.map((attempt) => (
         <AttemptRow
           key={attempt.id}
@@ -70,7 +70,7 @@ export default function AruzAttemptList({
             }`}
         >
           {loadingMore ? (
-            "...در حال بارگیری"
+            "در حال بارگیری…"
           ) : (
             <>
               بارگیری آزمون‌های بیشتر
@@ -107,66 +107,41 @@ function AttemptRow({
     ? Math.round((attempt.correct / attempt.total) * 100)
     : 0;
   const wrong = Math.max(attempt.total - attempt.correct, 0);
-  const color = scoreColor(percent);
 
   return (
-    <div className=" bg-card shadow rounded-xl p-3 ">
+    <div className=" rounded-2xl border border-border/70 bg-card p-3 transition-colors hover:border-primary/35 sm:p-4">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className=" w-full cursor-pointer text-right"
+        className=" flex w-full cursor-pointer items-center justify-between gap-3 text-right"
       >
-        <div className=" flex items-center justify-between">
-          <div className=" flex items-center flex-row-reverse gap-x-6">
-            <div>
-              <span>
-                {toFa(attempt.correct)} از {toFa(attempt.total)} پاسخ درست
-              </span>
-              <div className=" flex gap-x-1 items-center text-muted-foreground">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="size-4"
-                >
-                  <path d="M12 11.993a.75.75 0 0 0-.75.75v.006c0 .414.336.75.75.75h.006a.75.75 0 0 0 .75-.75v-.006a.75.75 0 0 0-.75-.75H12ZM12 16.494a.75.75 0 0 0-.75.75v.005c0 .414.335.75.75.75h.005a.75.75 0 0 0 .75-.75v-.005a.75.75 0 0 0-.75-.75H12ZM8.999 17.244a.75.75 0 0 1 .75-.75h.006a.75.75 0 0 1 .75.75v.006a.75.75 0 0 1-.75.75h-.006a.75.75 0 0 1-.75-.75v-.006ZM7.499 16.494a.75.75 0 0 0-.75.75v.005c0 .414.336.75.75.75h.005a.75.75 0 0 0 .75-.75v-.005a.75.75 0 0 0-.75-.75H7.5ZM13.499 14.997a.75.75 0 0 1 .75-.75h.006a.75.75 0 0 1 .75.75v.005a.75.75 0 0 1-.75.75h-.006a.75.75 0 0 1-.75-.75v-.005ZM14.25 16.494a.75.75 0 0 0-.75.75v.006c0 .414.335.75.75.75h.005a.75.75 0 0 0 .75-.75v-.006a.75.75 0 0 0-.75-.75h-.005ZM15.75 14.995a.75.75 0 0 1 .75-.75h.005a.75.75 0 0 1 .75.75v.006a.75.75 0 0 1-.75.75H16.5a.75.75 0 0 1-.75-.75v-.006ZM13.498 12.743a.75.75 0 0 1 .75-.75h2.25a.75.75 0 1 1 0 1.5h-2.25a.75.75 0 0 1-.75-.75ZM6.748 14.993a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z" />
-                  <path
-                    fillRule="evenodd"
-                    d="M18 2.993a.75.75 0 0 0-1.5 0v1.5h-9V2.994a.75.75 0 1 0-1.5 0v1.497h-.752a3 3 0 0 0-3 3v11.252a3 3 0 0 0 3 3h13.5a3 3 0 0 0 3-3V7.492a3 3 0 0 0-3-3H18V2.993ZM3.748 18.743v-7.5a1.5 1.5 0 0 1 1.5-1.5h13.5a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5h-13.5a1.5 1.5 0 0 1-1.5-1.5Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className=" text-xs pt-0.5">
-                  {jalali(attempt.createdAt)}
-                </span>
-              </div>
-            </div>
-            <div
-              style={{ borderColor: color, color }}
-              className=" size-16 border-4 rounded-full
-            flex items-center justify-center font-bold transition-colors"
-            >
-              {toFa(percent)}%
-            </div>
+        <div className=" flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+          <AnimatedCircularProgress value={percent} className="size-12 sm:size-14" />
+          <div className=" min-w-0">
+            <p className=" truncate text-sm font-bold sm:text-base">
+              {toFa(attempt.correct)} از {toFa(attempt.total)} پاسخ درست
+            </p>
+            <p className=" mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+              <span>{relativeDay(attempt.createdAt)}</span>
+              <span className=" opacity-60">{jalali(attempt.createdAt)}</span>
+            </p>
           </div>
-          <div className=" flex items-center gap-x-2">
-            <span>{toFa(wrong)} نادرست</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className={`size-4 transition-transform duration-300 ${
-                open ? "rotate-180" : ""
-              }`}
-            >
-              <path
-                fillRule="evenodd"
-                d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
+        </div>
+        <div className=" flex shrink-0 items-center gap-x-2 text-xs text-muted-foreground">
+          {wrong > 0 && <span className=" text-destructive">{toFa(wrong)} نادرست</span>}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={`size-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z"
+              clipRule="evenodd"
+            />
+          </svg>
         </div>
       </button>
 

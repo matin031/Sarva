@@ -5,104 +5,66 @@
 
    چهار بار پشتِ سرِ هم دیدیم که تغییرِ `globals.css` در بیلد کهنه می‌ماند —
    حتی بعد از `rm -rf .next` — و فقط با یک تغییرِ محتواییِ دیگر تازه می‌شود.
-   یک بار همین باعثِ آن باگِ SVGِ ۱۹۰۰۰ پیکسلی شد، چون مرورگر نسخه‌ای از
-   شیوه‌نامه می‌گرفت که قواعدِ بازی را نداشت.
-
    با آوردنِ CSS کنارِ خودِ کامپوننت و import کردنش از همان‌جا، شیوه‌نامه جزوِ
    گرافِ ماژولِ همین بازی می‌شود و مثلِ هر ماژولِ دیگری invalidate می‌شود.
-   بونوسش این است که فقط با همین مسیر بارگذاری می‌شود، نه در کلِ سایت.
    ───────────────────────────────────────────────────────────────────────────
-   تمِ روشن و تمِ تیره اینجا *دو طراحیِ واقعی‌اند*. حالتِ روشن یک آزمایشگاهِ
-   روشن است — عاجِ گرم، سطحِ فیروزه‌ایِ کم‌رنگ، متنِ لاجوردیِ تیره — نه یک
-   کارتِ تقریباً سیاه که روی صفحهٔ روشن چسبانده شده باشد.
+   ⚠️ همهٔ رنگ‌ها از توکن‌های *سایت* می‌آیند (`--color-*`)، پس بازی همان تم و
+   همان پالتی را دارد که کاربر برای سایت انتخاب کرده. نسخهٔ قبل «کارگاهِ شب»
+   بود و در تمِ روشن هم سیاه می‌ماند؛ روی سایتی کرم‌رنگ، یک جعبهٔ تیرهٔ جدا
+   دیده می‌شد.
 
-   همهٔ رنگ‌ها از توکن می‌آیند تا عوض‌کردنِ تم فقط یک تغییرِ نمایشی بماند:
-   نه ری‌مانت، نه ریست، نه اندازه‌گیریِ دوباره.
+   ⚠️ فقط `transform` و `opacity` انیمیت می‌شوند. انیمیت کردنِ `drop-shadow`
+   در همین بازی نرخِ فریم را از ۵۷ به ۳۰ رسانده بود.
+
+   ⚠️ هیچ transform ای روی صفحهٔ تعاملی نمی‌نشیند — نه .gc-viewport، نه
+   .gc-strip، نه .gc-col، نه .gc-socket. `getBoundingClientRect` مبنای
+   هدف‌گیریِ رها کردن است و transform آن را جابه‌جا می‌کند.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .gc-root {
-  --gc-bg: oklch(0.972 0.019 82);
-  --gc-board: oklch(0.947 0.021 191);
-  --gc-board-elevated: oklch(0.985 0.009 190);
-  --gc-module: oklch(0.995 0.004 85);
-  --gc-module-edge: oklch(0.88 0.025 190);
-  --gc-socket: oklch(0.93 0.02 190);
-  --gc-socket-edge: oklch(0.82 0.035 190);
-  --gc-text: oklch(0.24 0.045 258);
-  --gc-text-muted: oklch(0.5 0.03 240);
-  --gc-border: oklch(0.87 0.018 190);
-  --gc-border-strong: oklch(0.72 0.045 195);
-  --gc-wire: oklch(0.62 0.055 200);
-  --gc-wire-idle: oklch(0.85 0.018 200);
-  --gc-current: oklch(0.63 0.13 192);
-  --gc-accent: #008687;
-  --gc-accent-soft: oklch(0.9 0.05 190);
-  --gc-gold: oklch(0.6 0.11 85);
-  --gc-ok: oklch(0.55 0.13 158);
-  --gc-ok-soft: oklch(0.92 0.06 158);
-  --gc-bad: oklch(0.55 0.17 25);
-  --gc-bad-soft: oklch(0.93 0.06 25);
-  --gc-metal: oklch(0.78 0.02 90);
-  --gc-lamp-off: oklch(0.9 0.012 85);
-  --gc-lamp-on: oklch(0.84 0.15 85);
-  --gc-lamp-glass-a: oklch(0.97 0.008 190);
-  --gc-lamp-glass-b: oklch(0.9 0.014 190);
-  --gc-lamp-shine: oklch(1 0 0 / 0.85);
-  --gc-lamp-crack: oklch(0.45 0.02 250 / 0.55);
-  --gc-glow: 0 134 135;
-  --gc-shadow-sm: 0 1px 2px oklch(0.4 0.05 240 / 0.1);
-  --gc-shadow-md: 0 4px 14px oklch(0.4 0.05 240 / 0.12);
-  --gc-shadow-lg: 0 14px 40px oklch(0.35 0.06 240 / 0.16);
-  --gc-trace: oklch(0.58 0.06 195 / 0.16);
-  /* نقشِ ایرانیِ پس‌زمینه: سرمه‌ایِ عمیق روی کرم، خیلی کم‌رنگ. */
-  --gc-motif: oklch(0.32 0.06 258);
-  --gc-motif-opacity: 0.07;
-  /* دو رنگِ تپشِ الکتریکی. */
-  --gc-pulse-teal: oklch(0.6 0.13 192);
-  --gc-pulse-gold: oklch(0.62 0.12 82);
+  --gc-bg: var(--color-background);
+  --gc-surface: var(--color-card);
+  --gc-sunken: color-mix(in oklch, var(--color-surface-2) 70%, var(--color-background));
+  --gc-text: var(--color-foreground);
+  --gc-muted: var(--color-muted-foreground);
+  --gc-line: color-mix(in oklch, var(--color-foreground) 11%, transparent);
+  --gc-line-strong: color-mix(in oklch, var(--color-foreground) 22%, transparent);
+  --gc-accent: var(--color-primary);
+  /* دکمهٔ اصلی در تمِ روشن یک پله تیره‌تر: فیروزهٔ سایت با متنِ روشن زیرِ
+     ۴٫۵:۱ است (همین را axe در کیمیا گرفته بود). */
+  --gc-accent-strong: color-mix(in oklch, var(--color-primary) 86%, #000);
+  --gc-accent-ink: var(--color-primary-foreground);
+  --gc-accent-soft: color-mix(in oklch, var(--color-primary) 12%, transparent);
+  --gc-ok: oklch(0.56 0.13 158);
+  --gc-bad: oklch(0.56 0.19 27);
+  --gc-lamp: oklch(0.8 0.16 78);
+  --gc-wire: color-mix(in oklch, var(--color-foreground) 30%, var(--color-card));
+  --gc-wire-dim: color-mix(in oklch, var(--color-foreground) 16%, var(--color-card));
+  --gc-shadow-sm: 0 1px 2px color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  --gc-shadow-md:
+    0 1px 2px color-mix(in oklch, var(--color-foreground) 6%, transparent),
+    0 6px 16px -6px color-mix(in oklch, var(--color-foreground) 18%, transparent);
+  --gc-shadow-lg:
+    0 1px 2px color-mix(in oklch, var(--color-foreground) 5%, transparent),
+    0 18px 40px -18px color-mix(in oklch, var(--color-foreground) 28%, transparent);
+  --gc-r: 14px;
+  --gc-r-sm: 10px;
 
   color: var(--gc-text);
 }
 
 .dark .gc-root {
-  --gc-bg: oklch(0.145 0.03 260);
-  --gc-board: oklch(0.196 0.028 248);
-  --gc-board-elevated: oklch(0.245 0.03 246);
-  --gc-module: oklch(0.285 0.033 242);
-  --gc-module-edge: oklch(0.4 0.045 220);
-  --gc-socket: oklch(0.168 0.026 252);
-  --gc-socket-edge: oklch(0.36 0.04 225);
-  --gc-text: #f1eee7;
-  --gc-text-muted: #a49e91;
-  --gc-border: oklch(0.31 0.03 245);
-  --gc-border-strong: oklch(0.46 0.05 205);
-  --gc-wire: oklch(0.52 0.06 202);
-  --gc-wire-idle: oklch(0.3 0.028 242);
-  --gc-current: oklch(0.83 0.145 192);
-  --gc-accent: #00a5a6;
-  --gc-accent-soft: oklch(0.35 0.07 195);
-  --gc-gold: oklch(0.78 0.12 85);
-  --gc-ok: oklch(0.74 0.15 158);
-  --gc-ok-soft: oklch(0.32 0.08 158);
-  --gc-bad: oklch(0.68 0.18 25);
-  --gc-bad-soft: oklch(0.32 0.09 25);
-  --gc-metal: oklch(0.62 0.02 240);
-  --gc-lamp-off: oklch(0.3 0.018 250);
-  --gc-lamp-on: oklch(0.9 0.15 85);
-  --gc-lamp-glass-a: oklch(0.32 0.02 245);
-  --gc-lamp-glass-b: oklch(0.24 0.02 248);
-  --gc-lamp-shine: oklch(1 0 0 / 0.35);
-  --gc-lamp-crack: oklch(0.1 0.02 250 / 0.75);
-  --gc-glow: 0 190 190;
-  --gc-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4);
-  --gc-shadow-md: 0 4px 16px oklch(0 0 0 / 0.45);
-  --gc-shadow-lg: 0 18px 46px oklch(0 0 0 / 0.55);
-  --gc-trace: oklch(0.6 0.06 195 / 0.13);
-  /* روی شبِ لاجوردی، نقش با طلاییِ بسیار کم‌رنگ خوانده می‌شود نه سفید. */
-  --gc-motif: oklch(0.75 0.09 85);
-  --gc-motif-opacity: 0.055;
-  --gc-pulse-teal: oklch(0.82 0.14 192);
-  --gc-pulse-gold: oklch(0.83 0.13 85);
+  --gc-sunken: color-mix(in oklch, var(--color-background) 80%, #000);
+  --gc-line: color-mix(in oklch, var(--color-foreground) 12%, transparent);
+  --gc-accent-strong: var(--color-primary);
+  --gc-ok: oklch(0.76 0.14 158);
+  --gc-bad: oklch(0.7 0.17 25);
+  --gc-lamp: oklch(0.86 0.15 82);
+  --gc-wire: color-mix(in oklch, var(--color-foreground) 34%, var(--color-card));
+  --gc-wire-dim: color-mix(in oklch, var(--color-foreground) 18%, var(--color-card));
+  --gc-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --gc-shadow-md: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 18px -8px oklch(0 0 0 / 0.55);
+  --gc-shadow-lg: 0 1px 2px oklch(0 0 0 / 0.3), 0 22px 44px -18px oklch(0 0 0 / 0.7);
 }
 
 /* ── پوستهٔ بازیِ فعال ───────────────────────────────────────────────────── */
@@ -119,337 +81,192 @@ body.gc-locked {
 }
 
 .gc-shell {
-  position: fixed;
-  inset: 0;
-  /* بالاتر از هر چیزی که هدر/فوترِ سایت می‌سازد (بیشینه‌شان z-200). */
-  z-index: 300;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  color: var(--gc-text);
-  overflow: hidden;
-  /* پس‌زمینه: یک فضای آرام با دو هالهٔ خیلی ملایم — یکی فیروزه‌ای از بالا-راست
-     (سمتِ باتری) و یکی طلاییِ گرم از پایین-چپ (سمتِ لامپ). همان دو رنگِ
-     هویتیِ سروا، این بار در خدمتِ استعارهٔ مدار: انگار جریان از یک سو می‌آید
-     و نور در سوی دیگر روشن می‌شود. آن‌قدر کم‌رنگ که خواندن را مختل نکند. */
+  /* یک تابشِ خیلی کم از بالا، هم‌رنگِ پالت؛ بقیه همان زمینهٔ سایت. */
   background:
-    radial-gradient(
-      70% 55% at 88% 4%,
-      color-mix(in oklab, var(--gc-accent) 13%, transparent),
-      transparent 68%
-    ),
-    radial-gradient(
-      62% 50% at 8% 96%,
-      color-mix(in oklab, var(--gc-gold) 11%, transparent),
-      transparent 70%
-    ),
-    var(--gc-bg);
+    radial-gradient(90% 55% at 50% 0%, var(--gc-accent-soft), transparent 70%),
+    var(--gc-bg) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ── پس‌زمینهٔ هندسیِ برق‌دار ─────────────────────────────────────────────
-   نقشِ سروا به‌عنوان لایهٔ پایه، و چند گره که هر چند ثانیه یک بار آرام روشن
-   می‌شوند. همیشه زیردستِ بازی می‌ماند: کدریِ پایه زیرِ ۸٪ و تپش‌ها کوتاه و
-   کم‌جان‌اند. */
-.gc-bg {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  /* لایهٔ خودش را می‌سازد تا تپش‌ها بقیهٔ صفحه را repaint نکنند. */
-  contain: strict;
-  z-index: 0;
-}
-
-.gc-bg-base {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: var(--gc-motif);
-  opacity: var(--gc-motif-opacity);
-  /* لبه‌ها محو می‌شوند تا نقش به متن و تخته فشار نیاورد. */
-  mask-image: radial-gradient(120% 85% at 50% 45%, #000 35%, transparent 92%);
-}
-
-/* یک گرهٔ نقش که روشن می‌شود. جای‌گیری با `transform` است و در ابتدا نامرئی؛
-   انیمیشن فقط `opacity` و `transform` را دست می‌زند. */
-.gc-bg-node {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 80px;
-  height: 80px;
-  opacity: 0;
-  will-change: transform, opacity;
-}
-.gc-bg-node[data-tone="teal"] {
-  color: var(--gc-pulse-teal);
-}
-.gc-bg-node[data-tone="gold"] {
-  color: var(--gc-pulse-gold);
-}
-
-/* هالهٔ نرمِ پشتِ گره — گرادیانِ آماده، نه فیلترِ زنده. */
-.gc-bg-halo {
-  position: absolute;
-  inset: -26px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in oklab, currentColor 22%, transparent) 0%,
-    color-mix(in oklab, currentColor 8%, transparent) 45%,
-    transparent 72%
-  );
-}
-
-/* ردِ کوتاهِ بینِ دو گرهٔ همسایه — اشارهٔ ظریفِ عبورِ جریان. */
-.gc-bg-trace {
-  position: absolute;
-  top: 0;
-  left: 0;
-  opacity: 0;
-  will-change: transform, opacity;
-}
-.gc-bg-trace[data-tone="teal"] {
-  color: var(--gc-pulse-teal);
-}
-.gc-bg-trace[data-tone="gold"] {
-  color: var(--gc-pulse-gold);
-}
-.gc-bg-trace[data-dir="h"] {
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, currentColor 58%, transparent),
-    transparent
-  );
-}
-.gc-bg-trace[data-dir="v"] {
-  width: 2px;
-  height: 80px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in oklab, currentColor 58%, transparent),
-    transparent
-  );
-}
-
-/* محتوای بازی همیشه بالای پس‌زمینه. */
-.gc-shell > *:not(.gc-bg) {
-  position: relative;
-  z-index: 1;
-}
-
+/* ── نوارِ بالا ──────────────────────────────────────────────────────────── */
 .gc-topbar {
-  flex: 0 0 auto;
   display: grid;
-  /* ستونِ میانی همیشه دقیقاً وسط می‌ماند، هرچقدر هم دکمه‌های دو طرف پهن شوند. */
-  grid-template-columns: 1fr auto 1fr;
+  /* ستونِ میانی همیشه دقیقاً وسط می‌ماند، هرچقدر هم دو طرف پهن شوند. */
+  grid-template-columns: 1fr minmax(0, 15rem) 1fr;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem;
-  border-bottom: 1px solid var(--gc-border);
-  background: color-mix(in oklab, var(--gc-board) 55%, var(--gc-bg));
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  padding-top: max(0.55rem, env(safe-area-inset-top, 0px));
+}
+.gc-topbar-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.15rem;
 }
 
-.gc-topbar-btn {
-  border-radius: 0.55rem;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--gc-text-muted);
-  transition: color 0.16s ease, background-color 0.16s ease;
+.gc-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--gc-r-sm);
+  color: var(--gc-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.gc-topbar-btn:hover:not(:disabled) {
-  color: var(--gc-accent);
-  background: color-mix(in oklab, var(--gc-accent) 10%, transparent);
+.gc-icon-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
-.gc-topbar-btn:disabled {
-  opacity: 0.4;
+.gc-icon-btn:hover:not(:disabled) {
+  color: var(--gc-text);
+  background: var(--gc-line);
+}
+.gc-icon-btn:disabled {
+  opacity: 0.35;
   cursor: default;
 }
-.gc-topbar-icon {
-  padding: 0.3rem;
+.gc-icon-btn:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 1px;
+}
+
+/* دکمه‌های ناوبریِ مشترکِ بازی‌ها (`GameNav`) روی نوارِ کارگاه: همان شکل،
+   با رنگ‌های خودِ مدار دستور. */
+.gc-topbar .game-nav-btn.gc-nav {
+  --gnb-bg: color-mix(in oklch, var(--gc-text) 4%, transparent);
+  --gnb-border: var(--gc-line);
+  --gnb-fg: var(--gc-muted);
+  --gnb-fg-hover: var(--gc-text);
+  --gnb-accent: var(--gc-accent);
+  box-shadow: none;
+}
+
+.gc-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.gc-progress-text {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.gc-progress-of {
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+.gc-progress-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gc-line);
+  overflow: hidden;
+}
+.gc-progress-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: var(--gc-accent);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ── صورتِ سؤال ─────────────────────────────────────────────────────────────
-   بیرونِ ناحیهٔ اسکرولِ افقی. دانش‌آموز هیچ‌وقت نباید برای خواندنِ سؤال صفحه
-   را کنار بکشد؛ متن می‌شکند و خط دوم می‌گیرد. */
+   بیرونِ ناحیهٔ اسکرولِ افقی. متن می‌شکند و خطِ دوم می‌گیرد. */
 .gc-question {
   flex: 0 0 auto;
   width: 100%;
-  padding: 0.8rem 1rem 0.55rem;
+  padding: 0.5rem 1.25rem 0.25rem;
   text-align: center;
   overflow-x: hidden;
 }
-.gc-question::after {
-  content: "";
-  display: block;
-  width: min(140px, 30%);
-  height: 2px;
-  margin: 0.65rem auto 0;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, var(--gc-accent) 55%, transparent),
-    transparent
-  );
-}
-
 .gc-question-text {
   margin-inline: auto;
-  max-width: 62ch;
-  text-shadow: 0 1px 0 color-mix(in oklab, var(--gc-bg) 60%, transparent);
-  font-size: clamp(1.15rem, 0.95rem + 1.15vw, 1.85rem);
+  max-width: 40ch;
+  font-size: clamp(1.2rem, 0.95rem + 1.2vw, 1.85rem);
   font-weight: 700;
-  line-height: 1.95;
-  color: var(--gc-text);
+  line-height: 1.9;
   overflow-wrap: break-word;
   text-wrap: balance;
 }
-
+.gc-q-target {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklch, var(--gc-accent) 60%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.5em;
+  text-decoration-skip-ink: none;
+}
 .gc-question-source {
-  margin-top: 0.3rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--gc-text-muted);
+  font-size: 0.75rem;
+  color: var(--gc-muted);
 }
 
 /* ── ناحیهٔ مدار ────────────────────────────────────────────────────────────
    تنها جایی که اسکرولِ افقی مجاز است. تخته به اندازهٔ خودِ مدار است و با
-   `margin: auto` وسط می‌نشیند، وگرنه روی صفحهٔ بلند یک نوارِ باریکِ شناور
-   در دلِ یک پنلِ خالی می‌شد. */
+   `margin: auto` وسط می‌نشیند. */
+.gc-board {
+  padding: 0.75rem;
+}
+
 .gc-viewport {
-  position: relative;
-  flex: 0 1 auto;
-  margin-block: auto;
-  margin-inline: auto;
-  width: fit-content;
-  min-width: min(100%, 560px);
-  max-width: 100%;
-  /* تخته کفِ ارتفاع دارد تا روی صفحهٔ بلند یک نوارِ باریکِ شناور نباشد. */
-  min-height: min(46vh, 400px);
-  max-height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
   /* ⚠️ کشیدنِ تخته کارِ useBoardPan است، نه اسکرولِ بومیِ مرورگر.
-     `touch-action: none` یعنی مرورگر ژست را برای خودش برنمی‌دارد.
-
-     چرا اینجا رسیدیم: کاربر روی سافاریِ آیفون گزارش داد تخته کشیده نمی‌شود.
-     همین الگو — عرضِ fit-content، یک محور hidden، داخلِ والدِ fixed — همانی
-     است که iOS Safari گاهی اصلاً سرریز برایش حساب نمی‌کند.
-
-     اول `pan-x` گذاشته شد تا اسکرولِ بومی سرِ جایش بماند و جاوااسکریپت فقط
-     پشتیبان باشد. اندازه‌گیری نشان داد کار نمی‌کند: مرورگر ژست را برمی‌داشت،
-     `pointercancel` می‌فرستاد و از یک کشیدنِ ۱۷۰ پیکسلی فقط ۱۹ پیکسل به ما
-     می‌رسید. دو مسیرِ موازی که سرِ یک ژست دعوا کنند، در هیچ موتوری قابل
-     پیش‌بینی نیست.
-
-     پس یک مسیر ماند: خودمان `scrollLeft` را می‌نویسیم، با لغزشِ اینرسی. در
-     هر موتوری یکسان اجرا می‌شود و در کرومیوم هم قابل آزمودن است — که برای
-     ایرادی که فقط روی سافاری دیده شده، تنها راهِ صادقانهٔ بررسی است. */
+     روی سافاریِ آیفون، این الگو — عرضِ fit-content، یک محور hidden، داخلِ
+     والدِ fixed — گاهی اصلاً سرریز حساب نمی‌کند، و `pan-x` باعث می‌شد
+     مرورگر ژست را بردارد و `pointercancel` بفرستد (از ۱۷۰ پیکسل کشیدن فقط
+     ۱۹ پیکسل می‌رسید). پس یک مسیر ماند: خودمان `scrollLeft` را می‌نویسیم. */
   touch-action: none;
-  overscroll-behavior-x: contain;
-  border-radius: 1.4rem;
-  border: 1px solid var(--gc-border);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--gc-board-elevated) 88%, transparent),
-      color-mix(in oklab, var(--gc-board) 96%, transparent)
-    ),
-    var(--gc-board);
-  backdrop-filter: blur(6px);
-  box-shadow:
-    var(--gc-shadow-lg),
-    inset 0 1px 0 color-mix(in oklab, #fff 26%, transparent),
-    inset 0 0 0 1px color-mix(in oklab, var(--gc-accent) 7%, transparent);
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  border: 1px solid var(--gc-line);
+  background: var(--gc-surface);
+  box-shadow: var(--gc-shadow-lg);
   display: flex;
   align-items: center;
   scrollbar-width: thin;
-  scrollbar-color: var(--gc-border-strong) transparent;
+  scrollbar-color: var(--gc-line-strong) transparent;
 }
 .gc-viewport::-webkit-scrollbar {
-  height: 8px;
+  height: 6px;
+  width: 6px;
 }
 .gc-viewport::-webkit-scrollbar-thumb {
-  background: var(--gc-border-strong);
+  background: var(--gc-line-strong);
   border-radius: 999px;
 }
-.gc-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
 
-.gc-board {
-  padding: 0.5rem;
-}
-
-/* بافتِ ظریفِ برد — تزئینی و کاملاً بی‌اثر روی ورودی. */
+/* شبکهٔ نقطه‌ایِ برد — مثلِ کاغذِ مهندسی. تزئینی و بی‌اثر روی ورودی. */
 .gc-trace-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.8;
-  /* شبکهٔ ریزِ ردِ مدار، به‌اضافهٔ گره‌های کوچکِ تقاطع — ریزتر از آن است که
-     دیده شود، و فقط عمق می‌دهد. */
-  background-image:
-    linear-gradient(var(--gc-trace) 1px, transparent 1px),
-    linear-gradient(90deg, var(--gc-trace) 1px, transparent 1px),
-    radial-gradient(
-      circle,
-      color-mix(in oklab, var(--gc-accent) 22%, transparent) 1.2px,
-      transparent 1.4px
-    );
-  background-size: 26px 26px, 26px 26px, 26px 26px;
-  mask-image: radial-gradient(115% 80% at 50% 50%, #000 45%, transparent 100%);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--gc-text) 13%, transparent) 1px,
+    transparent 1.4px
+  );
+  background-size: 18px 18px;
+  background-position: center;
+  mask-image: radial-gradient(120% 100% at 50% 50%, #000 40%, transparent 100%);
 }
 
 .gc-content {
   position: relative;
   display: flex;
   align-items: center;
-  gap: clamp(0.85rem, 2vw, 1.6rem);
-  padding: clamp(1.4rem, 6vh, 3rem) clamp(1.2rem, 3vw, 2.4rem);
+  gap: clamp(1rem, 2.4vw, 2rem);
+  padding: clamp(1.75rem, 5vh, 3rem) clamp(1.25rem, 3vw, 2.5rem);
   width: max-content;
   margin-inline: auto;
 }
 
-/* پیچ‌های گوشهٔ برد — جزئیاتِ تزئینیِ ریز که هویتِ «قطعهٔ سخت‌افزاری» می‌دهد.
-   کاملاً بی‌اثر روی ورودی. */
-.gc-content::before,
-.gc-content::after {
-  content: "";
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--gc-socket);
-  border: 1px solid var(--gc-border-strong);
-  opacity: 0.7;
-  pointer-events: none;
-}
-.gc-content::before {
-  top: 12px;
-  inset-inline-start: 14px;
-  box-shadow:
-    0 0 0 0 transparent,
-    calc(var(--gc-corner-x, 0px)) 0 0 0 transparent;
-}
-.gc-content::after {
-  bottom: 12px;
-  inset-inline-end: 14px;
-}
-
 /* ── ردیفِ تحلیل: هر واژه و سوکتش در یک ستون ─────────────────────────────
-   هم‌مرکزی *ساختاری* است — نه محاسبه‌شده، نه تقریبی. برای همین نه حل‌کنندهٔ
-   هم‌پوشانی لازم است و نه خطِ راهنما. */
+   هم‌مرکزی *ساختاری* است — نه محاسبه‌شده. */
 .gc-strip {
+  position: relative;
   display: flex;
   align-items: flex-end;
   flex-wrap: nowrap;
@@ -460,17 +277,16 @@ body.gc-locked {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.6rem;
 }
 
 .gc-col-word {
-  font-size: clamp(0.95rem, 0.85rem + 0.45vw, 1.2rem);
-  font-weight: 600;
+  font-size: clamp(0.95rem, 0.85rem + 0.4vw, 1.15rem);
+  font-weight: 500;
   line-height: 1.6;
-  color: var(--gc-text-muted);
+  color: var(--gc-muted);
   white-space: nowrap;
 }
-/* واژه‌های هدف پررنگ‌ترند: چشم باید فوری بفهمد کدام‌ها نقش می‌خواهند. */
 .gc-col[data-target] .gc-col-word {
   color: var(--gc-text);
   font-weight: 700;
@@ -478,95 +294,82 @@ body.gc-locked {
 
 .gc-sep {
   align-self: flex-start;
-  padding-top: 0.05rem;
-  font-size: clamp(0.95rem, 0.85rem + 0.45vw, 1.2rem);
+  font-size: clamp(0.95rem, 0.85rem + 0.4vw, 1.15rem);
   line-height: 1.6;
-  color: var(--gc-text-muted);
+  color: var(--gc-muted);
   white-space: pre;
 }
 
-/* ارتفاعِ ستونِ بدونِ سوکت با ستونِ سوکت‌دار یکی می‌ماند تا خطِ واژه‌ها
-   نشکند. */
+/* ستونِ بدونِ سوکت هم‌قدِ ستونِ سوکت‌دار، تا خطِ واژه‌ها نشکند. */
 .gc-col-gap {
   display: block;
   height: var(--gc-socket-h, 46px);
 }
 
 /* ── سوکت ─────────────────────────────────────────────────────────────────
-   حالت‌ها: خالی · هدفِ فعال · پرِ خنثی · در حالِ بررسی · درست · نادرست · قفل.
-   هیچ‌کدام از این‌ها پیش از «بررسی اتصال» رنگِ درست/غلط نمی‌گیرند. */
+   حالت‌ها: خالی · هدفِ فعال · پر · در حالِ بررسی · درست · نادرست · قفل.
+   هیچ‌کدام پیش از «بررسی» رنگِ درست/غلط نمی‌گیرند. */
 .gc-socket {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* عرض درون‌خطی از عرضِ *واژه* می‌آید؛ اینجا فقط کف و ارتفاع. */
   min-width: 44px;
   height: var(--gc-socket-h, 46px);
-  border-radius: 0.7rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--gc-socket) 82%, transparent),
-      var(--gc-socket)
-    );
-  border: 1.5px dashed var(--gc-socket-edge);
-  box-shadow:
-    inset 0 2px 5px oklch(0 0 0 / 0.16),
-    inset 0 -1px 0 color-mix(in oklab, #fff 12%, transparent);
+  border-radius: 12px;
+  background: var(--gc-sunken);
+  border: 1.5px dashed var(--gc-line-strong);
+  box-shadow: inset 0 1px 3px color-mix(in oklch, var(--gc-text) 10%, transparent);
   transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-/* پایه‌های تماسِ سوکت — جزئیاتِ تزئینیِ برد. */
+/* نقطه‌های اتصالِ دو سرِ خانه — جایی که سیم می‌رسد. */
 .gc-socket-pin {
   position: absolute;
   top: 50%;
-  translate: 0 -50%;
-  width: 4px;
-  height: 14px;
-  border-radius: 2px;
-  background: var(--gc-metal);
-  opacity: 0.55;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--gc-surface);
+  border: 2px solid var(--gc-wire);
   pointer-events: none;
+  z-index: 2;
+  transition: border-color 0.2s ease;
 }
 .gc-socket-pin-a {
-  inset-inline-start: -2px;
+  inset-inline-start: -4px;
 }
 .gc-socket-pin-b {
-  inset-inline-end: -2px;
+  inset-inline-end: -4px;
 }
 
-.gc-socket-empty::after {
-  content: "";
+.gc-socket-empty {
   display: block;
-  width: 42%;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--gc-socket-edge);
-  opacity: 0.5;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gc-line-strong);
 }
 
+/* قطعه‌ای بالای این خانه است یا در سینی انتخاب شده و این خانه هدف است. */
 .gc-socket[data-armed="true"] {
   border-style: solid;
   border-color: var(--gc-accent);
-  background: color-mix(in oklab, var(--gc-accent) 16%, var(--gc-socket));
-  /* بزرگ‌نماییِ ریز، تا لحظهٔ «اینجا می‌نشیند» بدونِ حرف زدن فهمیده شود. */
-  transform: scale(1.05);
-  box-shadow:
-    inset 0 1px 3px oklch(0 0 0 / 0.1),
-    0 0 0 4px color-mix(in oklab, var(--gc-accent) 26%, transparent),
-    0 6px 18px color-mix(in oklab, var(--gc-accent) 30%, transparent);
+  background: color-mix(in oklch, var(--gc-accent) 10%, var(--gc-sunken));
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--gc-accent) 18%, transparent);
 }
 
 .gc-socket[data-filled="true"] {
-  border-style: solid;
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+}
+.gc-socket[data-filled="true"] .gc-socket-pin {
+  border-color: var(--gc-text);
 }
 
 .gc-socket-hit {
@@ -574,363 +377,359 @@ body.gc-locked {
   top: 50%;
   left: 50%;
   translate: -50% -50%;
-  /* بزرگ‌تر از خودِ سوکت برای انگشت، و دقیقاً هم‌مرکزِ آن — نه یک پیکسل
-     بالاتر یا پایین‌تر. لقی عمداً عمودی بیشتر است چون انگشت روی محورِ عمودی
-     خطای بیشتری دارد، ولی افقی محدود می‌ماند تا به ستونِ بغلی نرسد. */
+  /* بزرگ‌تر از خودِ سوکت برای انگشت، و دقیقاً هم‌مرکزِ آن. لقیِ عمودی بیشتر
+     است چون انگشت روی آن محور خطای بیشتری دارد. */
   width: calc(100% + 12px);
   height: calc(100% + 26px);
-  border-radius: 0.85rem;
+  border-radius: 14px;
   background: transparent;
   border: 0;
   padding: 0;
   cursor: pointer;
+  z-index: 3;
 }
 .gc-socket-hit:disabled {
   cursor: default;
 }
 .gc-socket-hit:focus-visible {
   outline: 2px solid var(--gc-accent);
-  outline-offset: 2px;
+  outline-offset: -4px;
 }
 
-/* ماژولِ نشسته در سوکت. */
+/* قطعهٔ نشسته در خانه. */
 .gc-seated {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.72rem;
-  border: 1px solid var(--gc-module-edge);
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--gc-module) 93%, #fff 7%),
-    var(--gc-module)
-  );
+  border-radius: 12px;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
   color: var(--gc-text);
   font-weight: 700;
-  /* کمی کوچک‌تر از قطعهٔ سینی: خانه باید به‌اندازهٔ *واژه* باشد، نه به‌اندازهٔ
-     سخاوتمندترین قطعه. */
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   white-space: nowrap;
-  box-shadow:
-    var(--gc-shadow-sm),
-    inset 0 1px 0 color-mix(in oklab, #fff 24%, transparent),
-    inset 0 -2px 0 color-mix(in oklab, var(--gc-module-edge) 55%, transparent);
+  box-shadow: var(--gc-shadow-md);
   pointer-events: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
-.gc-seated::before,
+
+/* نشانِ نتیجه روی گوشهٔ قطعه — فقط رنگ نیست، شکل هم هست (برای کوررنگی). */
 .gc-seated::after {
   content: "";
   position: absolute;
-  bottom: -4px;
-  width: 7px;
-  height: 4px;
-  border-radius: 0 0 2px 2px;
-  background: var(--gc-metal);
-}
-.gc-seated::before {
-  inset-inline-start: 13px;
-}
-.gc-seated::after {
-  inset-inline-end: 13px;
+  top: -7px;
+  inset-inline-end: -7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--gc-mark, transparent);
+  background-image: var(--gc-mark-icon, none);
+  background-size: 11px 11px;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 2px var(--gc-surface);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.18s ease,
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ── نتیجهٔ تشخیص ───────────────────────────────────────────────────────── */
 .gc-socket[data-check="checking"] .gc-seated {
   border-color: var(--gc-accent);
-  box-shadow:
-    var(--gc-shadow-sm),
-    0 0 0 3px color-mix(in oklab, var(--gc-accent) 40%, transparent);
+  animation: gcScan var(--gc-check, 200ms) ease-in-out;
 }
 .gc-socket[data-check="correct"] .gc-seated {
   border-color: var(--gc-ok);
-  background: linear-gradient(180deg, var(--gc-ok-soft), var(--gc-module));
-  box-shadow:
-    var(--gc-shadow-sm),
-    0 0 0 2px color-mix(in oklab, var(--gc-ok) 55%, transparent);
+  background: color-mix(in oklch, var(--gc-ok) 12%, var(--gc-surface));
+  color: color-mix(in oklch, var(--gc-ok) 70%, var(--gc-text));
+  --gc-mark: var(--gc-ok);
+  --gc-mark-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 .gc-socket[data-check="wrong"] .gc-seated {
   border-color: var(--gc-bad);
-  background: linear-gradient(180deg, var(--gc-bad-soft), var(--gc-module));
-  box-shadow:
-    var(--gc-shadow-sm),
-    0 0 0 2px color-mix(in oklab, var(--gc-bad) 55%, transparent);
+  background: color-mix(in oklch, var(--gc-bad) 11%, var(--gc-surface));
+  color: color-mix(in oklch, var(--gc-bad) 75%, var(--gc-text));
+  --gc-mark: var(--gc-bad);
+  --gc-mark-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 3.5l5 5M8.5 3.5l-5 5' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round'/%3E%3C/svg%3E");
 }
-.gc-socket[data-locked="true"] .gc-seated {
-  opacity: 0.94;
+.gc-socket[data-check="correct"] .gc-seated::after,
+.gc-socket[data-check="wrong"] .gc-seated::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.gc-socket[data-check="correct"] .gc-socket-pin {
+  border-color: var(--gc-ok);
+}
+.gc-socket[data-check="wrong"] .gc-socket-pin {
+  border-color: var(--gc-bad);
 }
 
 @keyframes gcScan {
-  0% {
-    box-shadow:
-      var(--gc-shadow-sm),
-      0 0 0 2px color-mix(in oklab, var(--gc-accent) 35%, transparent);
+  0%,
+  100% {
+    box-shadow: var(--gc-shadow-md), 0 0 0 0 color-mix(in oklch, var(--gc-accent) 40%, transparent);
   }
   50% {
-    box-shadow:
-      var(--gc-shadow-sm),
-      0 0 0 7px color-mix(in oklab, var(--gc-accent) 30%, transparent),
-      0 0 20px 2px color-mix(in oklab, var(--gc-accent) 45%, transparent);
+    box-shadow: var(--gc-shadow-md), 0 0 0 6px color-mix(in oklch, var(--gc-accent) 22%, transparent);
   }
-  100% {
-    box-shadow:
-      var(--gc-shadow-sm),
-      0 0 0 2px color-mix(in oklab, var(--gc-accent) 35%, transparent);
-  }
-}
-.gc-socket[data-check="checking"] .gc-seated {
-  animation: gcScan var(--gc-check, 200ms) ease-in-out;
 }
 
-/* نشستنِ قطعه: از کمی بالاتر و بزرگ‌تر می‌آید، یک ذره فرو می‌رود و جا
-   می‌افتد — حسِ «کلیکِ» یک قطعهٔ واقعی در سوکت. */
+/* نشستنِ قطعه: از کمی بالاتر می‌آید و جا می‌افتد. transform روی *قطعه* است
+   و نه خانه، پس هدف‌گیری دست‌نخورده می‌ماند. */
 @keyframes gcSeat {
   0% {
-    transform: translateY(-10px) scale(1.06);
+    transform: translateY(-8px) scale(1.05);
     opacity: 0;
   }
-  55% {
-    transform: translateY(2px) scale(0.985);
+  60% {
+    transform: translateY(1px) scale(0.99);
     opacity: 1;
   }
   100% {
     transform: none;
-    opacity: 1;
   }
 }
 .gc-socket[data-fresh="true"] .gc-seated {
-  animation: gcSeat var(--gc-snap, 260ms) cubic-bezier(0.22, 1.1, 0.36, 1);
+  animation: gcSeat var(--gc-snap, 260ms) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* موجِ کوتاهی که از خودِ سوکت بیرون می‌زند — تأییدِ دیداریِ «جا افتاد». */
-@keyframes gcSeatRipple {
-  0% {
-    opacity: 0.55;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.28);
-  }
-}
-.gc-socket[data-fresh="true"]::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 0.8rem;
-  border: 2px solid var(--gc-accent);
-  pointer-events: none;
-  animation: gcSeatRipple var(--gc-snap, 260ms) ease-out forwards;
-}
-
-/* ── ماژولِ نقش در سینی ──────────────────────────────────────────────────── */
+/* ── قطعهٔ نقش ────────────────────────────────────────────────────────────── */
 .gc-module {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border-radius: 0.7rem;
-  border: 1px solid var(--gc-module-edge);
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--gc-module) 88%, #fff 12%),
-    var(--gc-module)
-  );
+  border-radius: 12px;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
   color: var(--gc-text);
   font-weight: 700;
   font-size: 0.95rem;
   line-height: 1;
-  padding: 0.68rem 0.95rem;
+  padding: 0.7rem 1.05rem;
   box-shadow:
-    var(--gc-shadow-sm),
-    inset 0 1px 0 color-mix(in oklab, #fff 30%, transparent),
-    inset 0 -2px 0 color-mix(in oklab, var(--gc-module-edge) 65%, transparent);
-  /* فقط روی خودِ قطعه — نه کلِ صفحه — تا بقیهٔ نواحی اسکرول‌پذیر بمانند. */
+    0 1px 0 color-mix(in oklch, var(--gc-text) 7%, transparent),
+    var(--gc-shadow-sm);
+  /* فقط روی خودِ قطعه — نه کلِ صفحه. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   cursor: grab;
   transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease,
-    opacity 0.16s ease;
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    opacity 0.15s ease;
 }
-.gc-module:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: color-mix(in oklab, var(--gc-accent) 45%, var(--gc-module-edge));
-  box-shadow: var(--gc-shadow-md);
+@media (hover: hover) {
+  .gc-module:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklch, var(--gc-accent) 50%, var(--gc-line-strong));
+    box-shadow: var(--gc-shadow-md);
+  }
 }
 .gc-module:active:not(:disabled) {
-  transform: translateY(0) scale(0.97);
-}
-.gc-module:active {
+  transform: scale(0.97);
   cursor: grabbing;
 }
 .gc-module:focus-visible {
   outline: 2px solid var(--gc-accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 .gc-module[data-selected="true"] {
   border-color: var(--gc-accent);
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--gc-accent) 28%, transparent),
-    var(--gc-shadow-md);
+  background: color-mix(in oklch, var(--gc-accent) 10%, var(--gc-surface));
+  color: var(--gc-accent-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--gc-accent) 22%, transparent);
   transform: translateY(-2px);
 }
+.dark .gc-module[data-selected="true"] {
+  color: var(--gc-accent);
+}
+/* قطعهٔ استفاده‌شده جای خالیِ خودش را نگه می‌دارد: یک قابِ خط‌چین. */
 .gc-module[data-used="true"] {
-  opacity: 0.24;
-  filter: saturate(0.35);
+  background: transparent;
+  border-style: dashed;
+  color: transparent;
+  box-shadow: none;
   pointer-events: none;
 }
-/* قطعه‌ای که در حالِ کشیدن است، جای خالی‌اش را در سینی نگه می‌دارد. */
 .gc-module[data-dragging="true"]:not(.gc-drag-ghost) {
-  opacity: 0.25;
+  opacity: 0.3;
   box-shadow: none;
+}
+.gc-module:disabled:not([data-used="true"]) {
+  cursor: default;
 }
 .gc-module-label {
   position: relative;
-  z-index: 1;
-}
-.gc-module-pin {
-  position: absolute;
-  bottom: -4px;
-  width: 7px;
-  height: 4px;
-  border-radius: 0 0 2px 2px;
-  background: var(--gc-metal);
-  pointer-events: none;
 }
 
-/* ── سینیِ نقش‌ها ───────────────────────────────────────────────────────── */
-.gc-tray {
-  flex: 0 0 auto;
-  min-height: 0;
-  margin: 0.45rem 0.6rem 0.6rem;
-  padding: 0.6rem 0.8rem 0.7rem;
-  border-radius: 1.1rem;
-  border: 1px solid var(--gc-border);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--gc-board-elevated) 55%, transparent),
-      color-mix(in oklab, var(--gc-board) 70%, transparent)
-    ),
-    color-mix(in oklab, var(--gc-bg) 92%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow:
-    var(--gc-shadow-sm),
-    inset 0 1px 0 color-mix(in oklab, #fff 18%, transparent);
+/* ── داک: قطعه‌ها + بررسی ────────────────────────────────────────────────── */
+.gc-dock {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--gc-line);
+  background: color-mix(in oklch, var(--gc-surface) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.gc-tray {
+  min-height: 0;
 }
 .gc-tray-inner {
-  width: min(100%, 640px);
+  width: min(100%, 44rem);
   margin-inline: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
 }
-
 .gc-tray-items {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
-  max-height: min(28vh, 170px);
-  /* پایه‌های قطعه ۴ پیکسل بیرون می‌زنند؛ بدونِ این فضا همان ۴ پیکسل یک نوارِ
-     اسکرولِ بی‌دلیل می‌سازد. */
-  padding-block: 4px;
+  gap: 0.5rem;
+  max-height: min(24vh, 150px);
+  padding: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 
-/* ── نوارِ کنترل ────────────────────────────────────────────────────────── */
 .gc-controls {
-  width: min(100%, 640px);
+  width: min(100%, 44rem);
   margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  padding: 0.45rem 0.75rem 0;
+  gap: 1.5rem;
 }
 .gc-controls-hint {
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--gc-text-muted);
+  color: var(--gc-muted);
 }
-.gc-controls-success {
+.gc-controls-hint[data-tone="ok"] {
   color: var(--gc-ok);
-  font-weight: 700;
 }
-@keyframes gcScanning {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+.gc-controls-hint[data-tone="bad"] {
+  color: var(--gc-bad);
 }
-.gc-controls-scanning {
-  color: var(--gc-accent);
-  animation: gcScanning 900ms ease-in-out infinite;
+.gc-fill-meter {
+  display: inline-flex;
+  gap: 4px;
+}
+.gc-fill-meter > span {
+  width: 14px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gc-line-strong);
+  transition: background-color 0.2s ease;
+}
+.gc-fill-meter > span[data-on] {
+  background: var(--gc-accent);
 }
 
 /* ── دکمه‌ها ───────────────────────────────────────────────────────────── */
 .gc-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.75rem;
-  padding: 0.6rem 1.35rem;
-  font-size: 0.9rem;
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.95rem;
   font-weight: 700;
+  white-space: nowrap;
   transition:
-    filter 0.16s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
     transform 0.12s ease,
-    opacity 0.16s ease;
+    opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .gc-btn:active:not(:disabled) {
   transform: scale(0.97);
 }
 .gc-btn:focus-visible {
   outline: 2px solid var(--gc-accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 .gc-btn-primary {
-  background: var(--gc-accent);
-  color: #fff;
-  box-shadow: var(--gc-shadow-md);
+  min-width: 8.5rem;
+  background: var(--gc-accent-strong);
+  color: var(--gc-accent-ink);
+  box-shadow: 0 1px 0 color-mix(in oklch, #fff 22%, transparent) inset, var(--gc-shadow-md);
 }
 .gc-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: color-mix(in oklch, var(--gc-accent-strong) 90%, var(--gc-text));
 }
 .gc-btn-primary:disabled {
-  opacity: 0.42;
+  background: var(--gc-line);
+  color: var(--gc-muted);
   box-shadow: none;
   cursor: default;
 }
+/* در حالِ کار: متن می‌ماند (بدونِ پرشِ عرض) و یک نوارِ نازک زیرش می‌دود. */
+.gc-btn[data-busy]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 22%;
+  bottom: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.6;
+  transform-origin: right;
+  animation: gcBusy 0.9s ease-in-out infinite;
+}
+@keyframes gcBusy {
+  0% {
+    transform: scaleX(0.1);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0.1);
+    transform-origin: left;
+  }
+}
 .gc-btn-ghost {
-  border: 1px solid var(--gc-border);
+  border: 1px solid var(--gc-line-strong);
   color: var(--gc-text);
+  background: transparent;
 }
 .gc-btn-ghost:hover:not(:disabled) {
   border-color: var(--gc-accent);
+  color: var(--gc-accent-strong);
+}
+.dark .gc-btn-ghost:hover:not(:disabled) {
   color: var(--gc-accent);
+}
+.gc-btn-lg {
+  min-height: 48px;
+  padding-inline: 1.8rem;
 }
 
 /* ── لایهٔ SVGِ مدار ─────────────────────────────────────────────────────
    هیچ‌کدام هرگز هدفِ اشاره‌گر نیستند. */
-.gc-svg {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
-}
+.gc-svg,
 .gc-svg * {
   pointer-events: none;
 }
@@ -939,46 +738,37 @@ body.gc-locked {
 }
 .gc-svg[data-measured="true"] {
   opacity: 1;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .gc-wire {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3;
-  transition: stroke 0.2s ease;
+  stroke-width: 2.5;
+  transition: stroke 0.3s ease;
 }
 .gc-wire-wire {
   stroke: var(--gc-wire);
 }
-.gc-wire-open {
-  stroke: var(--gc-wire-idle);
-  stroke-dasharray: 5 7;
-}
-.gc-wire-seated {
-  stroke: var(--gc-wire);
-  stroke-dasharray: 5 7;
-}
-.gc-wire-scan {
-  stroke: var(--gc-accent);
-  stroke-width: 3.5;
-}
-.gc-wire-ok {
-  stroke: var(--gc-ok);
-  stroke-width: 3.5;
-}
+/* بخشِ داخلِ خانه زیرِ خودِ خانه پنهان است؛ فقط برای پیوستگیِ مسیر. */
+.gc-wire-open,
+.gc-wire-seated,
+.gc-wire-scan,
+.gc-wire-ok,
 .gc-wire-bad {
-  stroke: var(--gc-bad);
-  stroke-width: 3.5;
-  stroke-dasharray: 4 5;
+  stroke: var(--gc-wire-dim);
+}
+/* مدار بسته شد: همهٔ سیم‌ها هم‌رنگِ جریان می‌شوند. */
+.gc-svg[data-phase="live"] .gc-wire {
+  stroke: var(--gc-accent);
 }
 .gc-current {
-  stroke: var(--gc-current);
-  stroke-width: 6;
+  stroke: var(--gc-accent);
+  stroke-width: 5;
   stroke-linecap: round;
   fill: none;
-  filter: drop-shadow(0 0 6px rgb(var(--gc-glow) / 0.75));
+  opacity: 0.9;
 }
 
 /* ── باتری و لامپ ───────────────────────────────────────────────────────── */
@@ -989,359 +779,440 @@ body.gc-locked {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
   pointer-events: none;
 }
-.gc-endcap-label {
-  font-size: 0.66rem;
-  font-weight: 600;
-  color: var(--gc-text-muted);
+.gc-endcap-art {
+  position: relative;
+  display: block;
+}
+.gc-endcap-art > svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: visible;
+}
+.gc-terminal {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
 }
 
+.gc-power svg {
+  width: 60px;
+  height: 38px;
+}
+/* سرِ باتری سمتِ چپ است (رو به خانه‌ها). مختصات فیزیکی‌اند. */
+.gc-power .gc-terminal {
+  left: 3.5%;
+  top: 50%;
+}
+.gc-power-body {
+  fill: var(--gc-surface);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+}
+.gc-power-nub {
+  fill: var(--gc-wire);
+}
 .gc-power-cell {
-  fill: var(--gc-wire-idle);
+  fill: var(--gc-wire-dim);
   transition: fill 0.25s ease;
 }
-.gc-power[data-live="true"] .gc-power-cell {
-  fill: var(--gc-current);
+.gc-power[data-live] .gc-power-cell {
+  fill: var(--gc-accent);
+}
+.gc-power[data-live] .gc-power-cell:nth-child(4) {
+  transition-delay: 0.08s;
+}
+.gc-power[data-live] .gc-power-cell:nth-child(5) {
+  transition-delay: 0.16s;
 }
 
+.gc-lamp svg {
+  width: 56px;
+  height: 75px;
+}
+/* ورودیِ سیم: لبهٔ راستِ سرپیچ (سیم از خانه‌های سمتِ راست می‌آید). */
+.gc-lamp .gc-terminal {
+  left: 64%;
+  top: 70%;
+}
 .gc-lamp-glass {
-  stroke: var(--gc-border-strong);
-  stroke-width: 1.5;
-  transition: fill 0.3s ease;
+  fill: color-mix(in oklch, var(--gc-sunken) 70%, transparent);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+  transition:
+    fill var(--gc-lamp-on-ms, 320ms) ease,
+    stroke var(--gc-lamp-on-ms, 320ms) ease;
 }
-.gc-lamp-filament,
-.gc-lamp-filament-leg {
-  stroke: var(--gc-text-muted);
-  stroke-width: 1.7;
-  fill: none;
-  transition: stroke 0.3s ease;
+.gc-lamp-shine {
+  stroke: color-mix(in oklch, #fff 85%, transparent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  opacity: 0.8;
 }
-.gc-lamp-halo {
-  opacity: 0;
-  transition: opacity var(--gc-lamp-on-ms, 320ms) ease;
+.dark .gc-lamp-shine {
+  opacity: 0.25;
+}
+.gc-lamp-filament {
+  stroke: var(--gc-wire);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.25s ease;
+}
+.gc-lamp-base {
+  fill: var(--gc-wire);
 }
 .gc-lamp-crack {
+  stroke: color-mix(in oklch, var(--gc-text) 60%, transparent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
-.gc-lamp[data-state="on"] .gc-lamp-glass,
-.gc-lamp[data-state="turningOn"] .gc-lamp-glass {
-  fill: color-mix(in oklab, var(--gc-lamp-on) 68%, transparent);
+.gc-lamp[data-state="turningOn"] .gc-lamp-glass,
+.gc-lamp[data-state="on"] .gc-lamp-glass {
+  fill: color-mix(in oklch, var(--gc-lamp) 85%, #fff);
+  stroke: color-mix(in oklch, var(--gc-lamp) 70%, #000);
 }
-.gc-lamp[data-state="on"] .gc-lamp-filament,
-.gc-lamp[data-state="turningOn"] .gc-lamp-filament {
-  stroke: var(--gc-lamp-on);
-  stroke-width: 2.1;
+.gc-lamp[data-state="turningOn"] .gc-lamp-filament,
+.gc-lamp[data-state="on"] .gc-lamp-filament {
+  stroke: color-mix(in oklch, var(--gc-lamp) 40%, #7a3d00);
 }
-.gc-lamp[data-state="on"] .gc-lamp-halo {
-  opacity: 0.92;
+
+/* هالهٔ نور — دایرهٔ گرادیانیِ جدا، دقیقاً روی مرکزِ حباب. */
+.gc-lamp-bloom {
+  position: absolute;
+  left: 50%;
+  top: 33%;
+  width: 190px;
+  height: 190px;
+  margin: -95px 0 0 -95px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in oklch, var(--gc-lamp) 70%, transparent) 0%,
+    color-mix(in oklch, var(--gc-lamp) 32%, transparent) 32%,
+    color-mix(in oklch, var(--gc-lamp) 10%, transparent) 62%,
+    transparent 100%
+  );
+  transition:
+    opacity var(--gc-lamp-on-ms, 320ms) ease,
+    transform var(--gc-lamp-on-ms, 320ms) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.gc-lamp[data-state="turningOn"] .gc-lamp-halo {
-  opacity: 0.62;
+.gc-lamp[data-state="turningOn"] .gc-lamp-bloom {
+  opacity: 0.75;
+  transform: scale(0.9);
+}
+.gc-lamp[data-state="on"] .gc-lamp-bloom {
+  opacity: 1;
+  transform: scale(1);
 }
 
 /* خرابی: چشمکِ ناپایدار، بعد خاموشی و یک ترکِ نازک. */
 @keyframes gcFlicker {
-  0% { opacity: 0.1; }
-  12% { opacity: 0.85; }
-  22% { opacity: 0.12; }
-  38% { opacity: 0.7; }
-  50% { opacity: 0.15; }
-  66% { opacity: 0.55; }
+  0% { opacity: 0; }
+  12% { opacity: 0.8; }
+  22% { opacity: 0.1; }
+  38% { opacity: 0.6; }
+  50% { opacity: 0.12; }
+  66% { opacity: 0.4; }
   100% { opacity: 0; }
 }
-.gc-lamp[data-state="flicker"] .gc-lamp-halo {
+.gc-lamp[data-state="flicker"] .gc-lamp-bloom {
+  transform: scale(0.8);
   animation: gcFlicker var(--gc-lamp-flicker-ms, 520ms) steps(1, end);
 }
 .gc-lamp[data-state="flicker"] .gc-lamp-glass {
-  fill: color-mix(in oklab, var(--gc-lamp-on) 32%, transparent);
+  fill: color-mix(in oklch, var(--gc-lamp) 35%, var(--gc-sunken));
 }
 .gc-lamp[data-state="failed"] .gc-lamp-crack {
   opacity: 1;
 }
 .gc-lamp[data-state="failed"] .gc-lamp-glass {
-  fill: color-mix(in oklab, var(--gc-lamp-off) 92%, transparent);
+  fill: color-mix(in oklch, var(--gc-text) 10%, var(--gc-sunken));
+  stroke: color-mix(in oklch, var(--gc-bad) 45%, var(--gc-wire));
+}
+
+/* لامپ روشن شد: قابِ تخته هم کمی گرم می‌شود — نورِ لامپ روی لبه‌ها. */
+.gc-viewport {
+  transition:
+    border-color 0.5s ease,
+    box-shadow 0.5s ease;
+}
+.gc-viewport:has(.gc-lamp[data-state="on"]) {
+  border-color: color-mix(in oklch, var(--gc-lamp) 55%, var(--gc-line));
+  box-shadow:
+    var(--gc-shadow-lg),
+    0 0 0 5px color-mix(in oklch, var(--gc-lamp) 16%, transparent);
 }
 
 /* ── پیش‌نمایشِ کشیدن ─────────────────────────────────────────────────────── */
-.gc-drag-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  pointer-events: none;
-}
 .gc-drag-ghost {
-  position: absolute;
-  left: 0;
-  top: 0;
   will-change: transform;
-  box-shadow: var(--gc-shadow-lg);
   opacity: 1 !important;
   cursor: grabbing;
+  border-color: var(--gc-accent) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--gc-accent) 20%, transparent),
+    0 18px 36px -10px color-mix(in oklch, var(--gc-text) 40%, transparent) !important;
   /* بدونِ این، پیش‌نمایش `transition: transform` را از `.gc-module` به ارث
-     می‌برد و به‌جای چسبیدن به انگشت، نرم دنبالش می‌کند — یعنی همیشه چند ده
-     پیکسل عقب است و هرچه حرکت تندتر، عقب‌تر. کشیدن باید *دقیق* باشد. */
+     می‌برد و به‌جای چسبیدن به انگشت، نرم دنبالش می‌کند. */
   transition: none !important;
 }
 
-/* ── صفحهٔ انتخابِ درس ─────────────────────────────────────────────────────
-   یک پنلِ پیکربندیِ تمام‌شده، نه یک فرمِ پیش‌نویس. سه بخشِ شماره‌دار
-   (پایه → درس‌ها → شروع) با سلسله‌مراتبِ واضح. */
+/* ══════════════════════ صفحهٔ انتخاب و صفحهٔ نتیجه ═══════════════════════
+   یک کارتِ سایت، روی زمینهٔ خودِ سایت. */
 .gc-setup-page {
   position: relative;
-  min-height: 100%;
-  padding: clamp(1rem, 4vh, 2.5rem) 1rem clamp(2rem, 6vh, 3.5rem);
+  padding: clamp(0.75rem, 3vh, 2rem) 1rem clamp(2rem, 6vh, 3.5rem);
 }
-
-/* ⚠️ هالهٔ تزئینیِ صفحهٔ انتخاب، روی یک لایهٔ جدا و با لبه‌های محوشونده.
-   قبلاً همین دو گرادیان مستقیم روی `background`ِ خودِ عنصر بودند و مرکزشان
-   روی `2%` و `98%` — یعنی دقیقاً چسبیده به لبهٔ بالا و پایینِ جعبه. نتیجه یک
-   خطِ افقیِ کاملاً صاف بود آنجا که این صفحه از پس‌زمینهٔ سایت شروع می‌شود:
-   رنگ یک‌باره می‌شکست.
-
-   حالا هاله روی یک لایهٔ `::before` است که خودش با یک ماسک از بالا و پایین
-   محو می‌شود، پس هرجا این صفحه شروع و تمام شود، بی‌درز به پس‌زمینهٔ سایت
-   وصل می‌شود. مرکزها هم به داخل آورده شده‌اند تا افتِ گرادیان کاملاً درونِ
-   جعبه تمام شود. */
-.gc-setup-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      68% 52% at 86% 18%,
-      color-mix(in oklab, var(--gc-accent) 12%, transparent),
-      transparent 66%
-    ),
-    radial-gradient(
-      58% 46% at 10% 84%,
-      color-mix(in oklab, var(--gc-gold) 10%, transparent),
-      transparent 68%
-    );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 clamp(80px, 14vh, 190px),
-    #000 calc(100% - clamp(80px, 14vh, 190px)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 clamp(80px, 14vh, 190px),
-    #000 calc(100% - clamp(80px, 14vh, 190px)),
-    transparent 100%
-  );
-}
-
 .gc-setup {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 46rem);
+  width: min(100%, 44rem);
   margin-inline: auto;
-  border-radius: 1.6rem;
-  border: 1px solid var(--gc-border);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--gc-board-elevated) 92%, transparent),
-      color-mix(in oklab, var(--gc-board) 88%, transparent)
-    ),
-    var(--gc-bg);
-  backdrop-filter: blur(8px);
-  box-shadow:
-    var(--gc-shadow-lg),
-    inset 0 1px 0 color-mix(in oklab, #fff 28%, transparent);
-  padding: clamp(1.4rem, 3.5vw, 2.4rem) clamp(1.1rem, 3vw, 2.2rem)
-    clamp(1.2rem, 3vw, 1.8rem);
+  border-radius: 24px;
+  border: 1px solid var(--gc-line);
+  background: var(--gc-surface);
+  box-shadow: var(--gc-shadow-lg);
+  padding: clamp(1.25rem, 3.5vw, 2.25rem);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.3rem, 3vh, 2rem);
+  gap: 1.75rem;
 }
 
 .gc-setup-head {
-  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-}
-.gc-setup-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--gc-accent) 32%, transparent);
-  background: color-mix(in oklab, var(--gc-accent) 12%, transparent);
-  color: var(--gc-accent);
-  padding: 0.3rem 0.8rem;
-  font-size: 0.7rem;
-  font-weight: 700;
+  text-align: center;
+  gap: 0.35rem;
 }
 .gc-setup-title {
-  font-size: clamp(1.6rem, 1.2rem + 1.8vw, 2.3rem);
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.4rem);
+  line-height: 1.3;
   color: var(--gc-text);
 }
 .gc-setup-sub {
-  max-width: 34ch;
-  font-size: 0.9rem;
-  line-height: 1.9;
-  color: var(--gc-text-muted);
-}
-
-.gc-setup-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-.gc-setup-legend {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-}
-/* شمارهٔ گام — راهنمای بصریِ ترتیبِ کار. */
-.gc-setup-step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--gc-accent) 16%, transparent);
-  border: 1px solid color-mix(in oklab, var(--gc-accent) 34%, transparent);
-  color: var(--gc-accent);
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-.gc-setup-label {
   font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--gc-text);
-}
-.gc-setup-legend-note {
-  margin-inline-start: auto;
-  font-size: 0.72rem;
-  color: var(--gc-text-muted);
-}
-.gc-setup-note {
-  font-size: 0.85rem;
-  color: var(--gc-text-muted);
-  line-height: 1.9;
-}
-.gc-setup-link {
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--gc-accent);
-  border-radius: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  transition: background-color 0.16s ease;
-}
-.gc-setup-link:hover {
-  background: color-mix(in oklab, var(--gc-accent) 12%, transparent);
+  line-height: 1.8;
+  color: var(--gc-muted);
 }
 
-/* ── کارتِ پایه ── */
-.gc-grade-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.6rem;
+/* مدارِ کوچکِ سرِ صفحه */
+.gc-setup-art {
+  width: min(100%, 17rem);
+  height: auto;
+  margin-bottom: 0.5rem;
+  overflow: visible;
 }
-.gc-grade-chip {
-  position: relative;
+.gc-art-wire {
+  stroke: var(--gc-wire);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.gc-art-pulse {
+  stroke: var(--gc-accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 90;
+  stroke-dashoffset: 10;
+  animation: gcArtPulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes gcArtPulse {
+  0% { stroke-dashoffset: 10; opacity: 0; }
+  8% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { stroke-dashoffset: -90; opacity: 0; }
+}
+.gc-art-chip {
+  fill: var(--gc-surface);
+  stroke: var(--gc-line-strong);
+  stroke-width: 1.5;
+}
+.gc-art-cell {
+  fill: color-mix(in oklch, var(--gc-accent) 55%, var(--gc-surface));
+}
+.gc-art-body {
+  fill: var(--gc-surface);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+}
+.gc-art-fill {
+  fill: var(--gc-accent);
+}
+.gc-art-bulb {
+  fill: color-mix(in oklch, var(--gc-lamp) 85%, #fff);
+  stroke: color-mix(in oklch, var(--gc-lamp) 65%, #000);
+  stroke-width: 2;
+}
+.gc-art-base {
+  stroke: var(--gc-wire);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.gc-art-glow {
+  fill: color-mix(in oklch, var(--gc-lamp) 30%, transparent);
+  animation: gcArtGlow 2.4s ease-in-out infinite;
+  transform-origin: 30px 30px;
+}
+@keyframes gcArtGlow {
+  0%, 70% { opacity: 0.35; transform: scale(0.85); }
+  86% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.gc-field {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-  border-radius: 1rem;
-  border: 1.5px solid var(--gc-border);
-  background: color-mix(in oklab, var(--gc-board) 55%, transparent);
-  padding: 0.75rem 0.9rem;
-  overflow: hidden;
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    transform 0.14s ease,
-    box-shadow 0.18s ease;
+  gap: 0.7rem;
 }
-.gc-grade-chip:hover {
-  border-color: color-mix(in oklab, var(--gc-accent) 55%, var(--gc-border));
-  transform: translateY(-1px);
-}
-.gc-grade-chip[data-selected] {
-  border-color: var(--gc-accent);
-  background: color-mix(in oklab, var(--gc-accent) 14%, var(--gc-board));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gc-accent) 20%, transparent);
-}
-/* نوارِ نازکِ بالای کارتِ انتخاب‌شده. */
-.gc-grade-chip[data-selected]::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 3px;
-  background: var(--gc-accent);
-}
-.gc-grade-chip:focus-visible {
-  outline: 2px solid var(--gc-accent);
-  outline-offset: 3px;
-}
-.gc-grade-name {
-  font-size: 1.02rem;
-  font-weight: 800;
-  color: var(--gc-text);
-}
-.gc-grade-book {
-  font-size: 0.72rem;
-  color: var(--gc-text-muted);
-}
-
-/* ── کارتِ درس ── */
-.gc-lesson-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+.gc-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
 }
-.gc-lesson-chip {
-  position: relative;
+.gc-field-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.gc-field-hint {
+  font-size: 0.8rem;
+  color: var(--gc-muted);
+}
+.gc-setup-link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gc-accent-strong);
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
+  margin: -0.3rem -0.5rem;
+  transition: background-color 0.15s ease;
+}
+.dark .gc-setup-link {
+  color: var(--gc-accent);
+}
+.gc-setup-link:hover {
+  background: var(--gc-accent-soft);
+}
+.gc-setup-note {
+  font-size: 0.9rem;
+  color: var(--gc-muted);
+  line-height: 1.9;
+}
+
+/* کنترلِ تکه‌تکه: یک قاب، چند گزینه — مثلِ هر segmented control. */
+.gc-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--gc-sunken);
+  border: 1px solid var(--gc-line);
+}
+.gc-seg-item {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
-  aspect-ratio: 1 / 0.86;
-  border-radius: 0.85rem;
-  border: 1.5px solid var(--gc-border);
-  background: color-mix(in oklab, var(--gc-board) 50%, transparent);
-  padding: 0.4rem 0.3rem;
+  gap: 0.05rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  color: var(--gc-muted);
   transition:
-    border-color 0.16s ease,
-    background-color 0.16s ease,
-    transform 0.14s ease,
-    box-shadow 0.16s ease;
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.gc-lesson-chip:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--gc-accent) 55%, var(--gc-border));
-  transform: translateY(-2px);
-  box-shadow: var(--gc-shadow-sm);
+.gc-seg-item:hover:not(:disabled):not([data-selected]) {
+  color: var(--gc-text);
+}
+.gc-seg-item[data-selected] {
+  background: var(--gc-surface);
+  color: var(--gc-text);
+  box-shadow: var(--gc-shadow-md);
+}
+.gc-seg-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.gc-seg-item:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: -2px;
+}
+.gc-seg-main {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.gc-seg-meta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+
+.gc-lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
+  gap: 0.5rem;
+}
+.gc-lesson-chip,
+.gc-lesson-skeleton {
+  min-height: 3.9rem;
+  border-radius: 12px;
+}
+.gc-lesson-skeleton {
+  background: var(--gc-sunken);
+  animation: gcSkel 1.2s ease-in-out infinite alternate;
+}
+@keyframes gcSkel {
+  to { opacity: 0.45; }
+}
+.gc-lesson-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
+  padding: 0.5rem 0.25rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .gc-lesson-chip:hover:not(:disabled):not([data-selected]) {
+    border-color: color-mix(in oklch, var(--gc-accent) 55%, var(--gc-line-strong));
+  }
+}
+.gc-lesson-chip:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .gc-lesson-chip[data-selected] {
   border-color: var(--gc-accent);
-  background: color-mix(in oklab, var(--gc-accent) 16%, var(--gc-board));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gc-accent) 20%, transparent);
+  background: color-mix(in oklch, var(--gc-accent) 11%, var(--gc-surface));
+  box-shadow: inset 0 0 0 1px var(--gc-accent);
 }
 .gc-lesson-chip:disabled {
-  opacity: 0.5;
-  cursor: default;
   border-style: dashed;
+  border-color: var(--gc-line);
   background: transparent;
+  cursor: default;
 }
 .gc-lesson-chip:focus-visible {
   outline: 2px solid var(--gc-accent);
@@ -1351,390 +1222,435 @@ body.gc-locked {
   font-size: 1.15rem;
   font-weight: 800;
   line-height: 1.2;
-  color: var(--gc-text);
+}
+.gc-lesson-chip[data-selected] .gc-lesson-num {
+  color: var(--gc-accent-strong);
+}
+.dark .gc-lesson-chip[data-selected] .gc-lesson-num {
+  color: var(--gc-accent);
 }
 .gc-lesson-chip:disabled .gc-lesson-num {
-  color: var(--gc-text-muted);
+  color: var(--gc-muted);
+  opacity: 0.6;
 }
 .gc-lesson-meta {
-  font-size: 0.62rem;
-  color: var(--gc-text-muted);
-}
-.gc-lesson-chip[data-selected] .gc-lesson-meta {
-  color: var(--gc-accent);
-}
-/* ── طولِ تمرین ────────────────────────────────────────────────────────
-   همان زبانِ دیداریِ chipهای درس، ولی در یک ردیف و کوتاه‌تر: انتخابی است
-   که یک‌بار انجام می‌شود و نباید به‌اندازهٔ فهرستِ درس‌ها جا بگیرد. */
-.gc-length-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.gc-length-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.05rem;
-  min-width: 4.6rem;
-  border-radius: 0.85rem;
-  border: 1.5px solid var(--gc-border);
-  background: color-mix(in oklab, var(--gc-board) 50%, transparent);
-  padding: 0.5rem 0.85rem;
-  transition:
-    border-color 0.16s ease,
-    background-color 0.16s ease,
-    transform 0.14s ease,
-    box-shadow 0.16s ease;
-}
-.gc-length-chip:hover:not(:disabled) {
-  border-color: color-mix(in oklab, var(--gc-accent) 55%, var(--gc-border));
-  transform: translateY(-2px);
-  box-shadow: var(--gc-shadow-sm);
-}
-.gc-length-chip[data-selected] {
-  border-color: var(--gc-accent);
-  background: color-mix(in oklab, var(--gc-accent) 16%, var(--gc-board));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--gc-accent) 20%, transparent);
-}
-.gc-length-chip:disabled {
-  opacity: 0.5;
-  cursor: default;
-  border-style: dashed;
-  background: transparent;
-}
-.gc-length-chip:focus-visible {
-  outline: 2px solid var(--gc-accent);
-  outline-offset: 2px;
-}
-.gc-length-num {
-  font-size: 1.05rem;
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--gc-text);
-}
-.gc-length-chip:disabled .gc-length-num {
-  color: var(--gc-text-muted);
-}
-.gc-length-meta {
-  font-size: 0.62rem;
-  color: var(--gc-text-muted);
-}
-.gc-length-chip[data-selected] .gc-length-meta {
-  color: var(--gc-accent);
-}
-/* «از N پرسشِ موجود» — کنارِ عنوانِ گام، نه زیرِ آن. */
-.gc-setup-hint {
-  margin-inline-start: auto;
-  font-size: 0.72rem;
-  color: var(--gc-text-muted);
-}
-
-/* تیکِ گوشه — تأییدِ فوریِ انتخاب. */
-.gc-lesson-tick {
-  position: absolute;
-  top: 5px;
-  inset-inline-end: 5px;
-  width: 12px;
-  height: 12px;
-  color: var(--gc-accent);
-}
-
-/* ── خطا ── */
-.gc-setup-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.6rem;
-  border-radius: 0.9rem;
-  border: 1px solid color-mix(in oklab, var(--gc-bad) 45%, transparent);
-  background: color-mix(in oklab, var(--gc-bad) 10%, transparent);
-  padding: 0.8rem 1rem;
-  font-size: 0.85rem;
-}
-.gc-setup-error-inline {
-  border-radius: 0.75rem;
-  background: color-mix(in oklab, var(--gc-bad) 12%, transparent);
-  color: var(--gc-bad);
-  padding: 0.6rem 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* ── ناحیهٔ شروع ── */
-.gc-setup-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--gc-border);
-  padding-top: 1.1rem;
-}
-.gc-setup-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 0;
-}
-.gc-setup-count {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--gc-text);
-}
-.gc-setup-count-empty {
-  font-weight: 600;
-  color: var(--gc-text-muted);
-}
-.gc-setup-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-.gc-setup-chip {
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--gc-accent) 30%, transparent);
-  background: color-mix(in oklab, var(--gc-accent) 10%, transparent);
-  color: var(--gc-accent);
-  padding: 0.15rem 0.55rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-}
-.gc-btn-lg {
-  gap: 0.5rem;
-  padding: 0.72rem 1.6rem;
-  font-size: 0.95rem;
-}
-
-/* ── نتیجه ─────────────────────────────────────────────────────────────── */
-.gc-stat {
-  border-radius: 1rem;
-  border: 1px solid var(--gc-border);
-  background: var(--gc-board);
-  padding: 0.9rem 0.7rem;
-}
-.gc-stat-value {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--gc-accent);
-}
-.gc-stat-label {
-  margin-top: 0.2rem;
   font-size: 0.7rem;
-  color: var(--gc-text-muted);
+  color: var(--gc-muted);
 }
-.gc-result-row {
+
+.gc-setup-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  border-radius: 0.85rem;
-  border: 1px solid var(--gc-border);
-  background: var(--gc-board);
-  padding: 0.6rem 0.95rem;
-  font-size: 0.82rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklch, var(--gc-bad) 40%, transparent);
+  background: color-mix(in oklch, var(--gc-bad) 8%, transparent);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.gc-setup-error-inline {
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--gc-bad) 10%, transparent);
+  color: var(--gc-bad);
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-/* ── مالکیتِ قواعدِ واکنش‌گرا ─────────────────────────────────────────────
-   هر دستهٔ دستگاه صاحبِ *یک* بلوک است؛ هیچ property‌ای بینِ چند media query
-   دست‌به‌دست نمی‌شود.
-       پیش‌فرض (بالا) : دسکتاپ و لپ‌تاپ
-       ≤ 640px        : موبایلِ ایستاده
-       ارتفاعِ ≤ 430px : موبایلِ خوابیده — تنگ‌ترین حالت
+.gc-setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--gc-line);
+  padding-top: 1.25rem;
+}
+.gc-setup-count {
+  margin-inline-end: auto;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.gc-setup-count[data-empty] {
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+
+/* ── نتیجه ─────────────────────────────────────────────────────────────── */
+.gc-result .gc-setup-actions {
+  justify-content: flex-end;
+}
+.gc-result-ring {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin-bottom: 0.75rem;
+}
+.gc-result-ring svg {
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+}
+.gc-result-ring circle {
+  fill: none;
+  stroke-width: 9;
+}
+.gc-result-ring-track {
+  stroke: var(--gc-sunken);
+}
+.gc-result-ring-fill {
+  stroke: var(--gc-accent);
+  stroke-linecap: round;
+  stroke-dasharray: calc(var(--gc-rate) * 1) 100;
+  animation: gcRing 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes gcRing {
+  from { stroke-dasharray: 0 100; }
+}
+.gc-result-rate {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  grid-auto-flow: column;
+  align-items: baseline;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gc-result-rate small {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gc-muted);
+}
+
+.gc-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--gc-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+/* عدد بالا، برچسب پایین؛ در DOM برچسب اول است تا `dt/dd` درست خوانده شود. */
+.gc-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+  padding: 0.9rem 0.5rem;
+  text-align: center;
+}
+.gc-stat + .gc-stat {
+  border-inline-start: 1px solid var(--gc-line);
+}
+.gc-stat dd {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gc-stat dt {
+  font-size: 0.75rem;
+  color: var(--gc-muted);
+}
+
+.gc-result-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow-y: auto;
+  border-radius: 12px;
+}
+.gc-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.25rem;
+  font-size: 0.88rem;
+}
+.gc-result-row + .gc-result-row {
+  border-top: 1px solid var(--gc-line);
+}
+.gc-result-name {
+  font-weight: 700;
+  margin-inline-end: auto;
+}
+.gc-result-dim {
+  color: var(--gc-muted);
+  font-weight: 500;
+}
+.gc-result-mark {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gc-line-strong);
+}
+.gc-result-mark[data-first] {
+  background: var(--gc-ok);
+}
+
+/* ══════════════════════════ چیدمان‌های واکنش‌گرا ═══════════════════════════
+   هر دستهٔ دستگاه صاحبِ *یک* بلوک است:
+       پیش‌فرض                    : دسکتاپ و تبلت — مدارِ افقی
+       ≤ 640px و ایستاده          : گوشیِ ایستاده — مدارِ عمودی
+       ارتفاعِ ≤ 460px            : گوشیِ خوابیده — مدارِ افقیِ فشرده
    ───────────────────────────────────────────────────────────────────────── */
+
 @media (max-width: 640px) {
-  .gc-question {
-    padding: 0.7rem 0.8rem 0.5rem;
+  .gc-setup {
+    border-radius: 20px;
+    gap: 1.5rem;
   }
-  .gc-board {
-    padding: 0.4rem;
+  .gc-setup-actions .gc-btn-primary {
+    flex: 1 1 auto;
+  }
+  .gc-setup-count {
+    flex: 1 0 100%;
+  }
+  .gc-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gc-stat:nth-child(3) {
+    border-inline-start: 0;
+  }
+  .gc-stat:nth-child(n + 3) {
+    border-top: 1px solid var(--gc-line);
+  }
+  .gc-dock {
+    padding: 0.75rem 0.75rem 0.85rem;
+  }
+  .gc-controls {
+    justify-content: space-between;
+  }
+  .gc-controls .gc-btn-primary {
+    flex: 0 0 auto;
+    min-width: 9rem;
+  }
+}
+
+/* ── صفحه‌های بزرگ: همه‌چیز یک پله درشت‌تر، تا مدار در دلِ یک صفحهٔ خالی گم نشود. */
+@media (min-width: 900px) and (min-height: 680px) {
+  .gc-col-word,
+  .gc-sep {
+    font-size: 1.3rem;
+  }
+  .gc-col {
+    gap: 0.75rem;
+  }
+  .gc-seated {
+    font-size: 1.02rem;
   }
   .gc-content {
-    padding: clamp(1rem, 4.5vh, 2rem) 0.75rem;
-    gap: 0.55rem;
+    gap: 2.25rem;
+    padding: 3.25rem 3rem;
+  }
+  .gc-power svg {
+    width: 78px;
+    height: 49px;
+  }
+  .gc-lamp svg {
+    width: 68px;
+    height: 91px;
+  }
+  .gc-module {
+    min-height: 48px;
+    padding: 0.8rem 1.3rem;
+    font-size: 1.02rem;
   }
   .gc-tray-items {
-    max-height: min(24vh, 140px);
-  }
-  .gc-viewport {
-    /* روی گوشیِ بلند، تخته سهمِ بیشتری از صفحه می‌گیرد تا فضای مرده بماند
-       برای جایی که واقعاً لازم است. */
-    min-height: min(42vh, 340px);
-    min-width: min(100%, 300px);
-  }
-  .gc-setup {
-    padding: 1.3rem 1rem 1.2rem;
-  }
-  .gc-lesson-grid {
-    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 0.65rem;
   }
 }
 
-@media (max-height: 430px) {
+/* ── گوشیِ ایستاده: مدارِ عمودی ─────────────────────────────────────────────
+   جملهٔ کامل بالای صفحه هست؛ اینجا فقط واژه‌های هدف، هرکدام یک ردیف: واژه
+   سمتِ راست، خانه‌اش سمتِ چپ، و سیم از بالا (باتری) از وسطِ همهٔ خانه‌ها
+   پایین می‌آید تا به لامپِ آویزان برسد. هیچ اسکرولِ افقی‌ای لازم نیست —
+   بیشترینِ خانه‌ها در بانک چهارتاست.
+
+   ⚠️ باتری و لامپ هم‌عرضِ ستونِ خانه‌اند و همه به لبهٔ چپ چسبیده‌اند، پس مرکزِ
+   هر سه روی یک خطِ عمودی است و سیم صاف پایین می‌آید. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .gc-viewport {
+    width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y;
+  }
+  .gc-content {
+    --gc-rail: min(10rem, 44vw);
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1.4rem;
+    padding: 1.4rem 1.25rem 1.5rem;
+  }
+  .gc-power,
+  .gc-lamp {
+    width: var(--gc-rail);
+  }
+  .gc-strip {
+    display: grid;
+    grid-template-columns: auto var(--gc-rail);
+    column-gap: 1.25rem;
+    row-gap: 1.6rem;
+    align-items: center;
+  }
+  .gc-col {
+    display: contents;
+  }
+  .gc-col:not([data-target]),
+  .gc-sep {
+    display: none;
+  }
+  .gc-col-word {
+    justify-self: start;
+    font-size: 1.1rem;
+  }
+  .gc-socket {
+    width: 100% !important;
+  }
+  .gc-socket-pin-a,
+  .gc-socket-pin-b {
+    inset-inline: auto;
+    left: 50%;
+    margin: 0 0 0 -3.5px;
+  }
+  .gc-socket-pin-a {
+    top: -4px;
+  }
+  .gc-socket-pin-b {
+    top: auto;
+    bottom: -4px;
+  }
+  /* سیم از زیرِ باتری بیرون می‌آید. */
+  .gc-power .gc-terminal {
+    left: 50%;
+    top: 94%;
+  }
+  /* لامپِ آویزان: قاب ۱۸۰ درجه می‌چرخد و نوکِ سرپیچ بالا می‌آید. */
+  .gc-lamp .gc-endcap-art {
+    rotate: 180deg;
+  }
+  .gc-lamp .gc-terminal {
+    left: 50%;
+    top: 89%;
+  }
+  .gc-lamp-shine {
+    display: none;
+  }
+}
+
+/* ── گوشیِ خوابیده ─────────────────────────────────────────────────────── */
+@media (max-height: 460px) {
   .gc-topbar {
-    padding: 0.25rem 0.6rem;
+    padding-block: 0.2rem;
+  }
+  .gc-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
   }
   .gc-question {
-    padding: 0.4rem 0.8rem 0.3rem;
+    padding: 0 1rem;
   }
   .gc-question-text {
+    max-width: 60ch;
     font-size: clamp(1rem, 0.9rem + 0.6vw, 1.2rem);
     line-height: 1.7;
   }
+  .gc-q-target {
+    text-underline-offset: 0.4em;
+  }
   .gc-board {
-    padding: 0.3rem;
+    padding: 0.35rem 0.75rem;
+  }
+  .gc-viewport {
+    border-radius: 16px;
   }
   .gc-content {
-    padding: 0.4rem 0.7rem;
-    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    gap: 0.9rem;
   }
-  /* در تنگ‌ترین حالت، فاصلهٔ واژه تا سوکت و اندازهٔ متنِ تحلیل هم کم می‌شود —
-     پیش از آنکه چیزی بریده شود. */
   .gc-col {
-    gap: 0.2rem;
+    gap: 0.25rem;
   }
   .gc-col-word,
   .gc-sep {
-    font-size: 0.8rem;
-    line-height: 1.25;
+    font-size: 0.85rem;
+    line-height: 1.4;
   }
-  .gc-seated,
-  .gc-module {
-    font-size: 0.8rem;
-  }
-  /* در گوشیِ خوابیده، *باتری و لامپ* بلندترین عناصرِ تخته‌اند و قدِ تخته را
-     تعیین می‌کنند — نه ردیفِ تحلیل. پس همان‌ها کوچک می‌شوند. */
-  .gc-viewport {
-    min-height: 0;
-    min-width: min(100%, 280px);
-  }
-  .gc-question::after {
-    display: none;
+  .gc-seated {
+    font-size: 0.82rem;
   }
   .gc-power svg {
-    width: 38px;
-    height: 52px;
+    width: 44px;
+    height: 28px;
   }
   .gc-lamp svg {
-    width: 52px;
-    height: 64px;
+    width: 38px;
+    height: 51px;
   }
-  .gc-endcap-label {
-    font-size: 0.58rem;
+  /* در افقیِ فشرده داک یک ردیف می‌شود: قطعه‌ها و دکمه کنارِ هم. */
+  .gc-dock {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.75rem 0.5rem;
   }
   .gc-tray {
-    margin: 0.3rem 0.4rem 0.4rem;
-    padding: 0.35rem 0.6rem;
-    gap: 0.25rem;
+    flex: 1 1 auto;
   }
   .gc-tray-items {
-    max-height: 78px;
+    max-height: 92px;
     gap: 0.35rem;
   }
+  .gc-controls {
+    width: auto;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+  .gc-controls-hint {
+    justify-content: center;
+    font-size: 0.75rem;
+  }
   .gc-module {
-    min-height: 36px;
-    padding: 0.42rem 0.6rem;
+    min-height: 38px;
+    padding: 0.45rem 0.75rem;
     font-size: 0.85rem;
   }
-  .gc-controls {
-    padding-top: 0.2rem;
-  }
   .gc-btn {
+    min-height: 40px;
     padding: 0.45rem 1.1rem;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
+  }
+  .gc-btn-primary {
+    min-width: 7.5rem;
   }
 }
 
-/* ── احترام به کاهشِ حرکت ────────────────────────────────────────────────── */
+/* ── کاهشِ حرکت ────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  /* نقشِ ثابت می‌ماند؛ گره‌ها و ردها هرگز روشن نمی‌شوند. زمان‌بندی هم در
-     خودِ کامپوننت اصلاً شروع نمی‌شود. */
-  .gc-bg-node,
-  .gc-bg-trace {
-    display: none;
-  }
   .gc-socket[data-fresh="true"] .gc-seated,
   .gc-socket[data-check="checking"] .gc-seated,
-  .gc-controls-scanning,
-  .gc-lamp[data-state="flicker"] .gc-lamp-halo {
+  .gc-lamp[data-state="flicker"] .gc-lamp-bloom,
+  .gc-art-pulse,
+  .gc-art-glow,
+  .gc-result-ring-fill,
+  .gc-btn[data-busy]::after,
+  .gc-lesson-skeleton {
     animation: none !important;
+  }
+  .gc-art-pulse {
+    opacity: 0;
   }
   .gc-module,
   .gc-socket,
-  .gc-lamp-halo,
-  .gc-lamp-glass {
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* ── سرریزِ نورِ لامپ روی تخته ────────────────────────────────────────────
-   هالهٔ داخلِ SVG در قابِ ۷۲×۹۰ خودش زندانی است و نمی‌تواند روی تخته پخش
-   شود؛ در نسخهٔ سه‌بعدی همین سرریز بود که خوب دیده می‌شد.
-
-   ⚠️ این کار قبلاً با `drop-shadow` روی خودِ `<svg>` انجام می‌شد و غلط بود:
-   `drop-shadow` سایه را از روی *کلِ* آلفای عنصر می‌سازد، و داخلِ این SVG
-   فقط حباب نیست — پایهٔ پیچی و نوارهای فلزیِ مستطیلی هم هستند. نتیجه یک
-   درخششِ چهارگوش بود که از پایینِ لامپ بیرون می‌زد و کشیده به نظر می‌رسید.
-
-   حالا یک دایرهٔ گرادیانیِ جدا، دقیقاً روی مرکزِ حباب. سه سود:
-     • شکلش واقعاً هاله است، نه ردِ سیلوئتِ لامپ.
-     • ارزان‌تر: گرادیان در همان پاسِ رنگ‌آمیزی کشیده می‌شود، ولی فیلتر یک
-       سطحِ جدا برای رستر کردن لازم دارد.
-     • روی چیدمان اثری ندارد (`position: absolute` با والدِ نسبی)، پس عرضِ
-       ناحیهٔ اسکرول را زیاد نمی‌کند. */
-.gc-lamp-bloom {
-  position: absolute;
-  /* مرکزِ حباب در viewBox روی (۳۶، ۳۴) از ۷۲×۹۰ است → ۵۰٪ و ۳۸٪. */
-  left: 50%;
-  top: 38%;
-  /* اندازه عمداً محدود است: نور باید روی تخته سرریز کند، ولی نه آن‌قدر که
-     واژه‌های کنارِ لامپ را بشوید و خواندنشان را سخت کند. */
-  width: 150px;
-  height: 150px;
-  margin-inline-start: -75px;
-  margin-block-start: -75px;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0;
-  background: radial-gradient(
-    circle closest-side,
-    color-mix(in oklab, var(--gc-lamp-on) 46%, transparent) 0%,
-    color-mix(in oklab, var(--gc-lamp-on) 20%, transparent) 34%,
-    color-mix(in oklab, var(--gc-lamp-on) 7%, transparent) 60%,
-    transparent 80%
-  );
-  transition: opacity var(--gc-lamp-on-ms, 320ms) ease;
-}
-/* خودِ SVG باید *روی* هاله بماند. */
-.gc-lamp svg {
-  position: relative;
-  z-index: 1;
-}
-
-.gc-lamp[data-state="turningOn"] .gc-lamp-bloom {
-  opacity: 0.7;
-}
-.gc-lamp[data-state="on"] .gc-lamp-bloom {
-  opacity: 1;
-}
-.gc-lamp[data-state="flicker"] .gc-lamp-bloom {
-  opacity: 0.45;
-}
-
-/* هالهٔ داخلی هم کمی پهن‌تر، تا با سرریز یکی به نظر برسند. */
-.gc-lamp[data-state="on"] .gc-lamp-halo {
-  opacity: 1;
-}
-
-/* یک «نفسِ» آرام روی درخشش امتحان شد و برداشته شد: انیمیت‌کردنِ یک سطحِ
-   بزرگ در هر فریم، نرخِ فریمِ دسکتاپ را از ۶۰ به ۳۱ آورد. درخششِ ثابت یک‌بار
-   کشیده می‌شود و عملاً رایگان است. */
-
-@media (prefers-reduced-motion: reduce) {
-  .gc-lamp-bloom {
+  .gc-seated,
+  .gc-seated::after,
+  .gc-lamp-bloom,
+  .gc-lamp-glass,
+  .gc-progress-fill {
     transition-duration: 0.01ms !important;
   }
 }

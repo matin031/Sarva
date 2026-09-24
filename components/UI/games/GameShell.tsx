@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import OverlayPortal from "@/components/UI/OverlayPortal";
 import GameReportButton from "@/components/UI/games/GameReportButton";
+import { GameBackButton } from "@/components/UI/games/GameNav";
 import { ReportTargetProvider } from "@/lib/reports/target";
 import { RoundGuardProvider } from "@/lib/games/round-guard";
 import { useChromeMode } from "@/lib/immersive-mode";
@@ -28,6 +29,7 @@ export default function GameShell({
   ownHeading = false,
   progressKeys = [],
   dense = false,
+  ownBar = false,
   children,
 }: {
   title: string;
@@ -46,6 +48,14 @@ export default function GameShell({
    * پیش‌فرض خاموش است تا رفتارِ بقیهٔ بازی‌ها تغییر نکند.
    */
   dense?: boolean;
+  /**
+   * بازی نوارِ بالای خودش را دارد (بازگشت، پیشرفت، گزارش).
+   *
+   * ⚠️ همان کاری که حالتِ غرق‌شده می‌کند، ولی از رندرِ سرور: `immersiveMode`
+   * فقط بعد از hydration روشن می‌شود، پس نوارِ پوسته اول می‌آید و بعد
+   * می‌رود و صفحه می‌پرد. پیش‌فرض خاموش است و بقیهٔ بازی‌ها تغییری نمی‌بینند.
+   */
+  ownBar?: boolean;
   children: ReactNode;
 }) {
   const [confirmExit, setConfirmExit] = useState(false);
@@ -106,34 +116,13 @@ export default function GameShell({
           می‌شنود، فقط جای دیداری اشغال نمی‌کند. cloaking نیست — متن برای
           کاربر و خزنده یکی است. */}
       {!ownHeading && <h1 className="sr-only">{title}</h1>}
-      {!immersive && (
+      {!immersive && !ownBar && (
       <div
         className={`container mx-auto flex max-w-4xl items-center justify-between gap-3 pt-6 ${
           dense ? "[@media(max-height:560px)]:pt-2" : ""
         }`}
       >
-        <button
-          onClick={() => setConfirmExit(true)}
-          className="inline-flex items-center gap-x-1 text-sm text-muted-foreground transition-all hover:text-primary"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.8}
-            stroke="currentColor"
-            className="size-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-            />
-          </svg>
-          <span className={dense ? "[@media(max-height:560px)]:hidden" : undefined}>
-            بازگشت به کهکشانِ بازی‌ها
-          </span>
-        </button>
+        <GameBackButton onClick={() => setConfirmExit(true)} dense={dense} />
 
         {/* دکمهٔ گزارش. فقط وقتی ظاهر می‌شود که بازی گفته باشد الان چه چیزی
             روی صفحه است — پس در صفحهٔ انتخابِ درس یا نتیجه دیده نمی‌شود،
@@ -141,10 +130,7 @@ export default function GameShell({
 
             بازی‌هایی که این نوار را می‌پوشانند یا غرق‌شده می‌شوند، همین
             دکمه را داخلِ نوارِ خودشان دارند. */}
-        <GameReportButton
-          compact={dense}
-          className={dense ? "[@media(max-height:560px)]:hidden" : ""}
-        />
+        <GameReportButton />
       </div>
       )}
 

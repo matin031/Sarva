@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText from "@/components/exam/HighlightedText";
+
 type VerseCompletionContent = {
   type: "verse-completion";
   firstMesra: string;
@@ -15,7 +17,7 @@ type Props = {
 export default function VerseCompletionPart({ content, value, onChange, disabled }: Props) {
   return (
     <div dir="rtl" className="flex flex-col items-center gap-3 text-center">
-      <p className="rounded-lg bg-muted/50 px-3 py-3 text-lg xs:text-xl">{content.firstMesra}</p>
+      <p className="rounded-lg bg-muted/50 px-3 py-3 text-lg xs:text-xl"><HighlightedText text={content.firstMesra} /></p>
       <input
         dir="rtl"
         type="text"

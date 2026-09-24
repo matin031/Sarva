@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { AdminAccessDenied, loadAdminData } from "@/components/admin/AdminGate";
 import AdminShell from "@/components/admin/AdminShell";
+import MaintenanceBanner from "@/components/admin/MaintenanceBanner";
 
 /**
  * گاردِ دفاع‌در-عمقِ کلِ `/admin`.
@@ -39,7 +40,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <AdminToastProvider>
-      <AdminShell>{children}</AdminShell>
+      <AdminShell>
+        {/* وقتی سایت بسته نیست، چیزی رندر نمی‌کند. چراییِ جایش در خودِ فایل. */}
+        <MaintenanceBanner />
+        {children}
+      </AdminShell>
     </AdminToastProvider>
   );
 }

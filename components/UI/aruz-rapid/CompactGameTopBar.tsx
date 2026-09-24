@@ -1,6 +1,7 @@
 "use client";
 
 import GameReportButton from "@/components/UI/games/GameReportButton";
+import { GameBackButton, gameIconButton } from "@/components/UI/games/GameNav";
 
 /** نوارِ بالای بازی در حالتِ تمام‌صفحه.
  *
@@ -21,16 +22,7 @@ export default function CompactGameTopBar({
   return (
     <div className="aruzr-topbar" dir="rtl">
       <div className="aruzr-topbar-side">
-        <button
-          type="button"
-          onClick={onExit}
-          className="aruzr-icon-btn"
-          aria-label="خروج از بازی"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 6 3 12l6 6M21 12H4" />
-          </svg>
-        </button>
+        <GameBackButton onClick={onExit} compact />
       </div>
 
       <div className="aruzr-topbar-center">{children}</div>
@@ -38,15 +30,11 @@ export default function CompactGameTopBar({
       <div className="aruzr-topbar-side aruzr-topbar-side-end">
         {/* در حالِ بازی، نوارِ بالای پوستهٔ سایت رندر نمی‌شود؛ راهِ گزارش
             همین‌جاست. */}
-        <GameReportButton
-          compact
-          variant="bare"
-          className="aruzr-icon-btn inline-flex items-center justify-center [&>svg]:size-5"
-        />
+        <GameReportButton />
         <button
           type="button"
           onClick={onToggleSound}
-          className="aruzr-icon-btn"
+          className={`${gameIconButton} game-nav-toggle`}
           aria-label={soundOn ? "خاموش‌کردن صدا" : "روشن‌کردن صدا"}
           aria-pressed={soundOn}
         >

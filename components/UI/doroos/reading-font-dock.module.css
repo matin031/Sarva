@@ -1,0 +1,299 @@
+/* داکِ قلمِ درسنامه.
+
+   ⚠️ چرا `fixed` و نه یک ردیف در هدرِ درس: تصمیمِ «این قلم را نمی‌توانم
+   بخوانم» وسطِ خواندن گرفته می‌شود، نه بالای صفحه پیش از شروع. اگر کنترل
+   در هدر می‌ماند، خواننده باید تا بالا اسکرول می‌کرد — یعنی عملاً هیچ‌وقت
+   عوضش نمی‌کرد. */
+.dock {
+  position: fixed;
+  z-index: 60;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  inset-inline-end: 1.25rem;
+  /* ⚠️ خودِ ظرف هیچ رویدادی نمی‌گیرد: یک لایهٔ `fixed` روی کلِ گوشهٔ صفحه
+     نباید کلیک‌های اطرافش را ببلعد. فقط دکمه دوباره فعال می‌شود. */
+  pointer-events: none;
+}
+
+.trigger {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 48px;
+  padding-inline: 16px 14px;
+  border: 1px solid color-mix(in oklch, var(--primary) 26%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--card) 82%, transparent);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  color: var(--foreground);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--primary) 12%, transparent) inset,
+    0 10px 30px -10px #0000005c;
+  transition:
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms,
+    box-shadow 200ms;
+}
+
+.trigger:hover,
+.trigger[data-state="open"] {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--primary) 55%, transparent);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--primary) 18%, transparent) inset,
+    0 16px 38px -12px color-mix(in oklch, var(--primary) 45%, #0000008c);
+}
+
+.trigger:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* «آ» — نمونهٔ زندهٔ قلمِ انتخاب‌شده، روی خودِ دکمه.
+   ⚠️ این تزئین نیست: کاربر پیش از باز کردنِ منو می‌بیند که الان کجاست. */
+.triggerGlyph {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-size: 17px;
+  line-height: 1;
+  /* پایه‌خطِ فارسی کمی بالاتر می‌نشیند؛ بدونِ این، «آ» در مربّع شناور است. */
+  padding-bottom: 3px;
+}
+
+.triggerText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.triggerCaption {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.triggerValue {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.menu {
+  z-index: 300;
+  direction: rtl;
+  width: 292px;
+  max-width: calc(100vw - 24px);
+  padding: 10px;
+  border: 1px solid color-mix(in oklch, var(--primary) 22%, var(--border));
+  border-radius: 24px;
+  background: color-mix(in oklch, var(--card) 92%, transparent);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow: 0 28px 70px -20px #000000a6;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: dockIn 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px 10px;
+}
+
+.title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  /* ⚠️ ارتفاعِ ۵۲ اتفاقی نیست: هدفِ لمسی زیرِ ۴۴ پیکسل روی گوشی یعنی
+     انتخابِ اشتباه، و این منو روی گوشی بیشتر از دسکتاپ باز می‌شود. */
+  min-height: 52px;
+  padding: 7px 9px;
+  border-radius: 16px;
+  outline: none;
+  cursor: pointer;
+  transition: background 150ms, transform 150ms;
+}
+
+.item:hover,
+.item[data-highlighted] {
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.item:active {
+  transform: scale(0.985);
+}
+
+/* کاشیِ نمونه: «آ ب» در همان قلم. حروفِ متّصل‌شونده عمداً آمده‌اند —
+   تفاوتِ دو قلمِ فارسی در اتّصال دیده می‌شود، نه در یک حرفِ تنها. */
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--background) 70%, transparent);
+  color: var(--foreground);
+  font-size: 16px;
+  line-height: 1;
+  padding-bottom: 3px;
+  transition: border-color 160ms, background 160ms, color 160ms;
+}
+
+.item[data-state="checked"] .tile {
+  border-color: color-mix(in oklch, var(--primary) 60%, transparent);
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* نامِ هر قلم با خودِ همان قلم نوشته می‌شود — «پیدا» در پیدا، «لحظه» در
+   لحظه. یک فهرستِ یک‌دست‌نوشته هیچ نمی‌گوید؛ این یکی خودش نمونه است. */
+.name {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item[data-state="checked"] .name {
+  color: var(--primary);
+}
+
+.sample {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ⚠️ تیک، و نه فقط رنگِ سبزِ دورِ کاشی.
+   همان قاعدهٔ `.pal-swatch`: نشانهٔ انتخاب هرگز فقط رنگ نیست. */
+.check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.checkSlot {
+  flex: none;
+  width: 20px;
+}
+
+@keyframes dockIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── گوشی ──
+   برچسبِ دکمه می‌رود و یک دایرهٔ ۴۶ پیکسلی می‌ماند. در عرضِ ۳۶۰ پیکسل،
+   یک قرصِ «آ قلم / پیدا» تقریباً یک‌ششمِ پهنای صفحه را می‌گرفت و روی متنِ
+   درس می‌افتاد؛ تنها چیزی که آنجا واقعاً لازم است، خودِ «آ» است. */
+@media (max-width: 639px) {
+  .dock {
+    bottom: max(0.85rem, env(safe-area-inset-bottom));
+    inset-inline-end: 0.85rem;
+  }
+
+  .trigger {
+    gap: 0;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .triggerText {
+    display: none;
+  }
+
+  .triggerGlyph {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+  }
+
+  .menu {
+    width: 272px;
+    border-radius: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+  .trigger,
+  .item,
+  .tile {
+    transition: none;
+  }
+  .trigger:hover,
+  .trigger[data-state="open"] {
+    transform: none;
+  }
+}
+
+/* روی کاغذ، یک دکمهٔ شناور فقط یک لکهٔ جوهر است. */
+@media print {
+  .dock {
+    display: none;
+  }
+}

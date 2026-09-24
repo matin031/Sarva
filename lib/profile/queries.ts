@@ -72,6 +72,40 @@ export async function updateProfile(userId: string, input: ProfileInput): Promis
 }
 
 /**
+ * نوشتنِ فقط نام و نام خانوادگی — مسیرِ «تکمیلِ حسابِ نیمه‌ساخته».
+ *
+ * ⚠️ چرا جدا از `updateProfile` و نه یک فراخوانیِ آن با فیلدهای خالی:
+ *
+ * آن تابع `profile_completed_at` را می‌نویسد، و «پروفایلِ کامل» در سروا
+ * معنیِ مشخصی دارد که `lib/teacher/requests.ts` به آن تکیه می‌کند — استان،
+ * شهر، مدرسه و پایه هم باید باشند. کسی که فقط اسمش را نوشته پروفایلِ کاملی
+ * ندارد، و علامت زدنش یعنی دکمهٔ «درخواستِ دبیری» برای حسابی باز شود که
+ * هیچ‌کدام از آن اطلاعات را ندارد.
+ *
+ * ⚠️ `full_name` اینجا هم نوشته نمی‌شود: تریگرِ `users_full_name_bu`
+ * می‌سازدش. (همان دلیلی که بالای `updateProfile` نوشته شده.)
+ */
+export async function updateDisplayName(
+  userId: string,
+  firstName: string,
+  lastName: string,
+): Promise<void> {
+  const affected = await execute(
+    `update users
+        set first_name = ?, last_name = ?, updated_at = now(6)
+      where id = ?`,
+    [firstName, lastName, userId],
+  );
+  if (affected === 0) throw new Error("نام به‌روز نشد: کاربر پیدا نشد.");
+
+  logger.info("نام حساب تکمیل شد", {
+    event: "profile.display_name.completed",
+    // ⚠️ خودِ نام لاگ نمی‌شود.
+    user_id: userId,
+  });
+}
+
+/**
  * ذخیرهٔ نشانیِ تصویرِ پروفایل.
  *
  * ⚠️ جدا از `updateProfile` چون مسیرش جداست: تصویر با

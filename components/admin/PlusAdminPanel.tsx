@@ -51,12 +51,15 @@ export default function PlusAdminPanel({
   initialEntitlements,
   pilotEnabled,
   plusEnabled,
+  gateway,
 }: {
   initialPlans: AdminPlanRow[];
   initialOrders: { orders: AdminOrderRow[]; total: number };
   initialEntitlements: { entitlements: AdminEntitlementRow[]; total: number };
   pilotEnabled: boolean;
   plusEnabled: boolean;
+  /** درگاهِ فعلی: آزمایشی، و اینکه روی سرورِ اصلی است یا نه. */
+  gateway: { isTest: boolean; production: boolean };
 }) {
   const toast = useAdminToast();
   const [tab, setTab] = useState<Tab>("plans");
@@ -100,6 +103,18 @@ export default function PlusAdminPanel({
           هر دو جا همان `plus.enabled` را می‌نویسند و از همان
           `adminSetSetting` رد می‌شوند؛ پس دو رابط است و نه دو منبعِ حقیقت. */}
       <PlusPowerSwitch enabled={plusEnabled} />
+
+      {/* ⚠️ تا درگاه واقعی وصل نشده، مالک باید دقیقاً بداند کاربران چه
+          می‌بینند: روی سرورِ اصلی فقط مدیر می‌تواند پرداختِ آزمایشی کند و
+          بقیه «پرداخت آنلاین به‌زودی فعال می‌شود» می‌بینند. */}
+      {gateway.isTest && (
+        <p className="rounded-2xl border border-gold/40 bg-gold/10 p-3 text-xs leading-relaxed plus-ink">
+          درگاه پرداخت آزمایشی است و پولی جابه‌جا نمی‌شود.{" "}
+          {gateway.production
+            ? "کاربران نمی‌توانند پرداخت کنند؛ فقط مدیر می‌تواند مسیر خرید را تا فعال‌سازی امتحان کند."
+            : "در محیط توسعه همهٔ کاربران می‌توانند با آن پرداخت کنند."}
+        </p>
+      )}
 
       <nav className="flex gap-2 overflow-x-auto">
         {(
@@ -568,7 +583,7 @@ function EntitlementsTab({
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Input label="ایمیل کاربر" value={email} onChange={setEmail} placeholder="student@example.com" />
+          <Input label="ایمیل یا موبایل کاربر" value={email} onChange={setEmail} placeholder="student@example.com یا 0912…" />
           <Input
             label="مدت (روز)"
             value={days}

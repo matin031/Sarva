@@ -20,7 +20,13 @@
  * کند، کلیدِ پنل را لو داده است.
  */
 
-import type { SmsAdapter, SmsMessage, SmsOtpMessage, SmsSendResult } from "./types";
+import type {
+  SmsAdapter,
+  SmsMessage,
+  SmsOtpMessage,
+  SmsSendResult,
+  SmsTemplateMessage,
+} from "./types";
 
 /** نامِ درایور — همان چیزی که در پنل ذخیره و در `sms_log.provider` ثبت می‌شود. */
 export const SMSIR_DRIVER = "smsir";
@@ -95,7 +101,11 @@ export function toSmsIrMobile(to: string): string {
  * هر تغییرِ کوچکش یک deploy می‌خواهد.
  */
 export function parseTemplateId(raw: string | null | undefined): number {
-  const trimmed = (raw ?? "").trim();
+  /* ⚠️ ارقامِ فارسی هم قبول است: پنلِ SMS.ir شناسه را «۵۲۷۹۴۶» نشان می‌دهد و
+     `Number` روی آن NaN می‌دهد — یعنی پیامک بی‌صدا با `no_template` رد می‌شد. */
+  const trimmed = (raw ?? "")
+    .trim()
+    .replace(/[۰-۹٠-٩]/g, (d) => String(d.charCodeAt(0) - (d.charCodeAt(0) >= 0x06f0 ? 0x06f0 : 0x0660)));
   if (!trimmed) {
     throw new Error("شناسهٔ قالبِ پیامک ثبت نشده است (تنظیمات → پیامک → شناسهٔ قالب).");
   }
@@ -263,6 +273,33 @@ export class SmsIrAdapter implements SmsAdapter {
     } catch (err) {
       throw new Error(redactCode((err as Error).message, message.code));
     }
+  }
+
+  /**
+   * پیامکِ قالبی — همان endpointِ Verify، با متغیرهای دلخواه.
+   *
+   * ⚠️ چرا `SendVerifyCode` و نه `SendBulk`: نامش گمراه‌کننده است، ولی این
+   * متد در SDK همان مسیرِ «ارسالِ قالبی از خطِ خدماتی» است و به کدِ ورود
+   * اختصاص ندارد. تمامِ پیامک‌های خدماتیِ سروا — خوش‌آمد، فعال‌سازیِ
+   * اشتراک، یادآوریِ تمدید — از همین راه می‌روند.
+   *
+   * ⚠️ و متنِ خطا اینجا **پاک‌سازی نمی‌شود**، برخلافِ `sendOtp`. لازم هم
+   * نیست: متغیرهای این مسیر نام و تاریخ‌اند و نه راز. اگر روزی رویدادی
+   * متغیرِ حساس گرفت، باید مسیرِ خودش را داشته باشد و نه یک پرچمِ اختیاری
+   * اینجا.
+   */
+  async sendTemplate(message: SmsTemplateMessage): Promise<SmsSendResult> {
+    const mobile = toSmsIrMobile(message.to);
+    const client = await this.sdk();
+
+    let response: SmsIrHttpResponse;
+    try {
+      response = await client.SendVerifyCode(mobile, message.templateId, message.parameters);
+    } catch (err) {
+      throw new Error(describeSmsIrError(err));
+    }
+
+    return readSmsIrResult(response);
   }
 
   async send(message: SmsMessage): Promise<SmsSendResult> {

@@ -18,7 +18,7 @@ function readBucket(): "short" | "compact" | "medium" | "roomy" {
   const h = window.innerHeight;
   /* ارتفاع هم به‌اندازهٔ عرض مهم است: گوشیِ خوابیده عریض ولی خیلی کوتاه است،
      و اگر فقط عرض را ببینیم سوکتِ بزرگ انتخاب می‌شود و تخته بریده می‌شود. */
-  if (h <= 430) return "short";
+  if (h <= 460) return "short";
   if (w < 480) return "compact";
   if (w < 760) return "medium";
   return "roomy";
@@ -33,7 +33,7 @@ const SLOT: Record<
   short: { slotMinWidth: 52, slotWordPadding: 22, slotHeight: 34, slotGap: 8 },
   compact: { slotMinWidth: 54, slotWordPadding: 24, slotHeight: 42, slotGap: 10 },
   medium: { slotMinWidth: 60, slotWordPadding: 28, slotHeight: 48, slotGap: 13 },
-  roomy: { slotMinWidth: 64, slotWordPadding: 34, slotHeight: 54, slotGap: 16 },
+  roomy: { slotMinWidth: 72, slotWordPadding: 40, slotHeight: 58, slotGap: 16 },
 };
 
 export function useResponsiveConfig(base: GrammarCircuitConfig): GrammarCircuitConfig {

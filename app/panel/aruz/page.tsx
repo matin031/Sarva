@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import AruzPanel from "@/components/UI/panel/AruzPanel";
+import { toSkillTiles } from "@/lib/panel/skills";
 import {
   getAruzDayCounts,
   getAruzAttempts,
   getAruzSummary,
-  getAruzWeightStats,
+  getAruzWeightAnswers,
   getBookmarks,
   getPanelUser,
 } from "@/lib/panel/queries";
@@ -25,7 +26,7 @@ export default async function Page() {
     getAruzSummary(user.id),
     getAruzDayCounts(user.id),
     getBookmarks(user.id, "aruz"),
-    getAruzWeightStats(user.id),
+    getAruzWeightAnswers(user.id),
   ]);
 
   return (
@@ -35,7 +36,7 @@ export default async function Page() {
       summary={summary}
       dayCounts={dayCounts}
       bookmarks={bookmarks}
-      weights={weights}
+      weights={toSkillTiles(weights)}
     />
   );
 }

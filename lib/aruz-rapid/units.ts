@@ -1,4 +1,4 @@
-import type { RapidAruzUnit, ScansionLength } from "./types";
+import type { PoeticLicense, RapidAruzUnit, ScansionLength } from "./types";
 
 /**
  * نوشتنِ واحدهای عروضی در یک خط — و خواندنش.
@@ -24,7 +24,10 @@ const LONG_MARKS = new Set(["-", "–", "—", "_", "ـ", "−"]);
 /** جداکنندهٔ متنِ هجا از نمادش. هیچ‌کدام در متنِ فارسی نمی‌آیند. */
 const UNIT_SPLIT = /\s*[=:]\s*/;
 
-export type ParsedUnit = { display: string; length: ScansionLength };
+export type ParsedUnit = { display: string; length: ScansionLength; license?: PoeticLicense };
+
+/** نشانِ اختیارِ شاعری پس از نمادِ هجا: «کِه=-!» (زبانی)، «سَر=-^» (وزنی). */
+const LICENSE_MARK: Record<string, PoeticLicense> = { "!": "length", "^": "meter" };
 
 export type UnitParseResult =
   | { ok: true; units: ParsedUnit[] }
@@ -47,11 +50,14 @@ export function parseUnitSpec(spec: string): UnitParseResult {
 
     // ⚠️ متنِ هجا trim نمی‌شود مگر از دو سرِ همان تکه — اعراب و نیم‌فاصله
     // بخشی از متن‌اند و دست خوردنشان یعنی نمایشِ غلط.
-    const [display, mark] = parts;
+    const [display, raw] = parts;
     if (!display) return { ok: false, error: `واحدِ «${chunk}» متن ندارد.` };
+    const license = LICENSE_MARK[raw.slice(-1)];
+    const mark = license ? raw.slice(0, -1) : raw;
+    const extra = license ? { license } : {};
 
-    if (SHORT_MARKS.has(mark)) units.push({ display, length: "short" });
-    else if (LONG_MARKS.has(mark)) units.push({ display, length: "long" });
+    if (SHORT_MARKS.has(mark)) units.push({ display, length: "short", ...extra });
+    else if (LONG_MARKS.has(mark)) units.push({ display, length: "long", ...extra });
     else {
       return {
         ok: false,
@@ -65,7 +71,38 @@ export function parseUnitSpec(spec: string): UnitParseResult {
 
 /** برعکسِ parseUnitSpec — برای پر کردنِ فرمِ ویرایش. */
 export function formatUnitSpec(units: readonly ParsedUnit[]): string {
-  return units.map((u) => `${u.display}=${u.length === "short" ? "U" : "-"}`).join(" ");
+  const lic = (u: ParsedUnit) => (u.license === "length" ? "!" : u.license === "meter" ? "^" : "");
+  return units.map((u) => `${u.display}=${u.length === "short" ? "U" : "-"}${lic(u)}`).join(" ");
+}
+
+/**
+ * ستونِ `units` از دیتابیس.
+ *
+ * ⚠️ در MySQL ستونِ JSON شیء برمی‌گردد و در MariaDB (میزبانِ production)
+ * رشته؛ هر دو اینجا پذیرفته می‌شوند. عضوِ خراب کنار گذاشته می‌شود.
+ */
+export function readStoredUnits(value: unknown): ParsedUnit[] {
+  let raw = value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const units: ParsedUnit[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const u = item as { display?: unknown; length?: unknown; license?: unknown };
+    if (typeof u.display !== "string" || u.display.length === 0) continue;
+    if (u.length !== "short" && u.length !== "long") continue;
+    const license: { license?: PoeticLicense } =
+      u.license === "length" || u.license === "meter" ? { license: u.license } : {};
+    units.push({ display: u.display, length: u.length, ...license });
+  }
+  return units;
 }
 
 /** فقط الگو، بدون متن: «U--U-». همان چیزی که با موتورِ عروض سنجیده می‌شود. */
@@ -99,6 +136,7 @@ export function withRevealProgress(
       id: `${idPrefix}-${i + 1}`,
       display: u.display,
       length: u.length,
+      ...(u.license ? { license: u.license } : {}),
       revealProgress: last ? 1 : Math.round((seen / total) * 10000) / 10000,
     };
   });

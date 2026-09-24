@@ -31,7 +31,7 @@ export default function McqInlinePart({ content, options, value, onChange, disab
           <RichPassageView passage={content.stimulus} />
         </div>
       )}
-      <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
+      <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.questionText} /></p>
       <div className="flex flex-col gap-2">
         {options.map((opt) => (
           <button

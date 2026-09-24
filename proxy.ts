@@ -12,6 +12,17 @@ import {
 import { isCrossSiteRequest, requestMeta } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { REQUEST_ID_HEADER, logger, newRequestId } from "@/lib/observability";
+import { ONBOARDING_PATH } from "@/lib/auth/onboarding";
+import { cookieSecure } from "@/lib/auth/config";
+import {
+  MAINTENANCE_BYPASS_COOKIE,
+  MAINTENANCE_BYPASS_MAX_AGE,
+  MAINTENANCE_BYPASS_PARAM,
+  MAINTENANCE_PATH,
+  RETRY_AFTER_SECONDS,
+  bypassKeyMatches,
+  maintenanceState,
+} from "@/lib/site/maintenance";
 
 /**
  * Proxy — در Next 16 نام تازهٔ middleware است.
@@ -72,6 +83,44 @@ function tooManyRequests(retryAfterSeconds: number, requestId: string): NextResp
  * `favicon.ico`. یک صفحهٔ معمولی ده‌ها از این‌ها می‌سازد و لاگ کردنشان فقط
  * چیزی است که باید بعداً از لاگ فیلتر شود.
  */
+/**
+ * آدرسِ `target` با `returnTo` = مسیرِ فعلیِ درخواست.
+ *
+ * ⚠️ فقط مسیر و query، بدونِ میزبان. پاک‌سازیِ نهایی با `safeReturnTo` در
+ * صفحهٔ مقصد است؛ اینجا فقط چیزی که داشت گم می‌شد، همراه می‌رود.
+ */
+function withReturnTo(target: string, request: NextRequest): URL {
+  const url = new URL(target, request.url);
+  const { pathname, search } = request.nextUrl;
+  if (pathname !== "/" && !pathname.startsWith("/auth")) {
+    url.searchParams.set("returnTo", `${pathname}${search}`);
+  }
+  return url;
+}
+
+/**
+ * مسیرهایی که حالتِ «در حال بروزرسانی» هم بازشان می‌گذارد.
+ *
+ * ⚠️ هر کدام یک دلیلِ مشخص دارند و هیچ‌کدام از سرِ احتیاط اینجا نیست:
+ *
+ *   • `/maintenance` — خودِ صفحهٔ بروزرسانی. نبودش یعنی حلقهٔ بی‌پایان.
+ *   • `/auth` و `/api/v1/auth/` — **مهم‌ترینشان.** مدیر باید بتواند وارد
+ *     شود تا استثنای «مدیر رد می‌شود» اصلاً به کار بیاید. بستنِ این دو یعنی
+ *     کلیدی که فقط از داخل باز می‌شود و در، از بیرون قفل است.
+ *   • `/admin` — مقصدِ همان مدیر. گاردِ واقعی‌اش `requireAdmin()` است و نه
+ *     این فهرست.
+ *   • `/logo.png` — تنها تصویری که صفحهٔ بروزرسانی می‌خواهد.
+ */
+function isMaintenanceExempt(pathname: string): boolean {
+  return (
+    pathname === MAINTENANCE_PATH ||
+    pathname === "/logo.png" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/api/v1/auth/")
+  );
+}
+
 function isNoiseRequest(pathname: string): boolean {
   return (
     pathname.startsWith("/_next/") ||
@@ -229,16 +278,141 @@ export async function proxy(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+
+  /* ─────────────────── حالتِ «در حال بروزرسانی» ────────────────────────────
+   *
+   * ⚠️ **بعد** از تازه‌سازیِ سشن و نه قبلش. این گیت به `claims.role` نیاز
+   * دارد تا مدیر را رد کند، و مدیری که توکنِ دسترسی‌اش منقضی شده — یعنی
+   * هر مدیری که بیش از ربع ساعت است صفحه‌ای باز نکرده — پیش از تازه‌سازی
+   * از نگاهِ اینجا یک مهمان است. با ترتیبِ برعکس، مالک هم پشتِ درِ خودش
+   * می‌ماند.
+   *
+   * ⚠️ و **قبل** از قواعدِ هدایتِ پایین: وقتی سایت بسته است، «برو به پنل»
+   * و «برو به تکمیلِ پروفایل» معنایی ندارند.
+   *
+   * ⚠️ هزینه‌اش یک خواندنِ تنظیمات در هر درخواست است — که با کشِ یک‌دقیقه‌ای
+   * `lib/settings` در عمل یک کوئری در دقیقه است، نه یکی در درخواست. */
+  const bypassParam = request.nextUrl.searchParams.get(MAINTENANCE_BYPASS_PARAM);
+  const hasBypassCookie = request.cookies.get(MAINTENANCE_BYPASS_COOKIE)?.value === "1";
+
+  if (bypassParam !== null && (await bypassKeyMatches(bypassParam))) {
+    /* کلید درست بود: کوکی می‌نشیند و کاربر به **همان آدرس بدونِ پارامتر**
+       فرستاده می‌شود.
+       ⚠️ پاک کردنِ پارامتر تزئینی نیست: بدونِ آن، کلید در نوارِ آدرس
+       می‌ماند و با اولین اسکرین‌شات، لینکِ اشتراکی یا ارجاعِ بیرونی پخش
+       می‌شود. */
+    const clean = new URL(request.url);
+    clean.searchParams.delete(MAINTENANCE_BYPASS_PARAM);
+    /* ⚠️ نامِ متغیر عمداً `response` نیست: یک `response` در همین تابع بالاتر
+       تعریف شده و سایه انداختن رویش، خواننده را به اشتباه می‌اندازد. */
+    const granted = stamp(NextResponse.redirect(clean));
+    granted.cookies.set(MAINTENANCE_BYPASS_COOKIE, "1", {
+      httpOnly: true,
+      secure: cookieSecure(),
+      sameSite: "lax",
+      path: "/",
+      maxAge: MAINTENANCE_BYPASS_MAX_AGE,
+    });
+    logger.info("کلیدِ عبور از حالت بروزرسانی پذیرفته شد", {
+      event: "site.maintenance.bypass_granted",
+      request_id: requestId,
+    });
+    return granted;
+  }
+
+  if (
+    claims?.role !== "admin" &&
+    !hasBypassCookie &&
+    !isMaintenanceExempt(pathname) &&
+    !pathname.startsWith("/_next/")
+  ) {
+    const maintenance = await maintenanceState();
+
+    if (maintenance.on) {
+      /* ⚠️ `/api/` پاسخِ JSON می‌گیرد و نه HTML. کلاینتی که منتظرِ JSON
+         است، با یک صفحهٔ HTML یک خطای تجزیهٔ بی‌ربط نشان می‌دهد؛ ۵۰۳ با
+         پیامِ فارسی همان چیزی است که خودش بلد است نمایش بدهد. */
+      if (pathname.startsWith("/api/")) {
+        return stamp(
+          NextResponse.json(
+            { ok: false, errors: ["سروا در حال بروزرسانی است. کمی بعد دوباره تلاش کنید."] },
+            {
+              status: 503,
+              headers: { "cache-control": "no-store", "retry-after": String(RETRY_AFTER_SECONDS) },
+            },
+          ),
+        );
+      }
+
+      /* ⚠️ `rewrite` و نه `redirect`.
+         با redirect، آدرسِ مرورگر عوض می‌شود و پاسخِ آن آدرس ۳۰۷ است —
+         یعنی گوگل می‌فهمد «این صفحه به آنجا منتقل شده». با rewrite، آدرس
+         دست‌نخورده می‌ماند و همان آدرس ۵۰۳ برمی‌گرداند (کدِ وضعیت را خودِ
+         `app/maintenance/route.ts` می‌سازد — و همین که آنجا یک Route
+         Handler است و نه یک صفحه، دقیقاً برای همین است). */
+      return stamp(NextResponse.rewrite(new URL(MAINTENANCE_PATH, request.url)));
+    }
+  }
+
+  const onOnboarding = pathname === ONBOARDING_PATH;
+  /* ⚠️ خودِ `claims` نگه داشته می‌شود و نه فقط یک بولین: گیتِ پایین به
+     `claims.needsProfile` نیاز دارد، و با یک `signedIn`ِ جدا کامپایلر
+     نمی‌فهمد که non-null بودنش را قبلاً سنجیده‌ایم. */
   const signedIn = claims !== null;
 
   // اگه لاگینه و میخواد بره /auth، بفرستش پنل
-  if (signedIn && pathname.startsWith("/auth")) {
+  //
+  // ⚠️ به‌جز خودِ صفحهٔ تکمیلِ پروفایل. آن صفحه عمداً زیرِ /auth است (چرایی‌اش
+  // در lib/auth/onboarding.ts) و کاربرش **حتماً** وارد شده — بدونِ این
+  // استثنا، این قاعده و گیتِ پایین یکدیگر را در یک حلقهٔ بی‌پایان ریدایرکت
+  // می‌کردند.
+  if (signedIn && pathname.startsWith("/auth") && !onOnboarding) {
     return stamp(NextResponse.redirect(new URL("/panel", request.url)));
   }
 
   // اگه لاگین نیست و میخواد بره /panel، بفرستش auth
+  //
+  // ⚠️ مقصد همراهش می‌رود. کسی که از یک اعلان یا لینکِ فاکتور به
+  // `/panel/billing/…` آمده، بعد از ورود باید همان‌جا برسد و نه صفحهٔ اولِ
+  // پنل. `/auth` خودش آن را از allowlist رد می‌کند.
   if (!signedIn && pathname.startsWith("/panel")) {
-    return stamp(NextResponse.redirect(new URL("/auth", request.url)));
+    return stamp(NextResponse.redirect(withReturnTo("/auth", request)));
+  }
+
+  /* ───────────────────────── گیتِ حسابِ نیمه‌ساخته ────────────────────────
+   *
+   * حسابی که با گوگل یا با کدِ پیامکی ساخته شده، نام و نام خانوادگی ندارد.
+   * تا وقتی ننویسدشان، هر مسیرِ صفحه‌ای به صفحهٔ تکمیل می‌رود.
+   *
+   * ⚠️ **اینجا و نه در یک layout.** وسوسهٔ اول این بود که گیت در
+   * `app/layout.tsx` بنشیند و با `redirect()` کار کند. آن کار *ظاهراً*
+   * درست است و یک سوراخِ بزرگ دارد: layout ها در ناوبریِ سمتِ کلاینت دوباره
+   * رندر نمی‌شوند. یعنی کاربری که روی صفحهٔ تکمیل است و «بازگشت به سروا» را
+   * می‌زند، با یک ناوبریِ کلاینتی به `/` می‌رسد و layout اصلاً اجرا نمی‌شود.
+   * proxy روی *هر* درخواست اجرا می‌شود — از جمله درخواست‌های RSCِ همان
+   * ناوبری — و همین تنها چیزی است که «صفحه را ببندد و فردا بیاید»، «دکمهٔ
+   * برگشت را بزند» و «دستی یک مسیر دیگر تایپ کند» را با هم پوشش می‌دهد.
+   *
+   * ⚠️ `/api/` عمداً بیرون است. این گیت **هدایت** است و نه دسترسی: بستنِ
+   * API یعنی خودِ فرمِ تکمیل نتواند ذخیره کند، خروج کار نکند و صفحه
+   * کاربرش را نشناسد. هر endpointی که واقعاً باید محدود باشد، گاردِ خودش را
+   * در لایهٔ داده دارد.
+   *
+   * ⚠️ و `claims.needsProfile` یک ادعای تا-۱۵-دقیقه-کهنه است. تازه شدنش دو
+   * راه دارد و هر دو لازم‌اند: چرخشِ عادیِ توکن، و توکنِ تازه‌ای که خودِ
+   * مسیرِ ذخیره صادر می‌کند (وگرنه کاربر نامش را می‌نوشت و تا ربع ساعت
+   * همان‌جا زندانی می‌ماند).
+   */
+  if (
+    claims?.needsProfile &&
+    !onOnboarding &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next/")
+  ) {
+    /* ⚠️ مقصد حفظ می‌شود. بدونِ آن، کسی که پلن انتخاب کرده و با پیامک
+       تازه حساب ساخته، بعد از نوشتنِ نامش به خانهٔ پنل می‌رفت و انتخابش گم
+       می‌شد. صفحهٔ تکمیل آن را با `safeReturnTo` پاک می‌کند. */
+    return stamp(NextResponse.redirect(withReturnTo(ONBOARDING_PATH, request)));
   }
 
   // یک خطِ ردیابی برای ناوبریِ صفحه‌ها. در سطح trace است، پس در حالت عادی

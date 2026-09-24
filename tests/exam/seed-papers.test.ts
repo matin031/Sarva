@@ -2,9 +2,10 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { matchesAny, normalizeFa } from "@/lib/exam/grading";
 import { validateSeedExam } from "@/lib/exam/seed-data/seed-types";
-import { farsi3Kherdad1403 } from "@/lib/exam/seed-data/farsi3-1403-kherdad";
-import { farsi3Dey1401 } from "@/lib/exam/seed-data/farsi3-1401-dey";
-import { olumFonoon3Mordad1405 } from "@/lib/exam/seed-data/olum-fonoon3-1405-mordad";
+import { lintSeedExam } from "@/lib/exam/seed-data/lint";
+import { seedExams, findSeedExam } from "@/lib/exam/seed-data";
+import { ul } from "@/lib/exam/seed-data/helpers";
+import { splitUnderlined } from "@/lib/exam/underline";
 import { nemooneFarsi } from "@/docs/exam-authoring/nemoone-farsi";
 import { nemooneOlumFonoon } from "@/docs/exam-authoring/nemoone-olum-fonoon";
 
@@ -21,15 +22,36 @@ import { nemooneOlumFonoon } from "@/docs/exam-authoring/nemoone-olum-fonoon";
  *    نیم‌فاصله و همزهٔ روی «ه» دو پاسخِ یکسان را نادرست نشان می‌دادند.
  */
 describe("seed papers", () => {
-  const papers = [farsi3Kherdad1403, farsi3Dey1401, olumFonoon3Mordad1405];
-
-  for (const paper of papers) {
+  for (const paper of seedExams) {
     test(`${paper.examSession}: schema + score checks`, () => {
       assert.deepEqual(validateSeedExam(paper), []);
     });
+    test(`${paper.examSession}: ساختار و زیرخطِ واژه‌های مشخص‌شده`, () => {
+      assert.deepEqual(lintSeedExam(paper).errors, []);
+    });
   }
 
+  test("examSession ها یکتا و همه پایهٔ دوازدهم‌اند", () => {
+    const keys = seedExams.map((e) => e.examSession);
+    assert.equal(new Set(keys).size, keys.length);
+    for (const e of seedExams) assert.equal(e.grade, 12, e.examSession);
+  });
+
+  test("کلیدهای آزمون‌های قدیمی عوض نشده‌اند (آدرس و کارنامه به آن‌ها بسته است)", () => {
+    for (const k of ["1403-kherdad", "1401-dey", "olum-fonoon-1405-mordad"]) assert.ok(findSeedExam(k), k);
+  });
+
+  test("ul() یک زیرخطِ پیوسته می‌سازد، حتی روی عبارتِ چندکلمه‌ای", () => {
+    const runs = splitUnderlined(`پیش ${ul("دست محبّت")} پس`);
+    assert.deepEqual(runs, [
+      { text: "پیش ", underlined: false },
+      { text: "دست محبّت", underlined: true },
+      { text: " پس", underlined: false },
+    ]);
+  });
+
   test("علوم و فنون: سؤال حذف‌شدهٔ ۱۲ نیامده و بارمش به ۱۵ رفته", () => {
+    const olumFonoon3Mordad1405 = findSeedExam("olum-fonoon-1405-mordad")!;
     const music = olumFonoon3Mordad1405.sections.find((s) => s.title === "موسیقی شعر");
     assert.ok(music);
     const numbers = music.questions.map((q) => q.number);

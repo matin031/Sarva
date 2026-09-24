@@ -7,18 +7,12 @@ import SectionCTA from "./SectionCTA";
 function OrouzHomeSection() {
   return (
     <div dir="rtl">
-      <div className="flex items-center justify-center">
-        <div className="mx-auto mb-3 inline-flex rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold text-primary sm:mb-0 sm:text-sm">
-          عروض سماعی
-        </div>
-      </div>
 
       <h2 className="text-center text-4xl font-bold">
         وزن را با گوش تشخیص بده
       </h2>
       <p className="mx-auto max-w-xl text-center text-base font-[550] text-muted-foreground">
-        ریتمِ وزن را می‌شنوی و از میان گزینه‌ها انتخاب می‌کنی؛ سه نوع پرسش — صوت
-        به وزن، صوت به بیت و بیت به صوت.
+        ریتم را بشنو و وزن یا بیت درست را انتخاب کن.
       </p>
 
       <motion.div

@@ -55,6 +55,13 @@ export type WordRole = {
   label: string;
 };
 
+/** کدام نماهای پولی برای این بیت/بند *وجود دارند* — بدونِ خودِ داده.
+ *
+ *  ⚠️ صفحهٔ درس نقش‌ها و آرایه‌ها را به کلاینت نمی‌فرستد (پشتِ سروا پلاس‌اند
+ *  و فقط از `/api/v1/doroos/analysis` می‌آیند). ولی دکمه‌هایشان باید از همان
+ *  اول دیده شوند، پس سرور فقط همین دو بولی را جای داده می‌گذارد. */
+export type AnalysisFlags = { syntax: boolean; devices: boolean };
+
 export type Beyt = {
   /** 1-based index within the poem */
   n: number;
@@ -85,6 +92,8 @@ export type Beyt = {
   affinity?: string[];
   /** سؤال امتحانی, answer hidden until the reader asks for it */
   exam?: ExamQuestion;
+  /** فقط در نسخهٔ عمومیِ درس (`toPublicLesson`) پر می‌شود. */
+  analysis?: AnalysisFlags;
 };
 
 /** A closing «نکات پایانی و جمع‌بندی» topic. */
@@ -146,9 +155,14 @@ export type Passage = {
   affinity?: string[];
   notes?: BeytNote[];
   exam?: ExamQuestion;
+  /** فقط در نسخهٔ عمومیِ درس (`toPublicLesson`) پر می‌شود. */
+  analysis?: AnalysisFlags;
 };
 
 export type Lesson = PoemLesson | ProseLesson;
+
+/** نقش‌ها و آرایه‌های یک درس، کلید به شمارهٔ بیت/بند — پاسخِ API. */
+export type LessonAnalysis = Record<number, { syntax?: WordRole[]; devices?: WordRole[] }>;
 
 /** The three قلمروs, as the UI needs them: an id, a label, and the token its
  *  panel is tinted with. Keeping this beside the types means a lesson renderer

@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText from "@/components/exam/HighlightedText";
+
 type McqSelectLineInPoemContent = {
   type: "mcq-select-line-in-poem";
   lines: string[];
@@ -29,7 +31,7 @@ export default function McqSelectLineInPoemPart({ content, value, onChange, disa
                 : "border-border bg-card text-foreground hover:border-primary/50"
             }`}
         >
-          {line}
+          <HighlightedText text={line} />
         </button>
       ))}
     </div>

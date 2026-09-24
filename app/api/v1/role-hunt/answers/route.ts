@@ -51,6 +51,8 @@ import { resolveRoleHuntAnswer } from "@/lib/role-hunt/round";
 const schema = z.object({
   roundId: z.uuid("شناسهٔ دور معتبر نیست."),
   questionId: z.uuid("شناسهٔ پرسش معتبر نیست."),
+  /** چندمین پرسشِ این مصراع. معنایش را سرور می‌سازد، نه مرورگر. */
+  askIndex: z.number().int().min(0).max(30),
   selectedTokenId: z.string().trim().min(1).max(80),
 });
 
@@ -81,12 +83,16 @@ export const POST = withRoute("/api/v1/role-hunt/answers", async (request: Reque
     const { question } = rowToQuestion(row);
     if (!question) return fail("این پرسش قابل بررسی نیست.", 409);
 
-    const resolved = resolveRoleHuntAnswer(question, body.data.selectedTokenId);
+    const resolved = resolveRoleHuntAnswer(
+      question,
+      body.data.askIndex,
+      body.data.selectedTokenId,
+    );
     // یا این پرسش اصلاً واجدِ شرایطِ این بازی نیست، یا واژه‌ای بیرونِ مدار
     // فرستاده شده. هیچ‌کدام دادهٔ قابلِ ثبتی نیست.
     if (!resolved) return fail("این پاسخ با این پرسش جور نیست.", 400);
 
-    const { round, chosenToken, correctToken, isCorrect, verse } = resolved;
+    const { round, ask, chosenToken, correctToken, isCorrect, verse } = resolved;
 
     let created = true;
     try {
@@ -102,7 +108,7 @@ export const POST = withRoute("/api/v1/role-hunt/answers", async (request: Reque
           row.id,
           round.grade,
           round.lesson,
-          round.roleKey,
+          ask.roleKey,
           // ستون ۴۰۰ نویسه است و بلندترین مصراعِ بانک نزدیکِ ۶۰؛ برش فقط
           // نگهبانِ محتوای غیرمنتظره است، نه اتفاقی که انتظارش را داریم.
           verse.slice(0, 400),

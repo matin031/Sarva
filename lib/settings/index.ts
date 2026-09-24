@@ -23,6 +23,9 @@ export { SETTING_GROUPS, type SettingGroup };
  */
 
 export type SettingKey =
+  | "site.maintenance"
+  | "site.maintenance_message"
+  | "site.maintenance_bypass_key"
   | "mail.from"
   | "sms.driver"
   | "sms.api_key"
@@ -36,8 +39,15 @@ export type SettingKey =
   | "plus.enabled"
   | "plus.expiring_soon_days"
   | "plus.payment_provider"
+  | "plus.aqayepardakht_pin"
   | "plus.purchase_terms"
-  | "plus.pilot_grant_enabled";
+  | "plus.pilot_grant_enabled"
+  | "notify.enabled"
+  | "sms.template_welcome"
+  | "sms.template_plus_activated"
+  | "sms.template_plus_renewed"
+  | "sms.template_plus_expiring"
+  | "sms.template_plus_expired";
 
 type SettingSpec = {
   /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
@@ -61,6 +71,49 @@ type SettingSpec = {
 };
 
 export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
+  // ── وضعیت سایت ───────────────────────────────────────────────────────────
+  // ⚠️ این سه کلید تنها چیزی هستند که بین «سایت بالاست» و «سایت در حال
+  // بروزرسانی است» فرق می‌گذارند. هیچ deploy، هیچ ری‌استارت و هیچ فایلِ
+  // پرچمی لازم نیست — چون لحظه‌ای که واقعاً لازم می‌شوند، همان لحظه‌ای است
+  // که چیزی خراب شده و وقتِ deploy نیست.
+  "site.maintenance": {
+    envVar: "SITE_MAINTENANCE",
+    group: "site",
+    label: "حالت «در حال بروزرسانی»",
+    description:
+      "وقتی روشن باشد، بازدیدکننده به‌جای سایت یک صفحهٔ کوتاه می‌بیند و پاسخ با کد ۵۰۳ برمی‌گردد (یعنی گوگل صفحه‌ها را حذف‌شده حساب نمی‌کند). ⚠️ مدیرِ واردشده استثناست و سایت را عادی می‌بیند. ⚠️ اثرش تا حدود یک دقیقه طول می‌کشد (تنظیمات کشِ کوتاه دارند).",
+    options: [
+      { value: "off", label: "خاموش (سایت باز است)" },
+      { value: "on", label: "روشن (سایت بسته است)" },
+    ],
+  },
+  "site.maintenance_message": {
+    envVar: "SITE_MAINTENANCE_MESSAGE",
+    group: "site",
+    label: "متن صفحهٔ بروزرسانی",
+    description:
+      "یک یا دو جمله که زیرِ عنوان نوشته می‌شود. خالی بگذارید تا متنِ پیش‌فرض بیاید.",
+    placeholder: "تا نیم ساعت دیگر برمی‌گردیم.",
+  },
+  /* ⚠️ کلیدِ عبورِ موقت. با `?bypass=<این مقدار>` یک کوکی روی مرورگر می‌نشیند
+     و آن مرورگر تا پایانِ بروزرسانی سایت را عادی می‌بیند.
+
+     وجود دارد چون «مدیر استثناست» همهٔ نیاز را پوشش نمی‌دهد: تستِ مسیرِ
+     ثبت‌نام و خرید باید با حسابِ *غیرمدیر* انجام شود، و گاهی کسی باید صفحه
+     را ببیند که اصلاً حساب ندارد (یک همکار، یک مرورگرِ موبایل).
+
+     ⚠️ راز حساب می‌شود و در پنل نمایش داده نمی‌شود — کسی که این رشته را
+     داشته باشد، در حالتِ بسته هم به سایت می‌رسد. */
+  "site.maintenance_bypass_key": {
+    envVar: "SITE_MAINTENANCE_BYPASS_KEY",
+    group: "site",
+    label: "کلید عبور از حالت بروزرسانی",
+    description:
+      "برای امتحانِ سایت در حالتِ بسته، بدونِ اینکه با حسابِ مدیر وارد شده باشید. آدرس را با ‎?bypass=<کلید>‎ باز کنید؛ کوکی‌اش تا ۱۲ ساعت می‌ماند. خالی یعنی این راه بسته است و فقط مدیر رد می‌شود.",
+    secret: true,
+    placeholder: "یک رشتهٔ تصادفی و طولانی",
+  },
+
   "mail.from": {
     envVar: "MAIL_FROM",
     group: "mail",
@@ -113,6 +166,63 @@ export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
     description:
       "فقط برای پیامکِ متنِ آزاد لازم است. کدِ ورود از قالب می‌رود و خودِ SMS.ir خطِ خدماتی را انتخاب می‌کند، پس برای ورود با موبایل می‌توانید این را خالی بگذارید.",
     placeholder: "۳۰۰۰۵۰۵۰",
+  },
+
+  // ── اطلاع‌رسانی ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ اینجا **شناسهٔ قالب** گرفته می‌شود و نه متنِ پیامک، و این یک تصمیمِ
+  // ناگزیر است: خطِ خدماتی متنِ آزاد نمی‌پذیرد. متن باید در پنلِ SMS.ir
+  // ساخته و تأیید شود و ما فقط متغیرهایش را پر کنیم. متنِ پیشنهادیِ هر
+  // قالب — با نامِ دقیقِ متغیرهایش — در `lib/notify/messages.ts` نوشته شده.
+  //
+  // ⚠️ و قالبِ ثبت‌نشده یعنی «این پیامک نمی‌رود»، نه «از راهِ دیگری برود».
+  // چرایی‌اش بالای `lib/notify/events.ts`.
+  "notify.enabled": {
+    envVar: "NOTIFY_ENABLED",
+    group: "notify",
+    label: "ارسال پیامک و ایمیلِ رویدادها",
+    description:
+      "کلیدِ سراسری. وقتی خاموش باشد هیچ پیامک و ایمیلِ اطلاع‌رسانی‌ای فرستاده نمی‌شود (کدِ ورود و بازیابیِ رمز مستقل‌اند و همیشه می‌روند). اعلان‌های درون‌سایتی هم مثل قبل ثبت می‌شوند.",
+    options: [
+      { value: "on", label: "روشن" },
+      { value: "off", label: "خاموش" },
+    ],
+  },
+  "sms.template_welcome": {
+    envVar: "SMS_TEMPLATE_WELCOME",
+    group: "notify",
+    label: "قالب پیامکِ خوش‌آمد",
+    description: "شناسهٔ قالبِ تأییدشده برای پیامکِ بعد از ثبت‌نام. یک متغیر: Name",
+    placeholder: "مثلاً ۱۲۳۴۵۶",
+  },
+  "sms.template_plus_activated": {
+    envVar: "SMS_TEMPLATE_PLUS_ACTIVATED",
+    group: "notify",
+    label: "قالب پیامکِ فعال‌سازی اشتراک",
+    description: "شناسهٔ قالبِ پیامکِ «اشتراکت فعال شد». دو متغیر: Name و Date",
+    placeholder: "مثلاً ۱۲۳۴۵۷",
+  },
+  "sms.template_plus_renewed": {
+    envVar: "SMS_TEMPLATE_PLUS_RENEWED",
+    group: "notify",
+    label: "قالب پیامکِ تمدید اشتراک",
+    description:
+      "شناسهٔ قالبِ پیامکِ «اشتراکت تمدید شد». دو متغیر: Name و Date. اگر قالبِ جداگانه‌ای نساخته‌اید، می‌توانید همان شناسهٔ فعال‌سازی را بگذارید.",
+    placeholder: "مثلاً ۱۲۳۴۵۸",
+  },
+  "sms.template_plus_expiring": {
+    envVar: "SMS_TEMPLATE_PLUS_EXPIRING",
+    group: "notify",
+    label: "قالب پیامکِ نزدیک پایان",
+    description: "شناسهٔ قالبِ یادآوریِ تمدید. دو متغیر: Name و Days",
+    placeholder: "مثلاً ۱۲۳۴۵۹",
+  },
+  "sms.template_plus_expired": {
+    envVar: "SMS_TEMPLATE_PLUS_EXPIRED",
+    group: "notify",
+    label: "قالب پیامکِ پایان اشتراک",
+    description: "شناسهٔ قالبِ پیامکِ «اشتراکت تمام شد». یک متغیر: Name",
+    placeholder: "مثلاً ۱۲۳۴۶۰",
   },
 
   // ── صفحهٔ اصلی ───────────────────────────────────────────────────────────
@@ -188,8 +298,20 @@ export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
     group: "plus",
     label: "درگاه پرداخت",
     description:
-      "تا وقتی درگاه واقعی وصل نشده روی «آزمایشی» بماند. در حالت آزمایشی هیچ پولی جابه‌جا نمی‌شود و روی سرورِ اصلی هم اصلاً اجازهٔ کار ندارد — پس نمی‌تواند به‌اشتباه یک خریدِ جعلی بسازد.",
-    options: [{ value: "test", label: "آزمایشی (بدون پرداخت واقعی)" }],
+      "خریدهای تازه با این درگاه انجام می‌شوند. پرداخت‌های نیمه‌کاره با همان درگاهی تأیید می‌شوند که با آن شروع شده‌اند؛ پس بعد از تغییر درگاه، تا یک روز کلید درگاه قبلی را پاک نکنید. «آزمایشی» پول جابه‌جا نمی‌کند و روی سرور اصلی فقط برای مدیر کار می‌کند.",
+    options: [
+      { value: "test", label: "آزمایشی (بدون پرداخت واقعی)" },
+      { value: "aqayepardakht", label: "آقای پرداخت" },
+    ],
+  },
+  "plus.aqayepardakht_pin": {
+    envVar: "AQAYEPARDAKHT_PIN",
+    group: "plus",
+    label: "پین درگاه آقای پرداخت",
+    description:
+      "از پنل آقای پرداخت ← درگاه پرداخت. «sandbox» یعنی حالت تست خود آقای پرداخت (بدون پول واقعی).",
+    secret: true,
+    placeholder: "پین درگاه",
   },
   "plus.purchase_terms": {
     envVar: "PLUS_PURCHASE_TERMS",

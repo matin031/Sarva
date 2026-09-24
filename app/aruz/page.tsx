@@ -40,6 +40,7 @@ function LazyDemo() {
 
   return <div ref={ref}>{near ? <OrouzDemo /> : <DemoPlaceholder />}</div>;
 }
+import styles from "@/components/UI/aruz/aruz.module.css";
 import {
   RevealGroup,
   RevealItem,
@@ -73,18 +74,12 @@ export default function AruzPage() {
             stagger={0.12}
             className="mx-auto mb-12 max-w-2xl text-center"
           >
-            <RevealItem>
-              <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-semibold text-primary">
-                یک نگاه به داخل
-              </span>
-            </RevealItem>
             <h2 className="text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-              <RevealWords text="آموختن با آزمون" />
+              <RevealWords text="یک پرسش را امتحان کن" inherit />
             </h2>
             <RevealItem>
               <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-                درست و غلط زدن پرسش‌ها مهم نیست!اینجا جدای از نتیجه، هر پاسخ گوش
-                تو را با یک وزن آشنا می‌کند
+                درست یا غلط، هر پاسخ گوشت را با یک وزن آشنا می‌کند.
               </p>
             </RevealItem>
           </RevealGroup>
@@ -107,16 +102,7 @@ export default function AruzPage() {
                 } as React.CSSProperties
               }
             />
-            <div className="relative bg-card z-20 rounded-[2rem] border border-border bg-card/50 p-4 shadow-2xl backdrop-blur-md sm:p-8">
-              {/* faux window chrome */}
-              <div className="mb-6 flex items-center gap-2">
-                <span className="size-3 rounded-full bg-destructive/60" />
-                <span className="size-3 rounded-full bg-gold/70" />
-                <span className="size-3 rounded-full bg-primary/70" />
-                <span className="ms-3 text-xs text-muted-foreground">
-                  عروض سماعی — نمونهٔ آزمون
-                </span>
-              </div>
+            <div className="relative z-20 rounded-[2rem] border border-foreground/10 bg-card/70 p-3 shadow-2xl backdrop-blur-md sm:p-6">
               <LazyDemo />
             </div>
           </motion.div>
@@ -129,41 +115,20 @@ export default function AruzPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={defaultViewport}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="relative mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 
-          bg-gradient-to-br z-30 from-card to-card/40 p-10 text-center shadow-2xl backdrop-blur-md sm:p-16"
+            className={`${styles.cta} relative z-30 mx-auto max-w-3xl p-10 text-center sm:p-16`}
           >
-            <div
-              aria-hidden
-              className="glow-soft absolute -right-24 -top-24 size-72 rounded-full"
-              style={
-                {
-                  "--glow":
-                    "color-mix(in oklch, var(--color-primary) 32%, transparent)",
-                } as React.CSSProperties
-              }
-            />
-            <div
-              aria-hidden
-              className="glow-soft absolute -bottom-24 -left-24 size-72 rounded-full"
-              style={
-                {
-                  "--glow":
-                    "color-mix(in oklch, var(--color-gold) 26%, transparent)",
-                } as React.CSSProperties
-              }
-            />
             <h2 className="relative text-3xl font-black text-foreground sm:text-4xl md:text-5xl">
-              <RevealWords text="سماعی شدن؛دست‌یافتنی تر از همیشه" />
+              <RevealWords text="وزن را با گوش یاد بگیر" />
             </h2>
             <p className="relative mx-auto mt-4 max-w-lg text-muted-foreground">
-              ذهن و گوش بی آنکه بدانی با اوزان عروضی آشنا می‌شوند
+              از اولین آزمون صوتی شروع کن.
             </p>
             <div className="relative mt-8 flex justify-center">
               <Link
                 href="/quiz"
                 className="group inline-flex min-h-13 items-center gap-2 rounded-2xl bg-primary px-9 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
               >
-                آغاز یادگیریِ رایگان
+                شروع آزمون صوتی
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"

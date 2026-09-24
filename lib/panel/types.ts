@@ -80,14 +80,18 @@ export type VocabAnswer = {
   answeredAt: string;
 };
 
-// -------------------------------------------------------------- جاسوس ----
+// ------------------------------------------------------------- رنگ‌آرا ----
 
-export type JasoosAnswer = {
-  id: string;
-  levelId: number;
-  category: string;
-  chosenRole: string;
-  correctRole: string;
+/** یک گام از یک بیتِ تمام‌شده؛ `playId` گام‌های همان بار بازی را کنارِ هم می‌گذارد. */
+export type RangAraAnswer = {
+  playId: string;
+  verseKey: string;
+  grade: string | null;
+  lesson: number | null;
+  verse: string;
+  step: number;
+  concept: string;
+  mistakes: number;
   isCorrect: boolean;
   answeredAt: string;
 };
@@ -140,6 +144,13 @@ export type PanelUser = {
 
 import type { DailyState } from "@/lib/analytics/daily";
 
+/**
+ * بخش‌های تمرین در صفحهٔ خانه. `jasoos` کلیدِ قدیمیِ «دستور زبان» است و هر سه
+ * بازیِ نقش (جاسوس، مدار دستور، شکار نقش‌ها) را می‌شمارد؛ کلید عوض نشد چون
+ * نشان‌شده‌ها هم با همین کلید ذخیره می‌شوند.
+ */
+export type PracticeArea = BookmarkArea | "rangAra";
+
 export type PanelOverview = {
   /** فعالیت، تجمیع‌شده به تفکیکِ روز و بخش — نه ردیف‌های خام.
    *  دلیلش در getPanelOverview نوشته شده.
@@ -147,7 +158,7 @@ export type PanelOverview = {
    *  ⚠️ وقتی `dayState` برابرِ `"unavailable"` است این آرایه **خالی** است و
    *  خالی بودنش معنایش «فعالیتی نبوده» **نیست**. پیش از ساختنِ هر عددی از
    *  آن، `dayState` را ببین. */
-  dayCounts: { day: string; total: number; correct: number; area: BookmarkArea }[];
+  dayCounts: { day: string; total: number; correct: number; area: PracticeArea }[];
 
   /**
    * ⚠️ آیا گروه‌بندیِ روزانه اصلاً ممکن بوده؟
@@ -164,7 +175,7 @@ export type PanelOverview = {
    */
   dayState: DailyState;
 
-  counts: Record<BookmarkArea, { total: number; correct: number }>;
+  counts: Record<PracticeArea, { total: number; correct: number }>;
   bookmarks: number;
   exams: { attempts: number; best: number; average: number };
 };

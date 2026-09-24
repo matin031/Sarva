@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { GameBackButton } from "@/components/UI/games/GameNav";
 
 /**
  * صفحهٔ آغاز.
@@ -11,10 +11,10 @@ import Link from "next/link";
  */
 
 const STEPS = [
-  "مصراع را با اعرابِ کامل ببین.",
+  "مصراع را با اعراب کامل ببین.",
   "متن پوشیده می‌شود و واحدها یکی‌یکی می‌آیند.",
   "برای هر واحد U یا _ را بزن.",
-  "هر خطا، تو را به واحدِ اولِ همان مصراع برمی‌گرداند.",
+  "هر خطا، تو را به واحد اول همان مصراع برمی‌گرداند.",
 ];
 
 export default function IntroScreen({
@@ -30,15 +30,7 @@ export default function IntroScreen({
 }) {
   return (
     <div dir="rtl" className="container mx-auto max-w-lg py-8 sm:py-12">
-      <Link
-        href="/game"
-        className="mb-5 inline-flex items-center gap-x-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-        </svg>
-        بازگشت به کهکشانِ بازی‌ها
-      </Link>
+      <GameBackButton href="/game" className="mb-5" />
 
       <div className="aruzr-card aruzr-surface p-6 text-center sm:p-8">
         {/* نمایشِ کوچکِ خودِ مکانیزم: بخشی از مصراع باز، بقیه پوشیده. */}
@@ -60,7 +52,7 @@ export default function IntroScreen({
           </div>
         </div>
 
-        <h1 className="mt-6 text-2xl font-black text-[color:var(--aruzr-text)] sm:text-3xl">تقطیعِ سریع</h1>
+        <h1 className="mt-6 text-2xl font-black text-[color:var(--aruzr-text)] sm:text-3xl">تقطیع سریع</h1>
         <p className="aruzr-muted mx-auto mt-2 max-w-sm text-sm sm:text-base">
           یک مصراع، هجا به هجا. کوتاه است یا بلند؟
         </p>
@@ -91,7 +83,7 @@ export default function IntroScreen({
           <kbd className="aruzr-kbd">{longSymbol === "_" ? "-" : longSymbol}</kbd> برای بلند.
         </p>
         <p className="aruzr-warn mt-1.5 text-[11px]">
-          مصراع‌های این نسخه نمونهٔ نمایشی‌اند و هنوز مرجعِ آموزشیِ سروا نیستند.
+          مصراع‌های این نسخه نمونهٔ نمایشی‌اند و هنوز مرجع آموزشی سروا نیستند.
         </p>
       </div>
     </div>

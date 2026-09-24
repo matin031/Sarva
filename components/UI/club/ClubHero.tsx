@@ -40,13 +40,7 @@ export default function ClubHero({
 
       <RevealGroup stagger={0.1} className="mx-auto flex max-w-2xl flex-col items-center">
         <RevealItem>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary sm:text-sm">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-primary" />
-            </span>
-            سروا کلاب
-          </span>
+          <span className="inline-block text-sm font-bold text-primary">سروا کلاب</span>
         </RevealItem>
 
         <h1 className="mt-5 text-3xl leading-[1.35] font-black sm:text-4xl">
@@ -60,9 +54,7 @@ export default function ClubHero({
 
         <RevealItem>
           <p className="mt-5 max-w-lg text-sm leading-8 text-muted-foreground sm:text-base">
-            خیلی‌ها می‌سرایند و به کسی نشان نمی‌دهند. سروا کلاب برای همان‌هاست:
-            بیتی که گفته‌ای را بفرست — اگر خجالت می‌کشی، بی‌نام — بقیه زیرش
-            می‌نویسند.
+            شعری که گفته‌ای را بفرست، با نام خودت یا بی‌نام، و نظر بقیه را بخوان.
           </p>
         </RevealItem>
 

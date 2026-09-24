@@ -16,15 +16,13 @@ function statusTone(label: string): string {
 export default function BillingView({ orders, hasMore, unsettled, page }: { orders: PlusOrderSummary[]; hasMore: boolean; unsettled: number; page: number; }) {
   return (
     <div dir="rtl" className={styles.pageStack}>
-      <PanelPageHeader title="خریدهای من" description="سفارش‌ها، وضعیت پرداخت و رسیدِ هرکدام." tone="lilac" />
+      <PanelPageHeader title="خریدهای من" description="سفارش‌ها، وضعیت پرداخت و فاکتور هرکدام." tone="lilac" />
 
       {unsettled > 0 && (
         /* ⚠️ نوارِ «تکلیف روشن نیست». کاربری که صفحهٔ بانک را بسته، باید
            همین‌جا بفهمد سفارشش گم نشده و راهی برای پیگیری دارد. */
         <p className="rounded-2xl border border-gold/40 bg-gold/10 p-3 text-xs leading-relaxed plus-ink">
-          {fa(unsettled)} سفارش داری که وضعیت پرداختش هنوز نهایی نشده است. اگر
-          مبلغی از حسابت کم شده، دوباره پرداخت نکن — سفارش را باز کن و «بررسی
-          دوبارهٔ وضعیت» را بزن.
+          نتیجهٔ پرداختِ {fa(unsettled)} سفارش هنوز مشخص نیست. اگر مبلغی از حسابت کم شده، دوباره پرداخت نکن؛ سفارش را باز کن و «بررسی دوبارهٔ وضعیت» را بزن.
         </p>
       )}
 
@@ -68,7 +66,7 @@ export default function BillingView({ orders, hasMore, unsettled, page }: { orde
                   href={`/panel/billing/${order.id}`}
                   className={`mt-4 ${styles.resumeCta}`}
                 >
-                  جزئیات و رسید
+                  {order.status === "paid" ? "مشاهدهٔ فاکتور" : "جزئیات سفارش"}
                 </Link>
               </li>
             );

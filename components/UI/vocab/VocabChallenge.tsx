@@ -277,7 +277,7 @@ export default function VocabChallenge({
   // ---------- ready ----------
   if (phase === "ready") {
     return (
-      <Shell title="حالتِ چالش" subtitle={`${label ?? lesson.title} — پایهٔ ${grade.title}`} onBack={onExit}>
+      <Shell title="حالت چالش" subtitle={`${label ?? lesson.title} — پایهٔ ${grade.title}`} onBack={onExit}>
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -292,7 +292,7 @@ export default function VocabChallenge({
               <span className="text-primary">•</span> برای هر تصویر فقط <b className="text-foreground">۷ ثانیه</b> وقت داری.
             </li>
             <li className="flex gap-2">
-              <span className="text-primary">•</span> دو واژه پیشِ روی توست؛ درست را بزن و معنی‌اش را ببین.
+              <span className="text-primary">•</span> دو واژه پیش روی توست؛ درست را بزن و معنی‌اش را ببین.
             </li>
             <li className="flex gap-2">
               <span className="text-destructive">•</span> یک اشتباه یا تمام‌شدن وقت = <b className="text-foreground">از اول</b>!
@@ -310,7 +310,7 @@ export default function VocabChallenge({
             onClick={beginRun}
             className="mt-5 min-h-12 w-full rounded-2xl bg-primary text-lg font-black text-primary-foreground transition-all hover:brightness-90 active:scale-95"
           >
-            شروعِ چالش
+            شروع چالش
           </button>
         </motion.div>
       </Shell>

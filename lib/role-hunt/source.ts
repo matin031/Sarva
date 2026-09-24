@@ -37,6 +37,8 @@ export async function fetchRoleHuntRounds(count: number, signal?: AbortSignal): 
 export async function submitRoleHuntAnswer(input: {
   roundId: string;
   questionId: string;
+  /** چندمین پرسشِ این مصراع. سرور معنایش را از روی همان تابعِ خالص می‌سازد. */
+  askIndex: number;
   selectedTokenId: string;
 }): Promise<void> {
   await apiPost<{ saved: boolean }>("/api/v1/role-hunt/answers", input);

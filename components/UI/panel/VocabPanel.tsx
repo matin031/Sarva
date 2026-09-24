@@ -13,6 +13,7 @@ import PanelSection from "@/components/UI/panel/PanelSection";
 import VocabBookmarks from "@/components/UI/panel/VocabBookmarks";
 import VocabSessionList from "@/components/UI/panel/VocabSessionList";
 import VocabTrend from "@/components/UI/panel/VocabTrend";
+import VocabLessons, { type LessonWord } from "@/components/UI/panel/VocabLessons";
 import { loadMoreVocabAnswers } from "@/app/panel/vocab/actions";
 import { groupIntoSessions, streak } from "@/lib/panel/format";
 import type { Bookmark, VocabAnswer } from "@/lib/panel/types";
@@ -24,11 +25,15 @@ export default function VocabPanel({
   initialHasMore,
   history,
   bookmarks,
+  lessonWords,
+  lessonTotals,
 }: {
   initialAnswers: VocabAnswer[];
   initialHasMore: boolean;
   history: History;
   bookmarks: Bookmark[];
+  lessonWords: LessonWord[];
+  lessonTotals: { grade: string; lesson: number; words: number }[];
 }) {
   const [answers, setAnswers] = useState(initialAnswers);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -62,7 +67,7 @@ export default function VocabPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="واژه‌یاب" description="واژه‌هایی که دیده‌ای و آن‌هایی که هنوز جا نیفتاده‌اند." tone="gold" action={
+      <PanelPageHeader title="واژه‌یاب" description="واژه‌هایی که تمرین کرده‌ای." tone="gold" action={
         /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
            دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
            پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
@@ -73,7 +78,11 @@ export default function VocabPanel({
           </Link>
         </ShinyButton>
       } />
-      <PracticeSummary items={[{ label: "دقت در واژه‌یاب", value: `${toFa(accuracy)}٪` }, { label: "واژه‌های پاسخ‌داده", value: toFa(total) }, { label: "بهترین دست", value: `${toFa(best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(streak(history.map(h => h.at)))} روز` }]} />
+      <PracticeSummary items={[{ label: "دقت در واژه‌یاب", value: total ? `${toFa(accuracy)}٪` : "—" }, { label: "واژه‌های پاسخ‌داده", value: toFa(total) }, { label: "بهترین دست", value: total ? `${toFa(best)}٪` : "—" }, { label: "زنجیرهٔ تلاش", value: `${toFa(streak(history.map(h => h.at)))} روز` }]} />
+
+      <PanelSection title="درس‌ها" icon="bookmark" hint="روی هر درس بزن تا واژه‌هایش را ببینی.">
+        <VocabLessons words={lessonWords} totals={lessonTotals} />
+      </PanelSection>
 
       <PanelSection title="روند پیشرفت" icon="chart">
         <VocabTrend history={history} />

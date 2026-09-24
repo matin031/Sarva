@@ -56,7 +56,7 @@ export default function CircularProgress({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  const autoColor = "#00a5a6 ";
+  const autoColor = "var(--primary)";
 
   const progress = useMotionValue(0);
   const dashOffset = useTransform(
@@ -87,7 +87,7 @@ export default function CircularProgress({
     >
       {" "}
       <motion.div
-        className="relative inline-flex items-center justify-center stroke-[#ddd7c9] dark:stroke-[#222935]"
+        className="relative inline-flex items-center justify-center stroke-border"
         style={{ width: size, height: size }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

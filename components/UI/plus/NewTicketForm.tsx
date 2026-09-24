@@ -26,18 +26,22 @@ import styles from "@/components/UI/panel/panel-design.module.css";
  */
 export default function NewTicketForm({
   orders,
+  initialOrderId = "",
 }: {
-  orders: { id: string; orderNumber: string; planTitle: string }[];
+  orders: { id: string; orderNumber: string; planTitle: string; status?: string }[];
+  /** از «پشتیبانی این سفارش» آمده: فرم باز، موضوع «پرداخت» و سفارش ضمیمه. */
+  initialOrderId?: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const preset = orders.find((o) => o.id === initialOrderId);
+  const [open, setOpen] = useState(!!preset);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
   const [category, setCategory] = useState<TicketCategory>("payment");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(preset ? `سفارش ${preset.orderNumber}` : "");
   const [message, setMessage] = useState("");
-  const [orderId, setOrderId] = useState("");
+  const [orderId, setOrderId] = useState(preset?.id ?? "");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -74,7 +78,7 @@ export default function NewTicketForm({
         onClick={() => setOpen(true)}
         className={styles.composerTrigger}
       >
-        <span className="flex items-center gap-3"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span><span><span className="block text-sm font-bold">تیکت تازه</span><span className="mt-1 block text-xs text-muted-foreground">موضوع را بنویس؛ پاسخ همین‌جا و در ایمیلت می‌آید.</span></span></span>
+        <span className="flex items-center gap-3"><span className={styles.sticker}><MessageCircle aria-hidden className="size-5" /></span><span><span className="block text-sm font-bold">تیکت تازه</span><span className="mt-1 block text-xs text-muted-foreground">پاسخ اینجا و در ایمیلت نمایش داده می‌شود.</span></span></span>
         <Plus aria-hidden className="size-5 shrink-0 text-primary" />
       </button>
     );
@@ -103,9 +107,7 @@ export default function NewTicketForm({
           می‌شود از گزارشِ غلطِ یک سؤال و صفِ ویراستار خالی می‌ماند. */}
       {category === "content" && (
         <p className="rounded-xl border border-border/60 p-3 text-xs leading-relaxed text-muted-foreground">
-          اگر می‌خواهی بگویی «این سؤال یا این بیت غلط است»، از دکمهٔ «گزارش
-          محتوا» کنارِ خودِ سؤال استفاده کن — مستقیم به ویراستار می‌رسد. این
-          بخش برای وقتی است که پاسخِ سروا را نمی‌فهمی یا با آن موافق نیستی.
+          برای گزارش غلط در یک سؤال یا بیت، از دکمهٔ «گزارش» کنار همان سؤال استفاده کن.
         </p>
       )}
 
@@ -120,7 +122,7 @@ export default function NewTicketForm({
           onChange={(e) => setSubject(e.target.value)}
           maxLength={160}
           required
-          placeholder="در یک جمله: چه شده؟"
+          placeholder="موضوع"
         />
       </Field>
 
@@ -137,12 +139,21 @@ export default function NewTicketForm({
           required
           rows={5}
           className="w-full resize-y rounded-xl border border-border bg-background/40 px-4 py-3 text-sm leading-relaxed transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 hover:border-muted-foreground/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:outline-none"
-          placeholder="چه کار کردی، چه انتظار داشتی، و چه دیدی؟"
+          placeholder="مشکل را توضیح بده"
         />
       </Field>
 
       {orders.length > 0 && (
-        <Field label="سفارش مرتبط (اختیاری)" htmlFor="ticket-order" className="max-w-sm">
+        <Field
+          label="سفارش مرتبط (اختیاری)"
+          htmlFor="ticket-order"
+          className="max-w-sm"
+          hint={(() => {
+            const chosen = orders.find((o) => o.id === orderId);
+            if (!chosen) return undefined;
+            return chosen.status ? `${chosen.planTitle} • ${chosen.status}` : chosen.planTitle;
+          })()}
+        >
           <AnimatedSelect
             id="ticket-order"
             heading="کدام سفارش؟"
@@ -153,7 +164,7 @@ export default function NewTicketForm({
               ...orders.map((order) => ({
                 value: order.id,
                 label: order.orderNumber,
-                description: order.planTitle,
+                description: order.status ? `${order.planTitle} • ${order.status}` : order.planTitle,
               })),
             ]}
             onValueChange={setOrderId}

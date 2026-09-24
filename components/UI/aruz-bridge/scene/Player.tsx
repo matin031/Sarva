@@ -7,6 +7,8 @@ import * as THREE from "three";
 import { NO_RAYCAST } from "./AnswerHitTarget";
 import { aruzBridgeAssets } from "@/lib/aruz-bridge/assets";
 import type { CharacterAnimation } from "@/lib/aruz-bridge/types";
+import { useTokenRgb } from "@/lib/theme/use-primary-rgb";
+import { sceneColor } from "./sceneColor";
 
 /* کاراکتر.
  *
@@ -49,20 +51,24 @@ function ProceduralBody({
     () => new THREE.MeshStandardMaterial({ color: "#e6c9a8", roughness: 0.75, metalness: 0 }),
     [],
   );
+  /* لباس و نوارِ کمر از پالتِ سایت می‌آیند: کاراکتر باید مالِ همین سروا به
+     نظر برسد، نه یک مدلِ حاضریِ فیروزه‌ای که هر تمی را نادیده می‌گیرد. */
+  const primary = useTokenRgb("--primary");
+  const gold = useTokenRgb("--gold", "217,164,65");
   const cloth = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#12a3a5",
+        color: sceneColor(primary, 1.05),
         roughness: 0.62,
         metalness: 0.05,
-        emissive: new THREE.Color("#0b4f52"),
+        emissive: sceneColor(primary, 0.34),
         emissiveIntensity: 0.35,
       }),
-    [],
+    [primary],
   );
   const trim = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#d9a441", roughness: 0.45, metalness: 0.3 }),
-    [],
+    () => new THREE.MeshStandardMaterial({ color: sceneColor(gold), roughness: 0.45, metalness: 0.3 }),
+    [gold],
   );
 
   useEffect(

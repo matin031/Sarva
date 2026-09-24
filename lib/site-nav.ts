@@ -4,6 +4,7 @@ export type NavLink = { href: string; label: string };
 // entries in the footer's quick-access list — add a link here once and both
 // navs stay in sync instead of drifting apart.
 export const MORE_NAV_LINKS: NavLink[] = [
+  { href: "/timeline", label: "خط زمان ادبیات" },
   { href: "/exam", label: "امتحانات نهایی" },
   { href: "/sarvaclub", label: "سروا کلاب" },
   { href: "/vazn-yab", label: "وزن‌یاب" },
@@ -22,6 +23,7 @@ export const FOOTER_SECTIONS: { title: string; links: NavLink[] }[] = [
     title: "یادگیری",
     links: [
       { href: "/doroos", label: "درسنامه" },
+      { href: "/timeline", label: "خط زمان ادبیات" },
       { href: "/guide", label: "راهنمای یادگیری" },
       { href: "/quiz", label: "عروض سماعی" },
     ],

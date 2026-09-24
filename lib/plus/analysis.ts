@@ -1,5 +1,6 @@
 import "server-only";
 import { query, queryOne } from "@/lib/db";
+import { quizQuestionWeight } from "@/lib/quiz/weight";
 import {
   bucketize,
   roleBucketFor,
@@ -64,51 +65,71 @@ const SOURCE_ROW_CAP = 4000;
 /* ──────────────────────────── تحلیلِ وزن ────────────────────────────────── */
 
 /**
- * «در کدام وزن ضعیف است؟»
+ * «در کدام وزن ضعیف است؟» — ردیف‌های خام، پیش از سطل‌بندی.
  *
- * دو کوئری، چون دو جدولِ کاملاً متفاوت‌اند و union کردنشان فقط یک کوئریِ
+ * ⚠️ عمداً از `getWeightAnalysis` جدا شد و عمومی است: `lib/plus/insights.ts`
+ * همین ردیف‌ها را با `answered_at`شان می‌خواهد تا «این مبحث بهتر شده؟» را
+ * حساب کند. گرفتنِ دوبارهٔ همین سه کوئری با فیلترِ تاریخ، هم سه کوئریِ
+ * اضافه بود و هم دو تعریفِ متفاوت از «شاهد» می‌ساخت — که روزی با هم اختلاف
+ * پیدا می‌کنند و آن روز هیچ‌کس نمی‌داند کدام درست است.
+ *
+ * سه کوئری، چون سه جدولِ کاملاً متفاوت‌اند و union کردنشان فقط یک کوئریِ
  * ناخوانا می‌ساخت که پلنش هم بدتر بود.
  */
-export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> {
+export async function collectWeightRows(userId: string): Promise<RawAnswer[]> {
   const rows: RawAnswer[] = [];
 
   /* منبع ۱ — عروضِ سماعی.
-     وزن بسته به نوعِ سؤال از دو جای متفاوت می‌آید:
-       • weight-to-audio → وزن در متنِ سؤال است (`questions.poem[0]`)
-       • audio-to-weight → وزن، برچسبِ گزینهٔ درست است
-     همان منطقی که `lib/panel/queries.ts` هم دارد؛ اینجا تکرار شده چون آنجا
-     فقط یک منبع را می‌شمارد و امضایش برای ترکیب مناسب نیست. */
+     وزنِ هر نوعِ سؤال جای خودش را دارد؛ هر چهارتا در `quizQuestionWeight`
+     (`lib/quiz/weight.ts`) — همان تابعی که پنلِ عروض و آزمون‌سازِ دبیر هم
+     صدا می‌زنند، تا سه صفحه سه تعریف از «وزنِ این سؤال» نداشته باشند. */
   const quizRows = await query<{
     is_correct: boolean;
+    answered_at: string;
     type: string | null;
-    poem: string[] | null;
+    poem: unknown;
+    audio_url: string | null;
     correct_label: string | null;
+    correct_audio: string | null;
   }>(
-    `select ua.is_correct, q.type, q.poem,
-            (select o.label from question_options o
-              where o.question_id = q.id and o.is_correct limit 1) as correct_label
+    `select ua.is_correct, ua.answered_at, q.type, q.poem, q.audio_url,
+            o.label as correct_label, o.audio_url as correct_audio
        from user_answers ua
        join questions q on q.id = ua.question_id
+       left join question_options o
+         on o.id = (select o2.id from question_options o2
+                     where o2.question_id = q.id and o2.is_correct limit 1)
       where ua.user_id = ?
       limit ?`,
     [userId, SOURCE_ROW_CAP],
   );
 
   for (const r of quizRows) {
-    const weight =
-      r.type === "weight-to-audio"
-        ? r.poem?.[0]?.trim()
-        : r.type === "audio-to-weight"
-          ? r.correct_label?.trim()
-          : null;
+    const weight = quizQuestionWeight({
+      type: r.type,
+      poem: r.poem,
+      audioUrl: r.audio_url,
+      correctLabel: r.correct_label,
+      correctAudioUrl: r.correct_audio,
+    });
     if (!weight) continue;
-    rows.push({ key: weight, label: weight, correct: r.is_correct, source: "عروض سماعی" });
+    rows.push({
+      key: weight,
+      label: weight,
+      correct: r.is_correct,
+      source: "عروض سماعی",
+      at: r.answered_at,
+    });
   }
 
   /* منبع ۲ — پلِ وزن. وزنِ درست به‌صورت snapshot در خودِ ردیف است، پس هیچ
      join ای لازم نیست و حذفِ یک پرسش هم تاریخچه را خراب نمی‌کند. */
-  const bridgeRows = await query<{ correct_pattern: string; is_correct: boolean }>(
-    `select correct_pattern, is_correct
+  const bridgeRows = await query<{
+    correct_pattern: string;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select correct_pattern, is_correct, answered_at
        from aruz_bridge_answers
       where user_id = ?
       order by answered_at desc
@@ -119,7 +140,13 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
   for (const r of bridgeRows) {
     const weight = r.correct_pattern.trim();
     if (!weight) continue;
-    rows.push({ key: weight, label: weight, correct: r.is_correct, source: "پل وزن" });
+    rows.push({
+      key: weight,
+      label: weight,
+      correct: r.is_correct,
+      source: "پل وزن",
+      at: r.answered_at,
+    });
   }
 
   /* منبع ۳ — کیمیای وزن.
@@ -134,8 +161,12 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
      ⚠️ `meter_ark` عمداً همان شکلِ رشته‌ایِ `aruz_bridge_answers
      .correct_pattern` است («فاعلاتن فاعلاتن فاعلن»)، پس هر سه منبع در یک
      سطل می‌نشینند و نه سه جزیرهٔ جدا با شواهدِ ناکافی. */
-  const kimiaRows = await query<{ meter_ark: string; first_correct: boolean }>(
-    `select meter_ark, first_correct
+  const kimiaRows = await query<{
+    meter_ark: string;
+    first_correct: boolean;
+    answered_at: string;
+  }>(
+    `select meter_ark, first_correct, answered_at
        from kimia_rounds
       where user_id = ? and answered_at is not null
       order by answered_at desc
@@ -146,22 +177,39 @@ export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> 
   for (const r of kimiaRows) {
     const weight = r.meter_ark.trim();
     if (!weight) continue;
-    rows.push({ key: weight, label: weight, correct: r.first_correct, source: "کیمیای وزن" });
+    rows.push({
+      key: weight,
+      label: weight,
+      correct: r.first_correct,
+      source: "کیمیای وزن",
+      at: r.answered_at,
+    });
   }
 
-  return bucketize(rows);
+  return rows;
+}
+
+export async function getWeightAnalysis(userId: string): Promise<SkillAnalysis> {
+  return bucketize(await collectWeightRows(userId));
 }
 
 /* ──────────────────────── تحلیلِ نقشِ دستوری ────────────────────────────── */
 
-export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
+/** ردیف‌های خامِ نقش — به همان دلیلِ `collectWeightRows` عمومی است. */
+export async function collectRoleRows(userId: string): Promise<RawAnswer[]> {
   const rows: RawAnswer[] = [];
 
-  /* منبع ۱ — جاسوس. نقشِ درست به‌صورت برچسبِ فارسی ذخیره شده. */
-  const jasoosRows = await query<{ correct_role: string; is_correct: boolean }>(
-    `select correct_role, is_correct
+  /* منبع ۱ — جاسوس. نقشِ درست به‌صورت برچسبِ فارسی ذخیره شده.
+     ⚠️ پرونده‌های «آرایه» (تشبیه، کنایه، …) نقشِ دستوری نیستند و بدونِ این
+     شرط هر کدام یک سطلِ «نقش» می‌ساختند. */
+  const jasoosRows = await query<{
+    correct_role: string;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select correct_role, is_correct, answered_at
        from jasoos_answers
-      where user_id = ?
+      where user_id = ? and category <> 'آرایه'
       order by answered_at desc
       limit ?`,
     [userId, SOURCE_ROW_CAP],
@@ -170,12 +218,16 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
   for (const r of jasoosRows) {
     const bucket = roleBucketFor(r.correct_role ?? "");
     if (!bucket) continue;
-    rows.push({ ...bucket, correct: r.is_correct, source: "جاسوس" });
+    rows.push({ ...bucket, correct: r.is_correct, source: "جاسوس", at: r.answered_at });
   }
 
   /* منبع ۲ — مدارِ دستور. کلیدِ نقش مستقیم ذخیره شده. */
-  const circuitRows = await query<{ role_key: string; is_correct: boolean }>(
-    `select role_key, is_correct
+  const circuitRows = await query<{
+    role_key: string;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select role_key, is_correct, answered_at
        from grammar_circuit_answers
       where user_id = ?
       order by answered_at desc
@@ -191,12 +243,17 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
       label: roleLabelForKey(key) ?? key,
       correct: r.is_correct,
       source: "مدار دستور",
+      at: r.answered_at,
     });
   }
 
   /* منبع ۳ — شکارِ نقش‌ها. همان کلیدِ متعارف، از همان کاتالوگ. */
-  const huntRows = await query<{ role_key: string; is_correct: boolean }>(
-    `select role_key, is_correct
+  const huntRows = await query<{
+    role_key: string;
+    is_correct: boolean;
+    answered_at: string;
+  }>(
+    `select role_key, is_correct, answered_at
        from role_hunt_answers
       where user_id = ?
       order by answered_at desc
@@ -212,10 +269,15 @@ export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
       label: roleLabelForKey(key) ?? key,
       correct: r.is_correct,
       source: "شکار نقش‌ها",
+      at: r.answered_at,
     });
   }
 
-  return bucketize(rows);
+  return rows;
+}
+
+export async function getRoleAnalysis(userId: string): Promise<SkillAnalysis> {
+  return bucketize(await collectRoleRows(userId));
 }
 
 /* ────────────────────────── دفترِ اشتباه‌ها ─────────────────────────────── */
@@ -434,7 +496,7 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
     items.push({
       kind: "weak_weight",
       title: `تمرین وزن «${weakWeight.label}»`,
-      detail: `از ${weakWeight.total.toLocaleString("fa-IR")} تمرینِ این وزن، ${weakWeight.correct.toLocaleString("fa-IR")} تا درست بوده.`,
+      detail: `از ${weakWeight.total.toLocaleString("fa-IR")} تمرین این وزن، ${weakWeight.correct.toLocaleString("fa-IR")} تا درست بوده.`,
       minutes: 6,
       href: "/game/aruz-bridge",
     });
@@ -445,7 +507,7 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
     items.push({
       kind: "weak_role",
       title: `تمرین نقش «${weakRole.label}»`,
-      detail: `دقتِ تو در این نقش ${Math.round(weakRole.accuracy * 100).toLocaleString("fa-IR")}٪ است.`,
+      detail: `دقت تو در این نقش ${Math.round(weakRole.accuracy * 100).toLocaleString("fa-IR")}٪ است.`,
       minutes: 7,
       href: "/game/grammar-circuit",
     });
@@ -455,7 +517,7 @@ export async function getTodayPlan(userId: string): Promise<TodayPlan> {
     items.push({
       kind: "review_mistakes",
       title: "مرور دفتر اشتباه‌ها",
-      detail: `${mistakes.toLocaleString("fa-IR")} اشتباهِ ثبت‌شده در یک ماه اخیر، آمادهٔ مرور است.`,
+      detail: `${mistakes.toLocaleString("fa-IR")} اشتباه ثبت‌شده در یک ماه اخیر، آمادهٔ مرور است.`,
       // تخمینِ زمان از تعدادِ واقعیِ آیتم می‌آید و نه یک عددِ ثابتِ دلپذیر.
       minutes: Math.min(20, Math.max(3, Math.round(mistakes * 0.4))),
       href: "/panel/analysis#mistakes",

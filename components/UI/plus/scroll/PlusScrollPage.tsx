@@ -39,10 +39,10 @@ function Jewel({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" aria-hidden>
       <defs>
         <linearGradient id={id} x1="3" y1="3" x2="18" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#c3fff4" /><stop offset=".36" stopColor="#40d8cb" /><stop offset=".7" stopColor="#00a5a6" /><stop offset="1" stopColor="#006a76" />
+          <stop style={{ stopColor: "color-mix(in oklch, var(--primary) 25%, white)" }} /><stop offset=".36" style={{ stopColor: "color-mix(in oklch, var(--primary) 70%, white)" }} /><stop offset=".7" style={{ stopColor: "var(--primary)" }} /><stop offset="1" style={{ stopColor: "color-mix(in oklch, var(--primary) 60%, black)" }} />
         </linearGradient>
       </defs>
-      <path d={SARVA_STAR_PATH} fill={`url(#${id})`} stroke="#8de6dc" strokeWidth=".45" strokeLinejoin="round" />
+      <path d={SARVA_STAR_PATH} fill={`url(#${id})`} stroke="color-mix(in oklch, var(--primary) 55%, white)" strokeWidth=".45" strokeLinejoin="round" />
       <path d="m12 3 0 9-8-3.1 8 1.6 8-1.6-7 4 4 5.6-5-4-5 4 4-5.6Z" fill="#e8fff9" opacity=".2" />
     </svg>
   );
@@ -242,20 +242,20 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
         </div>
         <header className={styles.hero}>
           <div className={styles.heroInner}>
-            <span className={styles.eyebrow}><SarvaStar size={16} /> سروا پلاس</span>
-            <h1 className={styles.heroTitle}>فقط بیشتر تمرین نکن؛<br /><em>هوشمندانه‌تر پیش برو.</em></h1>
-            <p className={styles.heroLede}>بدان چه چیزی را باید مرور کنی. سروا پلاس از پاسخ‌های خودت، مسیرِ یادگیریِ مخصوص تو را می‌سازد؛ با تمرین‌هایی که درست به آن‌ها نیاز داری.</p>
-            <a className={styles.heroCta} href="#plans">پلن مناسب من <ArrowDown size={16} aria-hidden /></a>
+            
+            <h1 className={styles.heroTitle}>سروا پلاس</h1>
+            <p className={styles.heroLede}>نقش دستوری و آرایه‌های درسنامه، هوشواره، تحلیل اشتباه‌ها و تمرین پیشنهادی هر روز.</p>
+            <a className={styles.heroCta} href="#plans">دیدن قیمت‌ها <ArrowDown size={16} aria-hidden /></a>
             <div ref={seedRef} className={styles.heroSeed} aria-hidden><Jewel /></div>
-            <p className={styles.scrollHint}>یک ستاره، همراهِ مسیر تو <ArrowDown size={13} aria-hidden /></p>
+            
           </div>
         </header>
 
         <section className={styles.wheel}>
           <div className={styles.wheelCopy}>
-            <span className={styles.sectionLabel}>از تمرین تا پیشرفت</span>
-            <h2 className={styles.wheelTitle}>هر بار، یک قدم آگاهانه‌تر</h2>
-            <p className={styles.wheelLede}>تمرین می‌کنی، خودت را بهتر می‌شناسی و این بار، دقیق‌تر ادامه می‌دهی.</p>
+            
+            <h2 className={styles.wheelTitle}>چطور کار می‌کند</h2>
+            
             <ol className={styles.cycleList}>{cycle.map((step, i) => (
               <li key={step.title} className={styles.cycleCard} data-cycle-step>
                 <span className={styles.cycleIndex}>{(i + 1).toLocaleString("fa-IR")}</span>
@@ -265,7 +265,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
           </div>
           <div className={styles.wheelArt} aria-hidden>
             <div className={styles.wheelRing}><i /><i /><i /></div>
-            <div className={styles.wheelCore}><SarvaStar size={68} /><span>قدم‌به‌قدم، با تو</span></div>
+            <div className={styles.wheelCore}><SarvaStar size={68} /></div>
             <span className={styles.orbitLabel}>تمرین</span><span className={styles.orbitLabel}>شناخت</span><span className={styles.orbitLabel}>پیشرفت</span>
           </div>
         </section>
@@ -281,7 +281,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
                   <article className={styles.card} data-reason-card>
                     <span className={styles.cardAura} aria-hidden />
                     <span className={styles.cardGhost} aria-hidden>{(i + 1).toLocaleString("fa-IR")}</span>
-                    <div className={styles.cardHead}><span className={styles.cardStep}><Icon size={23} aria-hidden /></span><span className={styles.cardKicker}>{(i + 1).toLocaleString("fa-IR")} از {reasons.length.toLocaleString("fa-IR")} دلیل برای پلاس</span></div>
+                    <div className={styles.cardHead}><span className={styles.cardStep}><Icon size={23} aria-hidden /></span></div>
                     <h2 className={styles.cardTitle}>{reason.title}</h2>
                     <p className={styles.cardBody}>{reason.body}</p>
                     <p className={styles.cardNote}><Sparkles size={14} aria-hidden />{reason.note}</p>
@@ -299,7 +299,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
             <div ref={dockRef} className={styles.dockTarget} />
             <Jewel className={styles.dockFallback} />
           </div>
-          <div className={styles.plansIntro}><span className={styles.sectionLabel}>جای تو در سروا پلاس</span><h2>برای قدم بعدی آماده‌ای؟</h2><p>همان یادگیری که دوست داری؛ این بار با شناختِ بیشتر.</p></div>
+          <div className={styles.plansIntro}><h2>قیمت‌ها</h2></div>
           <div className={styles.planContent}>{plans}</div>
         </section>
       </main>

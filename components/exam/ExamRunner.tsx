@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import OverlayPortal from "@/components/UI/OverlayPortal";
 import { motion, AnimatePresence } from "motion/react";
 import type { ClientExam, ClientQuestion } from "@/lib/exam/client-exam";
@@ -11,6 +11,8 @@ import Link from "next/link";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { submitExamAttempt, submitQuestion } from "@/app/exam/[examKey]/actions";
 import type { QuestionResult } from "@/lib/exam/result-types";
+import { celebrate, questionOutcome, type QuestionOutcome } from "@/components/exam/celebrate";
+import { isSoundMuted, setSoundMuted } from "@/lib/exam/feedback-sfx";
 
 type Props = {
   examKey: string;
@@ -83,6 +85,12 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<null | "finish" | "reset">(null);
   const [isPending, startTransition] = useTransition();
+  /** the question just submitted, for the one-off glow/shake/confetti */
+  const [fresh, setFresh] = useState<{ number: number; outcome: QuestionOutcome } | null>(null);
+  /** fully-correct questions in a row, this sitting only */
+  const [streak, setStreak] = useState(0);
+  const [muted, setMuted] = useState(false);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   /** undefined = still checking, null = guest, string = signed in.
    *
@@ -123,6 +131,7 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from localStorage on mount, not derived state
     setProgress(restoredProgress);
+    setMuted(isSoundMuted());
     setRestored(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examKey]);
@@ -131,6 +140,37 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
     if (!restored) return;
     localStorage.setItem(storageKey(examKey), JSON.stringify(progress));
   }, [restored, examKey, progress]);
+
+  // after «ثبت پاسخ», bring the first answer box into view — on a phone it is
+  // usually below the fold, under the fixed bottom bar
+  useEffect(() => {
+    if (!fresh) return;
+    const id = window.requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>("[data-answer-feedback]");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.top < 80 || r.bottom > window.innerHeight - 96) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [fresh]);
+
+  // Enter = the main button (ثبت پاسخ / سؤال بعدی), except inside a textarea
+  // or on a focused button/select, where Enter already means something
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
+      const t = e.target as HTMLElement | null;
+      if (t && ["TEXTAREA", "BUTTON", "SELECT", "A"].includes(t.tagName)) return;
+      const btn = submitBtnRef.current;
+      if (!btn || btn.disabled) return;
+      e.preventDefault();
+      btn.click();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   if (!restored) {
     return (
@@ -152,13 +192,16 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
   const currentAnswers: Record<number, unknown> = Object.fromEntries(
     question.parts.map((_, i) => [i, answers[`${question.number}:${i}`]]),
   );
-  const hasAnyAnswer = Object.values(currentAnswers).some(
-    (v) =>
-      v !== undefined &&
-      v !== null &&
-      v !== "" &&
-      !(Array.isArray(v) && v.length === 0),
-  );
+  const isFilled = (v: unknown): boolean => {
+    if (v === undefined || v === null) return false;
+    if (typeof v === "string") return v.trim() !== "";
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.values(v as Record<string, unknown>).some(isFilled);
+    return true;
+  };
+  const hasAnyAnswer = Object.values(currentAnswers).some(isFilled);
+  const unansweredParts =
+    question.parts.length > 1 ? Object.values(currentAnswers).filter((v) => !isFilled(v)).length : 0;
 
   const setAnswer = (partIndex: number, value: unknown) => {
     setProgress((prev) => ({
@@ -183,6 +226,11 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
             [question.number]: result,
           },
         }));
+        const outcome = questionOutcome(result.parts);
+        const nextStreak = outcome === "correct" ? streak + 1 : outcome === "pending" ? streak : 0;
+        setStreak(nextStreak);
+        setFresh({ number: question.number, outcome });
+        celebrate(outcome, submitBtnRef.current, nextStreak);
       } catch {
         setError("مشکلی در ثبت پاسخ پیش آمد. دوباره تلاش کنید.");
       }
@@ -223,17 +271,20 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    setFresh(null);
     setProgress((prev) => ({ ...prev, currentIndex: prev.currentIndex + 1 }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goPrevious = () => {
     if (currentIndex === 0) return;
+    setFresh(null);
     setProgress((prev) => ({ ...prev, currentIndex: prev.currentIndex - 1 }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goToIndex = (index: number) => {
+    setFresh(null);
     setProgress((prev) => ({ ...prev, currentIndex: index }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -258,6 +309,8 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
   // run after the student confirms in the modal
   const doReset = () => {
     setConfirmKind(null);
+    setFresh(null);
+    setStreak(0);
     handleRetry();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -290,10 +343,9 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
             برای ادامهٔ آزمون وارد شو
           </h2>
           <p className=" mx-auto mt-3 max-w-md leading-relaxed text-muted-foreground">
-            آزمونِ اولِ فهرست بدون ورود کامل باز است؛ برای بقیهٔ آزمون‌ها و برای
-            اینکه کارنامه‌ات در پنل بماند، باید وارد حساب شوی.
+            برای ادامه و ذخیرهٔ کارنامه باید وارد شوی.
             <br />
-            هرچه تا اینجا زده‌ای ذخیره شده — بعد از ورود از همین‌جا ادامه می‌دهی.
+            جواب‌هایت ذخیره شده و بعد از ورود از همین سؤال ادامه می‌دهی.
           </p>
           <div className=" mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -371,8 +423,23 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
         <div className="text-center">
           <h1 className="text-lg font-bold xs:text-xl">{exam.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {sectionTitle} · سؤال {currentIndex + 1} از {flatQuestions.length}
+            {sectionTitle} · سؤال {(currentIndex + 1).toLocaleString("fa-IR")} از{" "}
+            {flatQuestions.length.toLocaleString("fa-IR")}
           </p>
+          <AnimatePresence>
+            {streak >= 2 && (
+              <motion.p
+                key={streak}
+                initial={{ opacity: 0, scale: 0.7, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                className="mx-auto mt-1.5 w-fit rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-bold text-foreground"
+              >
+                🔥 {streak.toLocaleString("fa-IR")} درست پشت سر هم
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
         <div className="relative w-[4.5rem] flex justify-end">
           <button
@@ -387,6 +454,16 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
               <div className="absolute left-0 top-full z-40 mt-2 flex min-w-44 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSoundMuted(!muted);
+                    setMuted(!muted);
+                  }}
+                  className="rounded-lg px-3 py-2 text-right text-sm hover:bg-accent/70 transition-all"
+                >
+                  {muted ? "صدا: خاموش" : "صدا: روشن"}
+                </button>
                 <button
                   type="button"
                   onClick={finishEarly}
@@ -435,6 +512,7 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
         partResults={questionResults[question.number]?.parts}
         onSelfGrade={handleSelfGrade}
         examKey={examKey}
+        freshOutcome={fresh?.number === question.number ? fresh.outcome : undefined}
       />
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md xs:px-5">
@@ -449,6 +527,7 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
             سؤال قبلی
           </button>
           <button
+            ref={submitBtnRef}
             type="button"
             disabled={isPending || (!isRevealed && !hasAnyAnswer)}
             onClick={isRevealed ? goNext : handleSubmitQuestion}
@@ -464,6 +543,11 @@ export default function ExamRunner({ examKey, exam, guestAllowed }: Props) {
                 : "ثبت پاسخ"}
           </button>
         </div>
+        {!isRevealed && hasAnyAnswer && unansweredParts > 0 && (
+          <p className="mx-auto mt-1.5 max-w-xl text-center text-xs text-muted-foreground">
+            {unansweredParts.toLocaleString("fa-IR")} بخش بی‌پاسخ
+          </p>
+        )}
         {error && (
           <p className="mx-auto mt-2 max-w-xl text-center text-xs text-destructive">
             {error}

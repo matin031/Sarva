@@ -53,6 +53,11 @@ describe("سطل‌های روزانه", () => {
     assert.equal(b.every((x) => x.total === 0), true);
   });
 
+  test("چند ردیفِ یک روز (یکی برای هر بخش) جمع می‌شوند", () => {
+    const b = bucketsFromDayCounts(counts([[0, 5, 3], [0, 7, 2]]), 1, NOW);
+    assert.deepEqual([b[0].total, b[0].correct], [12, 5]);
+  });
+
   test("هر روز برچسبِ فارسی دارد", () => {
     const b = bucketsFromDayCounts([], 3, NOW);
     assert.equal(b.every((x) => x.label.length > 0), true);

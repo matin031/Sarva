@@ -33,9 +33,9 @@ export default async function PlusSettingCard() {
           // خریداری نشده ولی آزمایشی هم نیست، و نوشتنِ «آزمایشی» رویش یعنی
           // به دبیری که تازه تأیید شده بگوییم دسترسی‌اش موقتی است.
           title: status.source === "teacher_verified"
-            ? "سروا پلاس دبیران برایت روشن است"
+            ? "سروا پلاس دبیران فعال است"
             : status.isTrial
-              ? "دسترسی آزمایشی سروا پلاس روشن است"
+              ? "دسترسی آزمایشی سروا پلاس فعال است"
               : "سروا پلاس روشن است",
           body:
             status.expiresAt === null
@@ -50,7 +50,7 @@ export default async function PlusSettingCard() {
       case "expired":
         return {
           title: "سروا پلاس‌ات تمام شده",
-          body: "سابقه و پیشرفتت سرِ جایش است؛ با تمدید، همان‌جا ادامه می‌دهی.",
+          body: "سوابقت پاک نشده است.",
           cta: "روشن کردن سروا پلاس",
           href: "/plus",
           variant: "gold" as const,
@@ -66,7 +66,7 @@ export default async function PlusSettingCard() {
       case "unavailable":
         return {
           title: "وضعیت سروا پلاس‌ات معلوم نشد",
-          body: "در بررسی وضعیت اشتراک مشکلی پیش آمد. این یعنی «نمی‌دانیم»، نه «نداری».",
+          body: "چند لحظه بعد دوباره امتحان کن.",
           cta: "دیدن وضعیت اشتراک",
           href: "/panel/subscription",
           variant: "outline" as const,

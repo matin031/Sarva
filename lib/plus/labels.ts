@@ -54,7 +54,9 @@ export function orderStatusLabel(status: OrderStatus, attempt: PaymentState | nu
     return "در حال بررسی";
   }
   if (attempt === "failed") return "پرداخت ناموفق";
-  if (attempt === "cancelled") return "لغوشده";
+  // سفارش هنوز باز است و می‌شود دوباره پرداختش کرد؛ «لغوشده» خالی آن را با
+  // سفارشی که مدیر بسته اشتباه می‌گرفت.
+  if (attempt === "cancelled") return "پرداخت لغو شد";
   return "در انتظار پرداخت";
 }
 

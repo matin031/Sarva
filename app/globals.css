@@ -5,6 +5,14 @@
 @theme inline {
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-shine: shine var(--duration) infinite linear;
+}
+
+/* Magic UI — Shine Border (`components/UI/kit/magic/shine-border.tsx`). */
+@keyframes shine {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  to { background-position: 0% 0%; }
 }
 
 @keyframes accordion-down {
@@ -73,6 +81,35 @@
   --primary-deep: color-mix(in oklch, var(--primary) 72%, #000);
   --gold-deep: color-mix(in oklch, var(--gold) 68%, #000);
 
+  /* ── شبِ بازی‌ها ──────────────────────────────────────────────────────
+     چند بازی صحنهٔ خودشان را در «شب» می‌سازند: زمینِ نینجا، تهیِ زیرِ پلِ
+     وزن، کارگاهِ مدار دستور. تا پیش از این هر کدام شبِ خودش را با هگزِ
+     دستی می‌نوشت، و نتیجه‌اش دو ایراد بود:
+
+       ۱) روی تمِ روشن یک *مستطیلِ سیاه* وسطِ کاغذِ کرم می‌نشست. مرزش هیچ
+          ربطی به بقیهٔ صفحه نداشت — شبیهِ iframe ای از یک سایتِ دیگر.
+       ۲) با عوض شدنِ `data-palette` هیچ اتفاقی نمی‌افتاد. کاربرِ پالتِ رز
+          کلِ سایت را صورتی می‌کرد و زمینِ بازی همان آبیِ بنفش می‌ماند.
+
+     حالا شب از `--primary` ساخته می‌شود، پس در هر پالت شبِ *همان* پالت
+     است: شبِ فیروزه‌ای، شبِ رز، شبِ زعفرانی.
+
+     ⚠️ پایه عمداً خاکستریِ بی‌فام است (`oklch(L 0 0)`) و نه یک سرمه‌ایِ
+     کم‌فام. همان تلهٔ `--pattern-color` بالاتر: color-mix بینِ دو فامِ دور
+     از کوتاه‌ترین کمان می‌گذرد و یک فامِ سوم می‌سازد. با پایهٔ بی‌فام،
+     فامِ نتیجه فقط و فقط از --primary می‌آید.
+
+     ⚠️ و اینجا `.dark` ندارد: خودِ --primary در تمِ تیره روشن‌تر می‌شود، پس
+     شب هم کمی بازتر می‌شود — همان جهتی که درست است. */
+  --game-night-1: color-mix(in oklch, var(--primary) 30%, oklch(0.32 0 0)); /* سقفِ صحنه */
+  --game-night-2: color-mix(in oklch, var(--primary) 20%, oklch(0.22 0 0)); /* میانه */
+  --game-night-3: color-mix(in oklch, var(--primary) 12%, oklch(0.15 0 0)); /* تهِ صحنه */
+  /* متن و سطحِ شناور *روی* شب. کرمِ سایت، نه سفیدِ خام. */
+  --game-night-ink: color-mix(in oklch, var(--cream) 92%, var(--primary));
+  --game-night-veil: color-mix(in oklch, var(--game-night-3) 72%, transparent);
+  /* لبهٔ صحنه — همان مرزی که کارت‌های سایت دارند، ولی از سمتِ شب دیده شود. */
+  --game-night-edge: color-mix(in oklch, var(--primary) 34%, var(--game-night-1));
+
   /* ── رنگِ الگوی هندسیِ پس‌زمینه ───────────────────────────────────────
      تا پیش از این هر جا `<GeometricPattern />` بود، رنگش را والدش تعیین
      می‌کرد: در سایت `text-gold` و در پنل و صفحهٔ پلاس `var(--primary)`.
@@ -96,7 +133,10 @@
      درسش کلی است: color-mix بینِ دو فامِ دور، یک رنگِ سوم می‌سازد و نه
      میانگینِ آن دو. حالا تک‌رنگ است و هیچ فامی جابه‌جا نمی‌شود؛ چون --gold
      خودش در هر پالت عوض می‌شود، الگو هم عوض می‌شود. */
-  --pattern-color: var(--gold);
+  /* خودِ --pattern-color پایین‌تر، کنارِ `.sarva-pattern` تعریف می‌شود. */
+  /* شدتِ الگو. در تمِ تیره پایین‌تر است؛ ستاره‌های روشن روی زمینهٔ شب
+     بیشتر دیده می‌شوند و کلِ صفحه را رنگی نشان می‌دادند. */
+  --pattern-strength: 0.6;
 
   /* ── دو تنِ نشانِ سروا ────────────────────────────────────────────────
      لوگو دو رنگ دارد: یک تنِ روشن‌تر و یک تنِ کمی تیره‌تر که به آن حجم
@@ -276,9 +316,9 @@
 /* ------------------------------------------------------------------ آسمانی */
 /* #337A9F  #B9DDF2  #E7DDF6  #F6E4C8 */
 :root:not(.dark)[data-palette="sky"] {
-  --background: oklch(0.985 0.008 233.663);
+  --background: oklch(0.975 0.016 233.663);
   --foreground: oklch(0.27 0.045 234.615);
-  --card: oklch(0.995 0.002 233.663);
+  --card: oklch(0.996 0.004 233.663);
   --primary: oklch(0.551 0.091 234.615);
   --secondary: oklch(0.878 0.048 233.663);
   --accent: oklch(0.926 0.042 78.962);
@@ -289,10 +329,10 @@
   --gold-ink: oklch(0.555 0.11 78.962);
 }
 :root.dark[data-palette="sky"] {
-  --background: oklch(0.155 0.028 234.615);
+  --background: oklch(0.165 0.01 234.615);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 234.615);
-  --primary: oklch(0.68 0.118 234.615);
+  --card: oklch(0.2 0.013 234.615);
+  --primary: oklch(0.8 0.09 234.615);
   --accent: oklch(0.82 0.06 78.962);
   --turquoise-light: oklch(0.8 0.062 233.663);
   --lapis: oklch(0.52 0.08 303.792);
@@ -304,9 +344,9 @@
 /* -------------------------------------------------------------------- یاسی */
 /* #6F63A8  #D8D0F0  #D7ECE7  #F6DDD2 */
 :root:not(.dark)[data-palette="lilac"] {
-  --background: oklch(0.985 0.007 296.915);
+  --background: oklch(0.975 0.016 296.915);
   --foreground: oklch(0.27 0.045 290.382);
-  --card: oklch(0.995 0.002 296.915);
+  --card: oklch(0.996 0.004 296.915);
   --primary: oklch(0.541 0.106 290.382);
   --secondary: oklch(0.874 0.044 296.915);
   --accent: oklch(0.915 0.032 45.273);
@@ -317,10 +357,10 @@
   --gold-ink: oklch(0.55 0.11 85);
 }
 :root.dark[data-palette="lilac"] {
-  --background: oklch(0.155 0.028 290.382);
+  --background: oklch(0.165 0.01 290.382);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 290.382);
-  --primary: oklch(0.68 0.137 290.382);
+  --card: oklch(0.2 0.013 290.382);
+  --primary: oklch(0.8 0.1 290.382);
   --accent: oklch(0.82 0.06 45.273);
   --turquoise-light: oklch(0.8 0.057 296.915);
   --lapis: oklch(0.52 0.08 179.924);
@@ -332,9 +372,9 @@
 /* ------------------------------------------------------------------ نعنایی */
 /* #2F7F69  #BFE6D9  #DDE9F7  #F6E0CB */
 :root:not(.dark)[data-palette="mint"] {
-  --background: oklch(0.985 0.014 173.052);
+  --background: oklch(0.975 0.016 173.052);
   --foreground: oklch(0.27 0.045 171.774);
-  --card: oklch(0.995 0.006 173.052);
+  --card: oklch(0.996 0.004 173.052);
   --primary: oklch(0.541 0.085 171.774);
   --secondary: oklch(0.893 0.044 173.052);
   --accent: oklch(0.919 0.037 66.026);
@@ -345,10 +385,10 @@
   --gold-ink: oklch(0.56 0.11 66.026);
 }
 :root.dark[data-palette="mint"] {
-  --background: oklch(0.155 0.028 171.774);
+  --background: oklch(0.165 0.01 171.774);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 171.774);
-  --primary: oklch(0.68 0.111 171.774);
+  --card: oklch(0.2 0.013 171.774);
+  --primary: oklch(0.8 0.085 171.774);
   --accent: oklch(0.82 0.06 66.026);
   --turquoise-light: oklch(0.8 0.057 173.052);
   --lapis: oklch(0.52 0.08 252.179);
@@ -360,9 +400,9 @@
 /* ----------------------------------------------------------------- پسته‌ای */
 /* #577B59  #CEDFC7  #E4E2F2  #F2E2C8 */
 :root:not(.dark)[data-palette="pistachio"] {
-  --background: oklch(0.985 0.014 136.459);
+  --background: oklch(0.975 0.016 136.459);
   --foreground: oklch(0.27 0.045 145.964);
-  --card: oklch(0.995 0.006 136.459);
+  --card: oklch(0.996 0.004 136.459);
   --primary: oklch(0.546 0.066 145.964);
   --secondary: oklch(0.884 0.037 136.459);
   --accent: oklch(0.919 0.039 80.02);
@@ -373,10 +413,10 @@
   --gold-ink: oklch(0.555 0.11 80.02);
 }
 :root.dark[data-palette="pistachio"] {
-  --background: oklch(0.155 0.028 145.964);
+  --background: oklch(0.165 0.01 145.964);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 145.964);
-  --primary: oklch(0.68 0.086 145.964);
+  --card: oklch(0.2 0.013 145.964);
+  --primary: oklch(0.8 0.08 145.964);
   --accent: oklch(0.82 0.06 80.02);
   --turquoise-light: oklch(0.8 0.048 136.459);
   --lapis: oklch(0.52 0.08 291.715);
@@ -388,9 +428,9 @@
 /* ------------------------------------------------------------------- هلویی */
 /* #A95F45  #F2CBB8  #DCE8F4  #E5DDF2 */
 :root:not(.dark)[data-palette="peach"] {
-  --background: oklch(0.985 0.007 47.476);
+  --background: oklch(0.975 0.016 47.476);
   --foreground: oklch(0.27 0.045 39.962);
-  --card: oklch(0.995 0.002 47.476);
+  --card: oklch(0.996 0.004 47.476);
   --primary: oklch(0.565 0.104 39.962);
   --secondary: oklch(0.871 0.051 47.476);
   --accent: oklch(0.91 0.03 303.057);
@@ -401,10 +441,10 @@
   --gold-ink: oklch(0.55 0.11 85);
 }
 :root.dark[data-palette="peach"] {
-  --background: oklch(0.155 0.028 39.962);
+  --background: oklch(0.165 0.01 39.962);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 39.962);
-  --primary: oklch(0.68 0.135 39.962);
+  --card: oklch(0.2 0.013 39.962);
+  --primary: oklch(0.8 0.09 39.962);
   --accent: oklch(0.82 0.06 303.057);
   --turquoise-light: oklch(0.8 0.066 47.476);
   --lapis: oklch(0.52 0.08 248.053);
@@ -416,9 +456,9 @@
 /* ---------------------------------------------------------------------- رز */
 /* #A95870  #EBC6D1  #DCE9F6  #E7E0F4 */
 :root:not(.dark)[data-palette="rose"] {
-  --background: oklch(0.985 0.007 358.261);
+  --background: oklch(0.975 0.016 358.261);
   --foreground: oklch(0.27 0.045 2.31);
-  --card: oklch(0.995 0.002 358.261);
+  --card: oklch(0.996 0.004 358.261);
   --primary: oklch(0.563 0.109 2.31);
   --secondary: oklch(0.861 0.044 358.261);
   --accent: oklch(0.918 0.028 301.737);
@@ -429,10 +469,10 @@
   --gold-ink: oklch(0.55 0.11 85);
 }
 :root.dark[data-palette="rose"] {
-  --background: oklch(0.155 0.028 2.31);
+  --background: oklch(0.165 0.01 2.31);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 2.31);
-  --primary: oklch(0.68 0.141 2.31);
+  --card: oklch(0.2 0.013 2.31);
+  --primary: oklch(0.8 0.09 2.31);
   --accent: oklch(0.82 0.06 301.737);
   --turquoise-light: oklch(0.8 0.057 358.261);
   --lapis: oklch(0.52 0.08 248.071);
@@ -444,9 +484,9 @@
 /* ----------------------------------------------------------------- زعفرانی */
 /* #95672C  #F0D4B2  #D9ECE1  #F3DAE5 */
 :root:not(.dark)[data-palette="saffron"] {
-  --background: oklch(0.985 0.01 72.413);
+  --background: oklch(0.975 0.016 72.413);
   --foreground: oklch(0.27 0.045 70.068);
-  --card: oklch(0.995 0.003 72.413);
+  --card: oklch(0.996 0.004 72.413);
   --primary: oklch(0.551 0.095 70.068);
   --secondary: oklch(0.885 0.055 72.413);
   --accent: oklch(0.912 0.031 349.281);
@@ -457,10 +497,10 @@
   --gold-ink: oklch(0.55 0.11 85);
 }
 :root.dark[data-palette="saffron"] {
-  --background: oklch(0.155 0.028 70.068);
+  --background: oklch(0.165 0.01 70.068);
   --foreground: oklch(0.95 0.014 85);
-  --card: oklch(0.19 0.026 70.068);
-  --primary: oklch(0.68 0.123 70.068);
+  --card: oklch(0.2 0.013 70.068);
+  --primary: oklch(0.8 0.095 70.068);
   --accent: oklch(0.82 0.06 349.281);
   --turquoise-light: oklch(0.8 0.071 72.413);
   --lapis: oklch(0.52 0.08 160.569);
@@ -479,8 +519,21 @@
    ضعیف‌ترند — یعنی این قاعده برنده است حتی اگر جایی کلاسِ رنگ به کامپوننت
    پاس داده شود. اگر روزی واقعاً به یک الگوی هم‌رنگِ چیزِ دیگر نیاز شد، راهش
    عوض کردنِ `--pattern-color` روی همان شاخه است، نه کلاسِ رنگ. */
+/* ⚠️ رنگِ الگو از خودِ زمینه ساخته می‌شود و نه از یک رنگِ تزئینی.
+   پیش از این طلایی بود و در تمِ تیرهٔ هر پالت، روی کلِ صفحه یک هالهٔ
+   رنگی می‌انداخت. حالا ترکیبِ متن و رنگِ اصلی است، در srgb تا فامِ سومی
+   ساخته نشود؛ روی زمینهٔ روشن کمی تیره‌تر و روی تیره کمی روشن‌تر می‌نشیند. */
+:root {
+  --pattern-color: color-mix(in srgb, var(--primary) 55%, var(--foreground));
+}
+.dark {
+  --pattern-color: color-mix(in srgb, var(--primary) 35%, var(--foreground));
+  --pattern-strength: 0.45;
+}
 .sarva-pattern {
   color: var(--pattern-color);
+  opacity: var(--pattern-strength);
+  transition: opacity 400ms ease;
 }
 
 /* ---- نشانِ سروا -----------------------------------------------------------
@@ -516,13 +569,13 @@
 .pal-swatch[data-pal="saffron"]            { --sw-1: #95672C; --sw-2: #F3DAE5; }
 
 .dark .pal-swatch[data-pal="turquoise"]          { --sw-1: #00a5a6; --sw-2: oklch(0.75 0.12 85); }
-.dark .pal-swatch[data-pal="sky"]                { --sw-1: #3fa3d6; --sw-2: #d9c099; }
-.dark .pal-swatch[data-pal="lilac"]              { --sw-1: #9888e6; --sw-2: #e6b9a4; }
-.dark .pal-swatch[data-pal="mint"]               { --sw-1: #3eae90; --sw-2: #e0bd9b; }
-.dark .pal-swatch[data-pal="pistachio"]          { --sw-1: #75a778; --sw-2: #d9c099; }
-.dark .pal-swatch[data-pal="peach"]              { --sw-1: #dd7855; --sw-2: #ccbbe5; }
-.dark .pal-swatch[data-pal="rose"]               { --sw-1: #de7091; --sw-2: #cbbce5; }
-.dark .pal-swatch[data-pal="saffron"]            { --sw-1: #c88937; --sw-2: #e3b5ca; }
+.dark .pal-swatch[data-pal="sky"]                { --sw-1: oklch(0.8 0.09 234.6); --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="lilac"]              { --sw-1: oklch(0.8 0.1 290.4); --sw-2: #e6b9a4; }
+.dark .pal-swatch[data-pal="mint"]               { --sw-1: oklch(0.8 0.085 171.8); --sw-2: #e0bd9b; }
+.dark .pal-swatch[data-pal="pistachio"]          { --sw-1: oklch(0.8 0.08 146); --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="peach"]              { --sw-1: oklch(0.8 0.09 40); --sw-2: #ccbbe5; }
+.dark .pal-swatch[data-pal="rose"]               { --sw-1: oklch(0.8 0.09 2.3); --sw-2: #cbbce5; }
+.dark .pal-swatch[data-pal="saffron"]            { --sw-1: oklch(0.8 0.095 70); --sw-2: #e3b5ca; }
 
 #nprogress .bar {
   background: var(--color-primary) !important;
@@ -597,6 +650,11 @@
   --color-surface-2: var(--surface-2);
   --color-primary-deep: var(--primary-deep);
   --color-gold-deep: var(--gold-deep);
+  --color-game-night-1: var(--game-night-1);
+  --color-game-night-2: var(--game-night-2);
+  --color-game-night-3: var(--game-night-3);
+  --color-game-night-ink: var(--game-night-ink);
+  --color-game-night-edge: var(--game-night-edge);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -638,15 +696,37 @@
   }
 }
 
+/* از --card و --border ساخته می‌شود تا با پالت و تم عوض شود؛ پیش از این
+   کرمِ ثابت بود و در هر پالتی جز فیروزه‌ای یک تکهٔ کرم وسطِ صفحه می‌ماند. */
 .glass {
-  background: #fdfcf8b3;
+  background: color-mix(in oklch, var(--card) 70%, transparent);
   backdrop-filter: blur(12px);
-  border: 1px solid #ded7c980;
+  border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
 }
 
-.dark .glass {
-  background: #0b121db3;
-  border: 1px solid #22293580;
+/* سطحِ شیشه‌ایِ منوهای هدر (فهرست، حساب، پالت). رنگ از --card می‌آید، پس
+   با پالت و تم خودش عوض می‌شود. */
+.glass-pop {
+  background: color-mix(in oklch, var(--card) 64%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.7);
+  border: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 2px 6px rgb(0 0 0 / 0.04),
+    0 28px 60px -20px color-mix(in oklch, var(--primary) 30%, rgb(0 0 0 / 0.35));
+}
+.dark .glass-pop {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  border-color: color-mix(in oklch, var(--foreground) 11%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 28px 60px -20px rgb(0 0 0 / 0.75);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-pop {
+    background: var(--card);
+  }
 }
 
 .glass-toast {
@@ -912,6 +992,14 @@ button {
   isolation: isolate;
 }
 
+/* جلوهٔ عوض شدنِ پالت (`switchPalette`): ماسکِ دایره‌ای با لبهٔ نرم که
+   اندازه‌اش از JS بزرگ می‌شود. فقط در طولِ همان گذار روی <html> است. */
+html[data-palette-switching]::view-transition-new(root) {
+  mask-image: radial-gradient(closest-side, #000 70%, transparent 100%);
+  mask-repeat: no-repeat;
+  mask-size: 0 0;
+}
+
 .recharts-wrapper,
 .recharts-surface {
   outline: none !important;
@@ -1020,12 +1108,14 @@ button {
   animation: aruzGridMove 6s linear infinite;
 }
 
+/* ⚠️ فیروزه به طلایی از وسطِ سبز رد می‌شد و میانهٔ تیتر زیتونی درمی‌آمد.
+   رنگِ دوم حالا --lapis-light است که در هر پالت یک فامِ ناهمخوانِ خوش‌رنگ است. */
 .aruz-gradient-text {
   background: linear-gradient(
     120deg,
-    var(--color-primary),
-    var(--color-gold),
-    var(--color-primary)
+    var(--primary),
+    var(--lapis-light),
+    var(--primary)
   );
   background-size: 220% 220%;
   -webkit-background-clip: text;
@@ -1402,6 +1492,21 @@ html {
 .ninja-field {
   /* بدون این، فرزندانِ position:absolute نسبت به صفحه جا می‌گیرند */
   isolation: isolate;
+
+  /* ⚠️ لبه و هاله، و نه فقط یک مستطیل.
+
+     زمینِ بازی شب است و صفحهٔ سایت (در تمِ روشن) کاغذِ کرم — دو دنیا که
+     بی‌واسطه به هم می‌رسیدند. نتیجه یک برشِ تیزِ سیاه روی کرم بود.
+
+     حالا سه چیز آن درز را می‌بندند، و هر سه از توکنِ پالت می‌آیند:
+       • لبه‌ای هم‌خانوادهٔ خودِ شب (نه یک خاکستریِ بی‌ربط)،
+       • هاله‌ای که رنگِ صحنه را چند پیکسل بیرون پخش می‌کند، تا کاغذ
+         «بداند» زیرِ آن چه هست،
+       • سایهٔ نرمِ پایین، همان چیزی که کارت‌های سایت دارند. */
+  border: 1px solid var(--game-night-edge);
+  box-shadow:
+    0 0 0 6px color-mix(in oklch, var(--primary) 7%, transparent),
+    0 18px 48px -18px color-mix(in oklch, var(--primary-deep) 45%, transparent);
 }
 
 /* --- هاله‌های پس‌زمینه: دو لکهٔ رنگی که آرام جابه‌جا می‌شوند --- */
@@ -1446,9 +1551,12 @@ html {
 .ninja-aurora-b {
   background: radial-gradient(
     38% 30% at 75% 62%,
-    /* رنگِ ثابت و نه توکنِ تم: زمین بازی همیشه شبانه است، و --lapis-light در
-       حالت تیره آن‌قدر تیره می‌شود که این هاله اصلاً دیده نشود. */
-    rgba(96, 140, 230, 0.42),
+    /* ⚠️ اینجا یک بار `rgba(96,140,230,.42)`ِ ثابت بود، با این توضیح که
+       --lapis-light در تمِ تیره آن‌قدر تیره می‌شود که هاله دیده نشود. آن
+       ایراد بعداً در خودِ توکن درست شد (بالای فایل، کنارِ --lapis-light) و
+       این هگز جا ماند — پس زمینِ بازی تنها جایی از سایت بود که با عوض شدنِ
+       پالت هیچ تکان نمی‌خورد. حالا دوباره از توکن می‌آید. */
+    color-mix(in oklch, var(--lapis-light) 42%, transparent),
     transparent 70%
   );
   animation: ninjaAuroraB 19s ease-in-out infinite;
@@ -2649,6 +2757,272 @@ html.aruzr-immersive body {
   }
 }
 
+/* --- اختیارِ شاعری ---
+   مصراعی که هجای اختیاری دارد، پیش از بازی دیده می‌شود: قاب طلایی می‌گیرد و
+   حلقه‌ای از نور دورش می‌چرخد، کلمهٔ اختیاردار در متن روشن می‌شود، و زیرِ
+   متن یادداشتِ اختیار می‌آید. در بازی، نقطه و هجای همان جا نشان دارند. */
+
+@property --aruzr-lic-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.aruzr-panel[data-license="true"] {
+  border-color: var(--aruzr-gold-line);
+  box-shadow: var(--aruzr-btn-inner), 0 0 48px -20px var(--aruzr-gold-line);
+}
+
+/* حلقهٔ نور: فقط لبه، با ماسکِ content-box. */
+.aruzr-panel[data-license="true"]::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--aruzr-lic-angle),
+    transparent 0 58%,
+    var(--aruzr-gold) 76%,
+    #fff4d6 81%,
+    var(--aruzr-gold) 86%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.aruzr-root[data-phase="preview"] .aruzr-panel[data-license="true"]::before {
+  opacity: 1;
+  animation: aruzrLicSpin 2.8s linear infinite;
+}
+
+@keyframes aruzrLicSpin {
+  to {
+    --aruzr-lic-angle: 360deg;
+  }
+}
+
+/* کلمهٔ اختیاردار در متن: طلایی، با خطی که زیرش کشیده می‌شود. فقط رنگ و
+   پس‌زمینه عوض می‌شود، نه فونت؛ پس متریکِ دو لایه یکی می‌ماند. */
+.aruzr-text-visible .aruzr-lic-word {
+  color: var(--aruzr-gold);
+  text-shadow: 0 0 0.7em var(--aruzr-gold-soft);
+  background: linear-gradient(90deg, transparent, var(--aruzr-gold) 20% 80%, transparent) no-repeat 50% 88% / 100%
+    2px;
+}
+
+.aruzr-root[data-phase="preview"] .aruzr-text-visible .aruzr-lic-word {
+  animation:
+    aruzrLicDraw 900ms 250ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    aruzrLicGlow 2.2s 1s ease-in-out infinite;
+}
+
+@keyframes aruzrLicDraw {
+  from {
+    background-size: 0% 2px;
+  }
+}
+
+@keyframes aruzrLicGlow {
+  50% {
+    text-shadow: 0 0 0.9em var(--aruzr-gold-line);
+  }
+}
+
+.aruzr-lic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+}
+
+.aruzr-lic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-gold-line);
+  background:
+    linear-gradient(110deg, transparent 30%, color-mix(in oklab, var(--aruzr-gold) 28%, transparent) 50%, transparent 70%)
+      -100% 0 / 250% 100% no-repeat,
+    var(--aruzr-gold-soft);
+  color: var(--aruzr-gold);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aruzr-lic-spark {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-badge {
+  animation:
+    aruzrLicPop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    aruzrLicSheen 2.6s 600ms linear infinite;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-spark {
+  animation: aruzrLicTwinkle 1.6s ease-in-out infinite;
+}
+
+@keyframes aruzrLicPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes aruzrLicSheen {
+  to {
+    background-position: 200% 0, 0 0;
+  }
+}
+
+@keyframes aruzrLicTwinkle {
+  50% {
+    transform: scale(0.75) rotate(20deg);
+    opacity: 0.7;
+  }
+}
+
+.aruzr-lic-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: filter 320ms ease, opacity 320ms ease;
+}
+
+/* مصراع پوشیده است: نامِ کلمه‌ها لو ندهد. */
+.aruzr-lic[data-veiled="true"] .aruzr-lic-list {
+  filter: blur(5px);
+  opacity: 0.45;
+  user-select: none;
+}
+
+.aruzr-lic-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  color: var(--aruzr-text-2);
+  white-space: nowrap;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-item {
+  animation: aruzrLicIn 480ms calc(220ms + var(--i, 0) * 90ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes aruzrLicIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(6px);
+  }
+}
+
+.aruzr-lic-ref,
+.aruzr-lic-unit {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+}
+
+.aruzr-lic-ref {
+  color: var(--aruzr-text);
+}
+
+.aruzr-lic-unit {
+  color: var(--aruzr-gold);
+  font-weight: 700;
+}
+
+.aruzr-lic-len {
+  font-weight: 800;
+  color: var(--aruzr-text);
+}
+
+.aruzr-lic-kind {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--aruzr-gold-soft);
+  color: var(--aruzr-gold);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+/* نقطهٔ هجای اختیاری: حلقهٔ طلایی. پس از قاعده‌های data-state می‌آید تا
+   روی سایهٔ آن‌ها بنشیند. */
+.aruzr-dot[data-license="true"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-gold);
+}
+
+.aruzr-dot[data-license="true"][data-state="done"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-gold), 0 0 10px -2px var(--aruzr-accent-glow);
+}
+
+.aruzr-dot[data-license="true"][data-state="current"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-surface), 0 0 0 3px var(--aruzr-gold);
+}
+
+/* هجای اختیاری در کانون. بازخوردِ نادرست بر آن مقدم است؛ «درستِ» واحدِ
+   قبلی که هنوز روی قاب مانده، نه. */
+.aruzr-unit[data-license="true"] {
+  position: relative;
+}
+
+.aruzr-unit[data-license="true"]:not([data-feedback="wrong"], [data-feedback="timeout"]) {
+  border-color: var(--aruzr-gold-line);
+  background:
+    radial-gradient(120% 140% at 50% 0%, var(--aruzr-gold-soft), transparent 70%),
+    var(--aruzr-surface-2);
+  box-shadow: var(--aruzr-btn-inner), 0 0 60px -26px var(--aruzr-gold);
+}
+
+.aruzr-unit-lic {
+  position: absolute;
+  top: -0.72rem;
+  inset-inline: 0;
+  width: max-content;
+  margin-inline: auto;
+  padding: 0.05rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-gold-line);
+  background: var(--aruzr-surface);
+  color: var(--aruzr-gold);
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aruzr-root[data-phase="preview"] .aruzr-panel[data-license="true"]::before,
+  .aruzr-root[data-phase="preview"] .aruzr-text-visible .aruzr-lic-word,
+  .aruzr-lic[data-live="true"] .aruzr-lic-badge,
+  .aruzr-lic[data-live="true"] .aruzr-lic-spark,
+  .aruzr-lic[data-live="true"] .aruzr-lic-item {
+    animation: none;
+  }
+}
+
 /* --- صفحه‌های آغاز و نتیجه --- */
 
 .aruzr-card {
@@ -2774,6 +3148,308 @@ html.aruzr-immersive body {
 
 .aruzr-warn {
   color: var(--aruzr-gold);
+}
+
+/* --- صفحهٔ نتیجه: شیشهٔ مات ---
+   همان زبانِ «رنگ‌آرا»: نشانِ سروا پشتِ شیشهٔ مات، دانهٔ ریز، و درخششی
+   اریب روی شیشه. پرتوِ لبه (BorderBeam) فیروزه‌ای به طلایی می‌رود. */
+
+.aruzr-res {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  text-align: center;
+  color: var(--aruzr-text);
+  background:
+    radial-gradient(120% 80% at 85% -10%, var(--aruzr-ambient-a), transparent 60%),
+    radial-gradient(90% 70% at 0% 110%, var(--aruzr-ambient-b), transparent 62%),
+    var(--aruzr-surface);
+  box-shadow:
+    0 0 0 1px var(--aruzr-border),
+    var(--aruzr-shadow);
+}
+
+/* محتوا روی شیشه؛ پرتوِ لبه (absolute) دست نمی‌خورد. */
+.aruzr-res-head,
+.aruzr-res-hero,
+.aruzr-res-verse,
+.aruzr-res-actions,
+.aruzr-res-back {
+  position: relative;
+  z-index: 1;
+}
+
+.aruzr-res-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.aruzr-res-logo {
+  position: absolute;
+  inset: 6% -8% auto;
+  height: 78%;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+}
+
+.aruzr-res-logo svg {
+  width: auto !important;
+  height: 100% !important;
+}
+
+.aruzr-res-frost {
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .7 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+      0 0 / 180px 180px,
+    color-mix(in oklab, var(--aruzr-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.25);
+  backdrop-filter: blur(12px) saturate(1.25);
+}
+
+.dark .aruzr-res-frost {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .2 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+      0 0 / 180px 180px,
+    color-mix(in oklab, var(--aruzr-surface) 68%, transparent);
+}
+
+.aruzr-res-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    transparent 28%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  opacity: 0.6;
+}
+
+.dark .aruzr-res-sheen {
+  opacity: 0.12;
+}
+
+/* نورِ لبهٔ بالا */
+.aruzr-res::before {
+  content: "";
+  position: absolute;
+  inset: 0 22px auto;
+  z-index: 2;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  pointer-events: none;
+}
+
+.dark .aruzr-res::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+}
+
+.aruzr-res-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.aruzr-res-title {
+  font-size: clamp(1.3rem, 4.5vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.aruzr-res-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 4vw, 2rem);
+  margin-top: 1.4rem;
+  flex-wrap: wrap;
+}
+
+.aruzr-res-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--aruzr-text);
+}
+
+.aruzr-res-ring-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  flex: 1 1 16rem;
+  max-width: 22rem;
+}
+
+.aruzr-res-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+  padding: 0.7rem 0.6rem;
+  border-radius: 1rem;
+  border: 1px solid var(--aruzr-border);
+  background: color-mix(in oklab, var(--aruzr-surface-2) 70%, transparent);
+  box-shadow: var(--aruzr-btn-inner);
+}
+
+.aruzr-res-stat dt {
+  font-size: 0.68rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-stat dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--aruzr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.aruzr-res-stat-unit {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--aruzr-text-3);
+}
+
+.aruzr-res-verse {
+  margin: 1.5rem 0 0;
+  padding: 1.1rem clamp(0.75rem, 3vw, 1.25rem) 1rem;
+  border-radius: 1.35rem;
+  border: 1px solid var(--aruzr-border);
+  background: color-mix(in oklab, var(--aruzr-inset) 72%, transparent);
+  box-shadow: var(--aruzr-btn-inner);
+}
+
+.aruzr-res-meta {
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-units {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aruzr-res-tile {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2.3rem;
+  padding: 0.25rem 0.45rem 0.3rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+}
+
+.aruzr-res-tile[data-length="long"] {
+  border-color: var(--aruzr-accent-line);
+  background: linear-gradient(180deg, var(--aruzr-accent-soft), transparent), var(--aruzr-surface-2);
+}
+
+.aruzr-res-tile[data-license="true"] {
+  border-color: var(--aruzr-gold);
+  background: linear-gradient(180deg, var(--aruzr-gold-soft), transparent), var(--aruzr-surface-2);
+  box-shadow: 0 0 18px -8px var(--aruzr-gold);
+}
+
+.aruzr-res-tile-text {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.9;
+  color: var(--aruzr-text);
+}
+
+.aruzr-res-tile-mark {
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-tile[data-length="long"] .aruzr-res-tile-mark {
+  color: var(--aruzr-accent);
+}
+
+.aruzr-res-tile[data-license="true"] .aruzr-res-tile-mark {
+  color: var(--aruzr-gold);
+}
+
+.aruzr-res-tile-spark {
+  position: absolute;
+  top: -0.4rem;
+  inset-inline-end: -0.35rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--aruzr-gold);
+  filter: drop-shadow(0 0 4px var(--aruzr-gold-line));
+}
+
+.aruzr-res-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--aruzr-gold);
+}
+
+.aruzr-res-note {
+  margin-top: 0.5rem;
+  font-size: 0.74rem;
+  line-height: 1.9;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.6rem;
+}
+
+.aruzr-res-back {
+  display: inline-block;
+  margin-top: 1.1rem;
+  font-size: 0.74rem;
+  color: var(--aruzr-text-3);
+  transition: color 180ms ease;
+}
+
+.aruzr-res-back:hover {
+  color: var(--aruzr-accent);
 }
 
 /* --- ریزه‌کاری‌ها --- */
@@ -3124,97 +3800,16 @@ html[data-quality="low"] [class*="backdrop-blur"] {
    کاربری که مطمئن نیست هنوز در همان سایت است.
 
    پس فقط چهار چیز اضافه می‌شود و نه بیشتر:
-     ۱) یک نشانِ کوچک کنارِ لوگو
-     ۲) یک accent محدود (طلاییِ همان پالت، نه رنگِ تازه)
-     ۳) یک حاشیهٔ ظریف برای کارت‌های پلاس
-     ۴) یک برقِ گاه‌به‌گاه روی نشان
+     ۱) کلمهٔ «پلاس» با ستارهٔ چهارپر کنارِ نامِ سروا (`header.module.css`)
+     ۲) حلقهٔ گرادیانیِ چرخان دورِ تصویرِ کاربر (`account-menu.module.css`)
+     ۳) یک accent محدود (طلاییِ همان پالت، نه رنگِ تازه)
+     ۴) یک حاشیهٔ ظریف برای کارت‌های پلاس
 
    رنگ‌ها همان --gold و --gold-ink پالتِ سروا هستند؛ هیچ رنگِ تازه‌ای معرفی
    نمی‌شود.
 
-   ⚠️ و نشان **فقط با متن مشخص نمی‌شود**: کلمهٔ «PLUS» همیشه در آن هست، پس
-   کسی که رنگ را تشخیص نمی‌دهد هم می‌فهمد. (معیار Accessibility: هرگز فقط
-   رنگ.) */
-
-.plus-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.22em;
-  padding: 0.1em 0.5em;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.6;
-  white-space: nowrap;
-  color: var(--gold-ink);
-  border: 1px solid color-mix(in oklch, var(--gold) 45%, transparent);
-  background: color-mix(in oklch, var(--gold) 12%, transparent);
-  /* ⚠️ برشِ برق نباید از نشان بیرون بزند. */
-  position: relative;
-  overflow: hidden;
-  /* بدونِ این، ظاهر شدنِ نشان بعد از رسیدنِ پاسخِ /me کلِ ردیفِ هدر را
-     جابه‌جا می‌کرد. جای نشان از ابتدا رزرو می‌شود. */
-  min-width: 3.1rem;
-  justify-content: center;
-}
-
-.plus-badge__spark {
-  /* ستارهٔ کوچک. تزئینی است، پس از دیدِ صفحه‌خوان پنهان می‌شود. */
-  font-size: 0.85em;
-  line-height: 1;
-}
-
-/* برقِ گاه‌به‌گاه: یک نوارِ نور که هر ۹ ثانیه یک بار از روی نشان رد می‌شود.
-   ⚠️ عمداً کند و کم‌تکرار است. درخششِ پیوسته بعد از ده ثانیه آزاردهنده
-   می‌شود و کاربر یاد می‌گیرد نگاهش نکند — یعنی دقیقاً برعکسِ هدف. */
-.plus-badge::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    115deg,
-    transparent 35%,
-    color-mix(in oklch, var(--gold) 55%, transparent) 50%,
-    transparent 65%
-  );
-  transform: translateX(-120%);
-  animation: plusBadgeShine 9s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes plusBadgeShine {
-  0%,
-  78% {
-    transform: translateX(-120%);
-  }
-  88% {
-    transform: translateX(120%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-/* نشانِ فشرده برای موبایل: «+» به‌جای «PLUS».
-   در ۳۶۰ پیکسل، نشانِ کامل کنارِ نام و دکمهٔ ورود، هدر را می‌شکست. */
-.plus-badge--compact {
-  min-width: 1.5rem;
-  padding: 0.1em 0.35em;
-  font-size: 0.7rem;
-  letter-spacing: 0;
-}
-
-/* حالتِ «نزدیک پایان»: همان نشان، با لحنِ آرام‌ترِ هشدار. نه قرمز و نه
-   چشمک‌زن — اشتراک هنوز فعال است و ترساندنِ کاربر بی‌جاست. */
-.plus-badge--expiring {
-  color: var(--muted-foreground);
-  border-color: color-mix(in oklch, var(--gold) 30%, transparent);
-  background: transparent;
-}
-.plus-badge--expiring::after {
-  animation: none;
-}
+   ⚠️ و نشان **فقط با رنگ مشخص نمی‌شود**: کلمهٔ «پلاس» همیشه در آن هست (در
+   موبایل aria-label)، پس کسی که رنگ را تشخیص نمی‌دهد هم می‌فهمد. */
 
 /* کارت/بخشِ ویژهٔ پلاس — فقط یک حاشیه و یک ته‌رنگِ بسیار ملایم. */
 .plus-surface {
@@ -3231,6 +3826,24 @@ html[data-quality="low"] [class*="backdrop-blur"] {
   color: var(--gold-ink);
 }
 
+/* نشانِ سروا در لحظهٔ فعال‌شدنِ اشتراک (صفحهٔ نتیجهٔ پرداخت). */
+@keyframes plus-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[plus-pop"] {
+    animation: none !important;
+  }
+}
+
 /* قفلِ قابلیتِ پولی: محتوای پشتِ آن دیده می‌شود ولی خوانده نمی‌شود.
    ⚠️ این فقط برای *تجربهٔ کاربری* است. دادهٔ واقعی هرگز به مرورگر فرستاده
    نمی‌شود؛ گاردِ سرور (`requirePlus`) قبل از رسیدن به این لایه جلویش را
@@ -3242,12 +3855,6 @@ html[data-quality="low"] [class*="backdrop-blur"] {
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .plus-badge::after {
-    animation: none;
-    opacity: 0;
-  }
-}
 
 /* ============================================================
    پنل کاربری — ریتمِ عمودی و سطح‌ها
@@ -3408,4 +4015,80 @@ html[data-quality="low"] [class*="backdrop-blur"] {
       transparent 60%
     ),
     var(--surface-2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   قلمِ درسنامه — انتخابِ خودِ خواننده.
+
+   منطقش در `lib/theme/reading-font.ts` است و دکمه‌اش
+   `components/UI/doroos/ReadingFontDock.tsx`. اینجا فقط دو چیز اتفاق
+   می‌افتد: اتریبیوتِ روی <html> یک متغیّر را عوض می‌کند، و `.reading-scope`
+   آن متغیّر را مصرف می‌کند.
+
+   ⚠️ چرا دو مرحله و نه یک قاعده به‌ازای هر قلم روی هر عنصر: چون مصرف‌کننده
+   ممکن است بیشتر از یکی شود (امروز درسنامه، فردا شاید باشگاه). با متغیّر،
+   افزودنِ مصرف‌کنندهٔ تازه یک خط است و افزودنِ قلمِ تازه هم یک خط.
+
+   ⚠️ دامنه عمداً `.reading-scope` است و نه `:root`. اگر روی ریشه می‌نشست،
+   هدر و فوتر و پنل هم عوض می‌شدند — یعنی کاربر می‌توانست هویتِ تایپوگرافیکِ
+   کلِ سروا را با یک کلیک بردارد. */
+:root {
+  --font-reading: var(--font-sans);
+}
+
+[data-reading-font="peyda"] {
+  --font-reading: var(--font-peyda), var(--font-sans);
+}
+[data-reading-font="lahzeh"] {
+  --font-reading: var(--font-lahzeh), var(--font-sans);
+}
+[data-reading-font="dorna"] {
+  --font-reading: var(--font-dorna), var(--font-sans);
+}
+[data-reading-font="pofak"] {
+  --font-reading: var(--font-pofak), var(--font-sans);
+}
+
+/* ⚠️ فقط روی خودِ ظرف و نه `.reading-scope *`.
+   ارث‌بری کارِ خودش را می‌کند، و آن ستاره دقیقاً چیزی را می‌شکست که نباید:
+   هر عنصری که قلمِ خودش را *عمداً* اعلام کرده (بیت با نسخ، عنوان با
+   مربّع) باید همان بماند. با ارث‌بری، آن‌ها دست‌نخورده می‌مانند و بقیهٔ
+   متن انتخابِ کاربر را می‌گیرد. */
+.reading-scope {
+  font-family: var(--font-reading);
+}
+
+/* ⚠️ بیت و متنِ خودِ درس — تنها جایی که ارث‌بری کافی نیست.
+
+   متنِ روان (معنی، مفهوم، قلمروها) قلمی اعلام نمی‌کند و خودش از
+   `.reading-scope` ارث می‌برد. ولی خودِ بیت با `font-serif` نوشته می‌شود
+   — و آن کلاس، برخلافِ انتظار، `var(--font-serif)` نمی‌نویسد.
+
+   دلیلش `@theme inline` است: واژهٔ `inline` یعنی تیلویند مقدارِ توکن را
+   درجا داخلِ کلاس می‌ریزد، پس `.font-serif` همان پشتهٔ نسخ را عیناً
+   می‌نویسد و هرگز `--font-serif` را نمی‌خواند. بازتعریفِ آن متغیّر روی
+   این دامنه — کاری که اول کردیم — بی‌اثر بود: سنجیدیم و بیت روی
+   Noto Naskh مانده بود در حالی که بقیهٔ صفحه عوض شده بود.
+
+   پس خودِ کلاس هدف گرفته می‌شود. این قاعده در هیچ لایه‌ای نیست و
+   تیلویند کلاس‌هایش را در `@layer utilities` می‌گذارد، پس بدونِ جنگِ
+   specificity می‌برد.
+
+   ⚠️ فقط در حالتِ غیرپیش‌فرض. با «اصلی»، بیت به نسخ برمی‌گردد — نسخ
+   برای شعر انتخاب شده، نه پیش‌فرضِ تنبلانه. ولی وقتی خواننده
+   صریحاً قلمی را انتخاب می‌کند، انتظارش این است که متنِ درس هم عوض
+   شود؛ یک بیتِ جامانده به‌جای «طرّاحی مقصود» شبیهِ باگ دیده می‌شود. */
+[data-reading-font]:not([data-reading-font="site"])
+  .reading-scope
+  :is(.font-serif, .font-sans) {
+  font-family: var(--font-reading);
+}
+
+/* ⚠️ عدد همان درسِ `.panel-num` و `.game-num` را دارد: رقم‌های پفک و درنا
+   عرضِ ثابت ندارند. جدولِ تقطیع و شمارهٔ بیت باید ستون‌هایشان را نگه
+   دارند، پس هر جا عدد با عرضِ ثابت لازم است، خودش را از انتخابِ کاربر
+   بیرون می‌کشد. */
+.reading-scope .reading-num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }

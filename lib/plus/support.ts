@@ -29,6 +29,7 @@ type TicketRow = {
   created_at: string;
   user_unread: boolean;
   order_seq: number | null;
+  order_id: string | null;
 };
 
 function toSummary(r: TicketRow): TicketSummary {
@@ -42,6 +43,7 @@ function toSummary(r: TicketRow): TicketSummary {
     createdAt: r.created_at,
     hasUnread: r.user_unread,
     orderNumber: r.order_seq === null ? null : orderNumber(r.order_seq),
+    orderId: r.order_id,
   };
 }
 
@@ -62,7 +64,7 @@ export async function listTickets(
   const rows = await query<TicketRow>(
     `select t.id, t.ticket_seq, t.subject, t.category, t.status,
             t.last_activity_at, t.created_at, t.user_unread,
-            o.order_seq
+            o.order_seq, o.id as order_id
        from plus_tickets t
        left join plus_orders o on o.id = t.order_id
       where t.user_id = ?
@@ -82,7 +84,7 @@ export async function getTicket(userId: string, ticketId: string): Promise<Ticke
   const row = await queryOne<TicketRow>(
     `select t.id, t.ticket_seq, t.subject, t.category, t.status,
             t.last_activity_at, t.created_at, t.user_unread,
-            o.order_seq
+            o.order_seq, o.id as order_id
        from plus_tickets t
        left join plus_orders o on o.id = t.order_id
       where t.id = ? and t.user_id = ?`,

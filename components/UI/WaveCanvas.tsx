@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { usePrimaryRgb, useTokenRgb } from "@/lib/theme/use-primary-rgb";
 
 function getBaseY(x: number, W: number): number {
   const segW = W / 4;
@@ -18,6 +19,9 @@ export default function WaveCanvas({
   phaseOffset?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // رنگ‌ها از پالت؛ canvas متغیرِ CSS نمی‌فهمد.
+  const p = usePrimaryRgb();
+  const g = useTokenRgb("--gold", "212,168,67");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,9 +34,9 @@ export default function WaveCanvas({
     let rafId: number;
 
     const dots = [
-      { cx: W * 0.25, r: 3, color: "#1ABCAA" },
-      { cx: W * 0.5, r: 4, color: "#D4A843" },
-      { cx: W * 0.75, r: 3, color: "#1ABCAA" },
+      { cx: W * 0.25, r: 3, color: `rgb(${p})` },
+      { cx: W * 0.5, r: 4, color: `rgb(${g})` },
+      { cx: W * 0.75, r: 3, color: `rgb(${p})` },
     ];
 
     function frame() {
@@ -55,11 +59,11 @@ export default function WaveCanvas({
       }
 
       const grad = ctx!.createLinearGradient(0, 0, W, 0);
-      grad.addColorStop(0, "rgba(26,188,170,0)");
-      grad.addColorStop(0.3, "rgba(26,188,170,1)");
-      grad.addColorStop(0.5, "rgba(212,168,67,1)");
-      grad.addColorStop(0.7, "rgba(26,188,170,1)");
-      grad.addColorStop(1, "rgba(26,188,170,0)");
+      grad.addColorStop(0, `rgba(${p},0)`);
+      grad.addColorStop(0.3, `rgba(${p},1)`);
+      grad.addColorStop(0.5, `rgba(${g},1)`);
+      grad.addColorStop(0.7, `rgba(${p},1)`);
+      grad.addColorStop(1, `rgba(${p},0)`);
       ctx!.strokeStyle = grad;
       ctx!.lineWidth = 2.5;
       ctx!.stroke();
@@ -86,7 +90,7 @@ export default function WaveCanvas({
 
     frame();
     return () => cancelAnimationFrame(rafId);
-  }, [phaseOffset]);
+  }, [phaseOffset, p, g]);
 
   return (
     <canvas

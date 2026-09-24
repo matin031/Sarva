@@ -2,28 +2,30 @@ import Link from "next/link";
 import PanelPageHeader from "../PanelPageHeader";
 import styles from "../panel-design.module.css";
 import NewTicketForm from "@/components/UI/plus/NewTicketForm";
-import { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL } from "@/lib/plus/labels";
+import { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL, orderStatusLabel } from "@/lib/plus/labels";
 import { jalaliLong } from "@/lib/panel/format";
 import type { TicketSummary, PlusOrderSummary } from "@/lib/plus/types";
 
-export default function SupportView({ tickets, orders }: { tickets: TicketSummary[]; orders: { orders: PlusOrderSummary[] }; }) {
+export default function SupportView({ tickets, orders, initialOrderId = "" }: { tickets: TicketSummary[]; orders: { orders: PlusOrderSummary[] }; initialOrderId?: string; }) {
   return (
     <div dir="rtl" className={styles.pageStack}>
-      <PanelPageHeader title="پشتیبانی" description="مشکل حساب، خرید یا تمرین — بنویس تا پیگیری کنیم. معمولاً همان روز جواب می‌دهیم." tone="rose" />
+      <PanelPageHeader title="پشتیبانی" description="مشکل یا سؤالت را بنویس. معمولاً همان روز جواب می‌دهیم." tone="rose" />
 
       <NewTicketForm
         orders={orders.orders.map((order) => ({
           id: order.id,
           orderNumber: order.orderNumber,
           planTitle: order.planTitle,
+          status: orderStatusLabel(order.status, order.latestPaymentState),
         }))}
+        initialOrderId={initialOrderId}
       />
 
       {tickets.length === 0 ? (
         <div className={styles.emptyState}>
           <p className="font-semibold">هنوز تیکتی نزده‌ای</p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-            هر گفت‌وگویی که شروع کنی همین‌جا می‌ماند و بعداً هم می‌توانی پیدایش کنی.
+            پیام‌های قبلی‌ات.
           </p>
         </div>
       ) : (

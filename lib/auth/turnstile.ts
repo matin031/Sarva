@@ -1,6 +1,6 @@
 import "server-only";
 import { logger } from "@/lib/observability";
-import { missingKeyPolicy } from "@/lib/auth/turnstile-policy";
+import { captchaMode, captchaPreflight, captchaOnUnreachable } from "@/lib/auth/captcha-policy";
 
 /**
  * Cloudflare Turnstile — تأیید سمت سرور.
@@ -13,25 +13,19 @@ import { missingKeyPolicy } from "@/lib/auth/turnstile-policy";
  *
  * به همین دلیل فراخوانیِ این تابع در خودِ route ها است، نه در کامپوننت فرم.
  *
- * ── نبودِ کلید: در توسعه باز، در production بسته ────────────────────────────
+ * ── کپچا یک *شاهد* است، نه دروازه ─────────────────────────────────────────
  *
- * ⚠️ تا دیروز نبودِ TURNSTILE_SECRET_KEY یعنی «همه چیز را قبول کن» — در هر
- * محیطی، از جمله production. یعنی یک متغیرِ محیطیِ جاافتاده (یا پاک‌شده در یک
- * deploy) کپچا را بی‌صدا خاموش می‌کرد و هیچ‌کس نمی‌فهمید: نه خطایی، نه
- * تفاوتی در رفتار. این بدترین شکلِ fail-open است، چون *غیبتِ* محافظ شبیه
- * سلامت به نظر می‌رسد.
+ * ⚠️ رفتارِ این فایل را `lib/auth/captcha-policy.ts` تعیین می‌کند و **نه**
+ * صرفاً بودن یا نبودنِ کلید. چراییِ کاملش آنجا نوشته شده؛ خلاصه‌اش اینکه
+ * کاربرانِ سروا ایرانی‌اند و `challenges.cloudflare.com` ممکن است از ایران
+ * در دسترس نباشد — و در آن حالت، کپچای اجباری یعنی قفل شدنِ ورود و ثبت‌نام
+ * برای همان کاربرِ واقعی‌ای که سایت برای اوست.
  *
- * حالا:
+ * سه حالت: `off` (پیش‌فرض، وقتی کلیدی نیست)، `optional` (توکنِ موجود تأیید
+ * می‌شود، نبودنش مانع نیست)، `required` (سخت‌گیرانه، فقط با تنظیمِ صریح).
  *
- *   • خارج از production (توسعه و تست): بدون کلید، همه چیز پذیرفته می‌شود و
- *     یک بار هشدار می‌آید. سایت باید بدون حساب Cloudflare قابل اجرا باشد.
- *
- *   • در production: نبودِ کلید یعنی درخواست **رد** می‌شود، نه پذیرفته.
- *     اگر واقعاً می‌خواهید کپچا خاموش باشد، باید صریح بنویسید:
- *
- *         TURNSTILE_OPTIONAL=true
- *
- *     یعنی خاموشی یک تصمیمِ ثبت‌شده است، نه یک فراموشی.
+ * ⚠️ و محافظتِ واقعی جای دیگری است: سقف‌های نرخِ دیتابیسی، سقفِ تلاشِ حدس،
+ * argon2id، و سقفِ سراسریِ خرجِ پیامک. هیچ‌کدام به سرویسِ خارجی وصل نیستند.
  *
  * ── راه‌اندازی ─────────────────────────────────────────────────────────────
  *
@@ -47,32 +41,52 @@ const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const VERIFY_TIMEOUT_MS = 10_000;
 
 /** آیا کپچا در این نصب فعال است؟ */
-export { missingKeyPolicy };
+export { captchaMode };
 
 export function turnstileEnabled(): boolean {
-  return Boolean(process.env.TURNSTILE_SECRET_KEY);
+  return captchaMode() !== "off" && Boolean(process.env.TURNSTILE_SECRET_KEY);
 }
 
-let warned = false;
+let warnedOff = false;
+let warnedMissingKey = false;
+let warnedUnreachable = false;
 
-function warnOnce() {
-  if (warned) return;
-  warned = true;
-  logger.warn(
-    "TURNSTILE_SECRET_KEY تنظیم نشده — کپچا غیرفعال است. برای فعال کردنش راهنمای بالای lib/auth/turnstile.ts را ببینید.",
+function warnOffOnce() {
+  if (warnedOff) return;
+  warnedOff = true;
+  logger.info(
+    "کپچا خاموش است (CAPTCHA_MODE=off یا کلیدی تنظیم نشده). " +
+      "محافظت از سقف‌های نرخ و سقفِ خرجِ پیامک می‌آید — توضیح در lib/auth/captcha-policy.ts.",
     { event: "captcha.disabled" },
   );
 }
 
-let deniedWarned = false;
-
-function warnDeniedOnce() {
-  if (deniedWarned) return;
-  deniedWarned = true;
+function warnMissingKeyOnce(mode: string) {
+  if (warnedMissingKey) return;
+  warnedMissingKey = true;
   logger.error(
-    "TURNSTILE_SECRET_KEY در production تنظیم نشده — درخواست‌های محافظت‌شده رد می‌شوند. " +
-      "کلید را بگذارید، یا اگر عمداً کپچا نمی‌خواهید TURNSTILE_OPTIONAL=true را صریح تنظیم کنید.",
+    `CAPTCHA_MODE=${mode} است ولی TURNSTILE_SECRET_KEY تنظیم نشده. ` +
+      "یا کلید را بگذارید یا CAPTCHA_MODE=off کنید.",
     { event: "captcha.misconfigured" },
+  );
+}
+
+/**
+ * ⚠️ «Cloudflare در دسترس نبود» در حالتِ `optional` درخواست را **رد نمی‌کند**
+ * ولی بی‌صدا هم نمی‌ماند.
+ *
+ * این دقیقاً همان حالتی است که این بازنویسی برایش انجام شد: اگر دسترسی به
+ * Cloudflare قطع شود، کاربر باید بتواند وارد شود. ولی اگر این خط لاگ نشود،
+ * سروا می‌تواند ماه‌ها بدونِ کپچا کار کند و هیچ‌کس نفهمد — همان fail-open ِ
+ * بی‌صدایی که نسخهٔ قبلی درست از آن می‌ترسید.
+ */
+function warnUnreachableOnce(err: unknown) {
+  if (warnedUnreachable) return;
+  warnedUnreachable = true;
+  logger.error(
+    "ارتباط با Cloudflare برقرار نشد (یا کلید نامعتبر است). در حالت optional " +
+      "درخواست‌ها بدونِ بررسیِ کپچا **پذیرفته** می‌شوند — یعنی از این لحظه کپچا عملاً خاموش است.",
+    { event: "captcha.unreachable", err },
   );
 }
 
@@ -98,25 +112,31 @@ export async function verifyTurnstile(
   token: unknown,
   ip: string | null,
 ): Promise<TurnstileResult> {
+  const mode = captchaMode();
   const secret = process.env.TURNSTILE_SECRET_KEY;
+  const hasToken = typeof token === "string" && token.length > 0 && token.length <= 2048;
 
-  if (!secret) {
-    if (missingKeyPolicy() === "deny") {
-      // ⚠️ در production، نبودِ کلید یعنی محافظ غایب است — و غیبتِ محافظ
-      //    نباید شبیه سلامت به نظر برسد. رد کردن، تنها رفتاری است که این را
-      //    دیدنی می‌کند. راهِ خاموشیِ آگاهانه TURNSTILE_OPTIONAL=true است.
-      warnDeniedOnce();
-      return { ok: false, error: "تأیید امنیتی پیکربندی نشده است. با پشتیبانی تماس بگیرید." };
-    }
-    warnOnce();
+  /* ⚠️ تصمیم در `lib/auth/captcha-policy.ts` گرفته می‌شود و نه اینجا — تا
+     بشود آزمودش. این فایل `server-only` دارد و `node --test` نمی‌تواند
+     بارش کند. */
+  const decision = captchaPreflight(mode, { hasKey: Boolean(secret), hasToken });
+
+  if (decision === "allow") {
+    if (mode === "off") warnOffOnce();
+    else if (!secret) warnMissingKeyOnce(mode);
     return { ok: true };
   }
 
-  if (typeof token !== "string" || !token || token.length > 2048) {
+  if (decision === "deny") {
+    if (!secret) {
+      warnMissingKeyOnce(mode);
+      return { ok: false, error: "تأیید امنیتی پیکربندی نشده است. با پشتیبانی تماس بگیرید." };
+    }
     return { ok: false, error: "تأیید امنیتی انجام نشده است. لطفاً کادر تأیید را کامل کنید." };
   }
 
-  const body = new URLSearchParams({ secret, response: token });
+  // `decision === "verify"` یعنی هر دو حتماً هستند؛ این فقط کامپایلر را قانع می‌کند.
+  const body = new URLSearchParams({ secret: secret as string, response: token as string });
   if (ip) body.set("remoteip", ip);
 
   let payload: SiteVerifyResponse;
@@ -132,15 +152,18 @@ export async function verifyTurnstile(
     if (!response.ok) throw new Error(`siteverify پاسخ ${response.status} داد`);
     payload = (await response.json()) as SiteVerifyResponse;
   } catch (err) {
-    // ⚠️ در دسترس نبودن Cloudflare = رد کردن درخواست، نه پذیرفتنش.
-    //
-    // انتخاب سختی است: این یعنی اگر Cloudflare از ایران در دسترس نباشد، ورود
-    // و ثبت‌نام از کار می‌افتند. ولی جایگزینش («خطا؟ پس قبول کن») یعنی مهاجم
-    // فقط کافی است دسترسی سرور به Cloudflare را مختل کند تا کپچا ناپدید شود —
-    // که همان چیزی است که کپچا برای جلوگیری از آن گذاشته شده.
-    //
-    // اگر روزی این تصمیم به مشکل خورد، راهش برداشتن TURNSTILE_SECRET_KEY از
-    // .env است (یعنی خاموش کردنِ آگاهانهٔ کپچا)، نه نرم کردن این خط.
+    /* ⚠️ Cloudflare در دسترس نیست.
+       نسخهٔ قبلی اینجا رد می‌کرد، با این استدلال که «وگرنه مهاجم فقط کافی
+       است دسترسیِ سرور به Cloudflare را مختل کند». استدلال درست است ولی
+       برای سروا وزنِ دو طرف یکی نیست: قطعیِ دسترسی به دامنه‌های خارجی در
+       ایران یک اتفاقِ روزمره است و نه یک حمله، و رد کردن یعنی کلِ ورود و
+       ثبت‌نامِ سایت به در دسترس بودنِ یک دامنهٔ خارجی گره بخورد.
+       پس در `optional` اجازه داده می‌شود و **بلند لاگ می‌شود**؛ در
+       `required` همان رفتارِ سخت‌گیرانهٔ قبلی می‌ماند. */
+    if (captchaOnUnreachable(mode) === "allow") {
+      warnUnreachableOnce(err);
+      return { ok: true };
+    }
     // ⚠️ خودِ توکن هرگز لاگ نمی‌شود؛ فقط اینکه ارتباط برقرار نشد.
     logger.error("تأیید کپچا ناموفق بود", { event: "captcha.verify_failed", err });
     return { ok: false, error: "ارتباط با سرویس تأیید امنیتی برقرار نشد. کمی بعد تلاش کنید." };

@@ -1,6 +1,10 @@
 import Quiz from "@/components/UI/Quiz";
-import { query } from "@/lib/db";
+import { placeholders, query } from "@/lib/db";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { AssignmentGone } from "@/components/UI/AssignmentNotice";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { loadAssignmentForStudent } from "@/lib/teacher/assignments";
 
 export const metadata: Metadata = {
   title: "آزمون وزن شعر",
@@ -29,17 +33,44 @@ type Row = {
   option_x: number | null;
 };
 
-async function page() {
+async function page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  /* ⚠️ آزمونی که دبیر گذاشته. سؤال‌ها از خودِ تکلیف می‌آیند و تکلیف با
+     `student_id`ِ همین سشن خوانده می‌شود؛ شناسهٔ نشانی فقط برچسب است. */
+  const assignmentParam = (await searchParams).assignment;
+  if (assignmentParam !== undefined) {
+    const user = await getCurrentUser();
+    if (!user) redirect(`/auth?returnTo=${encodeURIComponent("/panel/classes")}`);
+    const gate = await loadAssignmentForStudent(user.id, assignmentParam, "aruz_quiz");
+    if (gate.state !== "ok") return <AssignmentGone state={gate.state} />;
+    const byId = new Map((await loadQuestions(gate.items)).map((q) => [q.id, q]));
+    const picked = gate.items.flatMap((id) => byId.get(id) ?? []);
+    /* سؤالی که بعد از ساختِ آزمون حذف شده، آزمون را کامل‌نشدنی می‌کند
+       (سرور همهٔ سؤال‌ها را می‌خواهد). */
+    if (picked.length !== gate.items.length) return <AssignmentGone state="missing" />;
+    return <Quiz data={picked} assignment={{ id: gate.id, title: gate.title }} />;
+  }
+
+  return <Quiz data={await loadQuestions()} />;
+}
+
+async function loadQuestions(ids?: readonly string[]): Promise<Question[]> {
   // یک JOIN به‌جای کوئری تودرتوی PostgREST. ترتیب گزینه‌ها با x و بعد id
   // تثبیت شده تا چیدمان بین بارگذاری‌ها نپرد — قبلاً ترتیبی تعریف نشده بود و
   // به هرچه دیتابیس برمی‌گرداند وابسته بود.
+  if (ids && ids.length === 0) return [];
   const rows = await query<Row>(
     `select q.id, q.type, q.poem, q.audio_url,
             o.id as option_id, o.label as option_label, o.poem as option_poem,
             o.audio_url as option_audio_url, o.is_correct as option_is_correct, o.x as option_x
        from questions q
        left join question_options o on o.question_id = q.id
+      ${ids ? `where q.id in (${placeholders(ids.length)})` : ""}
       order by q.created_at, q.id, o.x, o.id`,
+    ids ? [...ids] : [],
   );
 
   const byQuestion = new Map<string, Question>();
@@ -71,7 +102,7 @@ async function page() {
     }
   }
 
-  return <Quiz data={[...byQuestion.values()]} />;
+  return [...byQuestion.values()];
 }
 
 export type Question = {

@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText from "@/components/exam/HighlightedText";
+
 type FindNErrorsInListContent = {
   type: "find-n-errors-in-list";
   items: { id: string; text: string }[];
@@ -49,7 +51,7 @@ export default function FindNErrorsInListPart({ content, value, onChange, disabl
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-base">{item.text}</span>
+                <span className="text-base"><HighlightedText text={item.text} /></span>
                 <button
                   type="button"
                   disabled={disabled}

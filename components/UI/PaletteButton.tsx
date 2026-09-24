@@ -1,14 +1,14 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Check, Palette } from "lucide-react";
 import {
-  applyPalette,
   DEFAULT_PALETTE,
   PALETTES,
   readPalette,
   subscribeToPalette,
+  switchPalette,
   type PaletteId,
 } from "@/lib/theme/palette";
 import styles from "./palette-button.module.css";
@@ -42,6 +42,14 @@ export default function PaletteButton() {
     () => DEFAULT_PALETTE,
   );
 
+  /* جوهرِ پالتِ تازه از همان دایره‌ای پخش می‌شود که رویش زده شده. با
+     کیبورد نقطهٔ اشاره‌گری نیست؛ آن‌وقت مرکزِ خودِ آیتمِ فعال. */
+  const origin = useRef<{ x: number; y: number } | undefined>(undefined);
+  const remember = (el: Element) => {
+    const r = (el.querySelector(".pal-swatch") ?? el).getBoundingClientRect();
+    origin.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+
   return (
     <Menu.Root dir="rtl" modal={false}>
       <Menu.Trigger className={styles.trigger} aria-label="انتخاب پالت رنگی">
@@ -49,7 +57,7 @@ export default function PaletteButton() {
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Content
-          className={styles.menu}
+          className={`${styles.menu} glass-pop`}
           align="end"
           sideOffset={10}
           collisionPadding={12}
@@ -58,11 +66,16 @@ export default function PaletteButton() {
           <Menu.Label className={styles.title}>پالت رنگی</Menu.Label>
           <Menu.RadioGroup
             value={current}
-            onValueChange={(value) => applyPalette(value as PaletteId)}
+            onValueChange={(value) => switchPalette(value as PaletteId, origin.current)}
             className={styles.grid}
           >
             {PALETTES.map(({ id, label }) => (
-              <Menu.RadioItem key={id} value={id} className={styles.item}>
+              <Menu.RadioItem
+                key={id}
+                value={id}
+                className={styles.item}
+                onSelect={(e) => remember(e.target as Element)}
+              >
                 <span
                   className={`pal-swatch ${styles.swatch}`}
                   data-pal={id}

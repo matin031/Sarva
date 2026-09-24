@@ -64,7 +64,7 @@ export default function EmailVerification() {
     }
 
     setSent(true);
-    setMessage("کد شش‌رقمی به ایمیلت فرستاده شد. صندوق ورودی و پوشهٔ اسپم را ببین.");
+    setMessage("کد تأیید به ایمیلت ارسال شد.");
     setTimeout(() => inputRefs.current[0]?.focus(), 50);
   };
 
@@ -120,7 +120,7 @@ export default function EmailVerification() {
         <div className="min-w-0">
           <h3 className="font-semibold">ایمیلت هنوز تأیید نشده</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            تأیید ایمیل باعث می‌شود اگر روزی رمزت را فراموش کردی بتوانی حسابت را پس بگیری.
+            برای بازیابی رمز عبور لازم است.
           </p>
           <p className="mt-1 truncate text-sm text-muted-foreground" dir="ltr">
             {user.email}

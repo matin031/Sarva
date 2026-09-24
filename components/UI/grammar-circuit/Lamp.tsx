@@ -8,8 +8,11 @@ export type LampState = "off" | "receiving" | "turningOn" | "on" | "flicker" | "
  *  هیچ منطقِ دستوری‌ای اینجا نیست؛ لامپ فقط حالتی را که به آن داده می‌شود
  *  نشان می‌دهد.
  *
+ *  روی گوشیِ ایستاده لامپ زیرِ ستون *آویزان* است: شیوه‌نامه قابِ آن را ۱۸۰
+ *  درجه می‌چرخاند و `data-gc-terminal` که روی نوکِ سرپیچ نشسته، بالا می‌آید.
+ *
  *  حالتِ `failed` عمداً «خرابیِ کوچک» است نه انفجار: یک ترکِ نازک روی حباب و
- *  یک پفِ دودِ محو. هدف آموزش است، نه ترساندن. */
+ *  خاموشی. هدف آموزش است، نه ترساندن. */
 export default function Lamp({
   state,
   turnOnMs,
@@ -45,85 +48,24 @@ export default function Lamp({
       role="img"
       aria-label={label}
     >
-      {/* ⚠️ هالهٔ نور، به‌عنوان یک عنصرِ گردِ جدا — نه `drop-shadow` روی SVG.
-          `drop-shadow` سایه را دورِ *تمامِ* شکلِ عنصر می‌اندازد، و این SVG
-          فقط حباب نیست: پایهٔ پیچیِ مستطیلی و پایه‌های فلزی هم داخلش‌اند. پس
-          نور به‌جای یک هالهٔ گرد، دورِ آن مستطیل‌ها هم کشیده می‌شد و از پایینِ
-          لامپ بیرون می‌زد — همان «کشیده شدنِ» نور.
-
-          حالا یک دایرهٔ گرادیانیِ محضِ متمرکز روی خودِ حباب است. هم درست‌تر
-          دیده می‌شود و هم ارزان‌تر است: یک گرادیان در یک پاس کشیده می‌شود،
-          در حالی که فیلتر یک سطحِ جدا برای رستر کردن می‌خواهد. */}
-      <span className="gc-lamp-bloom" aria-hidden />
-
-      <svg width="72" height="90" viewBox="0 0 72 90" fill="none">
-        <defs>
-          <radialGradient id="gcLampHalo" cx="50%" cy="40%" r="50%">
-            <stop offset="0%" stopColor="var(--gc-lamp-on)" stopOpacity="0.85" />
-            <stop offset="55%" stopColor="var(--gc-lamp-on)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--gc-lamp-on)" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="gcLampGlass" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--gc-lamp-glass-a)" />
-            <stop offset="100%" stopColor="var(--gc-lamp-glass-b)" />
-          </linearGradient>
-        </defs>
-
-        <circle className="gc-lamp-halo" cx="36" cy="34" r="33" fill="url(#gcLampHalo)" />
-
-        <path
-          className="gc-lamp-glass"
-          d="M36 7c-11.6 0-20 8.8-20 20 0 7.8 4 12 7 15.8 2 2.5 3 4.1 3 7H46c0-2.9 1-4.5 3-7 3-3.8 7-8 7-15.8C56 15.8 47.6 7 36 7Z"
-          fill="url(#gcLampGlass)"
-        />
-        {/* بازتابِ نازکِ شیشه — عمق می‌دهد بدونِ شلوغی. */}
-        <path
-          className="gc-lamp-shine"
-          d="M25 20c2.4-4.4 6-6.8 10-7.2"
-          stroke="var(--gc-lamp-shine)"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          fill="none"
-        />
-        <path className="gc-lamp-filament" d="M29 36c1.8-5 3-8 7-8s5.2 3 7 8" />
-        <path className="gc-lamp-filament-leg" d="M29 36v6M43 36v6" />
-
-        {/* ترکِ حبابِ خراب — فقط در حالتِ شکست دیده می‌شود. */}
-        <path
-          className="gc-lamp-crack"
-          d="M31 18l4 6-3 4 5 3"
-          stroke="var(--gc-lamp-crack)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-
-        <rect x="25" y="52" width="22" height="5" rx="1.8" fill="var(--gc-metal)" />
-        <rect x="26" y="59" width="20" height="5" rx="1.8" fill="var(--gc-metal)" />
-        <rect x="27" y="66" width="18" height="5" rx="1.8" fill="var(--gc-metal)" />
-        <rect
-          x="29"
-          y="73"
-          width="14"
-          height="7"
-          rx="2"
-          fill="var(--gc-board-elevated)"
-          stroke="var(--gc-border-strong)"
-          strokeWidth="1.2"
-        />
-      </svg>
-      <span className="gc-endcap-label">لامپ</span>
-      <span
-        data-gc-terminal
-        style={{
-          position: "absolute",
-          top: "56px",
-          insetInlineStart: "6px",
-          width: 2,
-          height: 2,
-        }}
-      />
+      <span className="gc-endcap-art">
+        {/* هالهٔ نور، یک دایرهٔ گرادیانیِ جدا و نه `drop-shadow`: فیلتر سایه را
+            دورِ سرپیچِ مستطیلی هم می‌انداخت و نور کشیده دیده می‌شد. */}
+        <span className="gc-lamp-bloom" aria-hidden />
+        <svg viewBox="0 0 60 80" fill="none">
+          <path
+            className="gc-lamp-glass"
+            d="M30 7a19 19 0 0 0-11.5 34.1c2.2 1.7 3.5 4.2 3.5 7V51h16v-2.9c0-2.8 1.3-5.3 3.5-7A19 19 0 0 0 30 7Z"
+          />
+          <path className="gc-lamp-shine" d="M20.5 24a10 10 0 0 1 6.5-9" />
+          <path className="gc-lamp-filament" d="M25.5 48V39M34.5 48V39M25.5 39q2.25-5.5 4.5 0t4.5 0" />
+          <path className="gc-lamp-crack" d="M27 14l3.5 5-3 3.5 4.5 3" />
+          <rect className="gc-lamp-base" x="21.5" y="53" width="17" height="5" rx="2" />
+          <rect className="gc-lamp-base" x="22.5" y="60" width="15" height="5" rx="2" />
+          <path className="gc-lamp-base" d="M25.5 67h9l-2 4.5h-5z" />
+        </svg>
+        <span data-gc-terminal className="gc-terminal" />
+      </span>
     </div>
   );
 }

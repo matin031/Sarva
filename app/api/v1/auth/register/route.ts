@@ -10,6 +10,7 @@ import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
+import { sendWelcome } from "@/lib/notify/welcome";
 
 /**
  * POST /api/v1/auth/register — ساخت حساب.
@@ -42,7 +43,7 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
     const body = await readJson(request, registerSchema);
     if (!body.ok) return body.response;
 
-    const { name, email, password, turnstileToken } = body.data;
+    const { firstName, lastName, email, password, turnstileToken } = body.data;
 
     const captcha = await verifyTurnstile(turnstileToken, meta.ip);
     if (!captcha.ok) return fail(captcha.error, 400);
@@ -76,19 +77,26 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
     // همان یک قید کار می‌کرد.
     const userId = randomUUID();
     try {
+      /* ⚠️ `full_name` نوشته نمی‌شود و این عمدی است: تریگرِ
+         `users_full_name_bi` (مهاجرت ۰۰۹) خودش از نام و نام خانوادگی
+         می‌سازدش. نوشتنش از اینجا فقط یک مقدارِ موقتی بود که همان لحظه
+         بازنویسی می‌شد — و بدتر، یک مسیرِ دومِ نوشتنِ نام که روزی با
+         تریگر اختلاف پیدا می‌کرد. */
       await execute(
-        `insert into users (id, email, password_hash, full_name)
-         values (?, ?, ?, ?)`,
-        [userId, email, passwordHash, name],
+        `insert into users (id, email, password_hash, first_name, last_name)
+         values (?, ?, ?, ?, ?)`,
+        [userId, email, passwordHash, firstName, lastName],
       );
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
-      // ردیفی ساخته نشد یعنی ایمیل از قبل هست.
-      //
-      // بله، این وجودِ حساب را فاش می‌کند. عمدی است: جایگزینش («کد تأیید
-      // فرستادیم») کاربری را که ایمیلش را فراموش کرده در حلقهٔ بی‌پایان
-      // می‌اندازد. صفحهٔ ورود هم همین اطلاعات را از راه «رمز را فراموش
-      // کرده‌اید» می‌دهد، پس پنهان‌کاری اینجا چیزی اضافه نمی‌کرد.
+
+      /* ردیفی ساخته نشد یعنی ایمیل از قبل هست — `users_email_key` تنها
+         کلیدِ یکتایی است که این insert می‌تواند نقض کند.
+
+         بله، این وجودِ حساب را فاش می‌کند. عمدی است: جایگزینش («کد تأیید
+         فرستادیم») کاربری را که ایمیلش را فراموش کرده در حلقهٔ بی‌پایان
+         می‌اندازد. صفحهٔ ورود هم همین اطلاعات را از راه «رمز را فراموش
+         کرده‌اید» می‌دهد، پس پنهان‌کاری اینجا چیزی اضافه نمی‌کرد. */
       logger.info("ثبت‌نام تکراری", { event: "auth.register.duplicate" });
       return fail("این ایمیل قبلاً ثبت شده است. وارد شوید یا رمز را بازیابی کنید.", 409);
     }
@@ -117,6 +125,14 @@ export const POST = withRoute("/api/v1/auth/register", async (request: Request) 
 
     attachUserId(user.id);
     logger.info("حساب تازه ساخته شد", { event: "auth.register.succeeded", user_id: user.id });
+
+    /* پیامِ خوش‌آمد: اعلانِ پنل + ایمیل (و پیامک، اگر روزی شماره‌اش را
+       تأیید کند).
+       ⚠️ `catch` ندارد و لازم هم ندارد: `sendWelcome` هرگز throw نمی‌کند.
+       ⚠️ و عمداً `await` است و نه یک وعدهٔ رهاشده — همان تصمیمی که
+       `forgot-password` برای ایمیلش گرفته. وعده‌ای که بعد از `return` رها
+       شود، هیچ‌کس شکستش را نمی‌بیند و در هر محیطی هم اجرا نمی‌شود. */
+    await sendWelcome(user.id);
 
     return withCookies(ok({ user }, 201), [
       accessCookie(tokens.accessToken),

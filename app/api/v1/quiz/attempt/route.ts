@@ -6,8 +6,16 @@ import { fail, handleError, ok, readJson } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { recordActivity } from "@/lib/activity/record";
+import { lockAssignment, markAssignmentCompleted, quizResult } from "@/lib/teacher/assignments";
+import { sameItems } from "@/lib/teacher/assignment-rules";
 
 const schema = z.object({
+  /**
+   * اگر این دور، آزمونی است که دبیر گذاشته. فقط یک برچسب است: مالکیت،
+   * باز بودن و یکی بودنِ سؤال‌ها همه سمتِ سرور و داخلِ همین تراکنش سنجیده
+   * می‌شوند (`lockAssignment`).
+   */
+  assignmentId: z.uuid().optional(),
   answers: z
     .array(
       z.object({
@@ -67,9 +75,21 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
     const body = await readJson(request, schema, 64 * 1024);
     if (!body.ok) return body.response;
 
-    const { answers } = body.data;
+    const { answers, assignmentId } = body.data;
 
     const result = await transaction(async (tx) => {
+      /* ⚠️ قفلِ تکلیف پیش از هر نوشتن: اگر تکلیف مالِ این کاربر نیست، بسته
+         است یا سؤال‌هایش با این دور یکی نیست، هیچ‌چیز ثبت نمی‌شود. پاسخ‌های
+         تکی از قبل در `user_answers` نشسته‌اند، پس تاریخچه چیزی از دست
+         نمی‌دهد. */
+      if (assignmentId) {
+        const lock = await lockAssignment(tx, assignmentId, user.id, "aruz_quiz");
+        if (!lock.ok) return { rejected: lock };
+        if (!sameItems(lock.items, answers.map((a) => a.questionId))) {
+          return { rejected: { error: "سؤال‌های این دور با آزمون یکی نیست.", status: 400 } };
+        }
+      }
+
       // درستیِ همهٔ گزینه‌های انتخاب‌شده، در یک کوئری. شرط question_id هم چک
       // می‌شود تا گزینهٔ سؤال دیگری قابل ارسال نباشد.
       const selectedIds = answers
@@ -152,10 +172,17 @@ export const POST = withRoute("/api/v1/quiz/attempt", async (request: Request) =
         );
       }
 
+      if (assignmentId) {
+        await markAssignmentCompleted(tx, assignmentId, await quizResult(graded), attemptId);
+      }
+
       return { attemptId, total: graded.length, correct };
     });
 
     if ("badRequest" in result) return fail("یکی از سؤال‌ها وجود ندارد.", 400);
+    if ("rejected" in result && result.rejected) {
+      return fail(result.rejected.error, result.rejected.status);
+    }
 
     /* ⚠️ **بعد** از commit و نه داخلِ تراکنش.
 

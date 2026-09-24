@@ -261,6 +261,11 @@ const nextConfig: NextConfig = {
    * تنها استثنا Strict-Transport-Security است که در Caddyfile نشسته — چون
    * فقط باید روی اتصال TLS فرستاده شود و اینجا راهی برای فهمیدن پروتکل نیست.
    */
+  /** خط زمان اول با نشانیِ /khat-zaman ساخته شد؛ لینک‌های قدیمی به نشانیِ تازه می‌روند. */
+  async redirects() {
+    return [{ source: "/khat-zaman", destination: "/timeline", permanent: true }];
+  },
+
   async headers() {
     return [
       {

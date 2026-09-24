@@ -101,7 +101,7 @@ export default function InvitePanel({
               dangerouslySetInnerHTML={{ __html: qr }}
             />
             <p className="text-[12px] text-muted-foreground">
-              با دوربین گوشی اسکن کن — به همین کلاس می‌رسد.
+              با دوربین گوشی اسکن کن.
             </p>
           </div>
         )}

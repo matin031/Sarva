@@ -16,7 +16,7 @@ function NotFound() {
             fill="none"
             data-dc-tpl="18"
             data-om-id="33fea51e:23"
-            filter="drop-shadow(rgba(20, 184, 166, 0.15) 0px 0px 20px)"
+            filter="drop-shadow(0 0 20px color-mix(in oklch, var(--primary) 15%, transparent))"
             style={{ margin: "0 auto" }}
             viewBox="0 0 120 120"
           >
@@ -24,13 +24,13 @@ function NotFound() {
               cx="60"
               cy="60"
               r="58"
-              stroke="rgba(45,212,191,0.2)"
+              stroke="var(--primary)" strokeOpacity={0.2}
               strokeWidth="2"
               data-dc-tpl="19"
               data-om-id="33fea51e:24"
             ></circle>
             <path
-              stroke="#2dd4bf"
+              stroke="var(--primary)"
               strokeLinecap="round"
               strokeWidth="3"
               d="M45 70q15-20 30 0"
@@ -41,7 +41,7 @@ function NotFound() {
               cx="50"
               cy="55"
               r="4"
-              fill="#2dd4bf"
+              fill="var(--primary)"
               data-dc-tpl="21"
               data-om-id="33fea51e:26"
             ></circle>
@@ -49,12 +49,12 @@ function NotFound() {
               cx="70"
               cy="55"
               r="4"
-              fill="#2dd4bf"
+              fill="var(--primary)"
               data-dc-tpl="22"
               data-om-id="33fea51e:27"
             ></circle>
             <path
-              stroke="rgba(45,212,191,0.4)"
+              stroke="var(--primary)" strokeOpacity={0.4}
               strokeLinecap="round"
               strokeWidth="2"
               d="m35 35 15-5 15 5"
@@ -62,7 +62,7 @@ function NotFound() {
               data-om-id="33fea51e:28"
             ></path>
             <path
-              stroke="rgba(45,212,191,0.3)"
+              stroke="var(--primary)" strokeOpacity={0.3}
               strokeLinecap="round"
               strokeWidth="2"
               d="M70 28q5-3 10 0"

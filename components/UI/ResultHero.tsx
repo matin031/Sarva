@@ -29,12 +29,12 @@ function getResultMessage(result: number) {
   if (result > 20) {
     return {
       title: "راه داریم",
-      subtitle: "نگران نباشید؛ عروض با تکرار جا می‌افتد، دوباره تلاش کنید",
+      subtitle: "دوباره امتحان کنید",
     };
   }
   return {
     title: "شروع تازه",
-    subtitle: "از همین‌جا شروع می‌کنیم؛ مبانی وزن را مرور کنید و باز بیایید",
+    subtitle: "مبانی وزن را مرور کنید و دوباره امتحان کنید",
   };
 }
 

@@ -6,7 +6,7 @@ import {
   adminListOrders,
   adminListPlans,
 } from "@/lib/plus/admin-actions";
-import { isPilotGrantEnabled, isPlusEnabled } from "@/lib/plus/config";
+import { isPilotGrantEnabled, isPlusEnabled, paymentProviderName } from "@/lib/plus/config";
 
 export const metadata: Metadata = {
   title: "سروا پلاس",
@@ -20,14 +20,15 @@ export default async function Page() {
   // نمی‌شود چون بررسیِ دوم به‌مرور با اولی اختلاف پیدا می‌کند؛ گاردِ واقعی
   // همان چیزی است که کنارِ کوئری نشسته.
   const result = await loadAdminData(async () => {
-    const [plans, orders, entitlements, pilotEnabled, plusEnabled] = await Promise.all([
+    const [plans, orders, entitlements, pilotEnabled, plusEnabled, provider] = await Promise.all([
       adminListPlans(),
       adminListOrders({ limit: 25 }),
       adminListEntitlements({ limit: 25 }),
       isPilotGrantEnabled(),
       isPlusEnabled(),
+      paymentProviderName(),
     ]);
-    return { plans, orders, entitlements, pilotEnabled, plusEnabled };
+    return { plans, orders, entitlements, pilotEnabled, plusEnabled, provider };
   });
 
   if (!result.ok) return <AdminAccessDenied title={result.title} message={result.message} />;
@@ -39,6 +40,10 @@ export default async function Page() {
       initialEntitlements={result.data.entitlements}
       pilotEnabled={result.data.pilotEnabled}
       plusEnabled={result.data.plusEnabled}
+      gateway={{
+        isTest: result.data.provider === "test",
+        production: process.env.NODE_ENV === "production",
+      }}
     />
   );
 }

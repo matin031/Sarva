@@ -1,25 +1,45 @@
 "use client";
-import GoogleSignInButton from "./GoogleSignInButton";
+
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRef, useState } from "react";
+import { Mail } from "lucide-react";
 import { apiPost } from "@/lib/api/client";
 import { refreshCurrentUser } from "@/lib/auth/use-current-user";
-import { useRouter } from "next/navigation";
-import { emailField, nameField, passwordField } from "@/lib/auth/schemas";
+import { emailField, passwordField } from "@/lib/auth/schemas";
+import { firstNameField, lastNameField } from "@/lib/profile/name";
+import GoogleSignInButton from "./GoogleSignInButton";
 import TurnstileWidget from "@/components/UI/TurnstileWidget";
+import { ShinyButton } from "@/components/UI/kit/ShinyButton";
+import AuthTabs, { type AuthTab } from "@/components/UI/auth/AuthTabs";
+import MobileCodeForm from "@/components/UI/auth/MobileCodeForm";
+import PasswordField from "@/components/UI/auth/PasswordField";
 
 /**
- * قوانین از lib/auth/schemas.ts می‌آیند، نه از یک کپیِ محلی.
+ * فرمِ **ثبت‌نام** — دو تب، دقیقاً مثل فرمِ ورود.
  *
- * تا امروز این فایل نسخهٔ خودش را داشت — و آن نسخه با نسخهٔ سرور از هم افتاده
- * بود: سقف رمز در سرور به ۷۲ رفت ولی اینجا ۱۶ ماند، یعنی فرم رمزی را رد
- * می‌کرد که سرور کاملاً می‌پذیرفت. هر بار که این دو از هم بیفتند، یا کاربر
- * بی‌دلیل مسدود می‌شود یا سرور چیزی را می‌پذیرد که فرم قولش را نداده بود.
+ * ⚠️ تا دیروز ثبت‌نام فقط یک راه داشت (ایمیل و رمز) در حالی که ورود دو تب
+ * داشت. نتیجه‌اش این بود که کاربری که تبِ «موبایل» را در ورود دیده بود و
+ * «حساب کاربری نداری؟» را می‌زد، ناگهان به فرمی می‌رسید که اصلاً شماره
+ * نمی‌گرفت — و فکر می‌کرد ثبت‌نام با موبایل ممکن نیست. حالا هر دو صفحه از
+ * یک `AuthTabs` و یک `MobileCodeForm` استفاده می‌کنند.
+ *
+ * ⚠️ تبِ موبایل **همان** مسیرِ سرورِ ورود را می‌زند و این عمدی است؛ چرایی‌اش
+ * بالای `MobileCodeForm` نوشته شده: تصمیمِ «ورود یا ثبت‌نام» بعد از تأیید
+ * کد و سمتِ سرور گرفته می‌شود، نه با انتخابِ کاربر در فرم.
+ *
+ * ⚠️ قوانینِ اعتبارسنجی از `lib/auth/schemas.ts` و `lib/profile/name.ts`
+ * می‌آیند و نه از کپیِ محلی. تا امروز این فایل نسخهٔ خودش را داشت و آن
+ * نسخه با سرور از هم افتاده بود: سقفِ رمز در سرور به ۷۲ رفت ولی اینجا ۱۶
+ * ماند، یعنی فرم رمزی را رد می‌کرد که سرور کاملاً می‌پذیرفت.
  */
+/* ⚠️ شماره موبایل اینجا نیست و این عمدی است: تبِ «موبایل» درست کنارِ همین
+   فرم است و کارش همین است. چرایی کاملش بالای `registerSchema`. */
 const emailSchema = z.object({
-  name: nameField,
+  firstName: firstNameField,
+  lastName: lastNameField,
   email: emailField,
   password: passwordField,
 });
@@ -39,20 +59,17 @@ export default function SignUp({
   returnTo?: string;
 }) {
   const router = useRouter();
+  const [tab, setTab] = useState<AuthTab>("mobile");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
-  // pendingData حذف شد: در ترتیب قدیم، رمز و نام باید تا بعد از تأیید کد
-  // نگه داشته می‌شدند تا آن‌وقت حساب ساخته شود. حالا حساب پیش از صفحهٔ کد
-  // ساخته شده، پس نگه داشتن رمز در حافظهٔ کلاینت نه لازم است نه مطلوب.
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [showPassword, setShowPassword] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // توکن کپچا. وقتی کپچا خاموش باشد (کلید در محیط نیست) همیشه null می‌ماند و
-  // سرور هم چیزی نمی‌خواهد. captchaNonce بعد از هر تلاش ناموفق زیاد می‌شود تا
-  // ویجت ریست شود — هر توکن Turnstile فقط یک بار قابل مصرف است.
+  /* توکن کپچا. وقتی کپچا خاموش باشد (کلید در محیط نیست) همیشه null می‌ماند و
+     سرور هم چیزی نمی‌خواهد. `captchaNonce` بعد از هر تلاشِ ناموفق زیاد
+     می‌شود تا ویجت ریست شود — هر توکن Turnstile فقط یک بار قابل مصرف است. */
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaNonce, setCaptchaNonce] = useState(0);
 
@@ -63,22 +80,23 @@ export default function SignUp({
   } = useForm<EmailFormData>({ resolver: zodResolver(emailSchema) });
 
   /**
-   * ترتیب ثبت‌نام برعکس شده — و این تغییرِ عمدیِ رفتار است.
+   * ترتیبِ ثبت‌نام عمداً برعکسِ چیزی است که به ذهن می‌رسد.
    *
    * قبلاً: کد بفرست ← کد را تأیید کن ← تازه حساب بساز ← بعد وارد شو.
-   * حالا:  حساب بساز و همان‌جا وارد شو ← بعد کد تأیید ایمیل بفرست.
+   * حالا:  حساب بساز و همان‌جا وارد شو ← بعد کدِ تأیید ایمیل بفرست.
    *
-   * دلیلش این است که ایمیل ممکن است هرگز نرسد (فیلترینگ، اسپم، قطعی سرویس).
-   * در ترتیب قدیمی، آن یعنی دانش‌آموزی که فرم را پر کرده هیچ حسابی ندارد و
-   * باید همه‌چیز را از نو بزند. حالا حسابش ساخته شده و وارد سایت است؛ تأیید
-   * ایمیل کاری است که می‌تواند بعداً انجام شود.
+   * دلیلش این است که ایمیل ممکن است هرگز نرسد (فیلترینگ، اسپم، قطعیِ
+   * سرویس). در ترتیبِ قدیمی، آن یعنی دانش‌آموزی که فرم را پر کرده هیچ
+   * حسابی ندارد و باید همه‌چیز را از نو بزند. حالا حسابش ساخته شده و وارد
+   * سایت است؛ تأیید ایمیل کاری است که می‌تواند بعداً انجام شود.
    */
   const onSubmit = async (data: EmailFormData) => {
     setError(null);
     setLoading(true);
     try {
       const registered = await apiPost("/api/v1/auth/register", {
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
         turnstileToken: captchaToken ?? undefined,
@@ -96,8 +114,8 @@ export default function SignUp({
       setPendingEmail(data.email);
       setShowOtp(true);
 
-      // اگر ارسال کد شکست بخورد ثبت‌نام خراب نمی‌شود — کاربر روی صفحهٔ کد
-      // می‌ماند و می‌تواند «ارسال دوباره» بزند.
+      /* اگر ارسالِ کد شکست بخورد ثبت‌نام خراب نمی‌شود — کاربر روی صفحهٔ کد
+         می‌ماند و می‌تواند «ارسال دوباره» بزند. */
       const sent = await apiPost("/api/v1/auth/send-verification");
       if (!sent.ok) setError(sent.errors.join("\n"));
     } finally {
@@ -107,32 +125,28 @@ export default function SignUp({
 
   const handleOtpChange = (index: number, value: string) => {
     const digit = value.replace(/[^0-9]/g, "").slice(-1);
-    const newOtp = [...otp];
-    newOtp[index] = digit;
-    setOtp(newOtp);
+    const next = [...otp];
+    next[index] = digit;
+    setOtp(next);
     if (digit && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
-  const handleOtpKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0)
-      inputRefs.current[index - 1]?.focus();
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus();
   };
 
   const handleVerifyOtp = async () => {
     const code = otp.join("");
     if (code.length !== 6) {
-      setError("کد ۶ رقمی را کامل وارد کنید");
+      setError("کد را کامل وارد کن.");
       return;
     }
 
     setError(null);
     setLoading(true);
 
-    // حساب و سشن از قبل در onSubmit ساخته شده‌اند؛ اینجا فقط ایمیل تأیید
-    // می‌شود. سرور ایمیل را از سشن می‌گیرد، نه از این فرم.
+    /* حساب و سشن از قبل در onSubmit ساخته شده‌اند؛ اینجا فقط ایمیل تأیید
+       می‌شود. سرور ایمیل را از سشن می‌گیرد، نه از این فرم. */
     const verified = await apiPost("/api/v1/auth/verify-email", { code });
 
     if (!verified.ok) {
@@ -142,41 +156,31 @@ export default function SignUp({
     }
 
     refreshCurrentUser();
-
-    // موفق: دکمه تا وقتی جابه‌جایی به /panel واقعاً انجام شود در حالت بارگذاری
-    // می‌ماند
     onSuccess(pendingEmail);
-    /* اگر ثبت‌نام وسطِ خرید بوده، بازگشت به همان قصدِ خرید — نه صفحهٔ پنل. */
     router.push(returnTo);
     router.refresh();
   };
 
+  /* ── مرحلهٔ کدِ تأییدِ ایمیل ─────────────────────────────────────────── */
   if (showOtp) {
     return (
-      <div className="glass relative z-20 rounded-xl mt-10 px-8 py-10 w-[95%] sm:max-w-115 text-center flex flex-col items-center gap-4">
-        <div className="size-16 rounded-full bg-primary/20 flex items-center justify-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-8 text-primary"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
-            />
-          </svg>
+      <div
+        dir="rtl"
+        className="glass relative z-20 mt-10 flex w-[95%] flex-col items-center gap-4 rounded-xl px-8 py-10 text-center sm:max-w-115"
+      >
+        <div className="flex size-16 items-center justify-center rounded-full bg-primary/20">
+          <Mail aria-hidden className="size-8 text-primary" />
         </div>
         <h2 className="text-xl font-bold">کد تأیید را وارد کن</h2>
-        <p dir="rtl" className="text-muted-foreground text-sm line-clamp-1">
-          کد 6 رقمی به <span className="text-primary">{pendingEmail}</span>{" "}
+        <p className="line-clamp-1 text-sm text-muted-foreground">
+          کد تأیید به{" "}
+          <bdi dir="ltr" className="text-primary">
+            {pendingEmail}
+          </bdi>{" "}
           ارسال شد
         </p>
 
-        <div className="flex justify-center gap-2 mt-2" dir="ltr">
+        <div className="mt-2 flex justify-center gap-2" dir="ltr">
           {otp.map((digit, i) => (
             <input
               key={i}
@@ -187,147 +191,148 @@ export default function SignUp({
               inputMode="numeric"
               maxLength={1}
               value={digit}
+              aria-label={`رقم ${i + 1} از کد تأیید`}
               onChange={(e) => handleOtpChange(i, e.target.value)}
               onKeyDown={(e) => handleOtpKeyDown(i, e)}
-              className="w-11 h-13 text-center text-xl font-bold rounded-xl border-2
-                border-muted-foreground/10 bg-background outline-none
-                focus:border-primary transition-colors duration-200"
+              className="h-13 w-11 rounded-xl border-2 border-muted-foreground/10 bg-background text-center text-xl font-bold outline-none transition-colors duration-200 focus:border-primary"
             />
           ))}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm whitespace-pre-line text-red-500">{error}</p>}
 
-        <button
-          onClick={handleVerifyOtp}
-          disabled={loading}
-          className="bg-primary text-black rounded-xl px-8 py-2 font-bold mt-2 disabled:opacity-60 w-full"
-        >
-          {loading ? "...در حال تأیید" : "تأیید"}
-        </button>
+        <ShinyButton onClick={handleVerifyOtp} disabled={loading} className="mt-2 w-full">
+          {loading ? "در حال تأیید…" : "تأیید"}
+        </ShinyButton>
 
+        {/* ⚠️ «بعداً» یک راهِ فرار نیست بلکه حقیقتِ همین جریان است: حساب
+            ساخته شده و کاربر همین الان وارد است. بدونِ این دکمه، کسی که
+            ایمیلش نرسیده روی این صفحه گیر می‌کرد. */}
         <button
+          type="button"
           onClick={() => {
-            setShowOtp(false);
-            setOtp(["", "", "", "", "", ""]);
+            router.push(returnTo);
+            router.refresh();
           }}
-          className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          className="cursor-pointer text-sm text-muted-foreground transition-colors hover:text-primary"
         >
-          بازگشت
+          بعداً تأیید می‌کنم
         </button>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="glass relative z-20 rounded-xl mt-10 px-8 pt-8 pb-4 w-[95%] text-sm sm:text-base sm:max-w-115"
+    <div
+      dir="rtl"
+      className="glass relative z-20 mt-10 w-[95%] rounded-xl px-4 pt-8 pb-4 text-sm sm:max-w-115 sm:px-8 sm:text-base"
     >
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground">
-          نام و نام خانوادگی
-        </label>
-        <input
-          {...register("name")}
-          className="text-right placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4 py-3 border border-muted-foreground/10 rounded-xl w-full"
-          type="text"
-          placeholder="سعدی شیرازی"
-        />
-        {errors.name && (
-          <p className="text-xs sm:text-sm text-red-500 mt-1">
-            {errors.name.message}
-          </p>
-        )}
-      </div>
+      <AuthTabs
+        value={tab}
+        onChange={(next) => {
+          setTab(next);
+          setError(null);
+        }}
+      />
 
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground">ایمیل</label>
-        <input
-          {...register("email")}
-          className="text-left placeholder:text-muted-foreground/30 outline-none focus:border-primary px-4 py-3 border border-muted-foreground/10 rounded-xl w-full"
-          type="text"
-          placeholder="you@example.com"
-        />
-        {errors.email && (
-          <p className="text-xs sm:text-sm text-red-500 mt-1">
-            {errors.email.message}
-          </p>
-        )}
-      </div>
+      {tab === "mobile" ? (
+        <MobileCodeForm intent="signup" returnTo={returnTo} onSuccess={onSuccess} />
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-5">
+          {/* نام و نام خانوادگی کنار هم: یک سطر به‌جای دو، و روی موبایل
+              زیرِ هم. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="signup-first" className="text-sm text-muted-foreground">
+                نام
+              </label>
+              <input
+                {...register("firstName")}
+                id="signup-first"
+                autoComplete="given-name"
+                className="w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-right outline-none placeholder:text-muted-foreground/30 focus:border-primary"
+                type="text"
+                placeholder="سعدی"
+              />
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-500 sm:text-sm">{errors.firstName.message}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="signup-last" className="text-sm text-muted-foreground">
+                نام خانوادگی
+              </label>
+              <input
+                {...register("lastName")}
+                id="signup-last"
+                autoComplete="family-name"
+                className="w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-right outline-none placeholder:text-muted-foreground/30 focus:border-primary"
+                type="text"
+                placeholder="شیرازی"
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-500 sm:text-sm">{errors.lastName.message}</p>
+              )}
+            </div>
+          </div>
 
-      <div className="mb-5">
-        <label className="text-sm text-muted-foreground">رمز عبور</label>
-        <div className="border  px-4 py-3 border-muted-foreground/10 rounded-xl focus-within:border-primary flex-row-reverse flex items-center">
-          <input
-            {...register("password")}
-            className=" pl-2 h-full text-left placeholder:text-right placeholder:text-muted-foreground/30 outline-none 
-                 w-full"
-            type={showPassword ? "text" : "password"}
-            placeholder="*************"
-          />
-          <div
-            onClick={() => {
-              setShowPassword((prev) => !prev);
-            }}
-            className=" cursor-pointer text-muted-foreground"
-          >
-            {showPassword ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="size-5 cursor-pointer"
-              >
-                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
-                <path
-                  fillRule="evenodd"
-                  d="M1.38 8.28a.87.87 0 0 1 0-.566 7.003 7.003 0 0 1 13.238.006.87.87 0 0 1 0 .566A7.003 7.003 0 0 1 1.379 8.28ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="size-5"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l10.5 10.5a.75.75 0 1 0 1.06-1.06l-1.322-1.323a7.012 7.012 0 0 0 2.16-3.11.87.87 0 0 0 0-.567A7.003 7.003 0 0 0 4.82 3.76l-1.54-1.54Zm3.196 3.195 1.135 1.136A1.502 1.502 0 0 1 9.45 8.389l1.136 1.135a3 3 0 0 0-4.109-4.109Z"
-                  clipRule="evenodd"
-                />
-                <path d="m7.812 10.994 1.816 1.816A7.003 7.003 0 0 1 1.38 8.28a.87.87 0 0 1 0-.566 6.985 6.985 0 0 1 1.113-2.039l2.513 2.513a3 3 0 0 0 2.806 2.806Z" />
-              </svg>
+          <div className="mt-5">
+            <label htmlFor="signup-email" className="text-sm text-muted-foreground">
+              ایمیل
+            </label>
+            <input
+              {...register("email")}
+              id="signup-email"
+              dir="ltr"
+              autoComplete="email"
+              className="w-full rounded-xl border border-muted-foreground/10 px-4 py-3 text-left outline-none placeholder:text-muted-foreground/30 focus:border-primary"
+              type="text"
+              placeholder="you@example.com"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500 sm:text-sm">{errors.email.message}</p>
             )}
           </div>
-        </div>
-        {errors.password && (
-          <p className="text-xs sm:text-sm text-red-500 mt-1">
-            {errors.password.message}
-          </p>
-        )}
-      </div>
 
-      {/* وقتی کپچا خاموش باشد این هیچ چیزی رندر نمی‌کند و فضایی هم نمی‌گیرد. */}
-      <div className="mt-2 flex justify-center">
-        <TurnstileWidget onToken={setCaptchaToken} resetSignal={captchaNonce} />
-      </div>
+          <div className="mt-5">
+            <label htmlFor="signup-password" className="text-sm text-muted-foreground">
+              رمز عبور
+            </label>
+            <div className="mt-1">
+              <PasswordField
+                {...register("password")}
+                id="signup-password"
+                autoComplete="new-password"
+                placeholder="*************"
+              />
+            </div>
+            {errors.password && (
+              <p className="mt-1 text-xs whitespace-pre-line text-red-500 sm:text-sm">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
 
-      {error && (
-        <p className="text-xs sm:text-sm text-red-500 mt-1 text-center">
-          {error}
-        </p>
+          {/* وقتی کپچا خاموش باشد این هیچ چیزی رندر نمی‌کند و فضایی هم
+              نمی‌گیرد. */}
+          <div className="mt-5 flex justify-center">
+            <TurnstileWidget onToken={setCaptchaToken} resetSignal={captchaNonce} />
+          </div>
+
+          {error && (
+            <p className="mt-3 text-center text-xs whitespace-pre-line text-red-500 sm:text-sm">
+              {error}
+            </p>
+          )}
+
+          {/* ⚠️ `type="submit"`ِ صریح — `ShinyButton` پیش‌فرض
+              `type="button"` می‌گذارد. */}
+          <ShinyButton type="submit" disabled={loading} className="mt-5 w-full">
+            {loading ? "در حال ثبت‌نام…" : "ساخت حساب"}
+          </ShinyButton>
+        </form>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="bg-primary text-black rounded-xl p-2 w-full font-bold mt-2 disabled:opacity-60"
-      >
-        {loading ? "...در حال تأیید" : "دریافت کد تأیید"}
-      </button>
       {googleEnabled && (
         <>
           <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
@@ -335,20 +340,17 @@ export default function SignUp({
             یا
             <span className="h-px flex-1 bg-border" />
           </div>
-          <GoogleSignInButton label="ثبت‌نام با حساب گوگل" />
+          <GoogleSignInButton label="ثبت‌نام با حساب گوگل" returnTo={returnTo} />
         </>
       )}
 
-
-      <p className="text-center mt-8">
+      <p className="mt-8 text-center">
         حساب کاربری داری؟
-        <span
-          onClick={() => setIsLogin(true)}
-          className="text-primary cursor-pointer"
-        >
+        <span onClick={() => setIsLogin(true)} className="cursor-pointer text-primary">
+          {" "}
           وارد شو
         </span>
       </p>
-    </form>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
-import HighlightedText from "@/components/exam/HighlightedText";
+import HighlightedText, { plainText } from "@/components/exam/HighlightedText";
 
 type McqPlusCorrectionContent = {
   type: "mcq-plus-correction";
@@ -43,7 +43,7 @@ export default function McqPlusCorrectionPart({ content, options, value, onChang
           <RichPassageView passage={content.stimulus} />
         </div>
       )}
-      <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
+      <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.questionText} /></p>
 
       <select
         dir="rtl"
@@ -59,7 +59,7 @@ export default function McqPlusCorrectionPart({ content, options, value, onChang
         {options.map((opt) => (
           <option key={opt.id} value={opt.id}>
             {opt.optionKey ? `${opt.optionKey}) ` : ""}
-            {opt.text.replace(/\{\{([^}]+)\}\}/g, "$1")}
+            {plainText(opt.text)}
           </option>
         ))}
       </select>

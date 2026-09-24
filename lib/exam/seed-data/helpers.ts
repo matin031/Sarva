@@ -48,3 +48,15 @@ export const highlightThenBlank = (
     { kind: "text", value: after },
   ],
 });
+
+/** Underlines a word/phrase inside a plain string field (instruction,
+ *  questionText, statementText, option text, list items) — the fields that
+ *  aren't RichPassages and so can't hold a `highlight` token. Uses U+0332,
+ *  which MarkedText/HighlightedText turn into one clean `.fa-underline` run.
+ *
+ *     instruction: `«به سوزی ده کلامم را روایی / کز آن گرمی کند ${ul("آتش")} گدایی»`
+ */
+export const ul = (s: string): string =>
+  Array.from(s)
+    .map((ch) => (/[\s\u200c]/.test(ch) ? ch : ch + "\u0332"))
+    .join("");

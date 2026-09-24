@@ -10,7 +10,8 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { toFa } from "@/components/UI/CircularProgress";
 import AruzAttemptList from "@/components/UI/panel/AruzAttemptList";
-import AruzWeights from "@/components/UI/panel/AruzWeights";
+import { FocusCard, SkillGrid } from "@/components/UI/panel/skill/SkillMap";
+import type { SkillTile } from "@/lib/panel/skills";
 import BookmarkedQuestions from "@/components/UI/panel/BookmarkedQuestions";
 import PanelTrendChart from "@/components/UI/panel/PanelTrendChart";
 import PanelSection from "@/components/UI/panel/PanelSection";
@@ -42,7 +43,7 @@ export default function AruzPanel({
    *  دلیلش در lib/panel/day-counts.ts نوشته شده. */
   dayCounts: DayCount[];
   bookmarks: Bookmark[];
-  weights: { weight: string; total: number; correct: number }[];
+  weights: SkillTile[];
 }) {
   const [attempts, setAttempts] = useState(initialAttempts);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -77,7 +78,7 @@ export default function AruzPanel({
 
   return (
     <div className={styles.pageStack}>
-      <PanelPageHeader title="عروض سماعی" description="هر تمرینی که زده‌ای، با وزنی که تشخیص دادی و پاسخِ درست." tone="lilac" action={
+      <PanelPageHeader title="عروض سماعی" description="تمرین‌هایی که انجام داده‌ای." tone="lilac" action={
         /* دکمهٔ اصلیِ صفحه — Shiny Buttonِ مجیک‌یوآی، همانی که خانهٔ پنل هم
            دارد. پیش‌تر یک `<span>`ِ کوچک با کلاسِ `resumeCta` بود که شبیهِ
            پیوندِ فرعی دیده می‌شد — در حالی که تنها کارِ واقعیِ صفحه همین است. */
@@ -88,7 +89,7 @@ export default function AruzPanel({
           </Link>
         </ShinyButton>
       } />
-      <PracticeSummary items={[{ label: "دقت عروض سماعی", value: `${toFa(accuracy)}٪` }, { label: "پاسخ‌های تو", value: toFa(answered) }, { label: "بهترین عملکرد", value: `${toFa(summary.best)}٪` }, { label: "زنجیرهٔ تلاش", value: `${toFa(days)} روز` }]} />
+      <PracticeSummary items={[{ label: "دقت عروض سماعی", value: answered ? `${toFa(accuracy)}٪` : "—" }, { label: "پاسخ‌های تو", value: toFa(answered) }, { label: "بهترین عملکرد", value: answered ? `${toFa(summary.best)}٪` : "—" }, { label: "زنجیرهٔ تلاش", value: `${toFa(days)} روز` }]} />
 
       <PanelSection title="روند پیشرفت" icon="chart">
         <PanelTrendChart buckets={bucketsFromDayCounts(dayCounts, 30)} />
@@ -97,9 +98,20 @@ export default function AruzPanel({
       <PanelSection
         title="وزن‌ها"
         icon="scale"
-        hint="هر وزنی که از آن تست داده‌ای، با درصد درستش. از ضعیف‌ترین به قوی‌ترین."
+        hint="حلقه دقتِ کل است و ده خانهٔ زیرش، ده پاسخ آخر. ضعیف‌ترها اول."
       >
-        <AruzWeights weights={weights} />
+        {weights.length ? (
+          <>
+            <div className="mt-4">
+              <FocusCard tiles={weights} href="/aruz" cta="تمرین" />
+            </div>
+            <SkillGrid tiles={weights} />
+          </>
+        ) : (
+          <p className="mt-4 rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            هنوز به سؤال وزنی جواب نداده‌ای.
+          </p>
+        )}
       </PanelSection>
 
       <PanelSection title="آزمون‌های پیشین" icon="clipboard">

@@ -75,10 +75,9 @@ function Page() {
           >
             <motion.span
               variants={itemVariants}
-              className=" max-w-48  mb-3 sm:mb-0 rounded-full text-xs sm:text-sm px-4 
-          font-semibold py-1 bg-primary/10 text-primary"
+              className="mb-3 inline-block text-sm font-bold text-primary"
             >
-              دربارۀ ما
+              دربارهٔ ما
             </motion.span>
             <motion.h1
               variants={itemVariants}
@@ -86,22 +85,27 @@ function Page() {
               className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight
            mb-2 text-balance"
             >
-              پاسداری از میراث
-              <span className=" text-primary mr-1 inline-block">شعر پارسی</span>
+              {/* ⚠️ `{" "}` صریح: شکستنِ خط در JSX فاصله نمی‌سازد و «میراث» به
+                  «شعر پارسی» می‌چسبید («میراثشعر»). */}
+              پاسداری از میراث{" "}
+              <span className="inline-block text-primary">شعر پارسی</span>
             </motion.h1>
             <motion.p
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed text-center"
             >
-              سروا زادۀ یک باور است: دانشِ کهنِ عروض نباید در قفسۀ کتاب‌ها
-              بماند. اینجا وزن و آهنگِ شعر فارسی را با زبانِ امروز، گام‌به‌گام و
-              شنیدنی می‌آموزی
+              سروا برای آموزش ادبیات فارسی دبیرستان ساخته شده: درسنامه، امتحان نهایی، وزن شعر و بازی‌های تمرینی
             </motion.p>
           </motion.div>
           <div
             aria-hidden
             className="glow-soft absolute right-20 top-0 z-100 hidden size-100 rounded-full dark:block"
-            style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+            style={
+              {
+                "--glow":
+                  "color-mix(in oklch, var(--color-primary) 14%, transparent)",
+              } as React.CSSProperties
+            }
           />
         </div>
 
@@ -144,9 +148,7 @@ function Page() {
               هدف ما
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              عروض را از دلِ کتاب‌های دشوار بیرون بیاوریم و به مهارتی روشن و در
-              دسترس بدل کنیم؛ چنان‌که هر علاقه‌مندی بتواند وزنِ شعر را بشنود و
-              بشناسد
+              یادگیری ادبیات فارسی و وزن شعر را ساده‌تر و قابل تمرین کنیم
             </p>
           </motion.div>
 
@@ -179,8 +181,7 @@ function Page() {
               رویکرد ما
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              یادگیری تعاملی، همراه با صدا و نمونه‌هایی از اشعارِ بزرگان. اینجا
-              به‌جای حفظِ خشکِ ارکان، وزن را با گوش و تمرین تجربه می‌کنی
+              به‌جای حفظ کردن ارکان، وزن را با شنیدن نمونه‌ها و تمرین یاد می‌گیری
             </p>
           </motion.div>
 
@@ -214,8 +215,7 @@ function Page() {
               جامعۀ ما
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              حلقه‌ای از دوستدارانِ ادبِ فارسی که کنارِ هم می‌آموزند و می‌سنجند؛
-              جایی برای رشدِ ذوق و ژرف‌ترشدنِ درک از موسیقیِ شعر
+              در سروا کلاب می‌توانی شعرت را بفرستی و نظر دیگران را بخوانی
             </p>
           </motion.div>
         </motion.div>
@@ -235,16 +235,11 @@ function Page() {
               داستان ما
             </h2>
             <p className="text-muted-foreground leading-relaxed text-center mb-4">
-              عروض، دانشِ شناختنِ آهنگ و وزنِ شعر است؛ همان چیزی که قرن‌ها
-              راهنمای شاعرانِ این سرزمین بوده و به کلامشان نظم و موسیقی بخشیده.
-              اما امروز، همین دانش برای بسیاری دور و دشوار می‌نماید — نه به‌سببِ
-              پیچیدگیِ ذاتی‌اش، که به‌سببِ شیوۀ آموزشش
+              عروض دانش شناختن وزن شعر است و قرن‌ها راهنمای شاعران فارسی بوده.
+              اما امروز بیشتر دانش‌آموزان آن را سخت می‌دانند؛ بیشتر به‌خاطر شیوهٔ آموزشش
             </p>
             <p className="text-muted-foreground leading-relaxed text-center">
-              سروا تلاشی است برای پُل‌زدن میانِ این میراثِ کهن و نسلِ امروز.
-              با ابزارهای تعاملی، صدا، و طراحیِ الهام‌گرفته از هنرِ ایرانی
-              کوشیده‌ایم این راه را دلنشین و آسان کنیم؛ تا وزنِ شعر را نه فقط
-              بخوانی، که بشنوی و حس کنی
+              سروا با تمرین، صدا و مثال سعی می‌کند یادگیری آن را ساده‌تر کند
             </p>
           </div>
 
@@ -294,12 +289,7 @@ function Page() {
                 دبیر ادبیات فارسی و سازندۀ پلتفرم سروا
               </p>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                سال‌هاست در کلاسِ درس، از زیباییِ شعر فارسی می‌گویم و شور آن را
-                با دانش‌آموزانم قسمت می‌کنم؛ و در این میان، عروض همواره
-                دلرباترین بخشِ راه بوده است — آهنگی پنهان که در پسِ هر بیت
-                می‌تپد. سروا را آنجا ساختم که این دو عشق به هم رسیدند: ادبیات
-                و فناوری. خواستم یادگیریِ عروض از حالتِ کتابی و خشک درآید و به
-                تجربه‌ای زنده، شنیدنی و ماندگار بدل شود
+                سال‌هاست ادبیات فارسی درس می‌دهم و عروض همیشه بخش مورد علاقه‌ام بوده. سروا را ساختم تا یادگیری عروض از حالت کتابی دربیاید و بشود وزن را شنید و تمرین کرد
               </p>
               <motion.div
                 variants={containerVariants}
@@ -347,7 +337,7 @@ function Page() {
                     <path d="M13 21h8" />
                     <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
                   </svg>
-                  پژوهشگرِ عروض و قافیه
+                  پژوهشگر عروض و قافیه
                 </motion.span>
 
                 <motion.span
@@ -382,7 +372,12 @@ function Page() {
           <div
             aria-hidden
             className="glow-soft absolute right-20 top-0 z-100 hidden size-100 rounded-full dark:block"
-            style={{ "--glow": "color-mix(in oklch, var(--color-primary) 14%, transparent)" } as React.CSSProperties}
+            style={
+              {
+                "--glow":
+                  "color-mix(in oklch, var(--color-primary) 14%, transparent)",
+              } as React.CSSProperties
+            }
           />
           <motion.div
             dir="rtl"
@@ -402,8 +397,7 @@ function Page() {
               variants={fadeUp}
               className="text-muted-foreground max-w-xl mx-auto"
             >
-              پرسش، پیشنهاد یا نقدی دارید؟ خوشحال می‌شویم صدایتان را بشنویم؛ هر
-              پیام، گامی است برای بهترشدنِ سروا
+              پرسش، پیشنهاد یا نقدی دارید؟ از یکی از این راه‌ها پیام بدهید
             </motion.p>
             <motion.div
               variants={containerVariants}
@@ -498,25 +492,11 @@ function Page() {
             </motion.div>
 
             <motion.div variants={fadeUp}>
-              <Link
-                className="active:scale-95 hover:brightness-90 transition-all bg-primary
-           px-5 py-2 text-white justify-center rounded-xl flex items-center gap-x-2 z-20 relative my-12"
-                href={"/quiz"}
-              >
-                شروع آزمون
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="size-5"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </Link>
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: `<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7' alt='' style='cursor:pointer' code='5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7'></a>`,
+                }}
+              />
             </motion.div>
           </motion.div>
         </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import type { Grade } from "@/lib/doroos/types";
-import { faNum } from "@/lib/doroos";
+import { faNum } from "@/lib/doroos/catalog";
 import Shamseh from "@/components/UI/doroos/Shamseh";
 
 /** One پایه, drawn as its book.

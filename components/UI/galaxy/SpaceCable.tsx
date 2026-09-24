@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { QualityProfile } from "./quality";
 
 /** The "space cable": one long, meandering wire that drops in from the top of
@@ -205,6 +205,10 @@ export default function SpaceCable({
     return () => {
       observer.disconnect();
       for (const a of anims) a.cancel();
+      for (const path of paths) {
+        path.style.removeProperty("stroke-dasharray");
+        path.style.removeProperty("stroke-dashoffset");
+      }
     };
   }, [animate, bands]);
 
@@ -227,7 +231,7 @@ export default function SpaceCable({
     let animation: Animation | null = null;
 
     const build = () => {
-      animation?.cancel();
+      const previousTime = animation?.currentTime;
       const total = path.getTotalLength();
       const box = host.getBoundingClientRect();
       const SAMPLES = 140;
@@ -238,11 +242,14 @@ export default function SpaceCable({
           transform: `translate3d(${(pt.x / W) * box.width}px, ${(pt.y / H) * box.height}px, 0)`,
         });
       }
+      animation?.cancel();
       animation = comet.animate(frames, {
         duration: 9000,
         iterations: Infinity,
         easing: "linear",
       });
+      if (previousTime != null) animation.currentTime = previousTime;
+      if (document.hidden) animation.pause();
     };
 
     build();
@@ -253,10 +260,16 @@ export default function SpaceCable({
       resizeTimer = window.setTimeout(build, 150);
     };
     window.addEventListener("resize", onResize);
+    const onVisibility = () => {
+      if (document.hidden) animation?.pause();
+      else animation?.play();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.clearTimeout(resizeTimer);
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
       animation?.cancel();
     };
   }, [animate, fullPath]);
@@ -353,13 +366,15 @@ export default function SpaceCable({
             }}
           />
           <span
+            data-galaxy-loop="node"
             className="relative block size-2.5 rounded-full bg-gold shadow-[0_0_14px_var(--color-gold)]"
             style={
               animate
                 ? {
+                    "--node-delay": `${i * 0.35}s`,
                     animation: `cableNode 2.6s ease-in-out ${i * 0.35}s infinite`,
                     willChange: "transform",
-                  }
+                  } as CSSProperties
                 : undefined
             }
           />

@@ -39,15 +39,48 @@ export interface CircuitSvgLayerProps {
   onCurrentFinished: (epoch: number, runId: number) => void;
 }
 
+const CORNER = 9;
+const f = (n: number) => n.toFixed(2);
+
+/** خط‌شکسته با گوشه‌های گرد. شعاع هیچ‌وقت از نصفِ ضلعِ کنارش بیشتر نمی‌شود،
+ *  پس زانوهای کوتاه هم درست خم می‌شوند. `getTotalLength` روی همین مسیر کار
+ *  می‌کند، پس جریانِ نهایی هم دقیقاً روی همین خم‌ها می‌رود. */
 function toPath(points: readonly Point[]): string {
   if (points.length === 0) return "";
-  return points
-    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
+  let d = `M${f(points[0].x)} ${f(points[0].y)}`;
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i];
+    const next = points[i + 1];
+    if (!next) {
+      d += ` L${f(p.x)} ${f(p.y)}`;
+      break;
+    }
+    const prev = points[i - 1];
+    const inLen = Math.hypot(p.x - prev.x, p.y - prev.y);
+    const outLen = Math.hypot(next.x - p.x, next.y - p.y);
+    const r = Math.min(CORNER, inLen / 2, outLen / 2);
+    if (r < 0.5) {
+      d += ` L${f(p.x)} ${f(p.y)}`;
+      continue;
+    }
+    const a = { x: p.x - ((p.x - prev.x) / inLen) * r, y: p.y - ((p.y - prev.y) / inLen) * r };
+    const b = { x: p.x + ((next.x - p.x) / outLen) * r, y: p.y + ((next.y - p.y) / outLen) * r };
+    d += ` L${f(a.x)} ${f(a.y)} Q${f(p.x)} ${f(p.y)} ${f(b.x)} ${f(b.y)}`;
+  }
+  return d;
 }
 
-/** مسیرِ زانویی — ظاهرِ ردِ مدارِ چاپی و بی‌ابهام از نظر هندسی. */
-function elbow(from: Point, to: Point): Point[] {
+/** مسیرِ زانویی — ظاهرِ ردِ مدارِ چاپی و بی‌ابهام از نظر هندسی.
+ *  افقی: زانو وسطِ فاصلهٔ افقی. ایستاده: زانو وسطِ فاصلهٔ عمودی. */
+function elbow(from: Point, to: Point, vertical: boolean): Point[] {
+  if (vertical) {
+    if (Math.abs(from.x - to.x) < 0.5) return [];
+    const mid = (from.y + to.y) / 2;
+    return [
+      { x: from.x, y: mid },
+      { x: to.x, y: mid },
+    ];
+  }
   if (Math.abs(from.y - to.y) < 0.5) return [];
   const mid = (from.x + to.x) / 2;
   return [
@@ -75,6 +108,7 @@ export default function CircuitSvgLayer({
     if (!geometry?.power || !geometry.lamp) {
       return { segments: [] as Array<{ key: string; d: string; kind: string }>, fullPath: "" };
     }
+    const vertical = geometry.vertical;
     const bySlot = new Map(geometry.slots.map((s) => [s.tokenId, s]));
     const segs: Array<{ key: string; d: string; kind: string }> = [];
     const chain: Point[] = [geometry.power];
@@ -83,8 +117,14 @@ export default function CircuitSvgLayer({
     circuitTokenIds.forEach((tokenId, index) => {
       const slot = bySlot.get(tokenId);
       if (!slot) return;
-      const right: Point = { x: slot.centerX + slot.halfWidth, y: slot.centerY };
-      const left: Point = { x: slot.centerX - slot.halfWidth, y: slot.centerY };
+      /* ایستاده، سیم از بالای خانه وارد و از پایینش خارج می‌شود؛ افقی، از دو
+         سرش. نام‌ها همان می‌مانند چون بقیهٔ منطق فقط «دو سر» می‌خواهد. */
+      const right: Point = vertical
+        ? { x: slot.centerX, y: slot.centerY - slot.halfHeight }
+        : { x: slot.centerX + slot.halfWidth, y: slot.centerY };
+      const left: Point = vertical
+        ? { x: slot.centerX, y: slot.centerY + slot.halfHeight }
+        : { x: slot.centerX - slot.halfWidth, y: slot.centerY };
       // ورودی = سرِ نزدیک‌تر به نقطهٔ قبلی، پس ترتیبِ معنایی هرچه باشد سیم
       // منطقی می‌ماند.
       const entry =
@@ -94,7 +134,7 @@ export default function CircuitSvgLayer({
           : left;
       const exit = entry === right ? left : right;
 
-      const lead = [...elbow(prev, entry), entry];
+      const lead = [...elbow(prev, entry, vertical), entry];
       segs.push({ key: `w-${index}`, d: toPath([prev, ...lead]), kind: "wire" });
       chain.push(...lead);
 
@@ -116,7 +156,7 @@ export default function CircuitSvgLayer({
       prev = exit;
     });
 
-    const tail = [...elbow(prev, geometry.lamp), geometry.lamp];
+    const tail = [...elbow(prev, geometry.lamp, vertical), geometry.lamp];
     segs.push({ key: "w-lamp", d: toPath([prev, ...tail]), kind: "wire" });
     chain.push(...tail);
 
@@ -188,6 +228,7 @@ export default function CircuitSvgLayer({
     <svg
       className="gc-svg"
       data-measured={measured ? "true" : "false"}
+      data-phase={phase}
       viewBox={`0 0 ${Math.max(width, 1)} ${Math.max(height, 1)}`}
       /* اندازه و موقعیت هر دو درون‌خطی‌اند: حتی اگر شیوه‌نامهٔ بازی نرسد، این
          عنصر از جریانِ چیدمان بیرون می‌ماند و نمی‌تواند والدش را بزرگ کند. */

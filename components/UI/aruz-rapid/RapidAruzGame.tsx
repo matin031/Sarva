@@ -9,7 +9,8 @@ import {
   isActiveGameplay,
   type FeedbackKind,
 } from "@/lib/aruz-rapid/machine";
-import { DEFAULT_RAPID_ARUZ_CONFIG, type RapidAruzConfig } from "@/lib/aruz-rapid/config";
+import { DEFAULT_RAPID_ARUZ_CONFIG, getPreviewDuration, type RapidAruzConfig } from "@/lib/aruz-rapid/config";
+import { licenseMarks } from "@/lib/aruz-rapid/license";
 import {
   LocalRapidAruzSource,
   defaultRapidAruzSource,
@@ -23,11 +24,14 @@ import { useRapidAruzAudio } from "./useRapidAruzAudio";
 import { useRapidAruzKeyboard } from "./useRapidAruzKeyboard";
 import { useRapidAruzOrientationPause, useRapidAruzPause } from "./useRapidAruzPause";
 import SpoileredPreview from "./SpoileredPreview";
+import LicenseNote from "./LicenseNote";
 import { AnswerControls, CurrentUnit, Progress, StepTimer, UnitDots } from "./GameController";
 import CompactGameTopBar from "./CompactGameTopBar";
 import IntroScreen from "./IntroScreen";
 import ResultsScreen from "./ResultsScreen";
 import { ReportTargetProvider, useSetReportTarget } from "@/lib/reports/target";
+import AssignmentNotice from "@/components/UI/AssignmentNotice";
+import { studentCompleteRapidAssignment } from "@/lib/teacher/assignment-actions";
 
 /** کلاسِ سراسری‌ای که فقط اسکرولِ صفحه را در بازیِ تمام‌صفحه قفل می‌کند. */
 const IMMERSIVE_CLASS = "aruzr-immersive";
@@ -43,6 +47,8 @@ type RapidAruzGameProps = {
    * همین‌جا ساخته می‌شود. نبودنش یعنی همان دادهٔ نمایشیِ قبلی.
    */
   questions?: RapidAruzQuestion[];
+  /** تکلیفِ دبیر؛ `questions` آن‌وقت دقیقاً مصراع‌های همان تکلیف است. */
+  assignment?: { id: string; title: string };
 };
 
 /** این بازی عمداً داخلِ `GameShell` نیست (توضیحش در `app/game/aruz-rapid`)،
@@ -60,6 +66,7 @@ function RapidAruzGameInner({
   config = DEFAULT_RAPID_ARUZ_CONFIG,
   source,
   questions,
+  assignment,
 }: RapidAruzGameProps) {
   /* منبع یک‌بار ساخته می‌شود و نه در هر رندر: خودش اعتبارسنجی را اجرا
      می‌کند و ساختنِ دوباره‌اش یعنی همان کار در هر رندر. */
@@ -83,6 +90,16 @@ function RapidAruzGameInner({
 
   const question = currentQuestion(state);
   const unit = currentUnit(state);
+
+  // اختیارِ شاعری: کلمه‌ها در متن، هجاها در نقطه‌ها. یک بار برای هر مصراع.
+  const license = useMemo(() => {
+    const marks = question ? licenseMarks(question.previewText, question.units) : [];
+    return {
+      marks,
+      words: new Set(marks.map((m) => m.word)),
+      units: new Set(marks.map((m) => m.unit)),
+    };
+  }, [question]);
 
   useSetReportTarget(
     question
@@ -120,6 +137,32 @@ function RapidAruzGameInner({
       doneRef.current = false;
     }
   }, [phase, guest]);
+
+  /* ⚠️ پایانِ نشست = پایانِ تکلیف، یک بار. سرور فقط وقتی می‌پذیرد که
+     مصراع‌ها همان مصراع‌های تکلیف باشند؛ شمارِ اشتباه گزارشِ خودِ بازی است. */
+  const [assignmentSave, setAssignmentSave] = useState<"open" | "saved" | "failed">("open");
+  const assignmentSentRef = useRef(false);
+  const assignmentId = assignment?.id;
+  useEffect(() => {
+    if (!assignmentId || phase !== "sessionResults" || assignmentSentRef.current) return;
+    assignmentSentRef.current = true;
+    void studentCompleteRapidAssignment({
+      assignmentId,
+      questionIds: state.questions.map((q) => q.id),
+      wrongChoices: state.sessionStats.totalWrongChoices,
+      timeouts: state.sessionStats.totalTimeouts,
+      activeMs: Math.round(state.sessionStats.overallActiveTimeMs),
+    }).then(
+      (r) => {
+        assignmentSentRef.current = r.ok;
+        setAssignmentSave(r.ok ? "saved" : "failed");
+      },
+      () => {
+        assignmentSentRef.current = false;
+        setAssignmentSave("failed");
+      },
+    );
+  }, [assignmentId, phase, state.questions, state.sessionStats]);
 
   const previewUncovered = phase === "waitingForFont" || phase === "preview" || phase === "completed";
   const spoilered = !previewUncovered || paused || state.resuming;
@@ -288,6 +331,14 @@ function RapidAruzGameInner({
         <GuestLimitModal section="aruz-rapid" onDismiss={() => setGuestPrompt(false)} />
       )}
 
+      {assignment && (
+        <AssignmentNotice
+          assignmentId={assignment.id}
+          title={phase === "intro" ? assignment.title : undefined}
+          save={phase === "sessionResults" ? assignmentSave : "open"}
+        />
+      )}
+
       {/* ── جای ثابتِ صحنه ── */}
       <div className="aruzr-stage">
         {phase === "intro" ? (
@@ -331,7 +382,15 @@ function RapidAruzGameInner({
                 accessible={previewUncovered && !paused && !state.resuming}
                 label={previewUncovered ? "مصراع را بخوان" : "مصراعِ پوشیده"}
                 complete={phase === "completed"}
-              />
+                marks={license.words}
+              >
+                <LicenseNote
+                  text={question.previewText}
+                  marks={license.marks}
+                  veiled={spoilered}
+                  live={phase === "preview"}
+                />
+              </SpoileredPreview>
               <div
                 className="aruzr-preview-progress"
                 data-running={phase === "preview" && !paused ? "true" : "false"}
@@ -340,13 +399,14 @@ function RapidAruzGameInner({
                 <div
                   className="aruzr-preview-progress-fill"
                   key={`preview:${state.questionEpoch}`}
-                  style={{ animationDuration: `${config.previewDurationMs}ms` }}
+                  style={{ animationDuration: `${getPreviewDuration(config, question)}ms` }}
                 />
               </div>
               <UnitDots
                 count={question.units.length}
                 doneCount={phase === "completed" ? question.units.length : state.unitIndex}
                 active={phase === "playing" || phase === "armingUnit"}
+                licensed={license.units}
               />
             </div>
 
@@ -376,6 +436,7 @@ function RapidAruzGameInner({
                     ? feedbackKind
                     : null
                 }
+                license={license.units.has(state.unitIndex)}
               />
 
               <StepTimer
@@ -415,8 +476,9 @@ function RapidAruzGameInner({
           <ResultsScreen
             kind={phase === "sessionResults" ? "session" : "question"}
             question={question}
+            shortSymbol={config.shortSymbol}
+            longSymbol={config.longSymbol}
             questionStats={state.questionStats}
-            questionActiveTimeMs={state.activeAccumMs}
             sessionStats={state.sessionStats}
             sessionActiveTimeMs={state.sessionStats.overallActiveTimeMs}
             questionNumber={state.questionIndex + 1}

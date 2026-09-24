@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Heart } from "lucide-react";
 import type { NinjaRound } from "@/lib/ninja-data";
 import type { NinjaDifficulty } from "./NinjaSettingsModal";
 
@@ -123,6 +124,9 @@ function SliceField({
   round,
   durationMs,
   difficulty,
+  lives,
+  maxLives,
+  score,
   onSlice,
   onMiss,
   onRoundComplete,
@@ -130,6 +134,10 @@ function SliceField({
   round: NinjaRound;
   durationMs: number;
   difficulty: NinjaDifficulty;
+  /** جان و امتیاز فقط *نمایش* داده می‌شوند؛ صاحبشان NinjaGame است. */
+  lives: number;
+  maxLives: number;
+  score: number;
   onSlice: (word: string, isTarget: boolean) => void;
   onMiss: (word: string) => void;
   onRoundComplete: () => void;
@@ -448,63 +456,128 @@ function SliceField({
     >
       {/* ---------- آسمانِ صحنه ---------- */}
       {/* سه لایه روی هم: یک شیبِ عمیقِ شب، دو هالهٔ رنگی که آرام نفس می‌کشند، و
-          یک بافتِ نقطه‌ای. قبلاً فقط یک radial-gradient تخت بود و زمین بازی
-          شبیه یک مستطیل سیاه دیده می‌شد. */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,oklch(0.26_0.05_255),oklch(0.11_0.03_265)_55%,oklch(0.06_0.02_265))]" />
+          یک بافتِ نقطه‌ای.
+
+          ⚠️ هر سه رنگِ شیب از `--game-night-*` می‌آیند و نه از هگزِ دستی.
+          دو چیز را درست می‌کند:
+
+            • با `data-palette` عوض می‌شوند. پیش از این، کاربرِ پالتِ رز کلِ
+              سایت را صورتی می‌کرد و همین مستطیل آبیِ بنفش می‌ماند — تنها
+              جای سایت که به پالت جواب نمی‌داد.
+            • ته‌رنگش دیگر سیاهِ تقریباً خالص نیست (‏L≈۰٫۰۶ بود)؛ شب هست، ولی
+              شبی که از فیروزهٔ سروا ساخته شده. */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_12%,var(--game-night-1),var(--game-night-2)_52%,var(--game-night-3))]" />
       <div className="ninja-aurora ninja-aurora-a absolute inset-0" />
       <div className="ninja-aurora ninja-aurora-b absolute inset-0" />
       <div className="ninja-grain pointer-events-none absolute inset-0 opacity-[0.06]" />
 
       {/* ماه: یک قرصِ کوچکِ گرم با هالهٔ جداگانه. نسخهٔ اول یک دایرهٔ بزرگِ
-          blur-دار بود که به‌جای ماه، شبیه لکهٔ خاکستری روی شیشه دیده می‌شد. */}
+          blur-دار بود که به‌جای ماه، شبیه لکهٔ خاکستری روی شیشه دیده می‌شد.
+          رنگش از --gold می‌آید، پس در هر پالتی ماهِ همان آسمان است. */}
       <div aria-hidden className="pointer-events-none absolute left-[16%] top-[13%]">
         <span
-          className="absolute -inset-6 rounded-full"
-          style={{ background: "radial-gradient(closest-side, rgba(253,246,221,0.16), transparent)" }}
+          className="absolute -inset-7 rounded-full"
+          style={{
+            background:
+              "radial-gradient(closest-side, color-mix(in oklch, var(--gold) 30%, transparent), transparent)",
+          }}
         />
         <span
           className="relative block size-10 rounded-full"
           style={{
-            background: "radial-gradient(circle at 34% 32%, #fffaf0, #e8dcae 70%, #c9b980)",
-            boxShadow: "0 0 22px rgba(253,246,221,0.35)",
-            opacity: 0.75,
+            background:
+              "radial-gradient(circle at 34% 32%, color-mix(in oklch, var(--gold-light) 65%, #fff), var(--gold-light) 68%, var(--gold))",
+            boxShadow: "0 0 22px color-mix(in oklch, var(--gold) 40%, transparent)",
+            opacity: 0.8,
           }}
         />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+      {/* ⚠️ کفِ صحنه و ویگنت هر دو با `--game-night-veil` کشیده می‌شوند و نه
+          با مشکیِ خام. نسخهٔ قبل `from-black/60` و یک ویگنتِ
+          `inset 0 0 140px 40px rgba(0,0,0,.55)` داشت؛ روی هم بیش از نیمِ زمین
+          را به سیاهِ مطلق می‌بردند و هر چه کلمه پایین‌تر می‌آمد کم‌کنتراست‌تر
+          می‌شد — یعنی یک ایرادِ *بازی*، نه فقط یک ایرادِ رنگ. حالا هر دو
+          تیره‌ترِ همان شب‌اند، نه یک لایهٔ سیاه رویش. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
+        style={{ background: "linear-gradient(to top, var(--game-night-veil), transparent)" }}
+      />
       {/* ویگنت: گوشه‌ها را می‌خواباند تا نگاه وسط بماند */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        style={{ boxShadow: "inset 0 0 140px 40px rgba(0,0,0,0.55)" }}
+        style={{ boxShadow: "inset 0 0 110px 26px var(--game-night-veil)" }}
       />
 
       {/* فلاشِ قرمزِ برشِ اشتباه */}
       <div key={`flash-${wrongFlash}`} className={wrongFlash ? "ninja-wrong-flash" : ""} />
 
       {/* ---------- نوار زمان ---------- */}
-      <div className="absolute inset-x-0 top-0 z-30 h-1.5 bg-black/40">
+      <div className="absolute inset-x-0 top-0 z-30 h-1.5 bg-[var(--game-night-veil)]">
         <div
           className={`h-full transition-[width] duration-100 ease-linear ${urgent ? "ninja-urgent" : ""}`}
           style={{
             width: `${timeLeft * 100}%`,
+            /* طلاییِ پالت تا وقتی وقت هست، و --destructive وقتی نیست — همان دو
+               رنگی که کلِ سایت برای «خوب» و «خطر» به کار می‌برد. */
             background: urgent
-              ? "linear-gradient(90deg,#ff6b6b,#ff3b3b)"
-              : "linear-gradient(90deg,var(--color-gold),#ffe08a)",
-            boxShadow: urgent ? "0 0 12px #ff3b3b" : "0 0 10px var(--color-gold)",
+              ? "linear-gradient(90deg, var(--destructive), color-mix(in oklch, var(--destructive) 72%, #000))"
+              : "linear-gradient(90deg, var(--gold), var(--gold-light))",
+            boxShadow: urgent
+              ? "0 0 12px color-mix(in oklch, var(--destructive) 70%, transparent)"
+              : "0 0 10px color-mix(in oklch, var(--gold) 60%, transparent)",
           }}
         />
       </div>
 
-      {/* ---------- سربرگ و کمبو ---------- */}
-      <div className="pointer-events-none absolute inset-x-4 top-4 z-20 flex flex-col items-center gap-2">
-        <span className="rounded-full border border-white/15 bg-black/45 px-4 py-1.5 text-xs font-bold text-white/90 shadow-lg backdrop-blur-sm sm:text-sm">
+      {/* ---------- جان، امتیاز، سربرگ و کمبو ---------- */}
+      {/* ⚠️ جان و امتیاز تا دیروز *بیرونِ* صحنه بودند: یک ردیف روی کاغذِ کرم،
+          با یک فاصلهٔ خالی تا زمینِ بازی. دو ایراد داشت — بازیکن برای دیدنِ
+          جانش باید نگاهش را از صحنه برمی‌داشت، و آن ردیف حتی در صفحهٔ
+          «حفظ کردن» هم بود، جایی که همیشه «۳ جان، ۰ امتیاز» است و هیچ
+          اطلاعاتی ندارد. حالا روی خودِ شب نشسته‌اند، مثل هر HUDـی. */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 sm:inset-x-4 sm:top-4">
+        <div className="flex items-center gap-1.5 rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-3 py-1.5 text-xs font-bold text-[var(--game-night-ink)] backdrop-blur-sm sm:text-sm">
+          <span className="opacity-70">امتیاز</span>
+          <span key={score} className="ninja-score game-num text-gold-light">
+            {score.toLocaleString("fa-IR")}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1 rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-3 py-1.5 backdrop-blur-sm"
+          role="img"
+          aria-label={`${lives.toLocaleString("fa-IR")} جان باقی‌مانده`}
+        >
+          {Array.from({ length: maxLives }).map((_, i) => {
+            const alive = i < lives;
+            return (
+              <Heart
+                key={`${i}-${alive}`}
+                aria-hidden
+                size={18}
+                fill={alive ? "currentColor" : "none"}
+                className={
+                  alive
+                    ? "ninja-heart text-destructive drop-shadow-[0_0_6px_color-mix(in_oklch,var(--destructive)_60%,transparent)]"
+                    : "ninja-heart-lost text-[var(--game-night-ink)] opacity-30"
+                }
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-4 top-14 z-20 flex flex-col items-center gap-2 sm:top-16">
+        {/* سطحِ شناور روی شب: همان ایدهٔ `.glass`ِ سایت، ولی ساخته از رنگِ
+            شب به‌جای رنگِ کاغذ — تا در تمِ روشن یک وصلهٔ سیاه روی صحنه نباشد. */}
+        <span className="rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-4 py-1.5 text-xs font-bold text-[var(--game-night-ink)] shadow-lg backdrop-blur-sm sm:text-sm">
           فقط کلمات دسته‌ی «{round.category}» را برش بزن!
         </span>
         {combo >= 2 && (
           <span
             key={combo}
-            className="ninja-combo rounded-full bg-gold px-3 py-1 text-xs font-black text-[#2a1f04] shadow-[0_0_18px_rgba(224,178,60,0.7)]"
+            className="ninja-combo rounded-full bg-gold px-3 py-1 text-xs font-black text-[var(--game-night-3)] shadow-[0_0_18px_var(--gold-deep)]"
           >
             {combo.toLocaleString("fa-IR")} پشت سر هم!
           </span>
@@ -521,7 +594,7 @@ function SliceField({
         />
         <path
           ref={ribbonRef}
-          fill="rgba(255,253,242,0.92)"
+          fill="color-mix(in oklch, var(--game-night-ink) 92%, transparent)"
           opacity={0}
           style={{ transition: "opacity 0.2s" }}
         />
@@ -601,7 +674,7 @@ function SliceField({
         <span
           key={p.id}
           className={`ninja-popup pointer-events-none absolute left-0 top-0 z-30 text-2xl font-black ${
-            p.good ? "text-[#ffd76a]" : "text-[#ff7a7a]"
+            p.good ? "text-gold-light" : "text-destructive"
           }`}
           style={{ transform: `translate(-50%,-50%) translate(${p.x}px, ${p.y}px)` }}
         >

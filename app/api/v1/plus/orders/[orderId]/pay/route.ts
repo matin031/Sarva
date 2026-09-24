@@ -6,18 +6,19 @@ import { withRoute } from "@/lib/api/route";
 import { isUuid } from "@/lib/api/action-input";
 import { isPlusEnabled } from "@/lib/plus/config";
 import { startPayment } from "@/lib/plus/orders";
+import { siteOrigin } from "@/lib/seo/site";
 
 /**
  * POST /api/v1/plus/orders/[orderId]/pay — شروعِ پرداخت.
  *
- * ⚠️ آدرسِ بازگشت اینجا از `request.nextUrl.origin` ساخته می‌شود و نه از
+ * ⚠️ آدرسِ بازگشت اینجا از `siteOrigin()` ساخته می‌شود و نه از
  * ورودیِ کاربر. اگر کلاینت آن را می‌فرستاد، یک open-redirect بود: کاربر بعد
  * از پرداخت به دامنهٔ مهاجم برمی‌گشت و آنجا یک صفحهٔ «سروا» ی جعلی می‌دید که
  * رمزش را می‌پرسد.
  */
 export const POST = withRoute<{ params: Promise<{ orderId: string }> }>(
   "/api/v1/plus/orders/[orderId]/pay",
-  async (request: NextRequest, context) => {
+  async (_request: NextRequest, context) => {
     try {
       const user = await requireUser();
 
@@ -36,8 +37,12 @@ export const POST = withRoute<{ params: Promise<{ orderId: string }> }>(
 
       const result = await startPayment({
         userId: user.id,
+        role: user.role,
         orderId,
-        origin: request.nextUrl.origin,
+        // ⚠️ دامنهٔ کانونی و نه `request.nextUrl.origin`: پشتِ Caddy میزبانِ
+        // درخواست می‌تواند داخلی باشد، و آقای پرداخت callbackی را که با دامنهٔ
+        // تأییدشدهٔ درگاه نخواند رد می‌کند (کد ‎-15‎).
+        origin: siteOrigin(),
       });
 
       return ok({ redirectUrl: result.redirectUrl });

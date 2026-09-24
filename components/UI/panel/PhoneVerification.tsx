@@ -132,7 +132,7 @@ export default function PhoneVerification() {
     setSentTo(result.data.phoneMasked);
     setCode(EMPTY_CODE);
     setCooldown(RESEND_SECONDS);
-    setMessage("کد شش‌رقمی برایت پیامک شد.");
+    setMessage("کد تأیید ارسال شد.");
     focusBox(0);
   };
 
@@ -221,8 +221,7 @@ export default function PhoneVerification() {
         <div>
           <h3 className="text-base font-bold">تأیید شمارهٔ موبایل</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            برای درخواست حساب دبیری لازم است، و اگر رمزت را فراموش کردی راهِ
-            برگشت می‌شود.
+            برای بازیابی رمز عبور و درخواست حساب دبیر لازم است.
           </p>
         </div>
       </div>
@@ -267,7 +266,7 @@ export default function PhoneVerification() {
         {sentTo && (
           <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-foreground/[0.02] p-4">
             <p className="text-xs text-muted-foreground">
-              کد به <span dir="ltr" className="panel-num">{sentTo}</span> فرستاده شد.
+              کد تأیید به <span dir="ltr" className="panel-num">{sentTo}</span> ارسال شد.
             </p>
 
             <div className="flex justify-center gap-2" dir="ltr">
@@ -311,7 +310,7 @@ export default function PhoneVerification() {
                 onClick={() => void sendCode()}
               >
                 {cooldown > 0
-                  ? `ارسال دوباره تا ${fa(cooldown)} ثانیه`
+                  ? `ارسال دوباره (${fa(cooldown)})`
                   : "ارسال دوبارهٔ کد"}
               </Button>
             </div>

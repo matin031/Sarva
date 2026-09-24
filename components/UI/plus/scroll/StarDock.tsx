@@ -18,7 +18,7 @@ export default function StarDock({ className }: { className?: string }) {
           <stop stopColor="#f1e3b3" /><stop offset=".24" stopColor="#93c7c0" /><stop offset=".5" stopColor="#315a62" /><stop offset=".76" stopColor="#6e9697" /><stop offset="1" stopColor="#203e49" />
         </linearGradient>
         <radialGradient id={`${id}-shadow`}><stop stopColor="#000" stopOpacity=".35" /><stop offset="1" stopColor="#000" stopOpacity="0" /></radialGradient>
-        <radialGradient id={`${id}-light`}><stop stopColor="#35dacc" stopOpacity=".2" /><stop offset="1" stopColor="#35dacc" stopOpacity="0" /></radialGradient>
+        <radialGradient id={`${id}-light`}><stop style={{ stopColor: "var(--primary)" }} stopOpacity=".2" /><stop offset="1" style={{ stopColor: "var(--primary)" }} stopOpacity="0" /></radialGradient>
       </defs>
       <ellipse cx="180" cy="196" rx="175" ry="52" fill={paint("shadow")} />
       <path d="M30 142v19c0 36 67 65 150 65s150-29 150-65v-19Z" fill={paint("side")} />
@@ -32,9 +32,9 @@ export default function StarDock({ className }: { className?: string }) {
       <path d={SARVA_STAR_PATH} transform="translate(180 143) scale(6.65 4.45) translate(-12 -12)" fill="#0d3038" stroke="#3d7175" strokeWidth=".13" strokeLinejoin="round" />
       <g data-dock-glow opacity="0">
         <ellipse cx="180" cy="139" rx="132" ry="56" fill={paint("light")} />
-        <path d={SARVA_STAR_PATH} transform="translate(180 141) scale(7.35 4.918) translate(-12 -12)" fill="none" stroke="#80f2dd" strokeWidth=".19" strokeLinejoin="round" />
-        <path d="M31 151c9 34 72 60 149 60s140-26 149-60" fill="none" stroke="#40c7be" strokeWidth="1.3" />
-        <path d="M153 215h54" stroke="#71efda" strokeWidth="2" strokeLinecap="round" />
+        <path d={SARVA_STAR_PATH} transform="translate(180 141) scale(7.35 4.918) translate(-12 -12)" fill="none" stroke="color-mix(in oklch, var(--primary) 50%, white)" strokeWidth=".19" strokeLinejoin="round" />
+        <path d="M31 151c9 34 72 60 149 60s140-26 149-60" fill="none" stroke="var(--primary)" strokeWidth="1.3" />
+        <path d="M153 215h54" stroke="color-mix(in oklch, var(--primary) 60%, white)" strokeWidth="2" strokeLinecap="round" />
       </g>
       <path d="M65 171l15 6m205-6-15 6" stroke="#ad995e" strokeWidth="1.2" strokeLinecap="round" />
       <path d="M174 195h12m-9 3h6" stroke="#8ca8a1" strokeOpacity=".5" strokeWidth=".8" strokeLinecap="round" />

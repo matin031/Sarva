@@ -27,6 +27,18 @@ describe("قالبِ هجاهای تقطیع", () => {
     ]);
   });
 
+  test("نشانِ اختیارِ شاعری پس از نماد: «!» زبانی، «^» وزنی", () => {
+    const spec = "کِه=-! دَش=-^ تَ=U";
+    const result = parseUnitSpec(spec);
+    assert.ok(result.ok);
+    assert.deepEqual(result.units, [
+      { display: "کِه", length: "long", license: "length" },
+      { display: "دَش", length: "long", license: "meter" },
+      { display: "تَ", length: "short" },
+    ]);
+    assert.equal(formatUnitSpec(result.units), spec);
+  });
+
   test("نمادهای جایگزین هم پذیرفته می‌شوند", () => {
     // u/v برای کوتاه، و کشیدهٔ فارسی و زیرخط برای بلند — چیزهایی که واقعاً
     // روی صفحه‌کلید فارسی تایپ می‌شوند.

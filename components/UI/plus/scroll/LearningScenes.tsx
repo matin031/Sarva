@@ -25,9 +25,9 @@ export function LearningParallax() {
         ))}
       </div>
       <div className={styles.parallaxCopy} data-journey-surface>
-        <span className={styles.eyebrow}>با ریتمِ خودت یاد بگیر</span>
-        <h2 id={`${id}-title`}>هزار نکته.<br /><em>یک مسیر، برای تو.</em></h2>
-        <p>بین این‌همه نکته و تمرین، لازم نیست همه‌چیز را از نو بخوانی.<br />سروا کمک می‌کند همان چیزی را پیدا کنی که الان به آن نیاز داری.</p>
+        
+        <h2 id={`${id}-title`}>فقط همان چیزی را تمرین کن که بلد نیستی</h2>
+        
         <div className={styles.subjects}><span>واژه و معنا</span><span>وزن و آوا</span><span>دستور زبان</span></div>
       </div>
     </section>

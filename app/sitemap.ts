@@ -52,6 +52,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), changeFrequency: "weekly", priority: 1 },
     { url: absoluteUrl("/doroos"), changeFrequency: "weekly", priority: 0.9 },
+    { url: absoluteUrl("/timeline"), changeFrequency: "monthly", priority: 0.8 },
     { url: absoluteUrl("/aruz"), changeFrequency: "monthly", priority: 0.9 },
     { url: absoluteUrl("/vazn-yab"), changeFrequency: "monthly", priority: 0.9 },
     { url: absoluteUrl("/game"), changeFrequency: "monthly", priority: 0.8 },
@@ -104,6 +105,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "kimia",
     "ninja",
     "pairs",
+    "rang-ara",
     "role-hunt",
     "vocab",
   ]) {

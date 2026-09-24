@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useTokenRgb } from "@/lib/theme/use-primary-rgb";
+import { sceneColor } from "./sceneColor";
 import { NO_RAYCAST } from "./AnswerHitTarget";
 import type { FractureResult } from "@/lib/aruz-bridge/fracture";
 
@@ -73,14 +75,19 @@ export function CrackLines({
     return g;
   }, [fracture]);
 
+  /* ⚠️ ترک هم رنگِ پالت می‌گیرد. تا دیروز یک آبیِ یخیِ ثابت (`#bfefff`) بود و
+     در پالتِ زعفرانی تنها چیزِ فیروزه‌ایِ باقی‌مانده در کلِ صحنه — درست زیرِ
+     پای کاراکتر، یعنی جایی که نگاه همان‌جاست. نوکِ ترک سفید می‌ماند: آنجا
+     «داغ» است و سفیدیِ آن معنا دارد، نه رنگ. */
+  const primary = useTokenRgb("--primary");
   const uniforms = useMemo(
     () => ({
       uProgress: { value: 0 },
       uOpacity: { value: 0.95 },
-      uColor: { value: new THREE.Color("#bfefff") },
+      uColor: { value: sceneColor(primary, 1.55, 0.15) },
       uHotColor: { value: new THREE.Color("#ffffff") },
     }),
-    [],
+    [primary],
   );
 
   // هندسه روی GPU جا می‌گیرد؛ بدونِ dispose، هر کاشیِ شکسته یک بافرِ ماندگار است.

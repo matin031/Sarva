@@ -13,16 +13,16 @@ import {
 const CHAPTERS: Chapter[] = [
   {
     index: "۰۱",
-    tag: "عروضِ سماعی",
+    tag: "عروض سماعی",
     title: "وزن را با گوش تشخیص بده",
-    desc: "ریتمِ هر بیت را می‌شنوی و از میان گزینه‌ها وزنِ درست را انتخاب می‌کنی؛ سه نوع پرسشِ صوتی، بدونِ نیاز به حفظ‌کردنِ ارکان.",
+    desc: "ریتم بیت را می‌شنوی و وزن درست را از بین گزینه‌ها انتخاب می‌کنی.",
     steps: [
       "روی دکمهٔ پخش بزن و به ریتم گوش بده",
-      "وزن یا بیتِ هم‌وزن را از گزینه‌ها انتخاب کن",
-      "بازخوردِ فوری بگیر و گوشِ موسیقایی‌ات را قوی کن",
+      "وزن یا بیت هم‌وزن را از گزینه‌ها انتخاب کن",
+      "جواب درست را همان لحظه ببین",
     ],
     href: "/aruz",
-    cta: "شروعِ عروضِ سماعی",
+    cta: "شروع عروض سماعی",
     accent: "var(--color-primary)",
     icon: (
       <path
@@ -46,15 +46,15 @@ const CHAPTERS: Chapter[] = [
   {
     index: "۰۲",
     tag: "وزن‌یاب",
-    title: "مصراع را بده، وزنش را بگیر",
-    desc: "کافی‌ست یک مصراع را تایپ کنی؛ سروا در لحظه تقطیع می‌کند و وزنِ عروضی و بحرِ آن را نشانت می‌دهد.",
+    title: "پیدا کردن وزن یک مصراع",
+    desc: "مصراع را بنویس تا تقطیع، وزن و بحرش را ببینی.",
     steps: [
-      "مصراع یا بیتِ موردنظرت را وارد کن",
-      "تقطیعِ هجاها و ارکان را همان لحظه ببین",
-      "نامِ وزن و بحر را بشناس و یاد بگیر",
+      "مصراع یا بیت موردنظرت را وارد کن",
+      "تقطیع هجاها و ارکان را همان لحظه ببین",
+      "نام وزن و بحر را ببین",
     ],
     href: "/vazn-yab",
-    cta: "بازکردنِ وزن‌یاب",
+    cta: "بازکردن وزن‌یاب",
     accent: "var(--color-gold)",
     icon: (
       <path
@@ -72,12 +72,12 @@ const CHAPTERS: Chapter[] = [
   {
     index: "۰۳",
     tag: "بازی‌ها",
-    title: "با بازی یاد بگیر، نه با حفظ",
-    desc: "واژه‌یاب، جاسوسِ نقش‌ها و نینجای دستور زبان؛ مفاهیمِ ادبی و دستوری را با بازی‌های تعاملی و تصویری تمرین می‌کنی.",
+    title: "بازی‌ها",
+    desc: "واژه‌یاب، جاسوس نقش‌ها، نینجای دستور زبان و بازی‌های دیگر برای تمرین معنی واژه و نقش دستوری.",
     steps: [
       "یک بازی را انتخاب کن (واژه‌یاب، جاسوس، نینجا)",
-      "با تصویر و چالش، معنی و نقشِ کلمات را یاد بگیر",
-      "امتیاز بگیر و اشتباه‌هایت را در پنل مرور کن",
+      "با تصویر و چالش، معنی و نقش کلمات را یاد بگیر",
+      "اشتباه‌هایت را در پنل مرور کن",
     ],
     href: "/game",
     cta: "رفتن به بازی‌ها",
@@ -104,16 +104,16 @@ const CHAPTERS: Chapter[] = [
   },
   {
     index: "۰۴",
-    tag: "آزمونِ نهایی",
-    title: "امتحاناتِ نهایی را آنلاین تمرین کن",
-    desc: "نمونه‌سؤال‌های امتحانِ نهاییِ سال‌های گذشته را به‌صورتِ تعاملی پاسخ می‌دهی و نمره‌ات را همان لحظه می‌بینی.",
+    tag: "آزمون نهایی",
+    title: "امتحان‌های نهایی",
+    desc: "امتحان‌های نهایی سال‌های قبل را آنلاین جواب می‌دهی و نمره‌ات را می‌بینی.",
     steps: [
-      "آزمونِ موردنظرت را از فهرست انتخاب کن",
+      "آزمون موردنظرت را از فهرست انتخاب کن",
       "سؤال‌ها را تشریحی یا تستی پاسخ بده",
-      "نمره و پاسخِ درست را بلافاصله ببین",
+      "نمره و پاسخ درست را بلافاصله ببین",
     ],
     href: "/exam",
-    cta: "دیدنِ آزمون‌ها",
+    cta: "دیدن آزمون‌ها",
     accent: "var(--color-primary)",
     icon: (
       <path
@@ -136,13 +136,13 @@ const CHAPTERS: Chapter[] = [
   },
   {
     index: "۰۵",
-    tag: "پنلِ کاربری",
+    tag: "پنل کاربری",
     title: "پیشرفتت را دنبال کن",
-    desc: "همهٔ فعالیت‌هایت یک‌جا: امتیازها، پیشرفت، و مهم‌تر از همه واژه‌ها و مفاهیمی که اشتباه زده‌ای تا آن‌ها را مرور کنی.",
+    desc: "نتیجهٔ تمرین‌ها، کارنامه‌ها و اشتباه‌هایت در پنل ذخیره می‌شود.",
     steps: [
-      "واردِ حسابت شو تا پیشرفتت ذخیره شود",
-      "کلمات و سؤالاتِ اشتباه را دسته‌بندی‌شده ببین",
-      "نقاطِ ضعفت را هدفمند تمرین کن",
+      "وارد حسابت شو تا پیشرفتت ذخیره شود",
+      "کلمات و سؤالات اشتباه را دسته‌بندی‌شده ببین",
+      "نقاط ضعفت را هدفمند تمرین کن",
     ],
     href: "/panel",
     cta: "ورود به پنل",
@@ -228,13 +228,11 @@ export default function GuideView() {
 
           <RevealGroup stagger={0.12} className="container text-center">
             <RevealItem>
-              <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary">
-                راهنمای سروا
-              </span>
+              <span className="mb-4 inline-block text-sm font-bold text-primary">راهنما</span>
             </RevealItem>
             <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl">
               <RevealLine className="text-foreground" delay={0.08}>
-                با هر بخشِ سروا
+                با هر بخش سروا
               </RevealLine>
               <RevealLine className="aruz-gradient-text" delay={0.2}>
                 آشنا شو
@@ -242,9 +240,7 @@ export default function GuideView() {
             </h1>
             <RevealItem>
               <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                سروا یک پلتفرمِ کامل است، نه یک آزمون؛ از عروضِ سماعی و وزن‌یاب
-                تا بازی‌ها، آزمون‌های نهایی و پنلِ پیشرفت. این‌جا هر بخش را
-                کوتاه و کاربردی یاد می‌گیری.
+                عروض سماعی، وزن‌یاب، بازی‌ها، امتحان‌های نهایی و پنل کاربری.
               </p>
             </RevealItem>
             <RevealItem>
@@ -253,10 +249,10 @@ export default function GuideView() {
                   href="/aruz"
                   className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-95 active:scale-95"
                 >
-                  شروعِ یادگیری
+                  شروع یادگیری
                 </Link>
                 <span className="text-sm text-muted-foreground">
-                  ۵ بخش · اسکرول کن تا همه را ببینی ↓
+                  ۵ بخش ↓
                 </span>
               </div>
             </RevealItem>
@@ -296,14 +292,14 @@ export default function GuideView() {
               <RevealWords text="آماده‌ای شروع کنی؟" />
             </h2>
             <p className="relative mx-auto mt-4 max-w-lg text-muted-foreground">
-              حساب بساز تا پیشرفتت ذخیره شود، بعد هر بخش را آزاد کن و جلو برو.
+              برای ذخیرهٔ نتیجه‌ها ثبت‌نام کن.
             </p>
             <div className="relative mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/auth"
                 className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
               >
-                ساختِ حساب
+                ساخت حساب
               </Link>
               <Link
                 href="/"

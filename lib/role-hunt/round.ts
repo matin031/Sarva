@@ -66,21 +66,6 @@ export const MAX_ORBIT_TOKENS = 12;
 /** فقط شعر. جمله‌های درسنامه مدار نمی‌گیرند؛ این بازی دربارهٔ مصراع است. */
 const ALLOWED_TYPES = new Set(["hemistich", "verse"]);
 
-/**
- * FNV-1a — یک هشِ کوچک و پایدار.
- *
- * ⚠️ به `String.prototype.hashCode` یا `Math.random` نیازی نیست و هیچ‌کدام
- * هم کار نمی‌کردند: انتخابِ نقش باید بین سرورِ ساختِ دور و سرورِ ثبتِ پاسخ
- * *بیت‌به‌بیت* یکی باشد، حتی روی دو پروسهٔ متفاوت و بعد از یک بازراه‌اندازی.
- */
-function stableHash(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-}
 
 /** متنِ پرسش، دقیقاً همان‌طور که نمایش داده می‌شود. */
 export function verseTextOf(question: GrammarCircuitQuestion): string {
@@ -231,8 +216,21 @@ export function explainRoleHuntEligibility(
     };
   }
 
-  const seed = question.sourceId ?? question.id;
-  const picked = candidates[stableHash(seed) % candidates.length]!;
+  /* ⚠️ *همهٔ* نقش‌های یکتا پرسیده می‌شوند و نه یکی.
+
+     نسخهٔ قبلی با یک هش یکی را برمی‌داشت و بقیه دور ریخته می‌شدند — یعنی
+     از مصراعی که چهار نقشِ تأییدشده داشت، سه‌تایش هیچ‌وقت تمرین نمی‌شد.
+     حالا بازیکن بیت را یک بار می‌خواند و پشتِ هم به همه جواب می‌دهد.
+
+     ⚠️ ترتیب قطعی است (`candidates` از قبل بر اساسِ کلید مرتب شده) و همین
+     قطعیت است که اجازه می‌دهد سرور از روی *اندیس* بفهمد کدام نقش پرسیده
+     شده. اگر ترتیب تصادفی بود، مرورگر باید نقش را می‌فرستاد و آن‌وقت
+     می‌توانست دروغ بگوید. */
+  const asks = candidates.map((c) => ({
+    roleKey: c.key,
+    roleLabel: grammarRoleLabel(c.key),
+    correctTokenId: c.tokenId,
+  }));
 
   return {
     ok: true,
@@ -243,9 +241,7 @@ export function explainRoleHuntEligibility(
       lesson: question.lesson ?? null,
       lines: toLines(tokens, question.tokens.map((t) => t.separatorAfter)),
       orbit,
-      roleKey: picked.key,
-      roleLabel: grammarRoleLabel(picked.key),
-      correctTokenId: picked.tokenId,
+      asks,
     },
   };
 }
@@ -265,21 +261,29 @@ export function buildRoleHuntRound(question: GrammarCircuitQuestion): RoleHuntRo
  */
 export function resolveRoleHuntAnswer(
   question: GrammarCircuitQuestion,
+  askIndex: number,
   selectedTokenId: string,
 ): RoleHuntResolvedAnswer | null {
   const round = buildRoleHuntRound(question);
   if (!round) return null;
+
+  /* ⚠️ اندیس از مرورگر می‌آید ولی *معنایش* را سرور می‌سازد: همان تابعِ
+     خالص دوباره اجرا شده و `asks` را با همان ترتیب ساخته. پس مرورگر فقط
+     می‌گوید «چندمین پرسش» و نمی‌تواند نقش یا پاسخِ درست را جعل کند. */
+  const ask = round.asks[askIndex];
+  if (!ask) return null;
 
   /* فقط واژه‌های مدار قابلِ انتخاب‌اند. شناسه‌ای بیرونِ مدار یعنی یا کلاینتِ
      کهنه است یا کسی دارد امتحان می‌کند؛ هر دو حالت «ثبت نکن». */
   const chosenToken = round.orbit.find((t) => t.id === selectedTokenId);
   if (!chosenToken) return null;
 
-  const correctToken = round.orbit.find((t) => t.id === round.correctTokenId);
+  const correctToken = round.orbit.find((t) => t.id === ask.correctTokenId);
   if (!correctToken) return null;
 
   return {
     round,
+    ask,
     chosenToken,
     correctToken,
     isCorrect: chosenToken.id === correctToken.id,
@@ -297,6 +301,14 @@ export interface RoleHuntSummary {
   bestStreak: number;
   /** ضعیف‌ترین نقش‌های همین نشست — فقط نقش‌هایی که غلطی در آن‌ها بوده. */
   weakRoles: { roleKey: string; roleLabel: string; total: number; wrong: number }[];
+  /**
+   * *همهٔ* نقش‌های این نشست، ضعیف‌ترین اول.
+   *
+   * ⚠️ جدا از `weakRoles` و نه جایگزینش: صفحهٔ نتیجه باید نقش‌هایی را هم که
+   * کامل درست زده شده‌اند نشان بدهد، وگرنه بعد از یک نشستِ خوب هم فقط
+   * فهرستِ شکست دیده می‌شود. `weakRoles` جای خودش را دارد (پیشنهادِ تمرین).
+   */
+  roleBreakdown: { roleKey: string; roleLabel: string; total: number; correct: number }[];
 }
 
 /**
@@ -342,5 +354,14 @@ export function summarizeRoleHuntSession(
       .filter(([, v]) => v.wrong > 0)
       .map(([roleKey, v]) => ({ roleKey, roleLabel: v.roleLabel, total: v.total, wrong: v.wrong }))
       .sort((a, b) => b.wrong - a.wrong || b.total - a.total),
+    roleBreakdown: [...byRole.entries()]
+      .map(([roleKey, v]) => ({
+        roleKey,
+        roleLabel: v.roleLabel,
+        total: v.total,
+        correct: v.total - v.wrong,
+      }))
+      // ضعیف‌ترین اول: همان چیزی که باید اول دیده شود.
+      .sort((a, b) => a.correct / a.total - b.correct / b.total || b.total - a.total),
   };
 }

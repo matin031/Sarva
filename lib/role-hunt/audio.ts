@@ -26,7 +26,13 @@ export type RoleHuntSound =
   | "tick"
   | "correct"
   | "wrong"
-  | "sessionEnd";
+  /** مهلتِ پاسخ تمام شد — نرم‌تر از «غلط»، چون بازیکن چیزی نزده. */
+  | "timeout"
+  /** نشست شروع شد. */
+  | "start"
+  | "sessionEnd"
+  /** تیکِ ثانیه‌شمار در سه ثانیهٔ آخرِ خواندن. */
+  | "clock";
 
 const STORAGE_KEY = "role-hunt-sound";
 
@@ -158,7 +164,7 @@ function tone(
  * ⚠️ هیچ‌وقت throw نمی‌کند. صدا یک لایهٔ تزئینی است و نباید بتواند یک دورِ
  * تمرین را خراب کند.
  */
-export function playRoleHuntSound(name: RoleHuntSound): void {
+export function playRoleHuntSound(name: RoleHuntSound, opts?: { streak?: number }): void {
   if (!isSoundEnabled()) return;
   const k = ensureContext();
   if (!k) return;
@@ -178,17 +184,42 @@ export function playRoleHuntSound(name: RoleHuntSound): void {
         tone(k, { at: t + 0.07, freq: 1040, dur: 0.12, peak: 0.045 });
         break;
 
-      /* درست: یک آرپژِ کوتاهِ سه‌نتی. کوتاه است تا جریانِ بازی کند نشود. */
-      case "correct":
-        tone(k, { at: t, freq: 660, dur: 0.1, peak: 0.1, type: "triangle" });
-        tone(k, { at: t + 0.06, freq: 880, dur: 0.1, peak: 0.09, type: "triangle" });
-        tone(k, { at: t + 0.12, freq: 1320, dur: 0.16, peak: 0.07 });
+      /* درست: یک «دینگ»ِ دونتی با ته‌صدای زنگ‌مانند.
+         ⚠️ با هر پاسخِ درستِ پیاپی دو نیم‌پرده زیرتر می‌شود (تا شش پله) —
+         زنجیره را *می‌شنوی* بی‌آنکه به نوارِ بالا نگاه کنی. */
+      case "correct": {
+        const lift = Math.pow(2, (Math.min(opts?.streak ?? 0, 6) * 2) / 12);
+        const f = 784 * lift;
+        tone(k, { at: t, freq: f, dur: 0.12, peak: 0.09, type: "triangle" });
+        tone(k, { at: t + 0.075, freq: f * 1.5, dur: 0.34, peak: 0.08 });
+        // ته‌صدای فلزی: یک اکتاو بالاتر، بسیار کم‌حجم و کمی بلندتر.
+        tone(k, { at: t + 0.075, freq: f * 3, dur: 0.42, peak: 0.018 });
         break;
+      }
 
       /* غلط: یک نتِ پایین‌رونده. ⚠️ عمداً «بازر»ِ خشن نیست — این بازی جای
          تمرین است و صدای تنبیه‌گونه دانش‌آموز را از تمرین فراری می‌دهد. */
       case "wrong":
-        tone(k, { at: t, freq: 320, to: 180, dur: 0.22, peak: 0.085, type: "triangle" });
+        tone(k, { at: t, freq: 300, to: 170, dur: 0.2, peak: 0.085, type: "triangle" });
+        tone(k, { at: t + 0.09, freq: 150, to: 110, dur: 0.22, peak: 0.06 });
+        break;
+
+      case "timeout":
+        tone(k, { at: t, freq: 440, to: 330, dur: 0.18, peak: 0.05, type: "triangle" });
+        tone(k, { at: t + 0.14, freq: 330, to: 262, dur: 0.24, peak: 0.045, type: "triangle" });
+        break;
+
+      case "start":
+        [392, 523, 659].forEach((f, i) =>
+          tone(k, { at: t + i * 0.07, freq: f, dur: 0.18, peak: 0.055, type: "triangle" }),
+        );
+        break;
+
+      /* ⚠️ تیکِ ساعت، و عمداً بلندتر و بم‌تر از `tick`ِ رمزگشا.
+         آن یکی بافتِ پس‌زمینه است و این یکی یک *هشدار*: سه ثانیه مانده.
+         اگر هم‌صدا بودند، بازیکن تفاوتشان را نمی‌فهمید. */
+      case "clock":
+        tone(k, { at: t, freq: 900, dur: 0.06, peak: 0.05, type: "square" });
         break;
 
       /* پایانِ نشست: چهار نتِ آرام. */

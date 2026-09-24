@@ -12,7 +12,7 @@
  */
 
 import { tehranDayKey, type DayCount } from "./day-counts";
-import { AREA_LABEL, type BookmarkArea, type PanelOverview } from "./types";
+import { AREA_LABEL, type PanelOverview, type PracticeArea } from "./types";
 
 const TEHRAN = "Asia/Tehran";
 
@@ -91,34 +91,46 @@ export function answersInLastDays(
 /* ─────────────────────────────── بخش‌ها ────────────────────────────────── */
 
 /** مسیرِ *تمرین کردن* هر بخش — نه صفحهٔ کارنامه‌اش در پنل. */
-export const AREA_PRACTICE_HREF: Record<BookmarkArea, string> = {
+export const AREA_PRACTICE_HREF: Record<PracticeArea, string> = {
   aruz: "/aruz",
   vocab: "/game/vocab",
-  jasoos: "/game/jasoos",
+  jasoos: "/game/role-hunt",
+  rangAra: "/game/rang-ara",
   exam: "/exam",
 };
 
+/** صفحهٔ کارنامهٔ هر بخش در پنل. */
+export const AREA_PANEL_HREF: Record<PracticeArea, string> = {
+  aruz: "/panel/aruz",
+  vocab: "/panel/vocab",
+  jasoos: "/panel/grammar",
+  rangAra: "/panel/rang-ara",
+  exam: "/panel/exam",
+};
+
 /** گلیفِ هر بخش — همان‌هایی که پنل امروز هم استفاده می‌کند. */
-export const AREA_GLYPH: Record<BookmarkArea, string> = {
+export const AREA_GLYPH: Record<PracticeArea, string> = {
   aruz: "🎵",
   vocab: "🖼️",
-  jasoos: "🕵️",
+  jasoos: "🧩",
+  rangAra: "🎨",
   exam: "🏅",
 };
 
 /** نامی که در پنل نشان داده می‌شود. `AREA_LABEL` برای «عروض» کوتاه است. */
-export const AREA_TITLE: Record<BookmarkArea, string> = {
+export const AREA_TITLE: Record<PracticeArea, string> = {
   aruz: "عروض سماعی",
   vocab: "واژه‌یاب",
-  jasoos: "جاسوس",
+  jasoos: "دستور زبان",
+  rangAra: "آرایه‌ها",
   exam: "آزمون نهایی",
 };
 
 /** آخرین روزی که در هر بخش پاسخی ثبت شده. */
 export function lastDayByArea(
   dayCounts: PanelOverview["dayCounts"],
-): Partial<Record<BookmarkArea, string>> {
-  const out: Partial<Record<BookmarkArea, string>> = {};
+): Partial<Record<PracticeArea, string>> {
+  const out: Partial<Record<PracticeArea, string>> = {};
   for (const row of dayCounts) {
     if (row.total === 0) continue;
     const seen = out[row.area];
@@ -134,7 +146,7 @@ function daysSince(day: string, now: Date): number {
 /* ───────────────────────── از همین‌جا ادامه بده ───────────────────────── */
 
 export type ResumeItem = {
-  area: BookmarkArea;
+  area: PracticeArea;
   title: string;
   /** چرا این مورد اینجاست — به زبانِ کاربر، و همیشه از روی عدد. */
   reason: string;
@@ -159,26 +171,26 @@ export type ResumeItem = {
 export function resumeItems(overview: PanelOverview, now: Date = new Date()): ResumeItem[] {
   const { counts, dayCounts, exams } = overview;
   const last = lastDayByArea(dayCounts);
-  const areas: BookmarkArea[] = ["aruz", "vocab", "jasoos", "exam"];
+  const areas: PracticeArea[] = ["aruz", "vocab", "jasoos", "rangAra", "exam"];
 
-  const accuracy = (a: BookmarkArea): number | null => {
+  const accuracy = (a: PracticeArea): number | null => {
     if (a === "exam") return exams.attempts > 0 ? exams.average : null;
     const c = counts[a];
     return c.total > 0 ? Math.round((c.correct / c.total) * 100) : null;
   };
 
   /* ⚠️ «آیا سراغش رفته» را نمی‌شود از `last[area]` فهمید.
-     `dayCounts` فقط عروض، واژه‌یاب و جاسوس را دارد — آزمون نهایی جدولِ
+     `dayCounts` همهٔ بازی‌های پاسخ‌دار را دارد جز آزمون نهایی، که جدولِ
      خودش را دارد و در شمارشِ روزانه نمی‌آید. بدونِ این تفکیک، به کسی که
      چهار کارنامه دارد نوشته می‌شد «هنوز سراغش نرفته‌ای» و درست کنارش
      «۷۶٪ دقت». */
-  const hasEvidence = (a: BookmarkArea) =>
+  const hasEvidence = (a: PracticeArea) =>
     a === "exam" ? exams.attempts > 0 : counts[a].total > 0;
 
   const answered = areas.some(hasEvidence);
 
   if (!answered) {
-    return (["aruz", "vocab", "jasoos"] as BookmarkArea[]).map((area) => ({
+    return (["aruz", "vocab", "jasoos"] as PracticeArea[]).map((area) => ({
       area,
       title: AREA_TITLE[area],
       reason: "هنوز شروعش نکرده‌ای — چند دقیقه برای اولین تمرین کافی است.",
@@ -189,10 +201,10 @@ export function resumeItems(overview: PanelOverview, now: Date = new Date()): Re
     }));
   }
 
-  const picked = new Set<BookmarkArea>();
+  const picked = new Set<PracticeArea>();
   const out: ResumeItem[] = [];
 
-  const push = (area: BookmarkArea, reason: string, cta: string) => {
+  const push = (area: PracticeArea, reason: string, cta: string) => {
     if (picked.has(area) || out.length >= 3) return;
     picked.add(area);
     out.push({
@@ -275,6 +287,8 @@ export type Badge = {
   earned: boolean;
   /** وقتی گرفته شده: چه چیزی آن را ثابت می‌کند. وقتی نه: چقدر مانده. */
   detail: string;
+  /** ۰ تا ۱ — پرشدنِ نوارِ زیرِ نشانِ نگرفته. */
+  progress: number;
 };
 
 /**
@@ -308,6 +322,7 @@ export function badges({
       title: `${faNum(streakGoal)} روز پیاپی`,
       glyph: "🔥",
       earned: best >= streakGoal,
+      progress: Math.min(1, best / streakGoal),
       detail:
         best >= streakGoal
           ? `رکوردت ${faNum(best)} روز است`
@@ -318,6 +333,7 @@ export function badges({
       title: `${faNum(answersGoal)} پاسخ`,
       glyph: "📜",
       earned: total >= answersGoal,
+      progress: Math.min(1, total / answersGoal),
       detail:
         total >= answersGoal
           ? `${faNum(total)} پاسخ ثبت کرده‌ای`
@@ -328,6 +344,7 @@ export function badges({
       title: "کارنامهٔ بالای ۸۰",
       glyph: "🏅",
       earned: examBest >= 80,
+      progress: Math.min(1, examBest / 80),
       detail: examBest > 0 ? `بهترین کارنامه‌ات ${faNum(examBest)}٪` : "هنوز آزمونی نداده‌ای",
     },
     {
@@ -335,6 +352,7 @@ export function badges({
       title: "ده نشان‌شده",
       glyph: "🔖",
       earned: bookmarks >= 10,
+      progress: Math.min(1, bookmarks / 10),
       detail:
         bookmarks >= 10
           ? `${faNum(bookmarks)} مورد نشان کرده‌ای`
@@ -344,6 +362,51 @@ export function badges({
 }
 
 /** رقم فارسی — نسخهٔ محلیِ `fa` تا این ماژول به format.ts وابسته نشود. */
+/**
+ * سطح — از تعدادِ کلِ پاسخ‌ها، با نام‌هایی که از دانه تا سرو رشد می‌کنند.
+ *
+ * ⚠️ فقط از پاسخ‌ها و نه از دقت: سطحی که با پاسخِ غلط پایین بیاید، کاربر را
+ * از تمرین کردن می‌ترساند. آستانه‌ها اول نزدیک‌اند تا سطحِ دوم در همان جلسهٔ
+ * اول برسد، بعد فاصله می‌گیرند.
+ */
+export const LEVELS = [
+  { at: 0, name: "دانه" },
+  { at: 30, name: "جوانه" },
+  { at: 100, name: "نهال" },
+  { at: 250, name: "شاخه" },
+  { at: 500, name: "درختچه" },
+  { at: 1000, name: "درخت" },
+  { at: 2000, name: "سرو" },
+  { at: 5000, name: "سرو کهن" },
+] as const;
+
+export type Level = {
+  /** از ۱. */
+  level: number;
+  name: string;
+  /** نامِ سطحِ بعد؛ در سطحِ آخر null. */
+  nextName: string | null;
+  /** چند پاسخ تا سطحِ بعد؛ در سطحِ آخر ۰. */
+  toNext: number;
+  /** ۰ تا ۱ در همین سطح. */
+  progress: number;
+};
+
+export function levelOf(total: number): Level {
+  let i = 0;
+  while (i + 1 < LEVELS.length && total >= LEVELS[i + 1].at) i++;
+  const cur = LEVELS[i];
+  const next = LEVELS[i + 1];
+  if (!next) return { level: i + 1, name: cur.name, nextName: null, toNext: 0, progress: 1 };
+  return {
+    level: i + 1,
+    name: cur.name,
+    nextName: next.name,
+    toNext: next.at - total,
+    progress: (total - cur.at) / (next.at - cur.at),
+  };
+}
+
 function faNum(n: number): string {
   return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }

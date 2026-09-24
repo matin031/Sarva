@@ -93,7 +93,7 @@ function shell(title: string, body: string): string {
           <tr>
             <td align="center" style="padding:40px 24px 0 24px;">
               <div style="font-size:22px; font-weight:700; color:#f3f6f9; letter-spacing:0.5px;">سروا</div>
-              <div style="font-size:12px; color:#5c6b7f; margin-top:6px;">پلتفرم آموزشی ادبیات پارسی</div>
+              <div style="font-size:12px; color:#5c6b7f; margin-top:6px;">آموزش ادبیات فارسی</div>
             </td>
           </tr>
 
@@ -120,7 +120,7 @@ ${body}
           <tr>
             <td align="center" style="padding:20px 24px 32px 24px;">
               <div style="font-size:11px; color:#3e4a5c;">
-                © سروا — از آهنگ و وزن شعر تا دستور زبان و مفاهیم ادبی
+                © سروا
               </div>
             </td>
           </tr>
@@ -237,5 +237,162 @@ ${expiryPill("اعتبار لینک", expiresInMinutes)}
     subject: "بازنشانی رمز عبور سروا",
     html,
     text: `برای بازنشانی رمز عبور سروا این لینک را باز کنید:\n${link}\n\nاعتبار: ${fa(expiresInMinutes)} دقیقه\n\nاگر شما این درخواست را نداده‌اید، رمز فعلی‌تان همچنان معتبر است.`,
+  };
+}
+
+/* ═══════════════════════════ ایمیل‌های اطلاع‌رسانی ═══════════════════════════
+ *
+ * خوش‌آمد، فعال‌سازی و تمدیدِ اشتراک، و یادآوریِ پایان.
+ *
+ * ⚠️ این‌ها با دو ایمیلِ بالا یک تفاوتِ بنیادی دارند: آن دو **لازم**اند
+ * (بدونشان کاربر وارد نمی‌شود) و این‌ها **خبر**اند. یعنی نرسیدنشان نباید
+ * هیچ‌چیزی را بشکند، و همین است که در `lib/notify` باعث می‌شود خطایشان
+ * بلعیده و فقط ثبت شود.
+ *
+ * ⚠️ و همان پوستهٔ `shell` را می‌گیرند و پوستهٔ تازه‌ای نمی‌سازند. یک ایمیلِ
+ * خوش‌آمد که شبیه ایمیلِ کدِ ورود نباشد، برای گیرنده یعنی «این از سروا
+ * نیست». */
+
+/** بدنهٔ مشترکِ یک خبر: یک تیتر، یک تا دو خط توضیح، و دکمهٔ اختیاری. */
+function noticeBody(
+  heading: string,
+  lines: string[],
+  cta?: { label: string; href: string },
+): string {
+  const paragraphs = lines
+    .map(
+      (line) =>
+        `<div style="font-size:14px; color:#8a97ac; line-height:26px; margin-top:10px;">${line}</div>`,
+    )
+    .join("\n");
+
+  const button = cta
+    ? `          <tr>
+            <td align="center" style="padding:30px 24px 4px 24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:12px; background-color:#0DBFC3; box-shadow:0 0 0 1px rgba(13,191,195,0.35), 0 8px 24px rgba(13,191,195,0.15);">
+                    <a href="${esc(cta.href)}" target="_blank" style="display:inline-block; padding:15px 44px; font-size:15px; font-weight:700; color:#04141a; text-decoration:none; border-radius:12px;">
+                      ${esc(cta.label)}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+`
+    : "";
+
+  return `          <tr>
+            <td align="center" style="padding:26px 40px 0 40px;">
+              <div style="font-size:17px; color:#f3f6f9; font-weight:700;">${esc(heading)}</div>
+${paragraphs}
+            </td>
+          </tr>
+
+${button}`;
+}
+
+/** داده‌هایی که این قالب‌ها لازم دارند — همان شکلی که `lib/notify` می‌سازد. */
+export type NoticeVars = {
+  name: string;
+  /** تاریخِ پایان، از پیش به شمسی تبدیل‌شده. */
+  endsLabel?: string;
+  daysLeft?: number;
+};
+
+export function welcomeEmail(vars: NoticeVars): Omit<MailMessage, "to"> {
+  const html = shell(
+    "به سروا خوش آمدید",
+    noticeBody(
+      /* ⚠️ بدونِ `esc` — خودِ `noticeBody` تیتر را escape می‌کند.
+         دو بار escape کردن، نامی با آپاستروف را به `&amp;#39;` تبدیل
+         می‌کرد: نه خطر، ولی زشت و دیدنی. */
+      `${vars.name} عزیز، خوش آمدی`,
+      [
+        "حساب تو در سروا ساخته شد.",
+        "درس‌ها، آزمون‌ها و بازی‌ها از همین حالا در دسترس‌اند.",
+      ],
+      { label: "شروع کن", href: emailUrl("/panel") },
+    ),
+  );
+
+  return {
+    subject: "به سروا خوش آمدید",
+    html,
+    text: `${vars.name} عزیز، حساب تو در سروا ساخته شد.\n\n${emailUrl("/panel")}`,
+  };
+}
+
+export function plusActivatedEmail(
+  vars: NoticeVars,
+  isRenewal: boolean,
+): Omit<MailMessage, "to"> {
+  const heading = isRenewal ? "اشتراک تمدید شد" : "سروا پلاس فعال شد";
+  const lines = [
+    isRenewal
+      ? "پرداختت تأیید شد و اشتراک به دورهٔ فعلی اضافه شد."
+      : "پرداختت تأیید شد و دسترسی کامل باز شد.",
+  ];
+  if (vars.endsLabel) lines.push(`اعتبار تا <span style="color:#2FE0DC; font-weight:700;">${esc(vars.endsLabel)}</span>`);
+
+  const html = shell(
+    heading,
+    noticeBody(heading, lines, { label: "مشاهدهٔ اشتراک", href: emailUrl("/panel/subscription") }),
+  );
+
+  return {
+    subject: `سروا — ${heading}`,
+    html,
+    text: `${heading}.${vars.endsLabel ? `\nاعتبار تا ${vars.endsLabel}` : ""}\n\n${emailUrl("/panel/subscription")}`,
+  };
+}
+
+export function plusExpiringEmail(vars: NoticeVars): Omit<MailMessage, "to"> {
+  const days = fa(vars.daysLeft ?? 0);
+  const html = shell(
+    "اشتراکت رو به پایان است",
+    noticeBody(
+      `${days} روز تا پایان اشتراک`,
+      [
+        vars.endsLabel
+          ? `اشتراک سروا پلاس تو <span style="color:#2FE0DC; font-weight:700;">${esc(vars.endsLabel)}</span> تمام می‌شود.`
+          : "اشتراک سروا پلاس تو به‌زودی تمام می‌شود.",
+        "با تمدید، دسترسی بدون وقفه ادامه پیدا می‌کند.",
+      ],
+      { label: "تمدید اشتراک", href: emailUrl("/checkout") },
+    ),
+  );
+
+  return {
+    subject: `سروا — ${days} روز تا پایان اشتراک`,
+    html,
+    text: `${days} روز تا پایان اشتراک سروا پلاس.${vars.endsLabel ? `\nپایان: ${vars.endsLabel}` : ""}\n\nتمدید: ${emailUrl("/checkout")}`,
+  };
+}
+
+/* ⚠️ این یکی `vars` نمی‌گیرد، برخلافِ سه‌تای دیگر: پیامِ «تمام شد» نه نام
+   می‌خواهد و نه تاریخ. امضایش عمداً با بقیه یکی نشد تا `emailFor` در
+   `lib/notify` نتواند بی‌سروصدا داده‌ای بفرستد که اینجا نادیده می‌ماند. */
+export function plusExpiredEmail(): Omit<MailMessage, "to"> {
+  const html = shell(
+    "اشتراکت تمام شد",
+    noticeBody(
+      "اشتراک سروا پلاس به پایان رسید",
+      [
+        /* ⚠️ «حسابت باقی است» جملهٔ مهمی است و تزئینی نیست: کاربری که پیامِ
+           پایانِ اشتراک می‌گیرد، اولین چیزی که می‌پرسد این است که آیا
+           پیشرفت و یادداشت‌هایش هم رفته. */
+        "حساب و پیشرفتت سر جایش است؛ فقط بخش‌های پلاس بسته شد.",
+        "هر وقت خواستی می‌توانی تمدید کنی.",
+      ],
+      { label: "تمدید اشتراک", href: emailUrl("/checkout") },
+    ),
+  );
+
+  return {
+    subject: "سروا — اشتراکت به پایان رسید",
+    html,
+    text: `اشتراک سروا پلاس به پایان رسید. حساب و پیشرفتت سر جایش است.\n\nتمدید: ${emailUrl("/checkout")}`,
   };
 }

@@ -58,10 +58,11 @@ export default function SessionPicker({
             />
             <span className="km-picker-num game-num">{toFa(n)}</span>
             <span className="km-picker-name">{SHAPE[n]?.name}</span>
-            <span className="km-picker-time">{SHAPE[n]?.minutes}</span>
           </label>
         ))}
       </div>
+      {/* فقط زمانِ گزینهٔ انتخاب‌شده — سه برچسبِ «حدود … دقیقه» کنارِ هم شلوغ بود. */}
+      <p className="km-picker-time">{SHAPE[value]?.minutes}</p>
     </fieldset>
   );
 }

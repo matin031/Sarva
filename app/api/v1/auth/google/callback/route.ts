@@ -4,6 +4,7 @@ import {
   googleConfig,
   statesMatch,
   GOOGLE_NONCE_COOKIE,
+  GOOGLE_RETURN_COOKIE,
   GOOGLE_STATE_COOKIE,
   GOOGLE_VERIFIER_COOKIE,
 } from "@/lib/auth/oauth/google";
@@ -14,7 +15,9 @@ import { cookieSecure } from "@/lib/auth/config";
 import { requestMeta } from "@/lib/api/http";
 import { attachUserId, logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import { recordActivity } from "@/lib/activity/record";
+import { sendWelcome } from "@/lib/notify/welcome";
 
 /**
  * GET /api/v1/auth/google/callback — بازگشت از گوگل.
@@ -25,8 +28,19 @@ import { recordActivity } from "@/lib/activity/record";
  */
 
 /** کوکی‌های یک‌بارمصرفِ جریان را پاک می‌کند — چه ورود موفق باشد چه نه. */
+/** مقدارِ کوکی هنگامِ نوشتن URL-encode می‌شود («/» → «%2F»)؛ بدونِ
+ *  بازگرداندنش `safeReturnTo` آن را مسیر نمی‌شناسد. */
+function decodeCookie(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return undefined;
+  }
+}
+
 function clearFlowCookies(response: NextResponse): NextResponse {
-  for (const name of [GOOGLE_STATE_COOKIE, GOOGLE_VERIFIER_COOKIE, GOOGLE_NONCE_COOKIE]) {
+  for (const name of [GOOGLE_STATE_COOKIE, GOOGLE_VERIFIER_COOKIE, GOOGLE_NONCE_COOKIE, GOOGLE_RETURN_COOKIE]) {
     response.cookies.set(name, "", {
       httpOnly: true,
       secure: cookieSecure(),
@@ -111,8 +125,15 @@ export const GET = withRoute("/api/v1/auth/google/callback", async (request: Req
   /* ثبتِ «ورود» در تاریخچهٔ فعالیت — چراییِ کاملش در مسیرِ ورود با رمز. */
   await recordActivity({ userId: outcome.user.id, eventType: "login" });
 
+  /* ⚠️ فقط برای حسابِ تازه. ورودِ دوبارهٔ با گوگل «ثبت‌نام» نیست، و
+     `outcome.created` تنها چیزی است که این دو را از هم جدا می‌کند. */
+  if (outcome.created) {
+    await sendWelcome(outcome.user.id);
+  }
+
   const response = clearFlowCookies(
-    NextResponse.redirect(new URL("/panel/home", request.url)),
+    // مقصدی که پیش از رفتن به گوگل ثبت شد — مثلاً صفحهٔ خرید.
+    NextResponse.redirect(new URL(safeReturnTo(decodeCookie(read(GOOGLE_RETURN_COOKIE))), request.url)),
   );
   for (const c of [accessCookie(tokens.accessToken), refreshCookie(tokens.refreshToken)]) {
     response.cookies.set(c.name, c.value, c.options);

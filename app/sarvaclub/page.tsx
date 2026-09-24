@@ -34,14 +34,14 @@ export async function generateMetadata({
   return {
     title,
     description:
-      "جایی برای کسانی که طبع شعر دارند: سروده‌ات را بفرست — با نام خودت یا بی‌نام — و دربارهٔ سروده‌های دیگران بنویس. هر سروده و دیدگاه پیش از انتشار بررسی می‌شود.",
+      "انجمن شعر سروا: سروده‌ات را با نام خودت یا بی‌نام بفرست و برای سروده‌های دیگران دیدگاه بنویس.",
     alternates: { canonical },
     // ⚠️ `follow` حتی وقتی ایندکس نمی‌شود: خزنده باید از فهرستِ فیلترشده رد
     // شود و به خودِ سروده‌ها برسد.
     robots: indexable ? undefined : { index: false, follow: true },
     openGraph: {
       title,
-      description: "انجمن شعر سروا — سروده‌ات را با ما بخوان.",
+      description: "انجمن شعر سروا",
       url: canonical,
     },
   };

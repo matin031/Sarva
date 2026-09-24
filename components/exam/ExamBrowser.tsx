@@ -101,8 +101,7 @@ export default function ExamBrowser({ exams }: { exams: ExamSummary[] }) {
           {subject === null ? "کدام درس؟" : grade === null ? "کدام پایه؟" : "کدام آزمون؟"}
         </h1>
         <p className=" mx-auto mt-3 max-w-lg text-pretty leading-relaxed text-muted-foreground">
-          آزمون‌های نهاییِ سال‌های گذشته، دقیقاً با همان صورت‌سؤال و بارم — سؤال‌به‌سؤال
-          و تعاملی، با پاسخ درست بلافاصله بعد از هر سؤال.
+          امتحان‌های نهایی سال‌های قبل با همان سؤال‌ها و بارم. جواب درست بعد از هر سؤال نشان داده می‌شود.
         </p>
       </motion.div>
 

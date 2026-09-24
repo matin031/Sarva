@@ -89,7 +89,7 @@ export default function ExamAttemptCard({
             <div className="border-t border-border p-4">
               {entries.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  ریزِ نمرهٔ این آزمون ذخیره نشده است.
+                  ریز نمرهٔ این آزمون ذخیره نشده است.
                 </p>
               ) : (
                 <>

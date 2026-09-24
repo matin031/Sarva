@@ -5,6 +5,7 @@ import {
   newFlowSecrets,
   GOOGLE_FLOW_TTL_SECONDS,
   GOOGLE_NONCE_COOKIE,
+  GOOGLE_RETURN_COOKIE,
   GOOGLE_STATE_COOKIE,
   GOOGLE_VERIFIER_COOKIE,
 } from "@/lib/auth/oauth/google";
@@ -13,6 +14,7 @@ import { rateLimit } from "@/lib/api/rate-limit";
 import { requestMeta } from "@/lib/api/http";
 import { logger } from "@/lib/observability";
 import { withRoute } from "@/lib/api/route";
+import { safeReturnTo } from "@/lib/auth/return-to";
 
 /** GET /api/v1/auth/google — شروعِ جریانِ ورود با گوگل. */
 export const GET = withRoute("/api/v1/auth/google", async (request: Request) => {
@@ -52,6 +54,11 @@ export const GET = withRoute("/api/v1/auth/google", async (request: Request) => 
   response.cookies.set(GOOGLE_STATE_COOKIE, secrets.state, base);
   response.cookies.set(GOOGLE_VERIFIER_COOKIE, secrets.verifier, base);
   response.cookies.set(GOOGLE_NONCE_COOKIE, secrets.nonce, base);
+  response.cookies.set(
+    GOOGLE_RETURN_COOKIE,
+    safeReturnTo(new URL(request.url).searchParams.get("returnTo")),
+    base,
+  );
 
   return response;
 });

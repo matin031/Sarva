@@ -56,6 +56,7 @@ export const GAME_KEYS = [
   "kimia",
   "ninja",
   "pairs",
+  "rang-ara",
   "role-hunt",
   "vocab",
 ] as const;
@@ -81,6 +82,8 @@ export const GAMES_WITH_STORED_RESULTS: readonly GameKey[] = [
   "jasoos",
   // یک ردیف به‌ازای هر *دور* در `kimia_rounds`، با درستیِ سنجیده‌شدهٔ سرور.
   "kimia",
+  // یک ردیف به‌ازای هر گامِ بیتِ تمام‌شده در `rang_ara_answers`؛ سرور از روی ضربه‌ها نمره می‌دهد.
+  "rang-ara",
   "role-hunt",
   "vocab",
 ];

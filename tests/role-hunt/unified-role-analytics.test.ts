@@ -172,6 +172,8 @@ test("نقشی که «شکار نقش‌ها» می‌سازد، همان کلی
   const round = buildRoleHuntRound(question);
   assert.ok(round);
 
-  assert.equal(roleLabelForKey(round.roleKey), round.roleLabel);
-  assert.equal(roleBucketFor(round.roleLabel)?.key, round.roleKey);
+  for (const a of round.asks) {
+    assert.equal(roleLabelForKey(a.roleKey), a.roleLabel);
+    assert.equal(roleBucketFor(a.roleLabel)?.key, a.roleKey);
+  }
 });

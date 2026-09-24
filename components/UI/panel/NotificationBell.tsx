@@ -217,7 +217,7 @@ export default function NotificationBell() {
                   className="flex items-center gap-1 text-[12px] text-primary underline-offset-[6px] hover:underline disabled:opacity-50"
                 >
                   <CheckCheck aria-hidden className="size-3.5" />
-                  خواندنِ همه
+                  خواندن همه
                 </button>
               )}
             </div>
@@ -282,7 +282,7 @@ export default function NotificationBell() {
                      بی‌توضیح، خواننده را به این نتیجه می‌رساند که چیزی
                      خراب است. */
                   <p className="text-center text-[12px] leading-relaxed text-muted-foreground">
-                    {fa(MAX_LOADED)} اعلانِ اخیر نشان داده شد. برای دیدنِ قدیمی‌ترها،
+                    {fa(MAX_LOADED)} اعلان اخیر نشان داده شد. برای دیدن قدیمی‌ترها،
                     اول همین‌ها را خوانده‌شده کن.
                   </p>
                 ) : (

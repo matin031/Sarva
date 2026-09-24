@@ -4,9 +4,15 @@ import { execute, isUniqueViolation, query, queryOne, transaction } from "@/lib/
 import { logger } from "@/lib/observability";
 import { AuthError } from "@/lib/auth/types";
 import { getSellableOfferByCode } from "./plans";
-import { getPaymentProvider } from "./payments";
+import {
+  getPaymentProvider,
+  paymentProviderByName,
+  PAYMENT_PROVIDER_NAMES,
+  testGatewayAllowedFor,
+} from "./payments";
 import { activateForOrder } from "./grants";
 import { notify } from "./notifications";
+import { notifyUser } from "@/lib/notify";
 import { orderNumber } from "./order-number";
 import type { CANONICAL_CURRENCY } from "./money";
 import type {
@@ -111,6 +117,10 @@ export async function createOrGetPendingOrder(params: {
   const { userId, planCode } = params;
   const idempotencyKey = params.idempotencyKey?.trim() || null;
 
+  // سفارشِ رهاشده‌ای که مهلتش گذشته، دیگر «همان سفارشِ باز» نیست: اگر
+  // می‌ماند، کاربری که فردا برمی‌گردد سفارشِ دیروز را با شمارهٔ دیروز می‌گرفت.
+  await expireStaleOrdersFor(userId);
+
   // ⚠️ مبلغ و مدت *اینجا* از دیتابیس خوانده می‌شوند و نه از ورودی.
   const offer = await getSellableOfferByCode(planCode);
   if (!offer) {
@@ -197,6 +207,8 @@ export async function createOrGetPendingOrder(params: {
  */
 export async function startPayment(params: {
   userId: string;
+  /** نقشِ کاربر — فقط برای گیتِ درگاهِ آزمایشی روی سرورِ اصلی. */
+  role: string;
   orderId: string;
   origin: string;
 }): Promise<{ redirectUrl: string; attemptId: string }> {
@@ -206,6 +218,43 @@ export async function startPayment(params: {
   if (order.status !== "pending") throw new OrderError("این سفارش دیگر قابل پرداخت نیست.", 409);
 
   const provider = await getPaymentProvider();
+
+  // ⚠️ تا درگاه واقعی وصل نشده، روی سرورِ اصلی فقط مدیر می‌تواند مسیرِ
+  // پرداخت را امتحان کند. کاربرِ عادی پیامِ روشن می‌گیرد و نه خطای ۵۰۰.
+  if (provider.isTest && !testGatewayAllowedFor(params.role)) {
+    throw new OrderError("پرداخت آنلاین هنوز راه‌اندازی نشده است.", 503);
+  }
+
+  // ⚠️ قیمتی که روی سفارش نشسته هنوز قیمتِ فروش است؟ اگر مدیر در این فاصله
+  // قیمت را عوض کرده، پرداختِ این سفارش یعنی فروش با قیمتی که دیگر وجود
+  // ندارد. سفارش بسته می‌شود و کاربر از صفحهٔ خرید، قیمتِ تازه را می‌بیند.
+  const version = await queryOne<{ sellable: number }>(
+    `select (v.is_sellable = 1 and p.is_active = 1) as sellable
+       from plus_plan_versions v
+       join plus_plans p on p.id = v.plan_id
+      where v.id = ?`,
+    [order.plan_version_id],
+  );
+  if (!version || Number(version.sellable) !== 1) {
+    await execute(
+      `update plus_orders o
+          set o.status = 'expired'
+        where o.id = ? and o.status = 'pending'
+          and not exists (select 1 from plus_payment_attempts a
+                           where a.order_id = o.id
+                             and a.state in ('redirected', 'pending', 'unknown', 'verified'))`,
+      [order.id],
+    );
+    throw new OrderError("قیمت این پلن تغییر کرده است. دوباره انتخابش کن.", 409);
+  }
+
+  // هر تلاشِ تازه مهلتِ سفارش را از نو شروع می‌کند؛ وگرنه کسی که ساعتی بعد
+  // دوباره «پرداخت» را می‌زند، سفارشی را می‌پرداخت که همان لحظه منقضی بود.
+  await execute(
+    `update plus_orders set pending_expires_at = now(6) + interval ? minute
+      where id = ? and status = 'pending'`,
+    [PENDING_TTL_MINUTES, order.id],
+  );
 
   // آدرسِ بازگشت: مسیرِ داخلیِ ثابت + شناسهٔ سفارش. هیچ چیزِ دیگری، تا
   // پارامترهای درگاه نتوانند مقصد را عوض کنند.
@@ -311,8 +360,31 @@ export async function settlePayment(params: {
     };
   }
 
-  const attempt = await queryOne<{ id: string; provider: string; provider_ref: string | null }>(
-    `select id, provider, provider_ref
+  type AttemptRow = {
+    id: string;
+    provider: string;
+    provider_ref: string | null;
+    redirected_at: string | null;
+  };
+
+  // ⚠️ تلاشی که بازگشت به آن اشاره می‌کند، نه لزوماً آخرین تلاش. (چرایش
+  // کنارِ `refFromReturn` در قراردادِ درگاه.) هر درگاه پارامترهای خودش را
+  // می‌شناسد، پس از همه پرسیده می‌شود — کاربر ممکن است از درگاهی برگردد که
+  // دیگر درگاهِ فعلی نیست.
+  let attempt: AttemptRow | null = null;
+  for (const name of PAYMENT_PROVIDER_NAMES) {
+    const ref = paymentProviderByName(name)?.refFromReturn?.(params.returnParams) ?? null;
+    if (!ref) continue;
+    attempt = await queryOne<AttemptRow>(
+      `select id, provider, provider_ref, redirected_at
+         from plus_payment_attempts
+        where order_id = ? and provider = ? and provider_ref = ?`,
+      [order.id, name, ref],
+    );
+    if (attempt) break;
+  }
+  attempt ??= await queryOne<AttemptRow>(
+    `select id, provider, provider_ref, redirected_at
        from plus_payment_attempts
       where order_id = ? and provider_ref is not null
       order by created_at desc limit 1`,
@@ -325,12 +397,35 @@ export async function settlePayment(params: {
     return { ...base, state: "created", message: "هنوز پرداختی برای این سفارش شروع نشده است." };
   }
 
-  const provider = await getPaymentProvider();
+  // ⚠️ با درگاهی که پرداخت با آن شروع شد، نه درگاهِ فعلی. پس عوض کردنِ درگاه
+  // در پنل، پرداخت‌های نیمه‌کاره را گم نمی‌کند — تا وقتی کلیدِ درگاهِ قبلی
+  // در تنظیمات مانده باشد.
+  const provider = paymentProviderByName(attempt.provider);
+  if (!provider) {
+    return {
+      ...base,
+      state: "unknown",
+      message: "این پرداخت با درگاهی انجام شده که دیگر در سایت نیست. پشتیبانی بررسی می‌کند.",
+    };
+  }
+
+  // ⚠️ درگاهِ آزمایشی روی سرورِ اصلی فقط برای مدیر تأیید می‌کند — همان گیتِ
+  // شروعِ پرداخت، این بار در سمتِ تأیید.
+  if (provider.isTest) {
+    const owner = await queryOne<{ role: string }>("select role from users where id = ?", [
+      order.user_id,
+    ]);
+    if (!testGatewayAllowedFor(owner?.role)) {
+      return { ...base, state: "unknown", message: "درگاه آزمایشی روی این سرور فعال نیست." };
+    }
+  }
+
   const verifyInput = {
     orderId: order.id,
     amountRials: order.amount_rials,
     providerRef: attempt.provider_ref,
     returnParams: params.returnParams,
+    redirectedAt: attempt.redirected_at,
   };
 
   let result;
@@ -427,6 +522,24 @@ export async function settlePayment(params: {
       body: `سفارش ${orderNumber(order.order_seq)} تأیید شد.`,
       href: "/panel/subscription",
     }).catch(() => {});
+
+    /* پیامک و ایمیلِ رسیدِ خرید.
+     *
+     * ⚠️ `dedupeKey` روی **شناسهٔ سفارش** است و نه روی کاربر یا زمان. مسیرِ
+     * تأیید بیش از یک راه دارد که به اینجا می‌رسد — بازگشت از درگاه،
+     * دکمهٔ «بررسی دوباره»، و رفرشِ صفحهٔ نتیجه — و `activation.created`
+     * فقط تا وقتی نگهبانِ کافی است که هر سه در یک تراکنش بیفتند. کلیدِ
+     * سفارش این را قطعی می‌کند: یک سفارش، یک رسید.
+     *
+     * ⚠️ و پس از `notify()` است، نه پیش از آن: اگر سرویسِ پیامک کند باشد،
+     * اعلانِ درون‌سایتی — که هزینه‌اش یک INSERT است — نباید پشتِ آن منتظر
+     * بماند. */
+    await notifyUser({
+      userId: order.user_id,
+      event: activation.isRenewal ? "plus_renewed" : "plus_activated",
+      endsAt: activation.endsAt,
+      dedupeKey: `plus_receipt:${order.id}`,
+    });
   }
 
   return {
@@ -558,6 +671,13 @@ export async function getOrderDetail(
 
   const verified = attempts.find((a) => a.state === "verified");
 
+  // تمدید یعنی دورهٔ تازه بعد از لحظهٔ پرداخت شروع شده (به انتهای دورهٔ قبلی
+  // چسبیده). یک ثانیه حاشیه برای فاصلهٔ دو `now` در همان تراکنش.
+  const isRenewal =
+    !!access &&
+    !!order.paid_at &&
+    new Date(access.starts_at).getTime() - new Date(order.paid_at).getTime() > 1000;
+
   return {
     ...toSummary(order, attempts[0]?.state ?? null),
     planCode: order.plan_code,
@@ -565,6 +685,7 @@ export async function getOrderDetail(
     trackingId: verified?.provider_tracking_id ?? null,
     accessFrom: access?.starts_at ?? null,
     accessTo: access?.ends_at ?? null,
+    isRenewal,
     attempts: attempts.map((a) => ({
       id: a.id,
       provider: a.provider,
@@ -592,12 +713,105 @@ export async function countUnsettledOrders(userId: string): Promise<number> {
 }
 
 /**
+ * سفارش‌هایی که نتیجهٔ پرداختشان *واقعاً* نامعلوم است.
+ *
+ * ⚠️ فقط `unknown`. «به درگاه رفت» یا «درگاه می‌گوید هنوز پرداخت نشده»
+ * رایج‌ترین حالتِ کسی است که از صفحهٔ بانک back زده؛ هشدارِ «دوباره پرداخت
+ * نکن» برای او فقط ترسناک و غلط است. هشدار مالِ جایی است که ممکن است پول
+ * کم شده باشد و ما نمی‌دانیم.
+ */
+export async function listAmbiguousOrders(
+  userId: string,
+): Promise<{ id: string; orderNumber: string }[]> {
+  const rows = await query<{ id: string; order_seq: number }>(
+    `select o.id, o.order_seq
+       from plus_orders o
+      where o.user_id = ?
+        and o.status = 'pending'
+        and (select a.state from plus_payment_attempts a
+              where a.order_id = o.id and a.provider_ref is not null
+              order by a.created_at desc limit 1) = 'unknown'
+      order by o.created_at desc
+      limit 5`,
+    [userId],
+  );
+  return rows.map((r) => ({ id: r.id, orderNumber: orderNumber(r.order_seq) }));
+}
+
+/**
  * سفارش‌های رهاشده را منقضی می‌کند.
  *
  * ⚠️ فقط سفارش‌هایی که *هیچ* تلاشِ پرداختِ مبهمی ندارند. سفارشی که یک تلاشِ
  * `unknown` یا `redirected` دارد ممکن است پولی پشتش باشد و بستنش یعنی
  * از دست دادنِ راهِ ترمیم.
  */
+/**
+ * همان کارِ `expireStaleOrders`، فقط برای یک کاربر.
+ *
+ * ⚠️ این پروژه cron ندارد، پس انقضا تنبل است: هر بار که کاربر سفارش می‌سازد
+ * یا فهرستِ خریدهایش را می‌بیند. همان شرطِ «هیچ تلاشِ مبهمی نداشته باشد»
+ * اینجا هم هست.
+ */
+export async function expireStaleOrdersFor(userId: string): Promise<number> {
+  return execute(
+    `update plus_orders o
+        set o.status = 'expired'
+      where o.user_id = ?
+        and o.status = 'pending'
+        and o.pending_expires_at is not null
+        and o.pending_expires_at < now(6)
+        and not exists (select 1 from plus_payment_attempts a
+                         where a.order_id = o.id
+                           and a.state in ('redirected', 'pending', 'unknown', 'verified'))`,
+    [userId],
+  );
+}
+
+/**
+ * سفارش‌های بازی که تلاشِ پرداختشان تکلیفش روشن نیست، از درگاه پرسیده
+ * می‌شوند — همان «بررسی دوباره»، بدونِ اینکه کاربر دکمه‌ای بزند.
+ *
+ * ⚠️ سناریو: کاربر در بانک پرداخت کرد و پیش از برگشتن اینترنتش قطع شد. فردا
+ * که «خریدهای من» را باز می‌کند، باید اشتراکِ فعال ببیند و نه «در حال
+ * بررسی». سقف دارد (هر بار حداکثر سه سفارش) چون هرکدام یک درخواست به
+ * درگاه است و این تابع سرِ راهِ بارگذاریِ صفحه است. شکستش صفحه را
+ * نمی‌شکند.
+ */
+export async function reconcileOpenOrders(userId: string, max = 3): Promise<number> {
+  let activated = 0;
+  try {
+    const rows = await query<{ id: string }>(
+      `select o.id
+         from plus_orders o
+        where o.user_id = ?
+          and o.status = 'pending'
+          and (select a.state from plus_payment_attempts a
+                where a.order_id = o.id and a.provider_ref is not null
+                order by a.created_at desc limit 1) in ('redirected', 'pending', 'unknown')
+        order by o.created_at desc
+        limit ?`,
+      [userId, max],
+    );
+    for (const row of rows) {
+      const result = await settlePayment({
+        userId,
+        orderId: row.id,
+        returnParams: {},
+        mode: "recheck",
+      }).catch(() => null);
+      if (result?.activatedNow) activated += 1;
+    }
+    await expireStaleOrdersFor(userId);
+  } catch (err) {
+    logger.warn("بررسی خودکار سفارش‌های باز انجام نشد", {
+      event: "plus.orders.reconcile_failed",
+      err,
+      user_id: userId,
+    });
+  }
+  return activated;
+}
+
 export async function expireStaleOrders(): Promise<number> {
   return transaction(async (tx) =>
     tx.execute(

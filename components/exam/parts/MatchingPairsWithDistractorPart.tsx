@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText, { plainText } from "@/components/exam/HighlightedText";
+
 type MatchingPairsWithDistractorContent = {
   type: "matching-pairs-with-distractor";
   promptText?: string;
@@ -22,12 +24,12 @@ type Props = {
 export default function MatchingPairsWithDistractorPart({ content, value, onChange, disabled }: Props) {
   return (
     <div dir="rtl" className="flex flex-col gap-3 text-right">
-      {content.promptText && <p className="text-base leading-relaxed xs:text-lg">{content.promptText}</p>}
+      {content.promptText && <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.promptText} /></p>}
       <div className="flex flex-col gap-2.5">
         {content.columnA.map((row) => (
           <div key={row.id} className="flex flex-col gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5">
             <span className="text-sm font-semibold text-primary">{row.id})</span>
-            <span className="text-base leading-relaxed">{row.text}</span>
+            <span className="text-base leading-relaxed"><HighlightedText text={row.text} /></span>
             <select
               dir="rtl"
               disabled={disabled}
@@ -41,7 +43,7 @@ export default function MatchingPairsWithDistractorPart({ content, value, onChan
               </option>
               {content.columnB.map((opt) => (
                 <option key={opt.id} value={opt.id}>
-                  {opt.id}) {opt.text}
+                  {opt.id}) {plainText(opt.text)}
                 </option>
               ))}
             </select>

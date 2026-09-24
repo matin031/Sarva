@@ -186,38 +186,11 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
        چیزی آن بیرون هست. `clip` برخلافِ `hidden` ظرفِ اسکرول نمی‌سازد و
        محورِ عمودی را دست نمی‌زند. */
     <div className="container max-w-4xl mx-auto my-10 overflow-x-clip sm:my-16">
-      {(screen === "study" || screen === "slicing") && (
-        /* ⚠️ `flex-wrap`: نوارِ جان‌ها و امتیاز روی گوشیِ باریک به‌جای
-           پهن‌تر کردنِ ظرف، به خطِ دوم می‌رود. */
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
-          {/* جان‌ها. هر قلبِ ازدست‌رفته یک بار می‌تپد و بعد خاکستری می‌ماند —
-              `key` روی وضعیتِ پر/خالی است تا انیمیشن دقیقاً در لحظهٔ از دست
-              رفتن اجرا شود، نه در هر رندر. */}
-          <div className="flex items-center gap-x-1.5">
-            {Array.from({ length: START_LIVES }).map((_, i) => {
-              const alive = i < lives;
-              return (
-                <span
-                  key={`${i}-${alive}`}
-                  className={`ninja-heart text-lg sm:text-xl ${
-                    alive ? "" : "ninja-heart-lost grayscale"
-                  }`}
-                >
-                  ❤️
-                </span>
-              );
-            })}
-          </div>
-          {/* عدد با هر امتیاز یک تکان می‌خورد؛ بدون آن، تنها بازخوردِ برشِ
-              درست یک عددِ بی‌صدا بود که عوض می‌شد. */}
-          <div className="glass flex items-center gap-2 rounded-full px-4 py-1 text-sm font-bold sm:text-base">
-            <span className="text-muted-foreground">امتیاز</span>
-            <span key={totalScore} className="ninja-score text-primary">
-              {totalScore.toLocaleString("fa-IR")}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* ⚠️ اینجا قبلاً یک نوارِ «جان و امتیاز» روی کاغذِ کرم بود، بیرونِ زمینِ
+          بازی. حالا داخلِ خودِ صحنه است (`SliceField`) — هم نگاهِ بازیکن از
+          صحنه کنده نمی‌شود، هم آن فاصلهٔ خالی بینِ نوار و مستطیلِ شب از بین
+          می‌رود. در صفحهٔ «حفظ کردن» هم دیگر نیست، چون آنجا همیشه «۳ جان و
+          ۰ امتیاز» بود و هیچ چیزی نمی‌گفت. */}
 
       <AnimatePresence mode="wait">
         {screen === "intro" && (
@@ -271,6 +244,9 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
               round={round}
               durationMs={ROUND_DURATION_MS}
               difficulty={difficulty}
+              lives={lives}
+              maxLives={START_LIVES}
+              score={totalScore}
               onSlice={handleSlice}
               onMiss={handleMiss}
               onRoundComplete={handleRoundComplete}
@@ -294,8 +270,11 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
                 {lastMistake}
               </p>
             )}
-            <p className="text-sm sm:text-base mb-6">
-              امتیاز نهایی‌ات: {totalScore}
+            <p className="mb-6 text-sm sm:text-base">
+              امتیاز نهایی‌ات:{" "}
+              <span className="game-num font-bold text-primary">
+                {totalScore.toLocaleString("fa-IR")}
+              </span>
             </p>
             <div className="flex items-center justify-center gap-x-3">
               <button
@@ -328,7 +307,10 @@ function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
               آفرین، نینجای دستور زبان شدی!
             </h2>
             <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              {totalScore} کلمه‌ی درست را برش زدی.
+              <span className="game-num font-bold text-primary">
+                {totalScore.toLocaleString("fa-IR")}
+              </span>{" "}
+              کلمه‌ی درست را برش زدی.
             </p>
             <div className="flex items-center justify-center gap-x-3">
               <button

@@ -1,5 +1,7 @@
 "use client";
 
+import "./game-nav.css";
+
 import ReportButton from "@/components/UI/ReportButton";
 import { useReportTarget } from "@/lib/reports/target";
 
@@ -18,24 +20,20 @@ import { useReportTarget } from "@/lib/reports/target";
  *
  * پس هر نوار خودش این را کنارِ خروج و صدا می‌گذارد. اگر بازی هنوز نگفته
  * باشد چه چیزی روی صفحه است، چیزی رندر نمی‌شود.
+ *
+ * ⚠️ ظاهر یکی است و از `game-nav.css` می‌آید (همان خانوادهٔ دکمهٔ بازگشت)؛
+ * بازی‌ها دیگر کلاسِ اندازه و رنگِ خودشان را به آن نمی‌دهند. `className` فقط
+ * برای جای‌گذاری است.
  */
-export default function GameReportButton({
-  compact = false,
-  className = "",
-  variant = "pill",
-}: {
-  compact?: boolean;
-  className?: string;
-  variant?: "pill" | "bare";
-}) {
+export default function GameReportButton({ className = "" }: { className?: string } = {}) {
   const target = useReportTarget();
   if (!target) return null;
   return (
     <ReportButton
       target={target}
-      compact={compact}
-      className={className}
-      variant={variant}
+      compact
+      variant="bare"
+      className={`game-nav-btn game-nav-icon game-nav-report ${className}`}
     />
   );
 }

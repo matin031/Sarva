@@ -1,0 +1,1127 @@
+{
+  "person-1": {
+    "image": "/literary-timeline/portraits/person-1.webp",
+    "source": "https://ganjoor.net/hanzale",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۲ تا ۳ هجری قمری",
+    "dates": "تقریبی؛ ۱۷۰ تا ۲۱۹ هجری قمری"
+  },
+  "person-6": {
+    "image": "/literary-timeline/portraits/person-6.webp",
+    "source": "https://ganjoor.net/manoochehri",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۵ هجری قمری",
+    "dates": "تقریبی؛ ۴۰۱ تا ۴۳۲ هجری قمری"
+  },
+  "person-5": {
+    "image": "/literary-timeline/portraits/person-5.webp",
+    "source": "https://ganjoor.net/farrokhi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۴ تا ۵ هجری قمری",
+    "dates": "تقریبی؛ ۳۸۰ تا ۴۲۹ هجری قمری"
+  },
+  "person-2": {
+    "image": "/literary-timeline/portraits/person-2.webp",
+    "source": "https://ganjoor.net/roodaki",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۳ تا ۴ هجری قمری",
+    "dates": "۲۴۴ تا ۳۲۹ هجری قمری"
+  },
+  "person-4": {
+    "image": "/literary-timeline/portraits/person-4.webp",
+    "source": "https://ganjoor.net/onsori",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۴ تا ۵ هجری قمری",
+    "dates": "تقریبی؛ ۳۵۰ تا ۴۳۱ هجری قمری"
+  },
+  "person-3": {
+    "image": "/literary-timeline/portraits/person-3.webp",
+    "source": "https://ganjoor.net/ferdousi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۴ تا ۵ هجری قمری",
+    "dates": "تقریبی؛ ۳۲۹ تا ۴۱۱ هجری قمری"
+  },
+  "person-7": {
+    "image": "/literary-timeline/portraits/person-7.webp",
+    "source": "https://ganjoor.net/shahid",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۳ تا ۴ هجری قمری",
+    "dates": "تقریبی؛ ۲۹۰ تا ۳۲۵ هجری قمری"
+  },
+  "person-8": {
+    "image": "/literary-timeline/portraits/person-8.webp",
+    "source": "https://ganjoor.net/kesayee",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۴ هجری قمری",
+    "dates": "تقریبی؛ ۳۴۱ تا ۳۹۴ هجری قمری"
+  },
+  "person-9": {
+    "image": "/literary-timeline/portraits/person-9.webp",
+    "source": "https://ganjoor.net/naserkhosro",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۴ تا ۵ هجری قمری",
+    "dates": "تقریبی؛ ۳۹۴ تا ۴۸۱ هجری قمری"
+  },
+  "person-10": {
+    "image": "/literary-timeline/portraits/person-10.webp",
+    "source": "https://ganjoor.net/ghatran",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۵ هجری قمری",
+    "dates": "تقریبی؛ ۴۰۱ تا ۴۶۵ هجری قمری"
+  },
+  "person-12": {
+    "image": "/literary-timeline/portraits/person-12.webp",
+    "source": "https://ganjoor.net/daghighi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۴ هجری قمری",
+    "dates": "تقریبی؛ ۳۲۰ تا ۳۶۹ هجری قمری"
+  },
+  "person-13": {
+    "image": "/literary-timeline/portraits/person-13.webp",
+    "source": "https://ganjoor.net/balami",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۳ تا ۴ هجری قمری",
+    "dates": "تقریبی؛ ۳۰۰ تا ۳۶۳ هجری قمری"
+  },
+  "person-15": {
+    "image": "/literary-timeline/portraits/person-15.webp",
+    "source": "https://ganjoor.net/keikavus",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۵ هجری قمری",
+    "dates": "تقریبی؛ ۴۱۲ تا ۴۸۰ هجری قمری"
+  },
+  "person-17": {
+    "image": "/literary-timeline/portraits/person-17.webp",
+    "source": "https://ganjoor.net/sanaee",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۵ تا ۶ هجری قمری",
+    "dates": "تقریبی؛ ۴۶۳ تا ۵۳۵ هجری قمری"
+  },
+  "person-19": {
+    "image": "/literary-timeline/portraits/person-19.webp",
+    "source": "https://ganjoor.net/khaghani",
+    "sourceName": "گنجور",
+    "century": "قرن ۶ هجری قمری",
+    "dates": "۵۲۰ تا ۵۹۵ هجری قمری"
+  },
+  "person-18": {
+    "image": "/literary-timeline/portraits/person-18.webp",
+    "source": "https://ganjoor.net/anvari",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۶ هجری قمری",
+    "dates": "تقریبی؛ ۵۰۱ تا ۵۸۳ هجری قمری"
+  },
+  "person-20": {
+    "image": "/literary-timeline/portraits/person-20.webp",
+    "source": "https://ganjoor.net/nezami",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۶ هجری قمری",
+    "dates": "تقریبی؛ ۵۳۰ تا ۵۹۹ هجری قمری"
+  },
+  "person-21": {
+    "image": "/literary-timeline/portraits/person-21.webp",
+    "source": "https://ganjoor.net/jamal",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۶ هجری قمری",
+    "dates": "تقریبی؛ ۵۰۱ تا ۵۸۸ هجری قمری"
+  },
+  "person-22": {
+    "image": "/literary-timeline/portraits/person-22.webp",
+    "source": "https://ganjoor.net/attar",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۶ تا ۷ هجری قمری",
+    "dates": "تقریبی؛ ۵۴۰ تا ۶۱۸ هجری قمری"
+  },
+  "person-24": {
+    "image": "/literary-timeline/portraits/person-24.webp",
+    "source": "https://ganjoor.net/abdullah",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۴ تا ۵ هجری قمری",
+    "dates": "۳۹۶ تا ۴۸۱ هجری قمری"
+  },
+  "person-23": {
+    "image": "/literary-timeline/portraits/person-23.webp",
+    "source": "https://ganjoor.net/moulavi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۷ هجری قمری",
+    "dates": "تقریبی؛ ۶۰۴ تا ۶۷۲ هجری قمری"
+  },
+  "person-25": {
+    "image": "/literary-timeline/portraits/person-25.webp",
+    "source": "https://ganjoor.net/meybodi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۶ هجری قمری",
+    "dates": "تقریبی؛ ۵۰۱ تا ۵۵۰ هجری قمری"
+  },
+  "person-26": {
+    "image": "/literary-timeline/portraits/person-26.webp",
+    "source": "https://ganjoor.net/monshi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۶ هجری قمری",
+    "dates": "تقریبی؛ ۵۰۱ تا ۵۵۹ هجری قمری"
+  },
+  "person-28": {
+    "image": "/literary-timeline/portraits/person-28.webp",
+    "source": "https://ganjoor.net/kamal",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۶ تا ۷ هجری قمری",
+    "dates": "تقریبی؛ ۵۶۸ تا ۶۳۵ هجری قمری"
+  },
+  "person-29": {
+    "image": "/literary-timeline/portraits/person-29.webp",
+    "source": "https://ganjoor.net/saadi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۷ هجری قمری",
+    "dates": "تقریبی؛ ۶۱۵ تا ۶۹۴ هجری قمری"
+  },
+  "person-30": {
+    "image": "/literary-timeline/portraits/person-30.webp",
+    "source": "https://ganjoor.net/eraghi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۷ هجری قمری",
+    "dates": "تقریبی؛ ۶۰۱ تا ۶۸۸ هجری قمری"
+  },
+  "person-31": {
+    "image": "/literary-timeline/portraits/person-31.webp",
+    "source": "https://ganjoor.net/daye",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۶ تا ۷ هجری قمری",
+    "dates": "تقریبی؛ ۵۷۳ تا ۶۵۴ هجری قمری"
+  },
+  "person-35": {
+    "image": "/literary-timeline/portraits/person-35.webp",
+    "source": "https://ganjoor.net/khajoo",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۷ تا ۸ هجری قمری",
+    "dates": "۶۸۹ تا ۷۵۳ هجری قمری"
+  },
+  "person-36": {
+    "image": "/literary-timeline/portraits/person-36.webp",
+    "source": "https://ganjoor.net/ebneyamin",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۷ تا ۸ هجری قمری",
+    "dates": "۶۸۵ تا ۷۶۹ هجری قمری"
+  },
+  "person-37": {
+    "image": "/literary-timeline/portraits/person-37.webp",
+    "source": "https://ganjoor.net/hafez",
+    "sourceName": "گنجور",
+    "century": "قرن ۸ هجری قمری",
+    "dates": "۷۲۶ تا ۷۹۲ هجری قمری"
+  },
+  "person-39": {
+    "image": "/literary-timeline/portraits/person-39.webp",
+    "source": "https://ganjoor.net/obeyd",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۸ هجری قمری",
+    "dates": "تقریبی؛ ۷۰۱ تا ۷۷۲ هجری قمری"
+  },
+  "person-38": {
+    "image": "/literary-timeline/portraits/person-38.webp",
+    "source": "https://ganjoor.net/salman",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۸ هجری قمری",
+    "dates": "تقریبی؛ ۷۰۱ تا ۷۷۸ هجری قمری"
+  },
+  "person-41": {
+    "image": "/literary-timeline/portraits/person-41.webp",
+    "source": "https://ganjoor.net/jami",
+    "sourceName": "گنجور",
+    "century": "قرن ۹ هجری قمری",
+    "dates": "۸۱۷ تا ۸۹۸ هجری قمری"
+  },
+  "person-42": {
+    "image": "/literary-timeline/portraits/person-42.webp",
+    "source": "https://ganjoor.net/shahnematollah",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۸ تا ۹ هجری قمری",
+    "dates": "تقریبی؛ ۷۳۱ تا ۸۳۴ هجری قمری"
+  },
+  "person-45": {
+    "image": "/literary-timeline/portraits/person-45.webp",
+    "source": "https://ganjoor.net/fani",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۹ تا ۱۰ هجری قمری",
+    "dates": "۸۴۴ تا ۹۰۶ هجری قمری"
+  },
+  "person-49": {
+    "image": "/literary-timeline/portraits/person-49.webp",
+    "source": "https://ganjoor.net/faghani",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۹ تا ۱۰ هجری قمری",
+    "dates": "تقریبی؛ ۸۷۵ تا ۹۲۵ هجری قمری"
+  },
+  "person-47": {
+    "image": "/literary-timeline/portraits/person-47.webp",
+    "source": "https://ganjoor.net/seyf",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۸ هجری قمری",
+    "dates": "تقریبی؛ ۷۰۱ تا ۷۴۹ هجری قمری"
+  },
+  "person-50": {
+    "image": "/literary-timeline/portraits/person-50.webp",
+    "source": "https://ganjoor.net/vahshi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۰ هجری قمری",
+    "dates": "تقریبی؛ ۹۴۰ تا ۹۹۹ هجری قمری"
+  },
+  "person-51": {
+    "image": "/literary-timeline/portraits/person-51.webp",
+    "source": "https://ganjoor.net/mohtasham",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۰ هجری قمری",
+    "dates": "تقریبی؛ ۹۰۵ تا ۹۹۶ هجری قمری"
+  },
+  "person-52": {
+    "image": "/literary-timeline/portraits/person-52.webp",
+    "source": "https://ganjoor.net/kalim",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۱۰ تا ۱۱ هجری قمری",
+    "dates": "تقریبی؛ ۹۹۰ تا ۱۰۶۱ هجری قمری"
+  },
+  "person-54": {
+    "image": "/literary-timeline/portraits/person-54.webp",
+    "source": "https://ganjoor.net/bidel",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۱ تا ۱۲ هجری قمری",
+    "dates": "۱۰۵۴ تا ۱۱۳۳ هجری قمری"
+  },
+  "person-53": {
+    "image": "/literary-timeline/portraits/person-53.webp",
+    "source": "https://ganjoor.net/saeb",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۱ هجری قمری",
+    "dates": "تقریبی؛ ۱۰۰۱ تا ۱۰۸۰ هجری قمری"
+  },
+  "person-61": {
+    "image": "/literary-timeline/portraits/person-61.webp",
+    "source": "https://ganjoor.net/bahaee",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۱۰ تا ۱۱ هجری قمری",
+    "dates": "تقریبی؛ ۹۵۳ تا ۱۰۳۰ هجری قمری"
+  },
+  "person-62": {
+    "image": "/literary-timeline/portraits/person-62.webp",
+    "source": "https://ganjoor.net/vahid",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۱ تا ۱۲ هجری قمری",
+    "dates": "۱۰۱۵ تا ۱۱۲۰ هجری قمری"
+  },
+  "person-66": {
+    "image": "/literary-timeline/portraits/person-66.webp",
+    "source": "https://ganjoor.net/orfi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۰ هجری قمری",
+    "dates": "تقریبی؛ ۹۶۳ تا ۹۹۹ هجری قمری"
+  },
+  "person-69": {
+    "image": "/literary-timeline/portraits/person-69.webp",
+    "source": "https://ganjoor.net/hatef",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۲ هجری قمری",
+    "dates": "تقریبی؛ ۱۱۰۱ تا ۱۱۹۸ هجری قمری"
+  },
+  "person-68": {
+    "image": "/literary-timeline/portraits/person-68.webp",
+    "source": "https://ganjoor.net/moshtagh",
+    "sourceName": "گنجور",
+    "century": "قرن ۱۲ هجری قمری",
+    "dates": "۱۱۰۱ تا ۱۱۶۹ هجری قمری"
+  },
+  "person-71": {
+    "image": "/literary-timeline/portraits/person-71.webp",
+    "source": "https://ganjoor.net/ghaani",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۳ هجری قمری",
+    "dates": "تقریبی؛ ۱۲۲۳ تا ۱۲۷۰ هجری قمری"
+  },
+  "person-73": {
+    "image": "/literary-timeline/portraits/person-73.webp",
+    "source": "https://ganjoor.net/neshat",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۲ تا ۱۳ هجری قمری",
+    "dates": "۱۱۷۵ تا ۱۲۴۴ هجری قمری"
+  },
+  "person-74": {
+    "image": "/literary-timeline/portraits/person-74.webp",
+    "source": "https://ganjoor.net/forooghi",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۳ هجری قمری",
+    "dates": "تقریبی؛ ۱۲۱۳ تا ۱۲۷۴ هجری قمری"
+  },
+  "person-76": {
+    "image": "/literary-timeline/portraits/person-76.webp",
+    "source": "https://ganjoor.net/bahar",
+    "sourceName": "گنجور",
+    "century": "حدود قرن ۱۴ هجری قمری",
+    "dates": "تقریبی؛ ۱۳۰۲ تا ۱۳۷۱ هجری قمری"
+  },
+  "person-77": {
+    "image": "/literary-timeline/portraits/person-77.webp",
+    "source": "https://ganjoor.net/adib",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۳ تا ۱۴ هجری قمری",
+    "dates": "۱۲۷۷ تا ۱۳۳۶ هجری قمری"
+  },
+  "person-79": {
+    "image": "/literary-timeline/portraits/person-79.webp",
+    "source": "https://ganjoor.net/iraj",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۳ تا ۱۴ هجری قمری",
+    "dates": "۱۲۹۰ تا ۱۳۴۴ هجری قمری"
+  },
+  "person-80": {
+    "image": "/literary-timeline/portraits/person-80.webp",
+    "source": "https://ganjoor.net/aref",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۱۳ تا ۱۴ هجری قمری",
+    "dates": "تقریبی؛ ۱۲۹۷ تا ۱۳۵۲ هجری قمری"
+  },
+  "person-81": {
+    "image": "/literary-timeline/portraits/person-81.webp",
+    "source": "https://ganjoor.net/yazdi",
+    "sourceName": "گنجور",
+    "century": "قرن ۱۴ هجری قمری",
+    "dates": "۱۳۰۷ تا ۱۳۵۸ هجری قمری"
+  },
+  "person-84": {
+    "image": "/literary-timeline/portraits/person-84.webp",
+    "source": "https://ganjoor.net/ghaemmagham",
+    "sourceName": "گنجور",
+    "century": "حدود قرن‌های ۱۲ تا ۱۳ هجری قمری",
+    "dates": "تقریبی؛ ۱۱۹۳ تا ۱۲۵۱ هجری قمری"
+  },
+  "person-82": {
+    "image": "/literary-timeline/portraits/person-82.webp",
+    "source": "https://ganjoor.net/eshghi",
+    "sourceName": "گنجور",
+    "century": "قرن ۱۴ هجری قمری",
+    "dates": "۱۳۱۲ تا ۱۳۴۳ هجری قمری"
+  },
+  "person-87": {
+    "image": "/literary-timeline/portraits/person-87.webp",
+    "source": "https://ganjoor.net/aghakhan",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۳ تا ۱۴ هجری قمری",
+    "dates": "۱۲۷۰ تا ۱۳۱۵ هجری قمری"
+  },
+  "person-103": {
+    "image": "/literary-timeline/portraits/person-103.webp",
+    "source": "https://ganjoor.net/parvin",
+    "sourceName": "گنجور",
+    "century": "قرن ۱۴ هجری قمری",
+    "dates": "۱۳۲۴ تا ۱۳۶۰ هجری قمری"
+  },
+  "person-104": {
+    "image": "/literary-timeline/portraits/person-104.webp",
+    "source": "https://ganjoor.net/shahriar",
+    "sourceName": "گنجور",
+    "century": "قرن‌های ۱۴ تا ۱۵ هجری قمری",
+    "dates": "۱۳۲۴ تا ۱۴۰۹ هجری قمری"
+  },
+  "person-16": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%A8%D9%86%20%D8%B3%DB%8C%D9%86%D8%A7",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Pursina.jpg",
+    "image": "/literary-timeline/portraits/person-16.webp",
+    "century": "قرن‌های ۴ و ۵ هجری قمری",
+    "artist": "Original work: Abolhassan Sadighi Depiction: User:Ehsan 1987",
+    "license": "Public domain"
+  },
+  "person-46": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A8%D8%A7%D8%A8%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Idealized_portrait_of_Babur_(1483-1530)%2C_painted_in_1605-1615_in_India_(British_Museum_1921%2C1011%2C0.3).jpg",
+    "image": "/literary-timeline/portraits/person-46.webp",
+    "century": "قرن‌های ۹ و ۱۰ هجری قمری",
+    "artist": "Probably, Aqa Riza, a Khurasani Persian migrant painter to India ( The Indian heritage: court life & arts under Mughal rule, Victoria & Albert Museum, 1982, Item 38 )",
+    "license": "Public domain"
+  },
+  "person-55": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%20%D8%AF%D8%A7%D8%B1%D8%A7%D8%B4%DA%A9%D9%88%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Unknown_Indian_-_Miniature_Portrait_of_Dara_Shikoh_-_Google_Art_Project_(cropped).jpg",
+    "image": "/literary-timeline/portraits/person-55.webp",
+    "artist": "Unknown Indian",
+    "license": "Public domain"
+  },
+  "person-32": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D8%B7%D8%A7%D9%85%D9%84%DA%A9%20%D8%AC%D9%88%DB%8C%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ata-Malik_Juvayni.jpg",
+    "image": "/literary-timeline/portraits/person-32.webp",
+    "century": "قرن ۷ هجری قمری",
+    "artist": "13th century artist",
+    "license": "Public domain"
+  },
+  "person-78": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%DB%8C%D8%AF%20%D8%A7%D8%B4%D8%B1%D9%81%E2%80%8C%D8%A7%D9%84%D8%AF%DB%8C%D9%86%20%D8%AD%D8%B3%DB%8C%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ashraf-Al-Din_Hosseini_Gilani.png",
+    "image": "/literary-timeline/portraits/person-78.webp",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-83": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%A8%D9%88%D8%A7%D9%84%D9%82%D8%A7%D8%B3%D9%85%20%D9%84%D8%A7%D9%87%D9%88%D8%AA%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Abolqasem_Lahouti.png",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۶۴ تا ۱۳۳۵ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-83.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-85": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%A7%D8%B5%D8%B1%D8%A7%D9%84%D8%AF%DB%8C%D9%86%E2%80%8C%D8%B4%D8%A7%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Naser_al-Din_Shah_Qajar%2C_close_up%2C_with_slight_smile_by_Nadar.jpg",
+    "image": "/literary-timeline/portraits/person-85.webp",
+    "century": "قرن ۱۳ هجری شمسی",
+    "artist": "Nadar / Adam Cuerden",
+    "license": "Public domain"
+  },
+  "person-57": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B4%D8%A7%D9%87%20%D8%AA%D9%87%D9%85%D8%A7%D8%B3%D8%A8%20%DB%8C%DA%A9%D9%85",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Shah_Tahmasp_I_(1514-1576)_in_a_landscape_(painted_circa_1575).jpg",
+    "image": "/literary-timeline/portraits/person-57.webp",
+    "century": "قرن ۱۰ هجری قمری",
+    "artist": "Artist circa 1575",
+    "license": "Public domain"
+  },
+  "person-91": {
+    "source": "https://fa.wikipedia.org/wiki/%DB%8C%D9%88%D8%B3%D9%81%20%D8%A7%D8%B9%D8%AA%D8%B5%D8%A7%D9%85%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Yussef_Etessami.jpg",
+    "image": "/literary-timeline/portraits/person-91.webp",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-98": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%DB%8C%D8%B1%D8%B2%D8%A7%20%D9%81%D8%AA%D8%AD%D8%B9%D9%84%DB%8C%20%D8%A2%D8%AE%D9%88%D9%86%D8%AF%D8%B2%D8%A7%D8%AF%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mirz%C9%99_F%C9%99t%C9%99li_Axundov_2.jpg",
+    "image": "/literary-timeline/portraits/person-98.webp",
+    "century": "قرن ۱۳ هجری قمری",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-89": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D9%84%DB%8C%E2%80%8C%D8%A7%DA%A9%D8%A8%D8%B1%20%D8%AF%D9%87%D8%AE%D8%AF%D8%A7",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:%D8%B9%D9%84%DB%8C_%D8%A7%DA%A9%D8%A8%D8%B1_%D8%AF%D9%87%D8%AE%D8%AF%D8%A7.jpg",
+    "image": "/literary-timeline/portraits/person-89.webp",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "artist": "Hamed Farshad 1363",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+  },
+  "person-108": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%81%D8%B1%DB%8C%D8%AF%D9%88%D9%86%20%D9%85%D8%B4%DB%8C%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://fa.wikipedia.org/wiki/%D9%BE%D8%B1%D9%88%D9%86%D8%AF%D9%87:Fereydoon_Moshiri.jpg",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۵ تا ۱۳۷۹ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-108.webp",
+    "artist": "Nivar"
+  },
+  "person-70": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%81%D8%AA%D8%AD%E2%80%8C%D8%B9%D9%84%DB%8C%20%D8%B5%D8%A8%D8%A7",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:%D9%81%D8%AA%D8%AD%D8%B9%D9%84%DB%8C%E2%80%8C_%D8%B5%D8%A8%D8%A7.png",
+    "image": "/literary-timeline/portraits/person-70.webp",
+    "artist": "Mireghalamzan",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  "person-99": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AA%D9%82%DB%8C%20%D8%B1%D9%81%D8%B9%D8%AA",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mirz%C9%99_Ta%C4%9F%C4%B1_xan_Raf%C9%99t.jpg",
+    "century": "قرن ۱۳ هجری شمسی",
+    "dates": "۱۲۶۸ تا ۱۲۹۹ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-99.webp",
+    "artist": "Ebrahimi-amir",
+    "license": "Public domain"
+  },
+  "person-117": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D9%85%DB%8C%D8%AF%20%D9%85%D8%B5%D8%AF%D9%82",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Hamid_Mossadegh.jpg",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۸ تا ۱۳۷۷ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-117.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-111": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D9%86%D9%88%DA%86%D9%87%D8%B1%20%D8%B4%DB%8C%D8%A8%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Manuchehr_Shaybani.jpg",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۳ تا ۱۳۷۰ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-111.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-115": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D9%86%D9%88%DA%86%D9%87%D8%B1%20%D8%A2%D8%AA%D8%B4%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Manouchehr_Atashi.jpg",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۰ تا ۱۳۸۴ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-115.webp",
+    "artist": "محسن قیصی زاده",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+  },
+  "person-142": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D8%B3%DB%8C%D9%86%20%D9%85%D9%86%D8%B2%D9%88%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Monzavi_hosein.jpg",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۲۵ تا ۱۳۸۳ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-142.webp",
+    "artist": "Shaeran javan",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  "person-120": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%D8%B1%D8%B6%D8%A7%20%D8%B4%D9%81%DB%8C%D8%B9%DB%8C%20%DA%A9%D8%AF%DA%A9%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Shafiei_Kadkani.jpg",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۱۸ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-120.webp",
+    "artist": "Damavand2024",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  "person-119": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%87%D9%88%D8%B4%D9%86%DA%AF%20%D8%A7%D8%A8%D8%AA%D9%87%D8%A7%D8%AC",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Hushang_Ebtehaj_-_%D9%87%D9%88%D8%B4%D9%86%DA%AF_%D8%A7%D8%A8%D8%AA%D9%87%D8%A7%D8%AC.jpg",
+    "century": "قرن‌های ۱۴ و ۱۵ هجری شمسی",
+    "dates": "۱۳۰۶ تا ۱۴۰۱ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-119.webp",
+    "artist": "Arash Ashourinia",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  "person-150": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%DB%8C%D8%AF%20%D9%85%D9%87%D8%AF%DB%8C%20%D8%B4%D8%AC%D8%A7%D8%B9%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:%D8%B3%DB%8C%D8%AF_%D9%85%D9%87%D8%AF%DB%8C_%D8%B4%D8%AC%D8%A7%D8%B9%DB%8C2.jpg",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۳۹ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-150.webp",
+    "artist": "حیدر حسینی",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  "person-148": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%D8%B1%D8%B6%D8%A7%20%D8%B3%D8%B1%D8%B4%D8%A7%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mohammad_Reza_Sarshar.JPG",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۳۲ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-148.webp",
+    "artist": "Jamal Nazareth",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+  },
+  "person-152": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B1%D8%B6%D8%A7%20%D8%A7%D9%85%DB%8C%D8%B1%D8%AE%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Reza_Amirkhani_Moscow_09-13.jpg",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۵۲ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-152.webp",
+    "artist": "A.Savin",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+  },
+  "person-153": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D8%A8%DB%8C%D8%A8%20%D8%A7%D8%AD%D9%85%D8%AF%D8%B2%D8%A7%D8%AF%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:15%2C9%2C2009_Habib_Ahmad_Zadeh_Meeting_with_Iran's_supreme_leader_Grand_Ayatollah_Ali_Khamenei_as_Artist_active_in_the_art_of_Holy_defense.jpg",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۴۳ هجری شمسی",
+    "image": "/literary-timeline/portraits/person-153.webp",
+    "artist": "Jamal Nazareth",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+  },
+  "person-11": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D9%86%D8%AC%DB%8C%DA%A9%20%D8%AA%D8%B1%D9%85%D8%B0%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۴ هجری قمری"
+  },
+  "person-14": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%20%D8%A8%D9%86%20%D8%AC%D8%B1%DB%8C%D8%B1%20%D8%B7%D8%A8%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۳ و ۴ هجری قمری"
+  },
+  "person-27": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%AC%D9%85%E2%80%8C%D8%A7%D9%84%D8%AF%DB%8C%D9%86%20%DA%A9%D8%A8%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۶ و ۷ هجری قمری"
+  },
+  "person-33": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B1%D8%B4%DB%8C%D8%AF%D8%A7%D9%84%D8%AF%DB%8C%D9%86%20%D9%81%D8%B6%D9%84%E2%80%8C%D8%A7%D9%84%D9%84%D9%87%20%D9%87%D9%85%D8%AF%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "حدود قرن‌های ۷ و ۸ هجری قمری"
+  },
+  "person-34": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B4%D9%85%D8%B3%20%D9%82%DB%8C%D8%B3%20%D8%B1%D8%A7%D8%B2%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۷ هجری قمری"
+  },
+  "person-40": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D9%85%D8%AF%D8%A7%D9%84%D9%84%D9%87%20%D9%85%D8%B3%D8%AA%D9%88%D9%81%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۷ و ۸ هجری قمری"
+  },
+  "person-43": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AF%D9%88%D9%84%D8%AA%D8%B4%D8%A7%D9%87%20%D8%B3%D9%85%D8%B1%D9%82%D9%86%D8%AF%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۹ هجری قمری"
+  },
+  "person-44": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D8%B3%DB%8C%D9%86%20%D9%88%D8%A7%D8%B9%D8%B8%20%DA%A9%D8%A7%D8%B4%D9%81%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۹ و ۱۰ هجری قمری"
+  },
+  "person-48": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D8%B2%DB%8C%D8%B2%D8%A7%D9%84%D8%AF%DB%8C%D9%86%20%D9%86%D8%B3%D9%81%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۷ هجری قمری"
+  },
+  "person-60": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%82%D8%A7%D8%B6%DB%8C%20%D9%86%D9%88%D8%B1%D8%A7%D9%84%D9%84%D9%87%20%D8%B4%D9%88%D8%B4%D8%AA%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۰ و ۱۱ هجری قمری"
+  },
+  "person-64": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%BA%DB%8C%D8%A7%D8%AB%E2%80%8C%D8%A7%D9%84%D8%AF%DB%8C%D9%86%20%D8%AE%D9%88%D8%A7%D9%86%D8%AF%D9%85%DB%8C%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۹ و ۱۰ هجری قمری"
+  },
+  "person-65": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D8%B3%D9%86%E2%80%8C%D8%A8%DB%8C%DA%AF%20%D8%B1%D9%88%D9%85%D9%84%D9%88",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۰ هجری قمری"
+  },
+  "person-67": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B7%D8%A7%D9%84%D8%A8%20%D8%A2%D9%85%D9%84%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۰ و ۱۱ هجری قمری"
+  },
+  "person-72": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%D8%B1%D9%88%D8%B4%20%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا"
+  },
+  "person-75": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AC%D9%85%D8%B1%20%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۲ و ۱۳ هجری قمری"
+  },
+  "person-86": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D8%A8%D8%AF%D8%A7%D9%84%D8%B1%D8%AD%DB%8C%D9%85%20%D8%B7%D8%A7%D9%84%D8%A8%D9%88%D9%81",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری قمری",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mirza-Abdul-Rahim-Talibov-Tabrizi.jpg",
+    "image": "/literary-timeline/portraits/person-86.webp",
+    "artist": "Vivas",
+    "license": "Public domain"
+  },
+  "person-88": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B2%DB%8C%D9%86%E2%80%8C%D8%A7%D9%84%D8%B9%D8%A7%D8%A8%D8%AF%DB%8C%D9%86%20%D9%85%D8%B1%D8%A7%D8%BA%D9%87%E2%80%8C%D8%A7%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری قمری"
+  },
+  "person-92": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%D8%A8%D8%A7%D9%82%D8%B1%20%D9%85%DB%8C%D8%B1%D8%B2%D8%A7%20%D8%AE%D8%B3%D8%B1%D9%88%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۳ هجری شمسی",
+    "dates": "۱۲۲۸ تا ۱۲۹۸ هجری شمسی"
+  },
+  "person-94": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%DB%8C%D8%B1%D8%B2%D8%A7%20%D8%A2%D9%82%D8%A7%20%D8%AA%D8%A8%D8%B1%DB%8C%D8%B2%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۳ هجری قمری"
+  },
+  "person-95": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AC%DB%8C%D9%85%D8%B2%20%D9%85%D9%88%D8%B1%DB%8C%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۸ و ۱۹ میلادی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:James_Morier.jpg",
+    "image": "/literary-timeline/portraits/person-95.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-96": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%DB%8C%D8%B1%D8%B2%D8%A7%20%D8%AD%D8%A8%DB%8C%D8%A8%20%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۳ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Picture_of_Mirza_Habib_Esfahani%2C_an_Iranian_poet%2C_grammarian_and_translator%2C_who_spent_much_of_his_life_in_exile_in_the_Ottoman_Empire.jpg",
+    "image": "/literary-timeline/portraits/person-96.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-97": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%A7%D8%B8%D9%85%E2%80%8C%D8%A7%D9%84%D8%A7%D8%B3%D9%84%D8%A7%D9%85%20%DA%A9%D8%B1%D9%85%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۳ هجری شمسی"
+  },
+  "person-100": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B4%D9%85%D8%B3%20%DA%A9%D8%B3%D9%85%D8%A7%DB%8C%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۶۲ تا ۱۳۴۰ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Shams_Kasmaei.jpg",
+    "image": "/literary-timeline/portraits/person-100.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-102": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%DB%8C%D9%85%D8%A7%20%DB%8C%D9%88%D8%B4%DB%8C%D8%AC",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۷۶ تا ۱۳۳۸ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Nima_Yushij_-_Original.jpg",
+    "image": "/literary-timeline/portraits/person-102.webp",
+    "artist": "Hadi Shafaieh",
+    "license": "Public domain"
+  },
+  "person-105": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D9%87%D8%AF%DB%8C%20%D8%A7%D8%AE%D9%88%D8%A7%D9%86%20%D8%AB%D8%A7%D9%84%D8%AB",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۶ تا ۱۳۶۹ هجری شمسی",
+    "imageSource": "https://fa.wikipedia.org/wiki/%D9%BE%D8%B1%D9%88%D9%86%D8%AF%D9%87:Mehdi_Akhvan_Sales.jpg",
+    "image": "/literary-timeline/portraits/person-105.webp",
+    "artist": "نامشخص؛ منتشرشده در روزنامه‌های قدیمی",
+    "license": "مالکیت عمومی"
+  },
+  "person-106": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%81%D8%B1%DB%8C%D8%AF%D9%88%D9%86%20%D8%AA%D9%88%D9%84%D9%84%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۹۸ تا ۱۳۶۴ هجری شمسی"
+  },
+  "person-107": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%A7%D8%AF%D8%B1%20%D9%86%D8%A7%D8%AF%D8%B1%D9%BE%D9%88%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۸ تا ۱۳۷۸ هجری شمسی"
+  },
+  "person-109": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%B5%D8%B1%D8%AA%20%D8%B1%D8%AD%D9%85%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۸ تا ۱۳۷۹ هجری شمسی"
+  },
+  "person-110": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%81%D8%B1%D9%88%D8%BA%20%D9%81%D8%B1%D8%AE%D8%B2%D8%A7%D8%AF",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۳ تا ۱۳۴۵ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Forough_Farrokhzad_804.jpg",
+    "image": "/literary-timeline/portraits/person-110.webp",
+    "artist": "Ali Khadem [ 1 ] (Ferdowsi Magazine)",
+    "license": "Public domain"
+  },
+  "person-112": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%B3%D9%85%D8%A7%D8%B9%DB%8C%D9%84%20%D8%B4%D8%A7%D9%87%D8%B1%D9%88%D8%AF%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۴ تا ۱۳۶۰ هجری شمسی"
+  },
+  "person-113": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%AD%D9%85%D8%AF%20%D8%B4%D8%A7%D9%85%D9%84%D9%88",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۴ تا ۱۳۷۹ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ahmad_Shamlou_-_2.jpg",
+    "image": "/literary-timeline/portraits/person-113.webp",
+    "artist": "Hadi Shafaieh",
+    "license": "Public domain"
+  },
+  "person-114": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%DB%8C%D8%A7%D9%88%D8%B4%20%DA%A9%D8%B3%D8%B1%D8%A7%DB%8C%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۵ تا ۱۳۷۴ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Siyavash_Kasraei.jpg",
+    "image": "/literary-timeline/portraits/person-114.webp",
+    "artist": "Amin5530",
+    "license": "Public domain"
+  },
+  "person-116": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%BE%D8%B1%D9%88%DB%8C%D8%B2%20%D9%86%D8%A7%D8%AA%D9%84%20%D8%AE%D8%A7%D9%86%D9%84%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۹۲ تا ۱۳۶۹ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Parviz_Natel-Khanlari.jpg",
+    "image": "/literary-timeline/portraits/person-116.webp",
+    "artist": "ihoosh",
+    "license": "Public domain"
+  },
+  "person-118": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D9%87%D8%AF%DB%8C%20%D8%AD%D9%85%DB%8C%D8%AF%DB%8C%20%D8%B4%DB%8C%D8%B1%D8%A7%D8%B2%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۹۳ تا ۱۳۶۵ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mehdi-hamidy-shirazy-15.jpg",
+    "image": "/literary-timeline/portraits/person-118.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-121": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%B1%D8%AA%D8%B6%DB%8C%20%D9%85%D8%B4%D9%81%D9%82%20%DA%A9%D8%A7%D8%B8%D9%85%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۸۱ تا ۱۳۵۶ هجری شمسی"
+  },
+  "person-122": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF%D8%B9%D9%84%DB%8C%20%D8%AC%D9%85%D8%A7%D9%84%E2%80%8C%D8%B2%D8%A7%D8%AF%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۷۰ تا ۱۳۷۶ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Mohammadali_Jamalzadeh%2C_1970s.jpg",
+    "image": "/literary-timeline/portraits/person-122.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-123": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D8%B3%D9%86%20%D9%85%D9%82%D8%AF%D9%85",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۷۷ تا ۱۳۰۴ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Hassan_Moghadam.jpg",
+    "image": "/literary-timeline/portraits/person-123.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-124": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%AF%D9%82%20%D9%87%D8%AF%D8%A7%DB%8C%D8%AA",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۸۱ تا ۱۳۳۰ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Sadegh_Hedayat.jpg",
+    "image": "/literary-timeline/portraits/person-124.webp",
+    "artist": "Mosaffa~commonswiki",
+    "license": "Public domain"
+  },
+  "person-125": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A8%D8%B2%D8%B1%DA%AF%20%D8%B9%D9%84%D9%88%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۸۲ تا ۱۳۷۵ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Bozorg_Alavi.jpg",
+    "image": "/literary-timeline/portraits/person-125.webp",
+    "artist": "Maryam Zandi .",
+    "license": "Public domain"
+  },
+  "person-126": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%AF%D9%82%20%DA%86%D9%88%D8%A8%DA%A9",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۹۵ تا ۱۳۷۷ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Chubak_1.jpg",
+    "image": "/literary-timeline/portraits/person-126.webp",
+    "artist": "Irnavash at Persian Wikipedia",
+    "license": "Public domain"
+  },
+  "person-127": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AC%D9%84%D8%A7%D9%84%20%D8%A2%D9%84%20%D8%A7%D8%AD%D9%85%D8%AF",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۲ تا ۱۳۴۸ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Jalal_Al-e-Ahmad05_(1).jpg",
+    "image": "/literary-timeline/portraits/person-127.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-128": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%DB%8C%D9%85%DB%8C%D9%86%20%D8%AF%D8%A7%D9%86%D8%B4%D9%88%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۳۰۰ تا ۱۳۹۰ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Simin_Daneshvar_Cc0be0e4.jpg",
+    "image": "/literary-timeline/portraits/person-128.webp",
+    "artist": "Kojaro",
+    "license": "Public domain"
+  },
+  "person-129": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AA%D9%82%DB%8C%20%D9%85%D8%AF%D8%B1%D8%B3%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۱ تا ۱۳۷۶ هجری شمسی"
+  },
+  "person-130": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85.%D8%A7.%20%D8%A8%D9%87%E2%80%8C%D8%A2%D8%B0%DB%8C%D9%86",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن‌های ۱۳ و ۱۴ هجری شمسی",
+    "dates": "۱۲۹۳ تا ۱۳۸۵ هجری شمسی"
+  },
+  "person-131": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%BA%D9%84%D8%A7%D9%85%D8%AD%D8%B3%DB%8C%D9%86%20%D8%B3%D8%A7%D8%B9%D8%AF%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۴ تا ۱۳۶۴ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Gholam-Hossein_Saedi.jpg",
+    "image": "/literary-timeline/portraits/person-131.webp",
+    "artist": "",
+    "license": "Public domain"
+  },
+  "person-132": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AC%D9%85%D8%A7%D9%84%20%D9%85%DB%8C%D8%B1%D8%B5%D8%A7%D8%AF%D9%82%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۱۲ هجری شمسی"
+  },
+  "person-133": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%AD%D9%85%D8%AF%20%D9%85%D8%AD%D9%85%D9%88%D8%AF",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۰ تا ۱۳۸۱ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ahmad_Mahmoud.jpg",
+    "image": "/literary-timeline/portraits/person-133.webp",
+    "artist": "Omidsbz",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+  },
+  "person-134": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D9%84%DB%8C%E2%80%8C%D9%85%D8%AD%D9%85%D8%AF%20%D8%A7%D9%81%D8%BA%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۰۳ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ali_mohammad_afghani_1.jpg",
+    "image": "/literary-timeline/portraits/person-134.webp",
+    "artist": "Bafghani",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+  },
+  "person-135": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%87%D9%88%D8%B4%D9%86%DA%AF%20%DA%AF%D9%84%D8%B4%DB%8C%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۶ تا ۱۳۷۹ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Golshiri-Esfahan-1971.jpg",
+    "image": "/literary-timeline/portraits/person-135.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-136": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D9%85%DB%8C%D9%86%20%D9%81%D9%82%DB%8C%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۲۲ هجری شمسی"
+  },
+  "person-137": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%AD%D9%85%DB%8C%D8%AF%20%D8%B3%D8%A8%D8%B2%D9%88%D8%A7%D8%B1%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۴ تا ۱۳۹۵ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Hamid_Sabzevari_by_Tasnimnews_02.jpg",
+    "image": "/literary-timeline/portraits/person-137.webp",
+    "artist": "Hamed Malekpour",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+  },
+  "person-138": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%82%DB%8C%D8%B5%D8%B1%20%D8%A7%D9%85%DB%8C%D9%86%E2%80%8C%D9%BE%D9%88%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۳۸ تا ۱۳۸۶ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:%D9%82%DB%8C%D8%B5%D8%B1_%D8%A7%D9%85%DB%8C%D9%86_%D9%BE%D9%88%D8%B1.jpg",
+    "image": "/literary-timeline/portraits/person-138.webp",
+    "artist": "سید محسن سجادی",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+  },
+  "person-139": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D9%84%DB%8C%20%D9%85%D9%88%D8%B3%D9%88%DB%8C%20%DA%AF%D8%B1%D9%85%D8%A7%D8%B1%D9%88%D8%AF%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۲۰ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:Ali_Mousavi_Garmaroudi_at_the_Meeting_with_Ayatollah_Khamenei01_().jpg",
+    "image": "/literary-timeline/portraits/person-139.webp",
+    "artist": "نامشخص",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+  },
+  "person-140": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%DB%8C%D8%AF%20%D8%AD%D8%B3%D9%86%20%D8%AD%D8%B3%DB%8C%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۳۵ تا ۱۳۸۳ هجری شمسی"
+  },
+  "person-141": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%86%D8%B5%D8%B1%D8%A7%D9%84%D9%84%D9%87%20%D9%85%D8%B1%D8%AF%D8%A7%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۲۶ تا ۱۳۸۲ هجری شمسی"
+  },
+  "person-143": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B3%D9%84%D9%85%D8%A7%D9%86%20%D9%87%D8%B1%D8%A7%D8%AA%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۳۸ تا ۱۳۶۵ هجری شمسی",
+    "imageSource": "https://commons.wikimedia.org/wiki/File:%D8%B3%D9%84%D9%85%D8%A7%D9%86_%D9%87%D8%B1%D8%A7%D8%AA%DB%8C.jpg",
+    "image": "/literary-timeline/portraits/person-143.webp",
+    "artist": "نامشخص",
+    "license": "Public domain"
+  },
+  "person-144": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D9%84%DB%8C%D8%B1%D8%B6%D8%A7%20%D9%82%D8%B2%D9%88%D9%87",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۴۲ هجری شمسی"
+  },
+  "person-145": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%AD%D9%85%D8%AF%20%D8%B9%D8%B2%DB%8C%D8%B2%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۳۷ تا ۱۳۹۵ هجری شمسی"
+  },
+  "person-146": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D9%88%D8%AF%20%D8%AF%D9%88%D9%84%D8%AA%E2%80%8C%D8%A2%D8%A8%D8%A7%D8%AF%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۱۹ هجری شمسی"
+  },
+  "person-147": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%B3%D9%85%D8%A7%D8%B9%DB%8C%D9%84%20%D9%81%D8%B5%DB%8C%D8%AD",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۱۳ تا ۱۳۸۸ هجری شمسی"
+  },
+  "person-149": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D9%84%DB%8C%20%D9%85%D8%A4%D8%B0%D9%86%DB%8C",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۳۷ هجری شمسی"
+  },
+  "person-151": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%A7%D8%AD%D9%85%D8%AF%20%D8%AF%D9%87%D9%82%D8%A7%D9%86",
+    "sourceName": "ویکی‌پدیا"
+  },
+  "person-154": {
+    "source": "https://fa.wikipedia.org/wiki/%D9%85%D8%B5%D8%B7%D9%81%DB%8C%20%D9%85%D8%B3%D8%AA%D9%88%D8%B1",
+    "sourceName": "ویکی‌پدیا",
+    "century": "متولد قرن ۱۴ هجری شمسی",
+    "dates": "زادهٔ ۱۳۴۳ هجری شمسی"
+  },
+  "person-155": {
+    "source": "https://fa.wikipedia.org/wiki/%D8%B9%D8%A8%D8%AF%D8%A7%D9%84%D8%AD%D8%B3%DB%8C%D9%86%20%D8%B2%D8%B1%DB%8C%D9%86%E2%80%8C%DA%A9%D9%88%D8%A8",
+    "sourceName": "ویکی‌پدیا",
+    "century": "قرن ۱۴ هجری شمسی",
+    "dates": "۱۳۰۱ تا ۱۳۷۸ هجری شمسی"
+  }
+}

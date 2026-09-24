@@ -1,4 +1,11 @@
 import MarkedText from "@/components/exam/MarkedText";
+import { stripCombiningUnderline } from "@/lib/exam/underline";
+
+/** The same text with its `{{…}}` and U+0332 markup removed — for places
+ *  that can only hold a string, like a native `<option>`. */
+export function plainText(text: string): string {
+  return stripCombiningUnderline(text.replace(/\{\{([^}]+)\}\}/g, "$1"));
+}
 
 /**
  * MCQ option text is a plain string (not a RichPassage), but some
@@ -12,8 +19,11 @@ import MarkedText from "@/components/exam/MarkedText";
  */
 export default function HighlightedText({ text }: { text: string }) {
   const parts = text.split(/(\{\{[^}]+\}\})/g);
+  if (parts.length === 1) return <MarkedText text={text} />;
+  // one wrapper, same reason as MarkedText: inside RichPassageView's flex row
+  // every sibling element would get its own gap
   return (
-    <>
+    <span>
       {parts.map((part, i) => {
         const match = /^\{\{([^}]+)\}\}$/.exec(part);
         // no `{{}}` here, but the text may still mark its words with U+0332
@@ -24,6 +34,6 @@ export default function HighlightedText({ text }: { text: string }) {
           </span>
         );
       })}
-    </>
+    </span>
   );
 }

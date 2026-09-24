@@ -1,118 +1,28 @@
+import "server-only";
+
 import type { Grade, GradeKey, Lesson, LessonRef } from "@/lib/doroos/types";
+import { GRADE_META, LESSONS_PER_BOOK, LESSON_TITLES } from "@/lib/doroos/catalog";
+
+export {
+  faNum,
+  GRADE_META,
+  isLessonInBook,
+  LESSON_TITLES,
+  LESSONS_PER_BOOK,
+  parseLessonNumber,
+} from "@/lib/doroos/catalog";
 
 /**
- * Registry for the درسنامه section.
+ * Registry for the درسنامه section — **server only**.
  *
- * Three books, eighteen lessons each. Titles are filled in only where we
- * actually have them — an unknown lesson renders as «درس ۷» rather than an
- * invented name — and `ready` gates whether it is clickable yet.
- */
-export const LESSONS_PER_BOOK = 18;
-
-/**
- * شمارهٔ درس از آدرس.
+ * Three books, eighteen lessons each. Titles live in `catalog.ts` (safe for
+ * the client); this file adds the one thing only the server may know: the
+ * content itself, and from it, which lessons are ready.
  *
- * ⚠️ ارقام فارسی هم پذیرفته می‌شوند. کلِ رابط شماره‌ها را فارسی نشان می‌دهد
- * («درس ۱»)، پس کاربری که آدرس را از روی صفحه تایپ یا کپی می‌کند، طبیعتاً
- * `/doroos/yazdahom/۱` می‌سازد — و `Number("۱")` در جاوااسکریپت NaN است، یعنی
- * یک ۴۰۴ برای درسی که وجود دارد.
- *
- * `Number` تنها بعد از این نرمال‌سازی صدا زده می‌شود و ورودی‌هایی مثل "1.5" یا
- * "1e2" یا رشتهٔ خالی هم رد می‌شوند: شمارهٔ درس یک عدد صحیح است، نه هر چیزی که
- * جاوااسکریپت بتواند به عدد تبدیلش کند.
+ * ⚠️ `server-only` است چون نقشهٔ `import()`ِ پایینی، اگر به bundleِ کلاینت
+ * برسد، کلِ تحلیلِ همهٔ درس‌ها را chunkِ عمومی می‌کند. کلاینت از
+ * `@/lib/doroos/catalog` می‌خواند.
  */
-export function parseLessonNumber(raw: string): number | null {
-  let decoded: string;
-
-  try {
-    decoded = decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
-
-  const normalized = decoded
-    .trim()
-    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-
-  if (!/^\d+$/.test(normalized)) return null;
-
-  const n = Number(normalized);
-  return Number.isInteger(n) ? n : null;
-}
-
-/**
- * آیا این شماره اصلاً در کتاب هست؟
- * جدا از اینکه محتوایش نوشته شده یا نه.
- */
-export function isLessonInBook(number: number): boolean {
-  return number >= 1 && number <= LESSONS_PER_BOOK;
-}
-
-/**
- * Lesson titles we know, per grade, keyed by lesson number.
- *
- * برای درس‌هایی که عنوان دقیقشان اینجا ثبت نشده،
- * رابط به‌صورت خودکار «درس ۹»، «درس ۱۱» و ... نمایش می‌دهد.
- */
-const TITLES: Record<GradeKey, Record<number, string>> = {
-  dahom: {
-    1: "چشمه",
-    2: "از آموختن، ننگ مدار",
-    3: "پاسداری از حقیقت",
-    5: "بیداد ظالمان",
-    6: "مهر و وفا",
-    7: "جمال و کمال",
-    8: "سفر به بصره",
-    9: "کلاس نقاشی",
-    10: "دریادلان صف‌شکن",
-    11: "خاک آزادگان",
-    12: "رستم و اشکبوس",
-    13: "گردآفرید",
-    14: "طوطی و بقال",
-    16: "خسرو",
-    17: "سپیده دم",
-    18: "عظمت نگاه",
-  },
-
-  yazdahom: {
-    1: "نیکی",
-    2: "قاضی بُست",
-    3: "در امواج سند",
-    5: "آغازگری تنها",
-    6: "پروردۀ عشق",
-    7: "باران محبّت",
-    8: "در کوی عاشقان",
-    9: "ذوق لطیف",
-    10: "بانگ جَرَس",
-    11: "یاران عاشق",
-    12: "کاوه دادخواه",
-    14: "حملۀ حیدری",
-    15: "کبوتر طوق‌دار",
-    16: "قصّۀ عینکم",
-    17: "خاموشی دریا",
-    18: "خوان عدل",
-  },
-
-  davazdahom: {
-    1: "شکر نعمت",
-    2: "مست و هشیار",
-    3: "آزادی و دفتر زمانه",
-    5: "دماوندیه",
-    6: "نی‌نامه",
-    7: "در حقیقت عشق",
-    8: "از پاریز تا پاریس",
-    9: "کویر",
-    10: "فصل شکوفایی",
-    11: "آن شب عزیز",
-    12: "گذر سیاوش از آتش",
-    13: "خوان هشتم",
-    14: "سی‌مرغ و سیمرغ",
-    16: "کباب غاز",
-    17: "خندۀ تو",
-    18: "خندۀ جاودانی",
-  },
-};
 
 /**
  * Content modules, imported lazily so a lesson's text is only shipped to the
@@ -192,32 +102,16 @@ function buildLessons(grade: GradeKey): LessonRef[] {
 
     return {
       number,
-      title: TITLES[grade][number],
+      title: LESSON_TITLES[grade][number],
       ready: ready.has(number),
     };
   });
 }
 
-export const GRADES: Grade[] = [
-  {
-    key: "dahom",
-    label: "دهم",
-    book: "فارسی ۱",
-    lessons: buildLessons("dahom"),
-  },
-  {
-    key: "yazdahom",
-    label: "یازدهم",
-    book: "فارسی ۲",
-    lessons: buildLessons("yazdahom"),
-  },
-  {
-    key: "davazdahom",
-    label: "دوازدهم",
-    book: "فارسی ۳",
-    lessons: buildLessons("davazdahom"),
-  },
-];
+export const GRADES: Grade[] = GRADE_META.map((g) => ({
+  ...g,
+  lessons: buildLessons(g.key),
+}));
 
 export const GRADE_KEYS = GRADES.map((g) => g.key);
 
@@ -249,8 +143,4 @@ export function readyLessonParams(): {
         lesson: String(l.number),
       })),
   );
-}
-
-export function faNum(n: number | string): string {
-  return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }

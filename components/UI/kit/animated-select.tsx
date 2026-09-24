@@ -346,10 +346,11 @@ export function AnimatedSelect({
 
               {withSearch && (
                 <motion.div layout="position" className="px-3 pb-2">
-                  <div className="flex h-9 items-center gap-2 rounded-lg border border-border bg-background/50 px-2.5">
+                  <div className="flex h-9 items-center gap-2 rounded-lg border border-border bg-background/50 px-2.5 transition-colors focus-within:border-primary/60">
                     <Search aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
                     <input
                       ref={searchRef}
+                      data-bare
                       value={query}
                       onChange={(event) => {
                         setQuery(event.target.value);

@@ -1,28 +1,39 @@
-import { farsi3Dey1401 } from "../lib/exam/seed-data/farsi3-1401-dey";
-import { farsi3Kherdad1403 } from "../lib/exam/seed-data/farsi3-1403-kherdad";
-import { olumFonoon3Mordad1405 } from "../lib/exam/seed-data/olum-fonoon3-1405-mordad";
+import { seedExams } from "../lib/exam/seed-data";
+import { lintSeedExam } from "../lib/exam/seed-data/lint";
 import { unverifiedParts, validateSeedExam } from "../lib/exam/seed-data/seed-types";
 
-const exams = [farsi3Kherdad1403, farsi3Dey1401, olumFonoon3Mordad1405];
+// همهٔ آزمون‌های lib/exam/seed-data/index.ts را می‌سنجد (به دیتابیس نیاز ندارد):
+//   ۱. شِمای Zod و جمعِ بارم‌ها
+//   ۲. ساختار: شناسه‌ها، کلیدهای پاسخ، زیرخطِ واژه‌های «مشخص‌شده»
+// با --quiet فقط آزمون‌های دارای مشکل چاپ می‌شوند.
 
+const quiet = process.argv.includes("--quiet");
 let hadErrors = false;
+const keys = new Set<string>();
 
-for (const exam of exams) {
-  console.log(`\n=== ${exam.title} ===`);
-  const errors = validateSeedExam(exam);
+for (const exam of seedExams) {
+  const errors = [...validateSeedExam(exam), ...lintSeedExam(exam).errors];
+  const { warnings } = lintSeedExam(exam);
+  if (keys.has(exam.examSession)) errors.push(`examSession تکراری: ${exam.examSession}`);
+  keys.add(exam.examSession);
+  const unverified = unverifiedParts(exam);
+
+  if (quiet && errors.length === 0 && warnings.length === 0) continue;
+
+  console.log(`\n=== ${exam.examSession} — ${exam.title} ===`);
   if (errors.length === 0) {
-    console.log("schema + score checks: OK");
+    console.log("OK");
   } else {
     hadErrors = true;
-    console.log(`schema + score checks: ${errors.length} problem(s)`);
-    for (const e of errors) console.log(`  - ${e}`);
+    console.log(`${errors.length} خطا:`);
+    for (const e of errors) console.log(`  ✗ ${e}`);
   }
-
-  const unverified = unverifiedParts(exam);
-  console.log(`unverified parts: ${unverified.length}`);
-  for (const u of unverified) console.log(`  ! ${u}`);
+  for (const w of warnings) console.log(`  ⚠ ${w}`);
+  if (unverified.length) {
+    console.log(`unverified: ${unverified.length}`);
+    for (const u of unverified) console.log(`  ! ${u}`);
+  }
 }
 
-if (hadErrors) {
-  process.exit(1);
-}
+console.log(`\n${seedExams.length} آزمون بررسی شد.`);
+if (hadErrors) process.exit(1);

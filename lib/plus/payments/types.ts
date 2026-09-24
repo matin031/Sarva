@@ -48,6 +48,9 @@ export type VerifyPaymentInput = {
   providerRef: string;
   /** پارامترهای query در لحظهٔ بازگشت. ⚠️ داده‌اند، نه حقیقت. */
   returnParams: Record<string, string>;
+  /** زمانِ رفتن به درگاه (ISO). بعضی درگاه‌ها بعد از مهلتی مشخص، تراکنشِ
+   *  نیمه‌کاره را باطل می‌کنند و «بررسی دوباره» باید همین را بداند. */
+  redirectedAt?: string | null;
 };
 
 /**
@@ -84,6 +87,15 @@ export interface PaymentProvider {
   readonly isTest: boolean;
 
   createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
+
+  /**
+   * شناسهٔ تلاشِ پرداخت از روی پارامترهای بازگشت (مثلاً `Authority`).
+   *
+   * ⚠️ بدونِ این، بازگشت همیشه با *آخرین* تلاش سنجیده می‌شد. کاربری که دو
+   * تب از درگاه باز کرده و در تبِ قدیمی پرداخت می‌کند، با تلاشِ تازه‌تر
+   * سنجیده می‌شد و پرداختِ واقعی‌اش «ناموفق» ثبت می‌شد.
+   */
+  refFromReturn?(returnParams: Record<string, string>): string | null;
 
   /** تأیید پس از بازگشتِ کاربر. */
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;

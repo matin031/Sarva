@@ -104,7 +104,7 @@ export default function Countdown({
     >
       <span
         key={BEATS[beat]}
-        className={`font-sans text-7xl font-black text-[#ffe9bd] drop-shadow-[0_0_24px_rgba(217,164,65,0.5)] sm:text-8xl ${
+        className={`font-sans text-7xl font-black text-[var(--game-night-ink)] drop-shadow-[0_0_24px_var(--gold-deep)] sm:text-8xl ${
           reducedMotion ? "" : "gc-countdown-beat"
         }`}
       >

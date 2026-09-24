@@ -260,7 +260,7 @@ export default function QuizAdminPanel({ initialItems, initialTotal, focusId }: 
                 onClick={() => handleEdit(q.id)}
                 className="rounded-lg bg-secondary px-3 py-1.5 text-xs text-secondary-foreground disabled:opacity-60"
               >
-                {loadingId === q.id ? "..." : "ویرایش"}
+                {loadingId === q.id ? "…" : "ویرایش"}
               </button>
               <button
                 type="button"

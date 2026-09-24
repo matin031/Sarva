@@ -8,6 +8,8 @@ import EmailVerification from "@/components/UI/panel/EmailVerification";
 import ActiveDevices from "@/components/UI/panel/ActiveDevices";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
 import PlusSettingCard from "@/components/UI/panel/PlusSettingCard";
+import NotificationPreferences from "@/components/UI/panel/NotificationPreferences";
+import { getNotifyPreferences } from "@/lib/notify/preferences";
 
 /**
  * حساب کاربری: پروفایل، رمز، ایمیل، موبایل، و دستگاه‌هایی که وارد شده‌اند.
@@ -29,6 +31,7 @@ export default async function Page() {
   if (!user) redirect("/auth");
 
   const devices = await listDevices(user.id);
+  const notifyPrefs = await getNotifyPreferences(user.id);
 
   return (
     <>
@@ -52,6 +55,10 @@ export default async function Page() {
           فرم که هر دو نام را می‌نویسند، یعنی کاربر نمی‌داند کدام برنده
           است. */}
       <ProfileForm />
+
+      {/* ⚠️ زیرِ فرمِ پروفایل و بالای «امنیت»: این یک تنظیمِ ارتباطی است و
+          کنارِ ایمیل و موبایل معنی می‌دهد، نه کنارِ رمز و دستگاه‌ها. */}
+      <NotificationPreferences initial={notifyPrefs} />
 
       <AccountSettings />
 

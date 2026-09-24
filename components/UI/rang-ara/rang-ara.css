@@ -1,0 +1,1858 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   «رنگ‌آرا»
+   ═══════════════════════════════════════════════════════════════════════════
+
+   ⚠️ همهٔ کلاس‌ها با `ra-` شروع می‌شوند و هیچ انتخابگرِ سراسری‌ای اینجا نیست.
+
+   سه قاعدهٔ دیداری:
+     ۱) رنگِ پاستل فقط جایی می‌نشیند که «آرایه» است: واژهٔ رنگ‌شده، پالت،
+        حبابِ درخواست و نشانِ توضیح. بقیهٔ صفحه همان کاغذ و مرکبِ سرواست.
+     ۲) دو شعاع: ۲۰px برای سطح‌های بزرگ (کارت، یادداشت) و ۱۲–۱۴px برای
+        چیزهای کوچک. دایره فقط برای رنگ‌ها و دکمهٔ پیکان.
+     ۳) ژرفا با سایهٔ نرم و لایه‌بندی. تنها شیشهٔ صفحه خودِ کارتِ بیت است —
+        چون روایتِ بازی «پاک کردنِ شیشه» است — و هیچ چیزِ دیگری شیشه‌ای نیست. */
+
+/* ⚠️ `.ra-vars` فقط رنگ‌ها را می‌دهد، بدونِ چیدمانِ بازی؛ پنلِ مدیریت برای
+   پیش‌نمایشِ همان رنگ‌ها از آن استفاده می‌کند. */
+.ra-root,
+.ra-vars {
+  /* ── پاستل‌ها: هفت فام با فاصلهٔ تقریباً برابر روی چرخهٔ رنگ ─────────────
+     روشنایی و اشباع نزدیک به هم نگه داشته شده تا هیچ رنگی از بقیه «بلندتر»
+     نباشد؛ جدا شدنشان فقط از فام است. `-ink` تیره‌ترِ همان فام است، برای
+     حلقهٔ انتخاب و حاشیه‌ها. */
+  --ra-sky: oklch(0.865 0.068 246);
+  --ra-sky-ink: oklch(0.5 0.13 254);
+  --ra-rose: oklch(0.875 0.062 6);
+  --ra-rose-ink: oklch(0.54 0.14 8);
+  --ra-peach: oklch(0.885 0.07 58);
+  --ra-peach-ink: oklch(0.56 0.12 50);
+  --ra-butter: oklch(0.925 0.085 97);
+  --ra-butter-ink: oklch(0.56 0.1 90);
+  --ra-sage: oklch(0.885 0.064 150);
+  --ra-sage-ink: oklch(0.5 0.09 152);
+  --ra-lilac: oklch(0.87 0.062 304);
+  --ra-lilac-ink: oklch(0.52 0.12 304);
+  --ra-aqua: oklch(0.89 0.056 197);
+  --ra-aqua-ink: oklch(0.5 0.08 205);
+  /* دو رنگِ آرایه‌های جفتی (جناس، سجع). فامشان میانِ رنگ‌های دیگر است، پس
+     کمی تیره‌تر و پررنگ‌ترند تا کنارِ صورتی و کرمی گم نشوند. */
+  --ra-berry: oklch(0.8 0.1 342);
+  --ra-berry-ink: oklch(0.5 0.16 345);
+  --ra-lime: oklch(0.86 0.1 125);
+  --ra-lime-ink: oklch(0.48 0.11 130);
+  /* متن روی رنگ همیشه تیره است، در هر دو تم. */
+  --ra-paint-ink: oklch(0.24 0.03 255);
+
+  /* ── شخصیت ── */
+  --ra-char: oklch(0.7 0.085 188);
+  --ra-char-shade: oklch(0.605 0.085 195);
+  --ra-char-deep: oklch(0.47 0.07 200);
+  --ra-ink: oklch(0.24 0.035 230);
+  --ra-sclera: #fbfaf6;
+  --ra-cheek: oklch(0.8 0.11 10);
+  --ra-shadow: oklch(0.3 0.04 250);
+  --ra-occlusion: oklch(0.34 0.06 210);
+
+  --ra-edge: color-mix(in oklch, var(--color-foreground) 9%, transparent);
+  --ra-hair: color-mix(in oklch, var(--color-foreground) 7%, transparent);
+  --ra-lift: color-mix(in oklch, var(--color-lapis) 34%, transparent);
+
+  --ra-verse-size: clamp(1.55rem, 1.05rem + 1.75vw, 2.4rem);
+}
+
+.ra-root {
+  position: relative;
+  z-index: 20;
+  min-height: calc(100dvh - 4.5rem);
+  padding: 0.25rem 1rem calc(3rem + env(safe-area-inset-bottom, 0px));
+  color: var(--color-foreground);
+}
+
+.dark .ra-root,
+.dark .ra-vars {
+  --ra-sky: oklch(0.8 0.075 246);
+  --ra-sky-ink: oklch(0.86 0.07 246);
+  --ra-rose: oklch(0.81 0.07 6);
+  --ra-rose-ink: oklch(0.87 0.06 6);
+  --ra-peach: oklch(0.83 0.075 58);
+  --ra-peach-ink: oklch(0.88 0.07 58);
+  --ra-butter: oklch(0.87 0.09 97);
+  --ra-butter-ink: oklch(0.92 0.08 97);
+  --ra-sage: oklch(0.82 0.07 150);
+  --ra-sage-ink: oklch(0.88 0.06 150);
+  --ra-lilac: oklch(0.8 0.07 304);
+  --ra-lilac-ink: oklch(0.87 0.06 304);
+  --ra-aqua: oklch(0.83 0.06 197);
+  --ra-aqua-ink: oklch(0.88 0.055 197);
+  --ra-berry: oklch(0.74 0.11 342);
+  --ra-berry-ink: oklch(0.85 0.08 342);
+  --ra-lime: oklch(0.8 0.1 125);
+  --ra-lime-ink: oklch(0.88 0.08 125);
+
+  --ra-char: oklch(0.67 0.085 188);
+  --ra-char-shade: oklch(0.57 0.08 195);
+  --ra-char-deep: oklch(0.44 0.065 200);
+  --ra-shadow: #000;
+  --ra-occlusion: oklch(0.2 0.04 230);
+  --ra-edge: color-mix(in oklch, var(--color-foreground) 11%, transparent);
+  --ra-lift: color-mix(in oklch, #000 60%, transparent);
+}
+
+/* ═════════════════════════════ نوارِ بالا ═════════════════════════════════ */
+
+.ra-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 780px;
+  margin: 0 auto 0.5rem;
+  min-height: 2.75rem;
+}
+
+.ra-bar-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
+.ra-bar-name {
+  font-family: var(--font-morabba), var(--font-sans);
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.ra-bar-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+.ra-bar-num {
+  color: var(--color-foreground);
+  font-weight: 700;
+}
+.ra-bar-sep {
+  width: 1px;
+  height: 0.7rem;
+  rotate: 18deg;
+  background: var(--ra-edge);
+}
+.ra-bar-side {
+  display: flex;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 0.4rem;
+}
+
+/* ═════════════════════════════ صحنه ═══════════════════════════════════════ */
+
+.ra-play {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: min(100%, 780px);
+  margin-inline: auto;
+  padding-top: clamp(0.25rem, 2.5vh, 1.75rem);
+}
+
+.ra-stage {
+  position: relative;
+  isolation: isolate;
+  /* ارتفاعِ بخشی از شخصیت که بالای کارت دیده می‌شود. */
+  padding-top: calc(var(--ra-s, 0.9) * 166px);
+}
+
+.ra-char-back,
+.ra-char-front {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ra-char-back {
+  z-index: 1;
+}
+.ra-char-front {
+  z-index: 3;
+}
+
+.ra-f-char { fill: var(--ra-char); }
+.ra-f-shade { fill: var(--ra-char-shade); }
+.ra-s-char { stroke: var(--ra-char); }
+.ra-s-shade { stroke: var(--ra-char-shade); }
+.ra-s-deep { stroke: var(--ra-char-deep); }
+.ra-f-deep { fill: var(--ra-char-deep); }
+.ra-f-ink { fill: var(--ra-ink); }
+.ra-s-ink { stroke: var(--ra-ink); }
+.ra-f-sclera { fill: var(--ra-sclera); }
+.ra-f-cheek { fill: var(--ra-cheek); }
+.ra-f-shadow { fill: var(--ra-shadow); }
+.ra-f-stain { fill: var(--ra-stain, transparent); }
+.ra-stop-occl { stop-color: var(--ra-occlusion); }
+
+/* نفس کشیدن: بدن و سر با کمی اختلافِ فاز، تا یک تکهٔ یکپارچه بالا و پایین نروند. */
+.ra-breathe {
+  animation: ra-breathe 4.2s ease-in-out infinite;
+}
+.ra-breathe-head {
+  animation: ra-breathe-head 4.2s ease-in-out -0.4s infinite;
+}
+@keyframes ra-breathe {
+  50% { transform: translateY(-1.4px); }
+}
+@keyframes ra-breathe-head {
+  50% { transform: translateY(-0.9px); }
+}
+
+/* ═════════════════════════════ کارت ═══════════════════════════════════════ */
+
+.ra-card {
+  position: relative;
+  z-index: 2;
+  padding: calc(var(--ra-s, 0.9) * 50px) clamp(0.6rem, 4vw, 2.6rem) 1.05rem;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, #fff 55%, var(--ra-edge)),
+    0 1px 1px color-mix(in oklch, var(--color-foreground) 4%, transparent),
+    0 16px 36px -22px var(--ra-lift),
+    0 40px 80px -48px var(--ra-lift);
+}
+.dark .ra-card {
+  box-shadow:
+    0 0 0 1px var(--ra-edge),
+    0 16px 36px -22px var(--ra-lift),
+    0 40px 80px -48px var(--ra-lift);
+}
+.ra-card > :not(.ra-glass) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── شیشه ──
+   نشانِ سروا *پشتِ* شیشهٔ مات است: `backdrop-filter` هم نشان را و هم زمینهٔ
+   صفحه را تار می‌کند. جایی که دستمال می‌کشد، ماسکِ بیضی‌شکلِ `--wx/--wy`
+   بخار را کنار می‌زند و پشتِ شیشه واضح دیده می‌شود؛ بعد آرام دوباره بخار
+   می‌گیرد. تا وقتی `--wrx` صفر است، ماسک کاملاً پر است و شیشه یکدست مات.
+
+   ⚠️ هیچ چیزِ متحرکی پشتِ کارت نیست (بدنِ شخصیت زیرِ لبه بریده شده)، پس
+   تار کردن فقط هنگامِ اسکرول یا پاک کردن دوباره حساب می‌شود. */
+.ra-glass {
+  --wx: 50%;
+  --wy: 50%;
+  --wrx: 0px;
+  --wry: 0px;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.ra-glass-logo {
+  position: absolute;
+  inset: 4% 0;
+  display: grid;
+  place-items: center;
+}
+.ra-glass-logo svg {
+  width: auto !important;
+  height: 100% !important;
+}
+.ra-glass-frost {
+  position: absolute;
+  inset: 0;
+  /* دانهٔ ریزِ شیشهٔ مات روی ته‌رنگ؛ جای پاک‌شده هر دو را با هم از دست
+     می‌دهد، پس ردِ دستمال حتی جایی که نشان پشتش نیست هم دیده می‌شود. */
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .85 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), color-mix(in oklch, var(--color-card) 56%, transparent);
+  background-size: 180px 180px, auto;
+  -webkit-backdrop-filter: blur(9px) saturate(1.2);
+  backdrop-filter: blur(9px) saturate(1.2);
+  -webkit-mask-image: radial-gradient(ellipse var(--wrx) var(--wry) at var(--wx) var(--wy), transparent 58%, #000 100%);
+  mask-image: radial-gradient(ellipse var(--wrx) var(--wry) at var(--wx) var(--wy), transparent 58%, #000 100%);
+}
+.dark .ra-glass-frost {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .22 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), color-mix(in oklch, var(--color-card) 60%, transparent);
+  background-size: 180px 180px, auto;
+}
+/* درخششِ شیشهٔ تازه‌پاک‌شده، درست همان‌جا که دستمال کشیده شد. */
+.ra-glass-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse var(--wrx) var(--wry) at var(--wx) var(--wy),
+    color-mix(in oklch, #fff 55%, transparent) 0%,
+    color-mix(in oklch, #fff 22%, transparent) 55%,
+    transparent 100%
+  );
+}
+.dark .ra-glass-shine {
+  background: radial-gradient(
+    ellipse var(--wrx) var(--wry) at var(--wx) var(--wy),
+    color-mix(in oklch, #fff 12%, transparent) 0%,
+    transparent 100%
+  );
+}
+
+.ra-glass-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    color-mix(in oklch, #fff 42%, transparent) 0%,
+    transparent 26%,
+    transparent 72%,
+    color-mix(in oklch, #fff 14%, transparent) 100%
+  );
+  opacity: 0.55;
+}
+.dark .ra-glass-sheen {
+  opacity: 0.12;
+}
+
+/* لبهٔ بالای کارت — همان جایی که دست‌ها رویش گیر کرده‌اند — کمی نور می‌گیرد. */
+.ra-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 18px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, #fff 85%, transparent), transparent);
+  pointer-events: none;
+}
+.dark .ra-card::before {
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, #fff 10%, transparent), transparent);
+}
+
+.ra-figure {
+  margin: 0;
+}
+
+.ra-verse {
+  --fit: 1;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: max-content;
+  row-gap: 0.28em;
+  width: max-content;
+  margin-inline: auto;
+  font-family: var(--font-pofak), var(--font-sans);
+  font-size: calc(var(--ra-verse-size) * var(--fit));
+  font-weight: 400;
+  line-height: 1.95;
+}
+
+/* هر دو مصراع هم‌عرضِ مصراعِ بلندترند — همان چیدمانِ دیوان‌ها. فاصلهٔ
+   واژه‌های مصراعِ کوتاه‌تر را `fitVerse` اندازه می‌گیرد. */
+.ra-misra {
+  --ra-gap: 0.3em;
+  display: flex;
+  justify-content: center;
+  gap: var(--ra-gap);
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* صفحهٔ خیلی باریک: هر مصراع در دو سطرِ وسط‌چین، با فاصلهٔ روشن میانِ دو مصراع. */
+.ra-verse[data-wrap] {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  row-gap: 0.55em;
+}
+.ra-verse[data-wrap] .ra-misra {
+  flex-wrap: wrap;
+  row-gap: 0;
+  white-space: normal;
+}
+
+/* ── واژه ── */
+
+.ra-token {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.36em;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ناحیهٔ لمسِ بزرگ‌تر، بدونِ تغییرِ چیدمان. */
+.ra-token::after {
+  content: "";
+  position: absolute;
+  inset: -0.28em -0.08em;
+}
+
+/* خودِ واژه؛ هایلایت و پیش‌نمایش فقط همین را می‌پوشانند، نه علامتِ نگارشی را. */
+.ra-ink {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.22em 0.04em;
+  border-radius: 0.36em;
+}
+.ra-punct {
+  position: relative;
+  z-index: 1;
+  opacity: 0.7;
+}
+
+/* پیش‌نمایشِ رنگ زیرِ نشانگر، وقتی رنگی در دست است. */
+.ra-ink::before {
+  content: "";
+  position: absolute;
+  inset: 0.42em -0.04em 0.24em;
+  border-radius: 0.32em;
+  background: var(--sel-c, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--sel-ci, transparent) 55%, transparent);
+  opacity: 0;
+  transform: scaleX(0.9);
+  transition: opacity 160ms ease, transform 220ms cubic-bezier(0.3, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+
+.ra-word {
+  position: relative;
+  z-index: 1;
+  transition: color 200ms ease;
+}
+
+.ra-token[data-painted] .ra-word {
+  color: var(--ra-paint-ink);
+}
+
+@media (hover: hover) {
+  .ra-card[data-armed] .ra-token:not([data-painted]):hover .ra-ink::before {
+    opacity: 0.55;
+    transform: none;
+  }
+  .ra-card:not([data-armed]) .ra-token:not([data-painted]):not([aria-disabled]):hover .ra-word {
+    color: color-mix(in oklch, var(--color-foreground) 70%, var(--color-primary));
+  }
+}
+
+.ra-card[data-armed] .ra-token:not([data-painted]):focus-visible .ra-ink::before {
+  opacity: 0.55;
+  transform: none;
+}
+
+.ra-card[data-armed] .ra-token:not([data-painted]) {
+  /* قلم‌مو: نوکش نقطهٔ کلیک است. */
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M20.6 2.7 23.3 5.4 13.6 15.1 10.9 12.4Z' fill='%23fbfaf6' stroke='%23263040' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M10 13.3 12.7 16c-.4 2.6-2.4 5.4-6.9 6.9-1.1.4-2.4.7-3.6.8.1-1.2.4-2.5.8-3.6C4.5 15.6 7.4 13.7 10 13.3Z' fill='%23263040'/%3E%3C/svg%3E")
+      2 24,
+    pointer;
+}
+
+.ra-token[aria-disabled] {
+  cursor: default;
+}
+
+.ra-token:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* ── رنگ روی واژه ──
+   ⚠️ رنگ در جهتِ نوشتن (راست به چپ) کشیده می‌شود، و پاک شدنش با ماسکی است
+   که لبه‌اش دقیقاً همان‌جایی است که دستمال رسیده (`--erase` را شخصیت هر فریم
+   می‌نویسد). هر ضربه span‌ِ خودش را دارد، پس رنگِ تازه همیشه با ماسکِ
+   دست‌نخورده شروع می‌شود. */
+/* پیوندِ واژه‌های جناس/سجع؛ پشتِ هایلایت‌ها، تا خط زیرشان برود. */
+.ra-links {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ra-link {
+  fill: none;
+  stroke: var(--ci);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.7;
+  animation: ra-link-draw 560ms cubic-bezier(0.3, 0.7, 0.3, 1) 140ms forwards;
+}
+@keyframes ra-link-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* نیمهٔ یک جفت: آرام می‌تپد تا لنگه‌اش پیدا شود. */
+.ra-hl[data-waiting] {
+  animation:
+    ra-sweep 360ms cubic-bezier(0.3, 0.75, 0.25, 1) var(--d, 0ms) both,
+    ra-wait 1.6s ease-in-out 400ms infinite;
+}
+@keyframes ra-wait {
+  50% {
+    box-shadow:
+      inset 0 -1px 0 color-mix(in oklch, var(--ci) 22%, transparent),
+      0 0 0 3px color-mix(in oklch, var(--c) 70%, transparent);
+  }
+}
+
+.ra-hl {
+  --erase: 0;
+  --soft: 28%;
+  position: absolute;
+  inset: 0.42em -0.04em 0.24em;
+  z-index: 0;
+  border-radius: 0.34em 0.26em 0.38em 0.3em;
+  background: var(--c);
+  box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--ci) 22%, transparent);
+  animation: ra-sweep 360ms cubic-bezier(0.3, 0.75, 0.25, 1) var(--d, 0ms) both;
+  -webkit-mask-image: linear-gradient(
+    to left,
+    transparent calc(var(--erase) * (100% + var(--soft)) - var(--soft)),
+    #000 calc(var(--erase) * (100% + var(--soft)))
+  );
+  mask-image: linear-gradient(
+    to left,
+    transparent calc(var(--erase) * (100% + var(--soft)) - var(--soft)),
+    #000 calc(var(--erase) * (100% + var(--soft)))
+  );
+}
+.ra-hl[data-dir="ltr"] {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent calc(var(--erase) * (100% + var(--soft)) - var(--soft)),
+    #000 calc(var(--erase) * (100% + var(--soft)))
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent calc(var(--erase) * (100% + var(--soft)) - var(--soft)),
+    #000 calc(var(--erase) * (100% + var(--soft)))
+  );
+}
+
+/* واژه‌های یک عبارت یک نوارِ پیوسته می‌شوند. */
+/* ⚠️ یک پیکسل هم‌پوشانی: بدونِ آن، گردکردنِ زیرپیکسلی در محلِ اتصال یک خطِ
+   روشنِ نازک می‌گذاشت. */
+.ra-hl[data-join-next] {
+  inset-inline-end: calc(var(--ra-gap) * -0.5 - 1px);
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+/* لایهٔ درونی: آرایه‌ای در دلِ عبارتِ دیگر (مجاز در کنایه) یا ضربهٔ تازه روی
+   واژهٔ رنگ‌شده. قرصی کوچک‌تر درونِ نوارِ بیرونی، با حاشیهٔ روشن. */
+.ra-hl[data-layer] {
+  inset: 0.58em 0.1em 0.38em;
+  border-radius: 0.3em;
+  box-shadow:
+    0 0 0 1.5px color-mix(in oklch, #fff 72%, transparent),
+    0 1px 3px color-mix(in oklch, var(--ci) 30%, transparent);
+}
+.ra-hl[data-layer="2"] {
+  inset: 0.72em 0.2em 0.5em;
+}
+.dark .ra-hl[data-layer] {
+  box-shadow: 0 0 0 1.5px color-mix(in oklch, #000 45%, transparent);
+}
+
+.ra-hl[data-join-prev] {
+  inset-inline-start: calc(var(--ra-gap) * -0.5 - 1px);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+@keyframes ra-sweep {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* جوابِ درست: حلقهٔ نازکی از مرکب باز می‌شود و محو می‌شود، واژه کمی بالا می‌آید. */
+.ra-bloom {
+  position: absolute;
+  inset: 0.1em -0.05em 0;
+  border-radius: 0.5em;
+  border: 1.5px solid var(--ci);
+  opacity: 0;
+  pointer-events: none;
+  animation: ra-bloom 640ms cubic-bezier(0.2, 0.7, 0.2, 1) 300ms both;
+}
+@keyframes ra-bloom {
+  from { opacity: 0.7; transform: scale(0.96); }
+  to { opacity: 0; transform: scale(1.22, 1.5); }
+}
+
+.ra-word[data-settle] {
+  animation: ra-settle 520ms cubic-bezier(0.3, 1.5, 0.5, 1) 280ms both;
+}
+@keyframes ra-settle {
+  0% { transform: none; }
+  40% { transform: translateY(-0.06em) scale(1.05); }
+  100% { transform: none; }
+}
+
+/* زیرِ دستمال، واژه کمی جابه‌جا می‌شود. */
+.ra-token[data-rubbed] .ra-word {
+  animation: ra-rub 120ms ease-in-out 6 alternate;
+}
+@keyframes ra-rub {
+  from { transform: translateX(-0.5px) scale(0.99); }
+  to { transform: translateX(0.6px) scale(0.99); }
+}
+
+/* ── پای کارت ── */
+
+.ra-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--ra-hair);
+}
+
+.ra-poet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+.ra-source {
+  font-weight: 400;
+}
+.ra-source::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline-end: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  opacity: 0.6;
+}
+
+.ra-steps {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ra-steps li {
+  width: 18px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  transition: background-color 300ms ease, box-shadow 300ms ease, width 300ms ease;
+}
+.ra-steps li[data-state="now"] {
+  width: 26px;
+  background: color-mix(in oklch, var(--color-foreground) 34%, transparent);
+}
+.ra-steps li[data-state="half"] {
+  width: 26px;
+  background: linear-gradient(
+    to left,
+    var(--c) 50%,
+    color-mix(in oklch, var(--color-foreground) 16%, transparent) 50%
+  );
+}
+.ra-steps li[data-state="done"] {
+  background: var(--c);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ci) 30%, transparent);
+}
+
+/* ═════════════════════════════ حباب ═══════════════════════════════════════ */
+
+.ra-bubble-pos {
+  position: absolute;
+  z-index: 4;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.ra-bubble-anchor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max-content;
+  translate: 0 -50%;
+}
+
+.ra-bubble {
+  --ra-bubble-bg: var(--color-card);
+  --ra-bubble-edge: var(--ra-edge);
+  position: relative;
+  padding: 0.5rem 0.9rem 0.55rem;
+  border-radius: 14px;
+  background: var(--ra-bubble-bg);
+  box-shadow:
+    0 0 0 1px var(--ra-bubble-edge),
+    0 10px 24px -16px var(--ra-lift);
+  transform-origin: 100% 50%;
+  text-align: right;
+}
+
+.ra-bubble[data-tone="prompt"] {
+  --ra-bubble-bg: var(--c);
+  --ra-bubble-edge: color-mix(in oklch, var(--ci) 32%, transparent);
+  color: var(--ra-paint-ink);
+  padding-block: 0.4rem 0.5rem;
+}
+
+.ra-bubble-kicker {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.66;
+}
+
+.ra-bubble-text {
+  display: block;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+.ra-bubble-concept {
+  font-size: 1.3rem;
+  line-height: 1.35;
+}
+
+.ra-bubble-tail {
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  width: 10px;
+  height: 18px;
+  translate: 0 -50%;
+  overflow: visible;
+}
+.ra-bubble-tail-fill {
+  fill: var(--ra-bubble-bg);
+}
+.ra-bubble-tail-edge {
+  fill: none;
+  stroke: var(--ra-bubble-edge);
+  stroke-width: 1;
+}
+
+/* ═════════════════════════════ پالت و دکمه ═══════════════════════════════ */
+
+.ra-dock {
+  display: flex;
+  justify-content: center;
+  min-height: 5.25rem;
+}
+/* فهرستِ درس‌ها در موبایل بلند است؛ «شروع» پایینِ صفحه می‌ماند. */
+.ra-dock[data-sticky] {
+  position: sticky;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 5;
+  min-height: 0;
+}
+.ra-dock[data-sticky] .ra-ghost {
+  background: color-mix(in oklch, var(--color-card) 85%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 1px var(--ra-hair);
+}
+.ra-dock-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+.ra-dock-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  align-self: center;
+}
+
+.ra-palette {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  max-width: 100%;
+  padding: 6px;
+  border-radius: 18px;
+  background: color-mix(in oklch, var(--color-card) 86%, transparent);
+  box-shadow:
+    0 0 0 1px var(--ra-edge),
+    0 8px 22px -16px var(--ra-lift);
+}
+
+.ra-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 3.4rem;
+  padding: 8px 6px 6px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.ra-swatch:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.ra-swatch-dot {
+  position: relative;
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--ci) 26%, transparent),
+    inset 0 -3px 0 color-mix(in oklch, var(--ci) 12%, transparent);
+  transition: transform 260ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.ra-swatch-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--ci);
+}
+
+.ra-swatch-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .ra-swatch:hover {
+    background: var(--ra-hair);
+    color: var(--color-foreground);
+  }
+  .ra-swatch:hover .ra-swatch-dot {
+    transform: translateY(-2px);
+  }
+}
+.ra-swatch:active .ra-swatch-dot {
+  transform: scale(0.94);
+}
+.ra-swatch[data-on] {
+  color: var(--color-foreground);
+}
+.ra-swatch[data-on] .ra-swatch-dot {
+  transform: scale(1.06);
+}
+.ra-swatch[data-on] .ra-swatch-label {
+  font-weight: 700;
+}
+
+/* «اول رنگ بردار»: رنگ‌ها یکی‌یکی بالا می‌آیند، مثل موجی که چشم را به پالت
+   می‌برد. دو نام برای اینکه هر بار دوباره پخش شود. */
+.ra-palette[data-nudge="a"] .ra-swatch-dot {
+  animation: ra-wave-a 560ms cubic-bezier(0.3, 0.7, 0.3, 1) calc(var(--i) * 45ms);
+}
+.ra-palette[data-nudge="b"] .ra-swatch-dot {
+  animation: ra-wave-b 560ms cubic-bezier(0.3, 0.7, 0.3, 1) calc(var(--i) * 45ms);
+}
+@keyframes ra-wave-a {
+  35% { transform: translateY(-6px); }
+}
+@keyframes ra-wave-b {
+  35% { transform: translateY(-6px); }
+}
+
+.ra-hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted-foreground);
+}
+
+.ra-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 3rem;
+  padding-inline: 1.35rem 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 26px -16px color-mix(in oklch, var(--color-foreground) 80%, transparent);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.ra-cta:hover {
+  box-shadow: 0 14px 30px -14px color-mix(in oklch, var(--color-foreground) 80%, transparent);
+}
+.ra-cta:active {
+  transform: scale(0.97);
+}
+.ra-cta:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+.ra-cta:disabled {
+  cursor: default;
+}
+
+.ra-cta-arrow {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-background) 16%, transparent);
+  transition: transform 240ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.ra-cta:hover .ra-cta-arrow {
+  transform: translateX(-3px);
+}
+
+.ra-ghost {
+  display: inline-flex;
+  align-items: center;
+  height: 3rem;
+  padding-inline: 1.1rem;
+  border-radius: 999px;
+  color: var(--color-muted-foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.ra-ghost:hover {
+  color: var(--color-foreground);
+  background: var(--ra-hair);
+}
+
+/* ── آموزش ── */
+
+.ra-link {
+  border: 0;
+  background: none;
+  padding: 0.35rem 0.5rem;
+  border-radius: 999px;
+  color: var(--color-muted-foreground);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.ra-link:hover {
+  color: var(--color-foreground);
+}
+.ra-cta-small {
+  height: 2.6rem;
+  margin-top: 0.8rem;
+  font-size: 0.88rem;
+}
+.ra-cta-small .ra-cta-arrow {
+  width: 1.95rem;
+  height: 1.95rem;
+}
+.ra-cta-count {
+  font-weight: 500;
+  opacity: 0.75;
+}
+.ra-demo-palette {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 360ms ease, transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ra-demo-palette[data-show] {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── انتخابِ درس ── */
+
+.ra-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 0.25rem 0.5rem;
+}
+.ra-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-foreground) 6%, transparent);
+}
+.ra-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.35rem;
+  padding-inline: 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-muted-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+.ra-seg button[data-on] {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-foreground) 12%, transparent);
+}
+.ra-seg-badge {
+  display: grid;
+  place-items: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding-inline: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.ra-seg button:focus-visible,
+.ra-lessons button:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.ra-lessons-wrap {
+  width: 100%;
+}
+.ra-lessons-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+.ra-lessons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+  gap: 0.4rem;
+  width: 100%;
+}
+.ra-lessons button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--ra-hair);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--color-card) 55%, transparent);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, opacity 160ms ease;
+}
+.ra-lessons button:hover:not(:disabled) {
+  border-color: color-mix(in oklch, var(--color-primary) 35%, transparent);
+}
+/* درسی که هنوز بیت ندارد: جایش دیده می‌شود، ولی انتخاب نمی‌شود. */
+.ra-lessons button:disabled {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.45;
+  cursor: default;
+}
+.ra-lessons button[data-on] {
+  border-color: color-mix(in oklch, var(--color-primary) 55%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 9%, var(--color-card));
+}
+.ra-lesson-num {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  border-radius: 8px;
+  background: var(--ra-hair);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.ra-lessons button[data-on] .ra-lesson-num {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.ra-lesson-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.ra-lesson-count {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+/* ── ابیات خارج از کتاب ──
+   قابی از هفت رنگِ خودِ پالت دورِ دکمه می‌چرخد و هر چند ثانیه برقی از رویش
+   رد می‌شود. روشن که باشد، همان رنگ‌ها داخلش هم آرام موج می‌زنند. */
+
+@property --ra-spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.ra-outside {
+  --o-sky: color-mix(in oklch, var(--ra-sky) 45%, var(--ra-sky-ink));
+  --o-lilac: color-mix(in oklch, var(--ra-lilac) 45%, var(--ra-lilac-ink));
+  --o-rose: color-mix(in oklch, var(--ra-rose) 45%, var(--ra-rose-ink));
+  --o-peach: color-mix(in oklch, var(--ra-peach) 45%, var(--ra-peach-ink));
+  --o-butter: color-mix(in oklch, var(--ra-butter) 40%, var(--ra-butter-ink));
+  --o-sage: color-mix(in oklch, var(--ra-sage) 45%, var(--ra-sage-ink));
+  --o-aqua: color-mix(in oklch, var(--ra-aqua) 45%, var(--ra-aqua-ink));
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(100%, 22rem);
+  min-height: 3.6rem;
+  padding: 0.55rem;
+  padding-inline-start: 0.6rem;
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: color-mix(in oklch, var(--color-card) 80%, transparent);
+  color: var(--color-foreground);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  box-shadow:
+    0 10px 26px -16px color-mix(in oklch, var(--o-lilac) 85%, transparent),
+    0 4px 18px -10px color-mix(in oklch, var(--o-sky) 60%, transparent);
+  transition: transform 200ms cubic-bezier(0.3, 1.3, 0.5, 1), box-shadow 260ms ease;
+}
+.ra-outside::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1.6px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ra-spin),
+    var(--o-sky),
+    var(--o-lilac),
+    var(--o-rose),
+    var(--o-peach),
+    var(--o-butter),
+    var(--o-sage),
+    var(--o-aqua),
+    var(--o-sky)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: ra-spin 6s linear infinite;
+}
+/* برقی که از رویش رد می‌شود. */
+.ra-outside::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  left: -35%;
+  width: 35%;
+  /* روی زمینهٔ روشن برقِ سفید دیده نمی‌شود؛ نواری منشوری از همان پاستل‌ها. */
+  background: linear-gradient(
+    100deg,
+    transparent,
+    color-mix(in oklch, var(--o-lilac) 38%, transparent) 30%,
+    color-mix(in oklch, #fff 85%, transparent) 50%,
+    color-mix(in oklch, var(--o-sky) 38%, transparent) 70%,
+    transparent
+  );
+  transform: skewX(-18deg);
+  pointer-events: none;
+  animation: ra-sheen 4.2s cubic-bezier(0.45, 0, 0.2, 1) 0.8s infinite;
+}
+.dark .ra-outside::after {
+  background: linear-gradient(100deg, transparent, color-mix(in oklch, #fff 22%, transparent) 50%, transparent);
+}
+@keyframes ra-spin {
+  to {
+    --ra-spin: 360deg;
+  }
+}
+@keyframes ra-sheen {
+  0%,
+  62% {
+    transform: translateX(0) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(480%) skewX(-18deg);
+  }
+}
+
+.ra-outside:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px -14px color-mix(in oklch, var(--o-lilac) 90%, transparent),
+    0 6px 22px -10px color-mix(in oklch, var(--o-sky) 70%, transparent);
+}
+.ra-outside:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.ra-outside:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
+.ra-outside[data-on] {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in oklch, var(--ra-sky) 60%, transparent),
+      color-mix(in oklch, var(--ra-lilac) 60%, transparent) 30%,
+      color-mix(in oklch, var(--ra-rose) 55%, transparent) 55%,
+      color-mix(in oklch, var(--ra-butter) 60%, transparent) 80%,
+      color-mix(in oklch, var(--ra-aqua) 60%, transparent)
+    )
+    0 0 / 220% 100%,
+    var(--color-card);
+  box-shadow:
+    0 14px 32px -14px color-mix(in oklch, var(--o-lilac) 95%, transparent),
+    0 0 26px -8px color-mix(in oklch, var(--o-sky) 80%, transparent);
+  animation: ra-drift 7s ease-in-out infinite alternate;
+}
+.dark .ra-outside[data-on] {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in oklch, var(--ra-sky) 26%, transparent),
+      color-mix(in oklch, var(--ra-lilac) 26%, transparent) 30%,
+      color-mix(in oklch, var(--ra-rose) 22%, transparent) 55%,
+      color-mix(in oklch, var(--ra-butter) 18%, transparent) 80%,
+      color-mix(in oklch, var(--ra-aqua) 26%, transparent)
+    )
+    0 0 / 220% 100%,
+    var(--color-card);
+}
+.dark .ra-outside[data-on] .ra-outside-mark {
+  background: #fff;
+  color: var(--ra-paint-ink);
+}
+@keyframes ra-drift {
+  to {
+    background-position: 100% 0, 0 0;
+  }
+}
+
+.ra-outside-spark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 12px;
+  background: conic-gradient(
+    from 210deg,
+    var(--ra-sky),
+    var(--ra-lilac),
+    var(--ra-rose),
+    var(--ra-peach),
+    var(--ra-butter),
+    var(--ra-sage),
+    var(--ra-aqua),
+    var(--ra-sky)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, #fff 45%, transparent);
+}
+.ra-outside-spark svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: #fff;
+  filter: drop-shadow(0 1px 1.5px color-mix(in oklch, var(--ra-lilac-ink) 70%, transparent));
+  animation: ra-twinkle 3s ease-in-out infinite;
+}
+.ra-outside-spark svg + svg {
+  position: absolute;
+  top: 0.22rem;
+  inset-inline-end: 0.22rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  animation-delay: 1.2s;
+}
+@keyframes ra-twinkle {
+  0%,
+  100% {
+    transform: scale(0.78) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.06) rotate(45deg);
+    opacity: 1;
+  }
+}
+
+.ra-outside-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.ra-outside-title {
+  font-size: 0.925rem;
+  font-weight: 800;
+}
+.ra-outside-sub {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+.ra-outside[data-on] .ra-outside-sub {
+  color: inherit;
+  opacity: 0.7;
+}
+
+.ra-outside-mark {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: none;
+  margin-inline-start: auto;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-foreground) 7%, transparent);
+  color: var(--color-muted-foreground);
+  transition: background-color 200ms ease, color 200ms ease, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.ra-outside-mark svg {
+  width: 1rem;
+  height: 1rem;
+}
+.ra-outside[data-on] .ra-outside-mark {
+  background: var(--ra-paint-ink);
+  color: #fff;
+  transform: scale(1.06);
+}
+
+.ra-outside:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}
+.ra-outside:disabled::before,
+.ra-outside:disabled .ra-outside-spark svg {
+  animation: none;
+}
+.ra-outside:disabled::after {
+  display: none;
+}
+
+/* ═════════════════════════════ پاسخ‌ها ══════════════════════════════════════
+   یک صفحهٔ شیشه‌ای، همان خانوادهٔ `.glass-pop` سایت. هر آرایه کارتِ خودش را
+   دارد با رنگِ همان آرایه: نوارِ کناری که قد می‌کشد، هاله‌ای در گوشه، و برقی
+   که یک بار از رویش رد می‌شود. معنیِ بیت آخرِ کار بالای همه می‌نشیند. */
+
+.ra-notes {
+  overflow: hidden;
+}
+
+.ra-notes-inner {
+  padding: 0.75rem;
+  border-radius: 24px;
+  background: color-mix(in oklch, var(--color-card) 60%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 2px 6px rgb(0 0 0 / 0.04),
+    0 28px 60px -30px color-mix(in oklch, var(--color-primary) 30%, rgb(0 0 0 / 0.3));
+}
+.dark .ra-notes-inner {
+  background: color-mix(in oklch, var(--color-card) 68%, transparent);
+  border-color: color-mix(in oklch, var(--color-foreground) 11%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 28px 60px -24px rgb(0 0 0 / 0.7);
+}
+html[data-quality="balanced"] .ra-notes-inner,
+html[data-quality="low"] .ra-notes-inner {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in oklch, var(--color-card) 92%, transparent);
+}
+
+.ra-notes-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0.45rem 0.65rem;
+}
+.ra-notes-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+.ra-notes-dots {
+  display: flex;
+  gap: 4px;
+}
+.ra-notes-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--color-foreground) 14%, transparent);
+  transition: background-color 300ms ease, box-shadow 300ms ease, transform 300ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.ra-notes-dots i[data-on] {
+  background: var(--ci);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--c) 55%, transparent);
+  transform: scale(1.1);
+}
+.ra-notes-count {
+  margin-inline-start: auto;
+  font-size: 0.78rem;
+  color: var(--color-muted-foreground);
+}
+
+.ra-note-clip {
+  overflow: hidden;
+}
+.ra-note-clip + .ra-note-clip {
+  padding-top: 0.55rem;
+}
+
+/* ── معنیِ بیت ── */
+.ra-meaning {
+  position: relative;
+  overflow: hidden;
+  padding: 0.95rem 1.15rem 1rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 55%),
+    color-mix(in oklch, var(--color-card) 78%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-primary) 20%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+.dark .ra-meaning {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+/* گیومهٔ بزرگِ کم‌رنگ پشتِ متن. */
+.ra-meaning-mark {
+  position: absolute;
+  top: -1.6rem;
+  inset-inline-end: 0.5rem;
+  font-family: var(--font-pofak), var(--font-sans);
+  font-size: 6.5rem;
+  line-height: 1;
+  color: color-mix(in oklch, var(--color-primary) 14%, transparent);
+  pointer-events: none;
+}
+.ra-meaning-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.ra-meaning-label::before {
+  content: "";
+  width: 1.1rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.ra-meaning-text {
+  position: relative;
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  line-height: 2.05;
+  color: var(--color-foreground);
+}
+
+/* ── کارتِ هر آرایه ── */
+.ra-note {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 0.85rem 1.1rem 0.95rem;
+  padding-inline-start: 1.45rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(110% 120% at 100% 0%, color-mix(in oklch, var(--c) 34%, transparent), transparent 58%),
+    color-mix(in oklch, var(--color-card) 80%, transparent);
+  border: 1px solid color-mix(in oklch, var(--ci) 16%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55);
+}
+.dark .ra-note {
+  background:
+    radial-gradient(110% 120% at 100% 0%, color-mix(in oklch, var(--c) 16%, transparent), transparent 58%),
+    color-mix(in oklch, var(--color-card) 74%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+/* برقی که یک بار، هم‌جهتِ خواندن، از روی کارتِ تازه رد می‌شود. */
+.ra-note::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in oklch, #fff 55%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(110%);
+  animation: ra-note-sheen 1.1s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+  pointer-events: none;
+}
+.dark .ra-note::after {
+  background: linear-gradient(100deg, transparent 35%, color-mix(in oklch, #fff 12%, transparent) 50%, transparent 65%);
+}
+@keyframes ra-note-sheen {
+  to {
+    transform: translateX(-110%);
+  }
+}
+.ra-note-rail {
+  position: absolute;
+  top: 0.8rem;
+  bottom: 0.8rem;
+  inset-inline-start: 0.6rem;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, var(--c), var(--ci));
+  transform-origin: top;
+  animation: ra-rail 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+}
+@keyframes ra-rail {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.ra-note-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  margin: 0;
+  font-weight: inherit;
+}
+.ra-note-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.75rem;
+  padding-inline: 0.6rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--c) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ci) 22%, transparent);
+  color: color-mix(in oklch, var(--ci) 80%, var(--ra-paint-ink));
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.dark .ra-note-chip {
+  background: color-mix(in oklch, var(--c) 22%, transparent);
+  color: var(--ci);
+}
+.ra-note-chip i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--ci);
+}
+/* نقلِ عبارت با ماژیکِ همان رنگ، فقط زیرِ دوسومِ پایینِ حروف. */
+.ra-note-quote {
+  font-family: var(--font-pofak), var(--font-sans);
+  padding: 0 0.3em;
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--color-foreground);
+  background: linear-gradient(
+    transparent 40%,
+    color-mix(in oklch, var(--c) 75%, transparent) 40% 90%,
+    transparent 90%
+  );
+}
+.dark .ra-note-quote {
+  background: linear-gradient(transparent 40%, color-mix(in oklch, var(--c) 30%, transparent) 40% 90%, transparent 90%);
+}
+
+.ra-note-text {
+  margin: 0.45rem 0 0;
+  font-size: 0.93rem;
+  line-height: 2;
+  color: color-mix(in oklch, var(--color-foreground) 88%, transparent);
+}
+
+.ra-note-tip {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--c) 20%, transparent);
+  border: 1px dashed color-mix(in oklch, var(--ci) 28%, transparent);
+  font-size: 0.84rem;
+  line-height: 1.9;
+  color: color-mix(in oklch, var(--color-foreground) 82%, transparent);
+}
+.ra-note-tip svg {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.3rem;
+  color: var(--ci);
+}
+.ra-note-tip b {
+  color: var(--color-foreground);
+  font-weight: 800;
+}
+
+/* ═════════════════════════════ پایان ══════════════════════════════════════ */
+
+.ra-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: 0.1rem 0.4rem;
+  text-align: center;
+}
+.ra-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 8.5rem;
+  height: 8.5rem;
+}
+.ra-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.ra-ring-track {
+  fill: none;
+  stroke: color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  stroke-width: 9;
+}
+.ra-ring-bar {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.ra-ring-value {
+  margin-top: -0.4rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.ra-ring-label {
+  position: absolute;
+  top: 62%;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+.ra-summary-title {
+  margin: 0.6rem 0 0;
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.6rem);
+}
+.ra-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  width: min(100%, 34rem);
+  margin: 1.1rem auto 0.2rem;
+}
+.ra-summary-stats div {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.75rem 0.4rem 0.7rem;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, color-mix(in oklch, var(--c) 40%, transparent), transparent 70%),
+    color-mix(in oklch, var(--color-card) 70%, transparent);
+  border: 1px solid color-mix(in oklch, var(--ci) 16%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+}
+.dark .ra-summary-stats div {
+  background:
+    radial-gradient(120% 100% at 50% 0%, color-mix(in oklch, var(--c) 18%, transparent), transparent 70%),
+    color-mix(in oklch, var(--color-card) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.ra-summary-stats dt {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+.ra-summary-stats dd {
+  margin: 0;
+  font-size: clamp(1.4rem, 1.15rem + 1vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* ═════════════════════════════ ضربه ═══════════════════════════════════════ */
+
+/* ناحیه‌های نامرئیِ روی بدن؛ SVGها خودشان کلیک را رد می‌کنند. */
+.ra-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ra-hit-wide {
+  stroke: transparent;
+  stroke-width: 8;
+}
+.ra-f-slap { fill: oklch(0.66 0.19 18); }
+.ra-f-tear { fill: oklch(0.82 0.1 225); stroke: oklch(0.6 0.12 235); stroke-width: 0.6; }
+.ra-f-star { fill: oklch(0.9 0.15 95); stroke: oklch(0.6 0.14 80); stroke-width: 0.8; }
+
+.ra-hits {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.ra-hit-burst {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  margin: -2.2rem 0 0 -2.2rem;
+}
+.ra-hit-burst svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ra-hit-burst path {
+  fill: oklch(0.97 0.05 95);
+  stroke: var(--ra-ink);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 3px 0 color-mix(in oklch, var(--ra-ink) 35%, transparent));
+}
+.ra-hit-burst span {
+  position: relative;
+  font-family: var(--font-pofak), var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ra-ink);
+  white-space: nowrap;
+}
+
+/* ═════════════════════════════ اندازه‌ها ══════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .ra-root {
+    padding-inline: 0.75rem;
+  }
+  .ra-card {
+    border-radius: 18px;
+  }
+  .ra-swatch {
+    min-width: 0;
+    padding-inline: 2px;
+  }
+  .ra-swatch-dot {
+    width: 32px;
+    height: 32px;
+  }
+  .ra-swatch-label {
+    font-size: 0.68rem;
+  }
+  .ra-notes-inner {
+    padding: 0.55rem;
+    border-radius: 20px;
+  }
+  .ra-note {
+    padding: 0.8rem 0.9rem 0.9rem;
+    padding-inline-start: 1.3rem;
+  }
+  .ra-meaning {
+    padding: 0.85rem 0.95rem 0.9rem;
+  }
+  .ra-summary-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-breathe,
+  .ra-breathe-head,
+  .ra-bloom,
+  .ra-word[data-settle],
+  .ra-token[data-rubbed] .ra-word,
+  .ra-palette[data-nudge] .ra-swatch-dot,
+  .ra-outside::before,
+  .ra-outside::after,
+  .ra-outside[data-on],
+  .ra-outside-spark svg,
+  .ra-hl[data-waiting] {
+    animation: none;
+  }
+  .ra-link {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .ra-note::after,
+  .ra-note-rail {
+    animation: none;
+  }
+  .ra-note::after {
+    display: none;
+  }
+  .ra-outside::after {
+    display: none;
+  }
+  .ra-hl {
+    animation: ra-fade 160ms ease-out both;
+  }
+  @keyframes ra-fade {
+    from { opacity: 0; }
+  }
+}

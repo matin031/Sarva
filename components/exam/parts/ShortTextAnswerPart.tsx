@@ -1,6 +1,8 @@
 "use client";
 
 import RichPassageView from "@/components/exam/RichPassageView";
+import HighlightedText from "@/components/exam/HighlightedText";
+import InlineBlankText, { countDottedBlanks } from "@/components/exam/InlineBlankText";
 
 type ShortTextAnswerContent = {
   type: "short-text-answer";
@@ -24,6 +26,9 @@ export default function ShortTextAnswerPart({ content, value, onChange, disabled
   // here: a full-width input in front of «نام آرایه را بنویسید» invites a
   // sentence, which the answer key would then mark wrong.
   const isWord = variant === "word";
+  // «… تاریخ .......... است.» — one dotted blank and a one-line answer: the
+  // box belongs in the blank, not under the sentence
+  const inline = !isTextarea && countDottedBlanks(content.questionText) === 1;
 
   return (
     <div dir="rtl" className="flex flex-col gap-3 text-right">
@@ -32,8 +37,18 @@ export default function ShortTextAnswerPart({ content, value, onChange, disabled
           <RichPassageView passage={content.stimulus} />
         </div>
       )}
-      <p className="text-base leading-relaxed xs:text-lg">{content.questionText}</p>
-      {isTextarea ? (
+      {inline ? (
+        <InlineBlankText
+          text={content.questionText}
+          slots={[{ id: "v" }]}
+          values={{ v: value }}
+          onChange={(_, v) => onChange(v)}
+          disabled={disabled}
+        />
+      ) : (
+        <p className="text-base leading-relaxed xs:text-lg"><HighlightedText text={content.questionText} /></p>
+      )}
+      {inline ? null : isTextarea ? (
         <textarea
           dir="rtl"
           disabled={disabled}

@@ -251,7 +251,7 @@ export default function CommentThread({
               onChange={(e) => setBody(e.target.value)}
               maxLength={MAX_COMMENT}
               rows={3}
-              placeholder="دربارهٔ این سروده بنویس — نقد، پیشنهاد یا فقط تشویق."
+              placeholder="دیدگاهت را بنویس…"
               aria-label="متن دیدگاه"
               className="w-full resize-y rounded-xl border border-border bg-background p-3 text-sm leading-7 outline-none transition-colors focus:border-primary/60"
             />
@@ -289,7 +289,7 @@ export default function CommentThread({
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
-            برای نوشتن دیدگاه وارد حسابت شو — دیدگاه با نام حسابت ثبت می‌شود.
+            برای نوشتن دیدگاه وارد شو.
           </p>
           <Link
             href="/auth"

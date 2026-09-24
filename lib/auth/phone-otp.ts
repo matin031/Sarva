@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomInt, timingSafeEqual, randomUUID } from "node:crypto";
 import { queryOne, execute, transaction } from "@/lib/db";
+import { spendSmsBudget } from "@/lib/sms/spend";
 
 /**
  * کدهای یک‌بارمصرفِ پیامکی.
@@ -133,6 +134,30 @@ export async function issuePhoneOtp(
 
   if (ip && (limits?.ip_count ?? 0) >= cfg.maxPerIp) {
     return { ok: false, error: "تعداد درخواست‌ها از این دستگاه زیاد بود. یک ساعت دیگر تلاش کنید." };
+  }
+
+  /* ── سقفِ سراسریِ خرجِ پیامک ──────────────────────────────────────────────
+   *
+   * ⚠️ **اینجا** و نه در route ها. `issuePhoneOtp` تنها گلوگاهی است که هر
+   * پیامکِ کدِ یک‌بارمصرف از آن رد می‌شود (ورود، ثبت‌نام، تأیید شماره،
+   * بازیابی رمز). گذاشتنش در route ها یعنی چهار تکرار — و همان محافظی که
+   * باید در چهار فایل تکرار شود، همانی است که در فایلِ پنجم فراموش می‌شود.
+   *
+   * ⚠️ و **بعد** از سقف‌های شماره/IP و cooldown، درست پیش از ساختنِ کد.
+   * چراییِ این ترتیب بالای `spendSmsBudget` نوشته شده.
+   *
+   * ⚠️ خودِ منطقِ سقف از اینجا به `lib/sms/spend.ts` رفت، وقتی مصرف‌کنندهٔ
+   * دومی پیدا کرد: پیامک‌های اطلاع‌رسانی (`lib/notify`) هم باید از همان یک
+   * کیسه خرج کنند، وگرنه سقفِ «سراسری» نصفِ ارسال‌ها را نمی‌بیند. */
+  const spent = await spendSmsBudget();
+  if (!spent.allowed) {
+    /* ⚠️ پیام عمداً دلیلِ واقعی را نمی‌گوید. «سقفِ روزانهٔ سایت پر شده» به
+       کسی که همین حالا آن را پر کرده می‌گوید حمله‌اش گرفته. */
+    return {
+      ok: false,
+      error: "ارسال پیامک موقتاً ممکن نیست. کمی بعد دوباره تلاش کنید.",
+      retryAfterSeconds: spent.retryAfterSeconds,
+    };
   }
 
   // randomInt و نه Math.random: مولدِ Math.random قابلِ پیش‌بینی است.

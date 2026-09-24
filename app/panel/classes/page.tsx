@@ -10,6 +10,8 @@ import { listMyViewers } from "@/lib/teacher/views";
 import ClassPrivacyCard from "@/components/UI/panel/ClassPrivacyCard";
 import StudentFeedbackList from "@/components/UI/panel/StudentFeedbackList";
 import { listStudentFeedback } from "@/lib/teacher/feedback";
+import { listStudentAssignments } from "@/lib/teacher/assignments";
+import StudentAssignments from "@/components/UI/panel/StudentAssignments";
 
 /**
  * کلاس‌های من — سمتِ دانش‌آموز.
@@ -53,7 +55,7 @@ export default async function Page({
     redirect(`/auth?returnTo=${encodeURIComponent(back)}`);
   }
 
-  const [classes, viewers, feedback] = await Promise.all([
+  const [classes, viewers, feedback, assignments] = await Promise.all([
     listStudentClasses(user.id),
     /* ⚠️ شرطِ `student_id` داخلِ خودِ کوئری است — این فهرست فقط بازدیدهای
        *همین* کاربر را می‌دهد و هیچ‌کس نمی‌تواند ببیند دبیرها سراغِ چه
@@ -62,6 +64,8 @@ export default async function Page({
     /* باز هم شرطِ `student_id` در خودِ کوئری — تنها چیزی که بینِ این
        کاربر و بازخوردهای بقیه ایستاده. */
     listStudentFeedback(user.id),
+    /* شرطِ `student_id` در خودِ کوئری؛ شناسه از سشن. */
+    listStudentAssignments(user.id),
   ]);
 
   return (
@@ -74,6 +78,8 @@ export default async function Page({
       />
 
       <StudentClasses initial={classes} inviteCode={inviteCode} />
+
+      <StudentAssignments items={assignments} />
 
       <StudentFeedbackList feedback={feedback} />
 

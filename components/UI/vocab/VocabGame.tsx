@@ -412,7 +412,7 @@ export default function VocabGame() {
   // ---------- grade select ----------
   if (screen === "grade") {
     return (
-      <Shell title="واژه‌یاب" subtitle="پایه‌ات را انتخاب کن تا واژگانِ درس‌ها را با تصویر یاد بگیری.">
+      <Shell title="واژه‌یاب" subtitle="پایه‌ات را انتخاب کن تا واژگان درس‌ها را با تصویر یاد بگیری.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {VOCAB_GRADES.map((g, i) => (
             <motion.button
@@ -445,7 +445,7 @@ export default function VocabGame() {
     return (
       <Shell
         title={`پایهٔ ${grade.title}`}
-        subtitle="یک یا چند درس را انتخاب کن — می‌توانی چند درس را با هم آزمون بدهی."
+        subtitle="یک یا چند درس را انتخاب کن."
         onBack={() => setScreen("grade")}
       >
         {/* select all / clear */}
@@ -455,7 +455,7 @@ export default function VocabGame() {
               onClick={() => setSelected(readyLessons.map((l) => l.number))}
               className="rounded-full border border-border bg-card px-3 py-1 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
             >
-              انتخابِ همه
+              انتخاب همه
             </button>
             <button
               onClick={() => setSelected([])}
@@ -534,7 +534,7 @@ export default function VocabGame() {
                     </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {l.free
-                        ? "درسِ آزاد"
+                        ? "درس آزاد"
                         : gradeLoading
                           ? "…"
                           : ready
@@ -600,9 +600,9 @@ export default function VocabGame() {
             className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
           >
             <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-3xl">📖</div>
-            <h3 className="text-lg font-black text-primary">حالتِ یادگیری</h3>
+            <h3 className="text-lg font-black text-primary">حالت یادگیری</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              بدون عجله. یک تصویر و سه واژه؛ بعد از هر پاسخ، معنی کاملِ واژه‌ها را می‌بینی و یاد می‌گیری.
+              بدون عجله. یک تصویر و سه واژه؛ بعد از هر پاسخ، معنی کامل واژه‌ها را می‌بینی و یاد می‌گیری.
             </p>
           </motion.button>
 
@@ -614,7 +614,7 @@ export default function VocabGame() {
             className="glass group relative z-20 overflow-hidden rounded-3xl p-6 text-right transition-all hover:brightness-105 active:scale-[0.98]"
           >
             <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-destructive/15 text-3xl">⏱️</div>
-            <h3 className="text-lg font-black text-destructive">حالتِ چالش</h3>
+            <h3 className="text-lg font-black text-destructive">حالت چالش</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               هر تصویر ۷ ثانیه! دو واژه، صدای تیک‌تیک و مسابقه با زمان. یک اشتباه = از اول. باید هر{" "}
               {count.toLocaleString("fa-IR")} واژه را بی‌غلط بزنی.
@@ -663,7 +663,7 @@ export default function VocabGame() {
     const total = questions.length;
     const pct = Math.round((score / total) * 100);
     return (
-      <Shell title="پایانِ دور" onBack={() => setScreen("lesson")}>
+      <Shell title="پایان دور" onBack={() => setScreen("lesson")}>
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -689,7 +689,7 @@ export default function VocabGame() {
               onClick={startReview}
               className="rounded-xl border border-border bg-card px-6 py-2.5 font-medium text-muted-foreground transition-all hover:border-primary/50"
             >
-              مرورِ سؤال‌ها
+              مرور سؤال‌ها
             </button>
             <button
               onClick={() => setScreen("lesson")}
@@ -824,7 +824,7 @@ export default function VocabGame() {
                 className="size-8 animate-spin rounded-full border-3 border-muted border-t-primary"
               />
               <p className="text-xs text-muted-foreground">
-                در حالِ بارگذاریِ تصویر…
+                در حال بارگذاری تصویر…
               </p>
             </div>
           )}
@@ -872,7 +872,7 @@ export default function VocabGame() {
         {answered && modalFor !== qi && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">
-              پاسخِ درست:{" "}
+              پاسخ درست:{" "}
               <span className="font-bold text-foreground">{q.answer.word}</span>
               {isCorrect ? (
                 <span className="ms-2 text-green-600 dark:text-green-400">
@@ -886,7 +886,7 @@ export default function VocabGame() {
               onClick={() => setModalFor(qi)}
               className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-1.5 text-sm font-bold text-primary transition-all hover:brightness-95"
             >
-              دیدنِ معنی
+              دیدن معنی
             </button>
           </div>
         )}

@@ -47,8 +47,6 @@ export default function DragGhostLayer({
           transform: `translate3d(${drag.originLeft}px, ${drag.originTop}px, 0)`,
         }}
       >
-        <span aria-hidden className="gc-module-pin" style={{ insetInlineStart: 12 }} />
-        <span aria-hidden className="gc-module-pin" style={{ insetInlineEnd: 12 }} />
         {label}
       </div>
     </div>,

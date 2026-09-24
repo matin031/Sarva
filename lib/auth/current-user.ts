@@ -1,8 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "./config";
-import { verifyAccessToken } from "./tokens";
+import { signAccessToken, verifyAccessToken } from "./tokens";
 import { findUserById } from "./session";
+import { needsOnboarding } from "./onboarding";
 import { AuthError, type AuthUser } from "./types";
 
 /**
@@ -32,6 +33,34 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (user.isBanned) return null;
 
   return user;
+}
+
+/**
+ * توکنِ دسترسیِ تازه برای **همین** سشن.
+ *
+ * ⚠️ این تابع سشنِ تازه نمی‌سازد و refresh را نمی‌چرخاند — فقط همان ادعاها
+ * را دوباره امضا می‌کند. لازم است چون یکی از ادعاها (`needsProfile`) حالا
+ * می‌تواند وسطِ عمرِ توکن عوض شود: کاربر نامش را می‌نویسد و باید *همان
+ * لحظه* از گیتِ `proxy.ts` رد شود. بدونِ این، تا ربع ساعت روی صفحهٔ تکمیل
+ * زندانی می‌ماند و هر تلاشی هم بی‌فایده است، چون گیت از توکن می‌خواند نه از
+ * دیتابیس.
+ *
+ * `null` یعنی کوکیِ دسترسی نیست یا معتبر نیست — آن‌وقت چیزی برای تازه کردن
+ * هم وجود ندارد.
+ */
+export async function reissuedAccessToken(user: AuthUser): Promise<string | null> {
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  const claims = token ? await verifyAccessToken(token) : null;
+  if (!claims) return null;
+
+  return signAccessToken({
+    sub: user.id,
+    role: user.role,
+    // ⚠️ همان sid و نه یک شناسهٔ تازه: ردیفِ sessions دست‌نخورده می‌ماند، پس
+    // «دستگاه‌های فعال» و ابطال از راه خروج هر دو همان‌طور کار می‌کنند.
+    sid: claims.sid,
+    needsProfile: needsOnboarding(user),
+  });
 }
 
 /** مثل getCurrentUser ولی به‌جای null، خطا می‌دهد. */

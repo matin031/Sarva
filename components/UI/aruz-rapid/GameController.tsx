@@ -55,10 +55,13 @@ export function UnitDots({
   count,
   doneCount,
   active,
+  licensed,
 }: {
   count: number;
   doneCount: number;
   active: boolean;
+  /** هجاهای اختیاردار: نقطه‌شان حلقهٔ طلایی دارد. */
+  licensed?: ReadonlySet<number>;
 }) {
   return (
     <div
@@ -74,6 +77,7 @@ export function UnitDots({
           key={i}
           className="aruzr-dot"
           data-state={i < doneCount ? "done" : active && i === doneCount ? "current" : "todo"}
+          data-license={licensed?.has(i) ? "true" : undefined}
         />
       ))}
     </div>
@@ -86,6 +90,7 @@ export function CurrentUnit({
   unitKey,
   hidden,
   feedback,
+  license = false,
 }: {
   display: string;
   /** با هر تلاشِ تازه عوض می‌شود تا ظهورِ ملایم دوباره پخش شود. */
@@ -93,7 +98,10 @@ export function CurrentUnit({
   /** در مکث، واحد پنهان می‌شود تا کسی از پشتِ روپوش تقلب نکند. */
   hidden: boolean;
   feedback: "correct" | "wrong" | "timeout" | null;
+  /** هجای اختیاردار: قابِ طلایی و برچسبِ کوچک، تا خوانشِ پیش‌نمایش یادش بماند. */
+  license?: boolean;
 }) {
+  const marked = license && !hidden;
   return (
     <div className="aruzr-unit-wrap">
       <div
@@ -101,12 +109,18 @@ export function CurrentUnit({
         className="aruzr-unit aruzr-unit-in"
         data-hidden={hidden ? "true" : "false"}
         data-feedback={feedback ?? "none"}
+        data-license={marked ? "true" : undefined}
         dir="rtl"
         lang="fa"
         role="status"
         aria-live="polite"
-        aria-label={hidden ? "واحد پنهان است" : `واحدِ جاری: ${display}`}
+        aria-label={hidden ? "واحد پنهان است" : `واحدِ جاری: ${display}${marked ? "، اختیار شاعری" : ""}`}
       >
+        {marked ? (
+          <span className="aruzr-unit-lic" aria-hidden="true">
+            اختیار
+          </span>
+        ) : null}
         <span aria-hidden={hidden ? "true" : undefined}>{hidden ? "" : display}</span>
       </div>
     </div>

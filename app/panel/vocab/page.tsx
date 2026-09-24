@@ -4,6 +4,8 @@ import {
   getBookmarks,
   getPanelUser,
   getVocabAnswers,
+  getVocabLessonTotals,
+  getVocabLessonWords,
   getVocabSummary,
 } from "@/lib/panel/queries";
 
@@ -15,10 +17,12 @@ export default async function Page() {
   const user = await getPanelUser();
   if (!user) redirect("/auth");
 
-  const [page, summary, bookmarks] = await Promise.all([
+  const [page, summary, bookmarks, lessonWords, lessonTotals] = await Promise.all([
     getVocabAnswers(user.id, 0, PAGE_SIZE),
     getVocabSummary(user.id),
     getBookmarks(user.id, "vocab"),
+    getVocabLessonWords(user.id),
+    getVocabLessonTotals(),
   ]);
 
   return (
@@ -27,6 +31,8 @@ export default async function Page() {
       initialHasMore={page.hasMore}
       history={summary}
       bookmarks={bookmarks}
+      lessonWords={lessonWords}
+      lessonTotals={lessonTotals}
     />
   );
 }

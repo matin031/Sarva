@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, MessageSquare, Music2, UserRound } from "lucide-react";
-import { useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
+import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, History, MessageSquare, Music2 } from "lucide-react";
+import { usePlusSummary } from "@/lib/auth/use-current-user";
 import MainLogo from "../svgs/mainLogo";
+import AccountMenu from "./AccountMenu";
 import DarkModeButton from "./DarkModeButton";
 import PaletteButton from "./PaletteButton";
-import PlusBadge from "./PlusBadge";
 import SarvaStar from "./SarvaStar";
 import styles from "./header.module.css";
 
@@ -16,22 +16,28 @@ const learningLinks = [
   { title: "درسنامه", href: "/doroos", icon: BookOpen },
   { title: "بازی‌ها", href: "/game", icon: Gamepad2 },
   { title: "عروض", href: "/aruz", icon: Activity },
+  { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 },
+  { title: "خط زمان", href: "/timeline", icon: History },
   { title: "کلاب", href: "/sarvaclub", icon: MessageSquare },
 ];
 
+/** ستارهٔ چهارپرِ کنارِ «پلاس». */
+function Sparkle() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={styles.sparkle}>
+      <path d="M12 1.5c.5 5.6 4.9 10 10.5 10.5-5.6.5-10 4.9-10.5 10.5C11.5 16.9 7.1 12.5 1.5 12 7.1 11.5 11.5 7.1 12 1.5Z" />
+    </svg>
+  );
+}
+
 export default function Header({ compact = false, previewPlus = false }: { compact?: boolean; previewPlus?: boolean }) {
-  const { user } = useCurrentUser();
-  const { plus } = usePlusSummary();
+  const { plus, loading } = usePlusSummary();
   // Only the development showcase may display Plus without a database connection.
   const plusVisible = plus.state !== "off" || (process.env.NODE_ENV === "development" && previewPlus);
+  const plusActive = !loading && (plus.state === "active" || (process.env.NODE_ENV === "development" && previewPlus));
   const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
   const plusTitle = plus.state === "expired" || plus.state === "revoked" ? "تمدید پلاس" : "سروا پلاس";
-  const links = [
-    ...learningLinks,
-    !plusVisible
-      ? { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 }
-      : { title: plusTitle, href: plusHref, icon: SarvaStar },
-  ];
+  const links = plusVisible ? [...learningLinks, { title: plusTitle, href: plusHref, icon: SarvaStar }] : learningLinks;
 
   return (
     <nav dir="rtl" aria-label="ناوبری اصلی" className={`container ${styles.header}`} data-compact={compact}>
@@ -40,23 +46,28 @@ export default function Header({ compact = false, previewPlus = false }: { compa
           <span id="site-logo" className={styles.logoMark}><MainLogo /></span>
           <span className={styles.wordmark}>ســـروا</span>
         </Link>
-        <span className="hidden sm:inline-flex"><PlusBadge /></span>
-        <span className="inline-flex sm:hidden"><PlusBadge compact /></span>
+        {/* ⚠️ فقط اشتراکِ فعالِ واقعی (از `/me`) این نشان را می‌سازد. */}
+        {plusActive && (
+          <Link href="/panel/subscription" className={styles.plusMark} aria-label="سروا پلاس فعال است" title="سروا پلاس فعال است">
+            <Sparkle />
+            <span>پلاس</span>
+          </Link>
+        )}
       </div>
       <div className={styles.actions}>
         {!compact && (
           <>
-            {plusVisible && <Link href={plusHref} className={styles.plusLink}>{plusTitle}</Link>}
+            {plusVisible && !plusActive && <Link href={plusHref} className={styles.plusLink}>{plusTitle}</Link>}
             <Menu.Root dir="rtl" modal={false}>
               <Menu.Trigger className={styles.menuTrigger}>
                 فهرست <ChevronDown size={16} aria-hidden />
               </Menu.Trigger>
               <Menu.Portal>
-                <Menu.Content aria-label="بخش‌های سروا" className={styles.menu} align="start" sideOffset={12} collisionPadding={16} loop>
+                <Menu.Content aria-label="بخش‌های سروا" className={`${styles.menu} glass-pop`} align="start" sideOffset={12} collisionPadding={16} loop>
                   {links.map(({ title, href, icon: Icon }) => (
                     <Menu.Item key={href} asChild>
-                      <Link href={href} className={styles.menuItem}>
-                        <span className={styles.menuIcon}><Icon size={23} strokeWidth={1.6} aria-hidden /></span>
+                      <Link href={href} className={styles.menuItem} data-plus={Icon === SarvaStar || undefined}>
+                        <span className={styles.menuIcon}><Icon size={22} strokeWidth={1.6} aria-hidden /></span>
                         <span>{title}</span>
                       </Link>
                     </Menu.Item>
@@ -67,9 +78,7 @@ export default function Header({ compact = false, previewPlus = false }: { compa
             <span className={styles.divider} aria-hidden />
           </>
         )}
-        <Link href={user ? "/panel/home" : "/auth"} className={styles.account} aria-label={user ? "پنل کاربری" : "ورود به سروا"}>
-          {user ? <><UserRound size={20} aria-hidden /><span>{user.fullName || "پنل کاربری"}</span></> : "ورود"}
-        </Link>
+        <AccountMenu />
         <div className={styles.theme}><PaletteButton /><DarkModeButton /></div>
       </div>
     </nav>

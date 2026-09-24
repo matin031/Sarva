@@ -109,7 +109,7 @@ type ValidPost = {
 
 function validatePost(input: PostInput, realName: string): ValidPost | string {
   const body = cleanPoem(input.body ?? "");
-  if (body.length < 5) return "متن سروده را بنویس — دست‌کم یک بیت.";
+  if (body.length < 5) return "متن سروده را بنویس.";
   if (body.length > MAX_BODY)
     return `سروده نباید بیش از ${MAX_BODY.toLocaleString("fa-IR")} نویسه باشد.`;
 
@@ -407,7 +407,7 @@ export async function toggleClubLike(
   // پس یک حلقهٔ ساده روی همین اکشن می‌تواند دیتابیس را مشغول نگه دارد.
   const limit = rateLimit(`club-like:${viewer.id}`, 120, 10 * 60);
   if (!limit.allowed) {
-    return { ok: false, error: "کمی آرام‌تر — چند لحظه دیگر دوباره تلاش کن." };
+    return { ok: false, error: "چند لحظه بعد دوباره امتحان کن." };
   }
 
   try {

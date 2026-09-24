@@ -7,14 +7,19 @@ import { isUuid } from "@/lib/api/action-input";
 import { Button } from "@/components/UI/kit/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/UI/kit/card";
 import PanelPageHeader from "@/components/UI/panel/PanelPageHeader";
+import { ActivityStrip, BarRow, StatRow } from "@/components/UI/panel/primitives";
 import { GRADE_LABEL } from "@/lib/profile/schemas";
 import { fa, jalali, relativeDay } from "@/lib/panel/format";
 import { getStudentDailyActivity } from "@/lib/teacher/analytics";
 import { getStudentReport } from "@/lib/teacher/student-report";
+import { getQuizBuilderData, listTeacherAssignments } from "@/lib/teacher/assignments";
 import type { GameKey } from "@/lib/activity/schema";
+import type { DailyPoint } from "@/lib/analytics/daily";
 import RegisterStudentView from "@/components/UI/panel/teacher/RegisterStudentView";
 import { listTeacherFeedbackFor } from "@/lib/teacher/feedback";
 import FeedbackPanel from "@/components/UI/panel/teacher/FeedbackPanel";
+import AruzActions from "@/components/UI/panel/teacher/AruzActions";
+import AssignmentList from "@/components/UI/panel/teacher/AssignmentList";
 import type { SkillAnalysis } from "@/lib/plus/analysis";
 
 /**
@@ -28,6 +33,7 @@ import type { SkillAnalysis } from "@/lib/plus/analysis";
  * **همان توابعی** که پنلِ خودِ دانش‌آموز هم از آن‌ها می‌خواند
  * (`getWeightAnalysis` / `getRoleAnalysis`). دو پیاده‌سازیِ جدا یعنی روزی
  * دانش‌آموز ۸۰٪ ببیند و دبیرش ۷۵٪، و هیچ‌کدام نفهمند کدام درست است.
+ * (تنها جدولِ تازه `teacher_assignments` است: تکلیف، نه نتیجه.)
  *
  * =============================================================================
  * ⚠️ گارد
@@ -37,10 +43,18 @@ import type { SkillAnalysis } from "@/lib/plus/analysis";
  * شناسهٔ دبیر را داخلِ خودِ `where` می‌گذارد. پس عوض کردنِ `studentId` در
  * نوارِ آدرس یک ۴۰۴ می‌دهد و نه کارنامهٔ یک غریبه — و «وجود ندارد» با «مالِ
  * تو نیست» یک پاسخ می‌گیرند تا نشود با امتحانِ شناسه‌ها فهمید کدام کاربرِ
- * واقعی است.
+ * واقعی است. توابعِ تکلیف همان گارد را جداگانه دارند.
  *
  * ⚠️ و هیچ دادهٔ غیرآموزشی خوانده نمی‌شود: نه ایمیل، نه شماره، نه خرید، نه
  * تیکت، نه نشست. دبیر فقط باید عملکرد را ببیند.
+ *
+ * =============================================================================
+ * چیدمان
+ * =============================================================================
+ *
+ * بالا خلاصه (چهار عدد)، بعد یک «بخش» برای هر درس. امروز فقط عروض کارِ
+ * عملیاتی دارد (ساختِ آزمون و تکلیف)؛ درسِ بعدی همین قالب را می‌گیرد —
+ * سرتیتر + کارهای دبیر، کارت‌های عملکرد، و فهرستِ تکالیفِ همان درس.
  */
 
 export const metadata: Metadata = {
@@ -87,23 +101,28 @@ export default async function Page({
   const report = await getStudentReport(teacher.id, studentId, classId);
   if (!report) notFound();
 
-  const [daily, feedback] = await Promise.all([
+  const [daily, feedback, assignments, builder] = await Promise.all([
     getStudentDailyActivity(teacher.id, studentId),
     /* فقط بازخوردهای *همین* دبیر: صفحه جای نوشتنِ اوست و نه خواندنِ
        یادداشت‌های همکارانش. */
     listTeacherFeedbackFor(teacher.id, studentId),
+    listTeacherAssignments(teacher.id, studentId, classId),
+    getQuizBuilderData(teacher.id, studentId, classId),
   ]);
 
-  const { student, aruz, weights, roles, exams, games } = report;
+  const { student, aruz, quizRecent, weights, roles, exams, games } = report;
   const activeClass = student.classes.find((c) => c.id === classId) ?? student.classes[0];
 
   const totalActivity =
     aruz.total + games.filter((g) => g.key !== "aruz-bridge").reduce((n, g) => n + g.total, 0);
 
+  const open = (assignments ?? []).filter((a) => a.status !== "done").length;
+  const doneCount = (assignments ?? []).length - open;
+
   return (
     <>
       {/* ⚠️ ثبتِ بازدید از **مرورگر** و نه از رندرِ سرور.
-      
+
           پیش از این در بدنهٔ همین صفحه بود، یعنی هر prefetchِ `<Link>` —
           هر بار که موسِ دبیر روی دکمهٔ «عملکرد» می‌رفت — یک ردیفِ بازدید
           می‌ساخت و در فهرستِ «چه کسانی عملکردِ من را دیده‌اند» دانش‌آموز
@@ -114,7 +133,7 @@ export default async function Page({
         title={student.fullName ?? "دانش‌آموز بدون نام"}
         description={`${activeClass?.name ?? "کلاس"}${
           student.grade ? ` · پایهٔ ${GRADE_LABEL[student.grade]}` : ""
-        }`}
+        } · عضو از ${jalali(student.joinedAt)}`}
         eyebrow="عملکرد دانش‌آموز"
         tone="lilac"
         action={
@@ -126,14 +145,25 @@ export default async function Page({
 
       <div className="flex flex-col gap-6">
         {/* ── خلاصه ─────────────────────────────────────────────────── */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Stat label="تاریخ عضویت در کلاس" value={jalali(student.joinedAt)} />
-          <Stat
-            label="آخرین فعالیت"
-            value={games.some((g) => g.lastAt) || aruz.lastAt ? lastSeen(report) : "—"}
-          />
-          <Stat label="فعالیت‌های آموزشی" value={fa(totalActivity)} />
-        </div>
+        <StatRow
+          items={[
+            {
+              label: "آخرین فعالیت",
+              value: games.some((g) => g.lastAt) || aruz.lastAt ? lastSeen(report) : "—",
+            },
+            { label: "فعالیت‌های آموزشی", value: fa(totalActivity) },
+            {
+              label: "دقت عروض سماعی",
+              value: aruz.accuracy === null ? "—" : `${fa(Math.round(aruz.accuracy * 100))}٪`,
+              hint: aruz.accuracy === null ? "داده کافی نیست" : `${fa(aruz.correct)} از ${fa(aruz.total)}`,
+            },
+            {
+              label: "تکالیف باز",
+              value: fa(open),
+              hint: doneCount > 0 ? `${fa(doneCount)} انجام‌شده` : undefined,
+            },
+          ]}
+        />
 
         {student.classes.length > 1 && (
           <p className="text-[13px] text-muted-foreground">
@@ -143,11 +173,90 @@ export default async function Page({
           </p>
         )}
 
-        {/* ── نمودارِ روزانه ────────────────────────────────────────── */}
+        {/* ── عروض ──────────────────────────────────────────────────── */}
+        <section aria-labelledby="aruz-heading" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="aruz-heading" className="text-lg font-extrabold">
+              عروض
+            </h2>
+            {builder && (
+              <AruzActions
+                studentId={studentId}
+                classId={classId}
+                weights={builder.weights}
+                mistakes={builder.mistakes}
+              />
+            )}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>عروض سماعی</CardTitle>
+                <CardDescription>آخرین پاسخ به هر سؤال؛ تصحیح سمت سرور.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                <dl className="grid grid-cols-4 gap-2 text-center">
+                  <Num label="پاسخ" value={fa(aruz.total)} />
+                  <Num label="درست" value={fa(aruz.correct)} />
+                  <Num label="غلط" value={fa(aruz.total - aruz.correct)} />
+                  <Num
+                    label="دقت"
+                    value={aruz.accuracy === null ? "—" : `${fa(Math.round(aruz.accuracy * 100))}٪`}
+                  />
+                </dl>
+
+                <div>
+                  <h3 className="mb-2 text-[13px] font-bold">دورهای اخیر</h3>
+                  {quizRecent.length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">هنوز دوری تمام نکرده است.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2.5">
+                      {quizRecent.map((q) => (
+                        <li key={q.id}>
+                          <BarRow
+                            label={relativeDay(q.at)}
+                            correct={q.correct}
+                            total={q.total}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>وزن‌ها</CardTitle>
+                <CardDescription>از عروض سماعی، پل وزن و کیمیای وزن.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SkillList
+                  analysis={weights}
+                  emptyNote="هنوز داده کافی برای تحلیل وزن‌ها وجود ندارد."
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>تکالیف و آزمون‌های عروض</CardTitle>
+              <CardDescription>آنچه شما برای این دانش‌آموز گذاشته‌اید.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AssignmentList initial={assignments ?? []} />
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* ── فعالیتِ روزانه ────────────────────────────────────────── */}
         <Card>
           <CardHeader>
             <CardTitle>فعالیت روزانه</CardTitle>
-            <CardDescription>شصت روز گذشته</CardDescription>
+            <CardDescription>سی روز گذشته، همهٔ بخش‌ها</CardDescription>
           </CardHeader>
           <CardContent>
             {/* ⚠️ سه حالتِ جدا و نه دو. «نمودار خالی» و «سرور نمی‌تواند
@@ -159,43 +268,8 @@ export default async function Page({
                 {daily?.note ?? "در دسترس نیست."}
               </p>
             ) : (
-              <ul className="flex flex-wrap gap-1.5">
-                {daily.days.map((d) => (
-                  <li
-                    key={d.day}
-                    title={`${d.day} — ${d.correct} از ${d.total}`}
-                    className="rounded-md bg-primary/10 px-2 py-1 text-[11px]"
-                  >
-                    <span className="panel-num">{d.day.slice(5)}</span>
-                    <span className="panel-num ms-1 text-muted-foreground">{fa(d.total)}</span>
-                  </li>
-                ))}
-              </ul>
+              <ActivityStrip days={lastDays(daily.days, 30)} />
             )}
-          </CardContent>
-        </Card>
-
-        {/* ── عروض ──────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader>
-            <CardTitle>عروض</CardTitle>
-            <CardDescription>
-              از پاسخ‌های عروضِ سماعی و پلِ وزن — هر دو را سرور تصحیح کرده.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Stat label="پاسخ‌های عروض سماعی" value={fa(aruz.total)} />
-              <Stat label="درست" value={fa(aruz.correct)} />
-              <Stat
-                label="درصد موفقیت"
-                value={aruz.accuracy === null ? "داده کافی نیست" : `${fa(Math.round(aruz.accuracy * 100))}٪`}
-              />
-            </div>
-            <SkillList
-              analysis={weights}
-              emptyNote="هنوز داده کافی برای تحلیل وزن‌ها وجود ندارد."
-            />
           </CardContent>
         </Card>
 
@@ -216,7 +290,7 @@ export default async function Page({
         {/* ── آزمون‌ها ───────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>آزمون‌ها</CardTitle>
+            <CardTitle>امتحانات نهایی</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {exams.count === 0 ? (
@@ -225,15 +299,12 @@ export default async function Page({
               </p>
             ) : (
               <>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Stat label="تعداد" value={fa(exams.count)} />
-                  <Stat label="بهترین" value={exams.best === null ? "—" : `${fa(exams.best)}٪`} />
-                  <Stat
-                    label="میانگین"
-                    value={exams.average === null ? "—" : `${fa(exams.average)}٪`}
-                  />
-                </div>
-                {/* ⚠️ هر ردیف حالا یک لینک است و نه یک خطِ مرده.
+                <dl className="grid grid-cols-3 gap-2 text-center">
+                  <Num label="تعداد" value={fa(exams.count)} />
+                  <Num label="بهترین" value={exams.best === null ? "—" : `${fa(exams.best)}٪`} />
+                  <Num label="میانگین" value={exams.average === null ? "—" : `${fa(exams.average)}٪`} />
+                </dl>
+                {/* ⚠️ هر ردیف یک لینک است و نه یک خطِ مرده.
 
                     «۱۴ از ۲۰» به دبیر نمی‌گوید ضعف کجاست؛ برای تصمیم گرفتن
                     باید دید *کدام* سؤال‌ها از دست رفته‌اند. صفحهٔ مقصد
@@ -343,6 +414,28 @@ function lastSeen(report: Awaited<ReturnType<typeof getStudentReport>>): string 
 }
 
 /**
+ * روزهای خالی هم یک ستون می‌گیرند.
+ *
+ * ⚠️ سری از سرور فقط روزهای *دارای* فعالیت را دارد؛ کشیدنش بدونِ پر کردنِ
+ * جای خالی، سه روزِ پراکنده را کنارِ هم می‌نشاند و «هر روز کار کرده» خوانده
+ * می‌شد. کلیدِ روز همان تاریخِ میلادیِ تهران است که `tehranDay` ساخته.
+ */
+function lastDays(points: DailyPoint[], n: number) {
+  const byDay = new Map(points.map((p) => [p.day, p]));
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran" }).format(new Date());
+  const base = Date.parse(`${today}T00:00:00Z`);
+  return Array.from({ length: n }, (_, i) => {
+    const date = new Date(base - (n - 1 - i) * 86_400_000);
+    const p = byDay.get(date.toISOString().slice(0, 10));
+    return {
+      label: i % 5 === 4 ? jalali(date.toISOString()).slice(5) : "",
+      total: p?.total ?? 0,
+      correct: p?.correct ?? 0,
+    };
+  });
+}
+
+/**
  * سطل‌های یک تحلیلِ مهارت — ضعیف‌ترین اول.
  *
  * ⚠️ `hasEnoughEvidence` از خودِ `bucketize` می‌آید و همان قاعده‌ای است که
@@ -355,37 +448,40 @@ function SkillList({ analysis, emptyNote }: { analysis: SkillAnalysis; emptyNote
   }
 
   const weakest = analysis.buckets.slice(0, 5);
-  const strongest = [...analysis.buckets].reverse().slice(0, 3);
+  /* ⚠️ از *باقی‌ماندهٔ* سطل‌ها، نه از کلِ فهرست: با پنج سطل یا کمتر، یک وزن
+     هم «نیازمند تمرین» و هم «قوی‌تر» نشان داده می‌شد. */
+  const strongest = analysis.buckets.slice(5).reverse().slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div>
-        <h3 className="mb-2 text-[13px] font-bold">نیازمند تمرین</h3>
-        <ul className="flex flex-col gap-1.5">
+        <h3 className="mb-3 text-[13px] font-bold">
+          {analysis.buckets.length > 5 ? "نیازمند تمرین" : "ضعیف‌ترین اول"}
+        </h3>
+        <ul className="flex flex-col gap-3">
           {weakest.map((b) => (
-            <li key={b.key} className="flex items-center justify-between gap-3 text-[13px]">
-              <span>{b.label}</span>
-              <span className="panel-num text-muted-foreground">
-                {fa(b.correct)} از {fa(b.total)} · {fa(Math.round(b.accuracy * 100))}٪
-              </span>
+            <li key={b.key}>
+              <BarRow label={b.label} correct={b.correct} total={b.total} />
             </li>
           ))}
         </ul>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-[13px] font-bold">قوی‌ترها</h3>
-        <ul className="flex flex-col gap-1.5">
-          {strongest.map((b) => (
-            <li key={b.key} className="flex items-center justify-between gap-3 text-[13px]">
-              <span>{b.label}</span>
-              <span className="panel-num text-muted-foreground">
-                {fa(Math.round(b.accuracy * 100))}٪
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {strongest.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-[13px] font-bold">قوی‌ترها</h3>
+          <ul className="flex flex-col gap-1.5">
+            {strongest.map((b) => (
+              <li key={b.key} className="flex items-center justify-between gap-3 text-[13px]">
+                <span>{b.label}</span>
+                <span className="panel-num text-muted-foreground">
+                  {fa(Math.round(b.accuracy * 100))}٪
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {analysis.ignoredBuckets > 0 && (
         <p className="text-[11px] text-muted-foreground">
@@ -396,13 +492,11 @@ function SkillList({ analysis, emptyNote }: { analysis: SkillAnalysis; emptyNote
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Num({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-1 py-4">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="panel-num text-lg font-extrabold">{value}</span>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl bg-foreground/[0.03] px-2 py-3">
+      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dd className="panel-num mt-1 text-lg font-extrabold">{value}</dd>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import WaveSurfer from "wavesurfer.js";
 import { useEffect, useRef, useState } from "react";
+import { usePrimaryRgb } from "@/lib/theme/use-primary-rgb";
 
 interface PanelAudioPlayerProps {
   audioSrc: string;
@@ -34,12 +35,16 @@ export function PanelAudioPlayer({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
+  // «main» رنگِ پالت است، نه فیروزه‌ایِ ثابت. wavesurfer رنگِ واقعی می‌خواهد.
+  const primary = usePrimaryRgb();
+  const primaryDeep = primary.split(",").map((v) => Math.round(Number(v) * 0.82)).join(",");
+
   const getWaveColor = () => {
     switch (color) {
       case "red":
         return "#ef4444";
       case "main":
-        return "#00a5a6";
+        return `rgb(${primary})`;
       case "green":
       default:
         return "#22c55e";
@@ -51,7 +56,7 @@ export function PanelAudioPlayer({
       case "red":
         return "#b91c1c";
       case "main":
-        return "#008f90";
+        return `rgb(${primaryDeep})`;
       case "green":
       default:
         return "#16a34a";
@@ -124,7 +129,7 @@ export function PanelAudioPlayer({
     color === "red"
       ? "bg-red-500/20 text-red-500 hover:bg-red-500/30"
       : color === "main"
-        ? "bg-[#00a5a6]/20 text-[#00a5a6] hover:bg-[#00a5a6]/30"
+        ? "bg-primary/20 text-primary hover:bg-primary/30"
         : "bg-green-500/20 text-green-500 hover:bg-green-500/30"; // default = green
 
   if (loadState === "error") {

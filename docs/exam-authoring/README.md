@@ -11,36 +11,67 @@
 سنجیده می‌شوند، پس اگر قاعده‌ای عوض شود، همین‌جا سر و صدا می‌کند.
 
 دو آزمونِ واقعیِ داخل پروژه هم نمونهٔ کاملی‌اند:
-`lib/exam/seed-data/farsi3-1403-kherdad.ts` و
-`lib/exam/seed-data/olum-fonoon3-1405-mordad.ts`.
+`lib/exam/seed-data/12/farsi3/farsi3-1403-kherdad.ts` و
+`lib/exam/seed-data/12/olum-fonoon3/olum-fonoon3-1405-mordad.ts`.
+
+پوشه‌بندی: `lib/exam/seed-data/<پایه>/<کتاب>/<کتاب>-<سال>-<ماه>.ts`
+
+```
+seed-data/
+  index.ts          ← فهرستِ همهٔ آزمون‌ها (تنها جایی که ثبت می‌شوند)
+  lint.ts           ← سنجشِ ساختار و زیرخط
+  12/farsi3/        ← فارسی ۳، دوازدهم
+  12/olum-fonoon3/  ← علوم و فنون ادبی ۳، دوازدهم
+```
 
 ---
 
 ## روال کار
 
 ```bash
-# ۱. فایل تازه از روی نمونه
+# ۱. فایل تازه از روی نمونه (importها را به "../../helpers" و "../../seed-types" عوض کن)
 cp docs/exam-authoring/nemoone-olum-fonoon.ts \
-   lib/exam/seed-data/olum-fonoon3-1406-khordad.ts
+   lib/exam/seed-data/12/olum-fonoon3/olum-fonoon3-1406-khordad.ts
 
 # ۲. سؤال‌ها را از برگه و کلیدها را از «راهنمای تصحیح» بنویس
 #    (subject/grade/title/examSession/sourcePdf بالای فایل را هم عوض کن)
 
-# ۳. در دو جا ثبتش کن:
-#      scripts/seed-exams.ts           ← برای وارد کردن به دیتابیس
-#      scripts/validate-exam-seeds.ts  ← برای سنجش
+# ۳. در lib/exam/seed-data/index.ts ثبتش کن (seed، سنجش، پیش‌نمایش و تست
+#    همه از همان فهرست می‌خوانند)
 
 # ۴. بسنج (به دیتابیس نیاز ندارد)
 npm run exam:validate
 
-# ۵. وارد کن (DATABASE_URL لازم است؛ آزمونِ هم‌کلید را جایگزین می‌کند)
+# ۵. وارد کن (DATABASE_URL لازم است). فقط آزمون‌های تازه اضافه می‌شوند؛
+#    آزمونِ موجود با --replace=<examSession> جایگزین می‌شود — و کارنامه‌هایش پاک.
+npm run db:seed-exams -- --dry-run
 npm run db:seed-exams
 ```
 
 بعد از آن، آزمون در `/exam` زیر درس و پایهٔ خودش می‌آید و آدرسش
 `/exam/<examSession>` است. برای دیدنِ برگه بدون دیتابیس:
-`/exam-preview?exam=<examSession>` (فایل را اول در `app/exam-preview/page.tsx`
-اضافه کن).
+`/exam-preview?exam=<examSession>`.
+
+## زیرخط
+
+اگر برگه می‌گوید «واژهٔ مشخص‌شده» یا «زیر آن خط کشیده شده»، همان واژه روی صفحه
+باید زیرخط داشته باشد؛ `exam:validate` نبودنش را خطا می‌گیرد.
+
+- داخلِ passage/stimulus: توکنِ `highlight` (`highlight1`، `highlightThenBlank`)
+- داخلِ هر رشتهٔ دیگر (instruction، questionText، statementText، متنِ گزینه،
+  آیتم‌های فهرست): `ul()` از helpers یا `{{واژه}}`
+
+```ts
+instruction: `«به سوزی ده کلامم را روایی / کز آن گرمی کند ${ul("آتش")} گدایی»`,
+```
+
+جملهٔ توضیحی مثل «در برگهٔ اصلی این عبارت مشخص شده» ننویس؛ خودش را زیرخط بزن.
+
+## جای خالی
+
+`questionText`ی که «..........» دارد، کادرِ پاسخ را همان‌جا داخلِ جمله نشان
+می‌دهد (short-text-answer با یک نقطه‌چین، two-answer-text با یک نقطه‌چین به‌ازای
+هر field). اگر تعداد نقطه‌چین‌ها با fieldها نخواند، کادرها زیرِ جمله می‌آیند.
 
 ---
 

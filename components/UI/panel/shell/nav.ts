@@ -2,12 +2,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookMarked,
   Compass,
-  Gamepad2,
   GraduationCap,
   House,
   LifeBuoy,
   Music4,
+  Palette,
   Presentation,
+  Puzzle,
   ScanSearch,
   Settings,
   Sparkles,
@@ -62,7 +63,9 @@ export const PANEL_NAV: PanelNavGroup[] = [
     items: [
       { src: "aruz", title: "عروض سماعی", icon: Music4 },
       { src: "vocab", title: "واژه‌یاب", icon: ScanSearch },
-      { src: "jasoos", title: "جاسوس", icon: Gamepad2 },
+      // جاسوس، مدار دستور و شکار نقش‌ها یک صفحه‌اند؛ `/panel/jasoos` به اینجا می‌رود.
+      { src: "grammar", title: "دستور زبان", icon: Puzzle },
+      { src: "rang-ara", title: "آرایه‌ها", icon: Palette },
       { src: "exam", title: "آزمون نهایی", icon: GraduationCap },
       // ⚠️ جای «سروا کلاب» را گرفت. خودِ کلاب حذف نشده — از هدرِ سایت و از
       // صفحهٔ خانهٔ پنل در دسترس است — ولی این جایگاه در فهرست به صفحهٔ

@@ -57,6 +57,9 @@ export interface CircuitGeometry {
    *  همهٔ خانه‌ها هم‌اندازه شوند و رابطهٔ «این خانه مالِ این واژه است» از
    *  بین برود — دقیقاً همان چیزی که قرار بود درست شود. */
   roleFloorWidth: number;
+  /** چیدمانِ ایستادهٔ گوشی: خانه‌ها زیرِ هم و سیم از بالا به پایین. خودِ
+   *  تصمیم با شیوه‌نامه است (ردیف `grid` می‌شود)؛ اینجا فقط خوانده می‌شود. */
+  vertical: boolean;
   power: { x: number; y: number } | null;
   lamp: { x: number; y: number } | null;
 }
@@ -244,6 +247,7 @@ export function useCircuitLayout({
       slots,
       wordWidths,
       roleFloorWidth,
+      vertical: getComputedStyle(strip).display === "grid",
       power,
       lamp,
     };
@@ -310,6 +314,7 @@ function sameGeometry(a: CircuitGeometry | null, b: CircuitGeometry): boolean {
   const near = (x: number, y: number) => Math.abs(x - y) < 0.5;
   if (
     a.epoch !== b.epoch ||
+    a.vertical !== b.vertical ||
     !near(a.contentWidth, b.contentWidth) ||
     !near(a.contentHeight, b.contentHeight) ||
     !near(a.roleFloorWidth, b.roleFloorWidth) ||

@@ -1,13 +1,16 @@
-// وارد کردن دو آزمونِ ایستا (فایل‌های seed-data) به جدول‌های بانک آزمون.
+// وارد کردن آزمون‌های ایستا (lib/exam/seed-data/index.ts) به جدول‌های بانک آزمون.
 //
 // بدون این، یک نصب تازه هیچ آزمونی ندارد و صفحهٔ /exam خالی است.
 //
-// امن برای اجرای دوباره: هر آزمون با همان exam_session اول حذف می‌شود
-// (cascade بخش‌ها و سؤال‌ها و گزینه‌ها را می‌برد)، پس این «جایگزینی» است نه
-// «افزودن».
+// ⚠️ پیش‌فرض فقط «افزودن» است: آزمونی که exam_session اش در دیتابیس هست
+// دست نمی‌خورد. جایگزین‌کردن یعنی delete، و exam_attempts با ON DELETE CASCADE
+// به exams وصل است — پس جایگزینی کارنامه‌های دانش‌آموزانِ آن آزمون را هم
+// پاک می‌کند. برای همین فقط با نامِ صریح:
 //
-// اجرا:
-//     npx tsx scripts/seed-exams.ts
+//     npm run db:seed-exams                              ← فقط آزمون‌های تازه
+//     npm run db:seed-exams -- --dry-run                 ← فقط گزارش، بدون نوشتن
+//     npm run db:seed-exams -- --replace=1403-kherdad    ← جایگزینیِ یک آزمون
+//     npm run db:seed-exams -- --replace=all             ← همه (کارنامه‌ها می‌روند)
 //
 // چرا .ts و نه .mjs مثل بقیهٔ اسکریپت‌ها: داده‌های seed ماژول‌های TypeScript
 // اند. و چرا مستقیم از pg استفاده می‌کند نه از lib/db: آن ماژول
@@ -20,18 +23,38 @@ import { randomUUID } from "node:crypto";
 import type { Connection } from "mysql2/promise";
 // ماژول .mjs مشترکِ اسکریپت‌ها — همان تنظیماتِ اتصالِ lib/db.
 import { connect } from "./mysql/script-db.mjs";
-import { farsi3Dey1401 } from "../lib/exam/seed-data/farsi3-1401-dey";
-import { farsi3Kherdad1403 } from "../lib/exam/seed-data/farsi3-1403-kherdad";
-import { olumFonoon3Mordad1405 } from "../lib/exam/seed-data/olum-fonoon3-1405-mordad";
-import type { SeedExam } from "../lib/exam/seed-data/seed-types";
+import { seedExams } from "../lib/exam/seed-data";
+import { lintSeedExam } from "../lib/exam/seed-data/lint";
+import { validateSeedExam, type SeedExam } from "../lib/exam/seed-data/seed-types";
 
-const exams: { examKey: string; exam: SeedExam }[] = [
-  { examKey: "1403-kherdad", exam: farsi3Kherdad1403 },
-  { examKey: "1401-dey", exam: farsi3Dey1401 },
-  { examKey: "olum-fonoon-1405-mordad", exam: olumFonoon3Mordad1405 },
-];
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const replaceArg = args.find((a) => a.startsWith("--replace="))?.slice("--replace=".length);
+const replaceKeys = new Set(replaceArg ? replaceArg.split(",").map((k) => k.trim()) : []);
+const replaceAll = replaceKeys.has("all");
 
 async function importExam(conn: Connection, examKey: string, exam: SeedExam) {
+  const [existing] = (await conn.execute(
+    `select e.id, (select count(*) from exam_attempts a where a.exam_id = e.id) as attempts
+       from exams e where e.exam_session = ?`,
+    [examKey],
+  )) as unknown as [{ id: string; attempts: number }[]];
+  const present = existing.length > 0;
+  const replace = present && (replaceAll || replaceKeys.has(examKey));
+
+  if (present && !replace) {
+    console.log(`– ${examKey} — از قبل هست، دست نخورد`);
+    return;
+  }
+  if (dryRun) {
+    console.log(
+      replace
+        ? `~ ${examKey} — جایگزین می‌شد (${Number(existing[0].attempts)} کارنامه پاک می‌شد)`
+        : `+ ${examKey} — اضافه می‌شد`,
+    );
+    return;
+  }
+
   // کل آزمون در یک تراکنش: نسخهٔ قبلی ده‌ها درخواست جدا می‌فرستاد، پس شکست در
   // سؤال چهلم یک آزمونِ نیمه‌کاره در دیتابیس باقی می‌گذاشت که نه کامل بود نه
   // حذف‌شده.
@@ -125,11 +148,27 @@ async function main() {
     process.exit(1);
   }
 
+  // هیچ آزمونِ معیوبی به دیتابیس نمی‌رود — همان سنجشِ `npm run exam:validate`
+  const broken = seedExams.flatMap((exam) =>
+    [...validateSeedExam(exam), ...lintSeedExam(exam).errors].map((e) => `${exam.examSession}: ${e}`),
+  );
+  if (broken.length > 0) {
+    console.error("✗ آزمون‌ها خطا دارند؛ اول `npm run exam:validate` را درست کنید:");
+    for (const b of broken) console.error("  " + b);
+    process.exit(1);
+  }
+
+  const unknown = [...replaceKeys].filter((k) => k !== "all" && !seedExams.some((e) => e.examSession === k));
+  if (unknown.length > 0) {
+    console.error(`✗ این کلیدها در seed-data نیستند: ${unknown.join(", ")}`);
+    process.exit(1);
+  }
+
   const conn = await connect(url);
 
   try {
-    for (const { examKey, exam } of exams) {
-      await importExam(conn, examKey, exam);
+    for (const exam of seedExams) {
+      await importExam(conn, exam.examSession, exam);
     }
   } finally {
     await conn.end();

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { isPlusEnabled } from "@/lib/plus/config";
 import { createOrGetPendingOrder } from "@/lib/plus/orders";
+import { getPlusStatusFor } from "@/lib/plus/entitlement";
 
 /**
  * POST /api/v1/plus/checkout — ساختِ سفارش (یا برگرداندنِ سفارشِ باز).
@@ -49,6 +50,13 @@ export const POST = withRoute("/api/v1/plus/checkout", async (request: Request) 
 
     const body = await readJson(request, schema);
     if (!body.ok) return body.response;
+
+    // ⚠️ دسترسیِ دائمی (هدیهٔ بی‌پایانِ مدیر یا دبیرِ تأییدشده) با خرید چیزی
+    // به دست نمی‌آورد. پولی که بابتِ هیچ گرفته شود، اولین تیکتِ بازپرداخت است.
+    const status = await getPlusStatusFor(user.id);
+    if (status.state === "active" && status.expiresAt === null) {
+      return fail("اشتراک تو دائمی است و نیازی به خرید نداری.", 409);
+    }
 
     const order = await createOrGetPendingOrder({
       userId: user.id,

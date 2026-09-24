@@ -4,6 +4,7 @@ import { query, queryOne, execute, transaction, toBool } from "@/lib/db";
 import { logger } from "@/lib/observability";
 import { refreshTtlSeconds } from "./config";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "./tokens";
+import { needsOnboarding } from "./onboarding";
 import type { AuthUser } from "./types";
 
 /** ساخت، تازه‌سازی و ابطال سشن — تنها جایی که جدول sessions لمس می‌شود. */
@@ -190,7 +191,16 @@ export async function createSession(user: AuthUser, meta: RequestMeta = {}): Pro
     ],
   );
 
-  const accessToken = await signAccessToken({ sub: user.id, role: user.role, sid: sessionId });
+  /* ⚠️ `needsProfile` در *هر* جایی که توکن امضا می‌شود باید از همین یک
+     تابع بیاید. اگر یکی از سه نقطه جا بیفتد، اثرش این است که کاربر بعد از
+     تازه‌سازیِ توکن ناگهان از گیت رد می‌شود (یا برعکس، بی‌دلیل پشتش
+     می‌ماند) — و هیچ خطایی هم رخ نمی‌دهد. */
+  const accessToken = await signAccessToken({
+    sub: user.id,
+    role: user.role,
+    sid: sessionId,
+    needsProfile: needsOnboarding(user),
+  });
   return { accessToken, refreshToken, sessionId };
 }
 
@@ -388,6 +398,7 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
       sub: user.id,
       role: user.role,
       sid: outcome.sessionId,
+      needsProfile: needsOnboarding(user),
     });
     // بدون refreshToken: کوکیِ مرورگر همین الان توکنِ جانشین را دارد.
     return { tokens: { accessToken }, user };
@@ -397,6 +408,7 @@ export async function refreshSession(rawRefreshToken: string): Promise<{
     sub: outcome.user.id,
     role: outcome.user.role,
     sid: outcome.sessionId,
+    needsProfile: needsOnboarding(outcome.user),
   });
 
   return {

@@ -2,8 +2,11 @@
 
 import type { ClientQuestion } from "@/lib/exam/client-exam";
 import type { PartResult } from "@/lib/exam/result-types";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import QuestionPartRenderer from "@/components/exam/QuestionPartRenderer";
-import MarkedText from "@/components/exam/MarkedText";
+import AnswerFeedback from "@/components/exam/AnswerFeedback";
+import type { QuestionOutcome } from "@/components/exam/celebrate";
+import HighlightedText from "@/components/exam/HighlightedText";
 import ReportButton from "@/components/UI/ReportButton";
 import { extractReadableText } from "@/lib/reports/snapshot";
 
@@ -20,38 +23,22 @@ type Props = {
   /** کلیدِ آزمون — فقط برای گزارشِ ایراد. بدونِ آن دکمهٔ گزارش نمی‌آید،
    *  چون گزارشی که نگوید کدام آزمون بود قابلِ پیگیری نیست. */
   examKey?: string;
+  /** Set only for the render right after «ثبت پاسخ»: drives the one-off
+   *  glow/shake and the «+نمره» chip. Revisiting a question leaves it unset. */
+  freshOutcome?: QuestionOutcome;
 };
 
 const faNum = (n: number) => n.toLocaleString("fa-IR", { maximumFractionDigits: 2 });
 
-/** Score options for a self-graded part: 0 up to maxScore in 0.25 steps
- *  (e.g. maxScore 1 → 0, ۰٫۲۵, ۰٫۵, ۰٫۷۵, ۱). */
-function scoreOptions(maxScore: number): number[] {
-  const steps = Math.round(maxScore / 0.25);
-  return Array.from({ length: steps + 1 }, (_, i) => i * 0.25);
-}
-
-const statusStyles: Record<
-  PartResult["status"],
-  { label: string; className: string }
-> = {
-  correct: {
-    label: "درست",
-    className:
-      "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400",
-  },
-  incorrect: {
-    label: "نادرست",
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
-  },
-  partial: {
-    label: "ناقص",
-    className: "border-gold/50 bg-gold/15 text-foreground",
-  },
-  needs_review: {
-    label: "در انتظار بررسی",
-    className: "border-border bg-muted text-muted-foreground",
-  },
+/* چرخشِ کوتاهِ «نه» — کوچک و یک‌بار، تا تنبیه حس نشود. */
+const shake = { x: [0, -7, 7, -5, 5, -2, 0], transition: { duration: 0.42 } };
+const glow = {
+  boxShadow: [
+    "0 0 0 0 rgba(34,197,94,0)",
+    "0 0 0 6px rgba(34,197,94,0.35)",
+    "0 0 0 14px rgba(34,197,94,0)",
+  ],
+  transition: { duration: 0.9, ease: "easeOut" as const },
 };
 
 /** One numbered exam question (Q1..Q41). Always just iterates
@@ -66,13 +53,22 @@ export default function ExamQuestionCard({
   partResults,
   onSelfGrade,
   examKey,
+  freshOutcome,
 }: Props) {
+  const reduce = useReducedMotion();
   const totalScore = question.parts.reduce((sum, p) => sum + p.score, 0);
+  const earned = partResults?.reduce((sum, p) => sum + (p.status === "needs_review" ? 0 : p.score), 0) ?? 0;
+  const allGraded = partResults?.every((p) => p.status !== "needs_review") ?? false;
+  const fresh = freshOutcome !== undefined;
+  const cardAnim = !fresh || reduce ? undefined : freshOutcome === "correct" ? glow : freshOutcome === "wrong" ? shake : undefined;
 
   return (
-    <div
+    <motion.div
       dir="rtl"
-      className=" glass relative z-20 dark:shadow-none shadow bg-card! rounded-2xl p-4 xs:p-5 md:p-6"
+      animate={cardAnim}
+      className={`glass relative z-20 dark:shadow-none shadow bg-card! rounded-2xl p-4 xs:p-5 md:p-6 transition-colors duration-500 ${
+        freshOutcome === "correct" ? "ring-1 ring-green-500/40" : ""
+      }`}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -81,13 +77,48 @@ export default function ExamQuestionCard({
           </span>
           {question.pageRef && (
             <span className="text-xs text-muted-foreground">
-              ص {question.pageRef}
+              ص {faNum(question.pageRef)}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
-            {totalScore} نمره
+          <span className="relative">
+            {partResults && allGraded ? (
+              <motion.span
+                key="earned"
+                initial={fresh && !reduce ? { scale: 0.6, opacity: 0 } : false}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${
+                  earned >= totalScore
+                    ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                    : earned > 0
+                      ? "bg-gold/20 text-foreground"
+                      : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                {faNum(earned)} از {faNum(totalScore)}
+              </motion.span>
+            ) : (
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+                {faNum(totalScore)} نمره
+              </span>
+            )}
+            <AnimatePresence>
+              {fresh && !reduce && earned > 0 && (
+                <motion.span
+                  key="plus"
+                  initial={{ opacity: 0, y: 4, scale: 0.8 }}
+                  animate={{ opacity: [0, 1, 1, 0], y: -26, scale: 1 }}
+                  transition={{ duration: 1.3, times: [0, 0.15, 0.7, 1], ease: "easeOut" }}
+                  className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm font-black text-green-600 dark:text-green-400"
+                  aria-hidden
+                  dir="ltr"
+                >
+                  +{faNum(earned)}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </span>
           {examKey && (
             <ReportButton
@@ -112,7 +143,7 @@ export default function ExamQuestionCard({
 
       {question.instruction && (
         <p className="mb-3 text-base leading-relaxed text-foreground xs:text-lg">
-          <MarkedText text={question.instruction} />
+          <HighlightedText text={question.instruction} />
         </p>
       )}
 
@@ -129,11 +160,11 @@ export default function ExamQuestionCard({
                     </span>
                   )}
                   <span className="text-xs text-muted-foreground">
-                    {part.score} نمره
+                    {faNum(part.score)} نمره
                   </span>
                   {part.pageRef && (
                     <span className="text-xs text-muted-foreground">
-                      · ص {part.pageRef}
+                      · ص {faNum(part.pageRef)}
                     </span>
                   )}
                 </div>
@@ -145,71 +176,18 @@ export default function ExamQuestionCard({
                 onChange={(v) => onAnswerChange(partIndex, v)}
                 disabled={disabled}
               />
-              {result &&
-                (() => {
-                  // A self-graded part starts as needs_review (ungraded);
-                  // once the student picks a score its status flips to
-                  // correct/partial/incorrect, so "graded" = not needs_review.
-                  const isSelfGrade = result.selfGrade;
-                  const graded = result.status !== "needs_review";
-                  const style = isSelfGrade && !graded ? statusStyles.needs_review : statusStyles[result.status];
-                  return (
-                    <div dir="rtl" className={`flex flex-col gap-1 rounded-xl border px-3 py-2 text-sm ${style.className}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">
-                          {isSelfGrade && !graded ? "خودارزیابی" : style.label}
-                        </span>
-                        {(!isSelfGrade ? result.status !== "needs_review" : graded) && (
-                          <span className="text-xs">
-                            {faNum(result.score)} / {faNum(result.maxScore)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="leading-relaxed">
-                        <span className="text-muted-foreground">پاسخ صحیح: </span>
-                        {result.correctAnswerText}
-                      </p>
-                      {isSelfGrade && (
-                        <div className="mt-1.5 border-t border-current/15 pt-2">
-                          <p className="mb-2 text-xs text-muted-foreground">
-                            پاسخت را با پاسخ صحیح مقایسه کن و به خودت نمره بده:
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {scoreOptions(result.maxScore).map((v) => {
-                              const selected = graded && Math.abs(result.score - v) < 0.001;
-                              return (
-                                <button
-                                  key={v}
-                                  type="button"
-                                  onClick={() => onSelfGrade?.(partIndex, v)}
-                                  className={`min-h-9 min-w-11 rounded-lg border px-3 text-sm font-semibold transition-all ${
-                                    selected
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-border bg-card text-foreground hover:border-primary/50"
-                                  }`}
-                                >
-                                  {faNum(v)}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {result.feedback && (
-                        <p className="mt-1 flex gap-1.5 border-t border-current/15 pt-1.5 leading-relaxed whitespace-pre-line">
-                          <span className="shrink-0" aria-hidden>
-                            ✦
-                          </span>
-                          <span>{result.feedback}</span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
+              {result && (
+                <AnswerFeedback
+                  result={result}
+                  fresh={fresh}
+                  index={partIndex}
+                  onSelfGrade={(score) => onSelfGrade?.(partIndex, score)}
+                />
+              )}
             </div>
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }

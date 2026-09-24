@@ -13,8 +13,12 @@ import {
   getTodayPlan,
   getWeightAnalysis,
 } from "@/lib/plus/analysis";
+import { getInsights } from "@/lib/plus/insights";
 
 export const dynamic = "force-dynamic";
+
+/** بازهٔ روندِ هفتگی — هم نمودار و هم جزءِ «استمرار» در شاخصِ تسلط از آن می‌آید. */
+const TREND_WEEKS = 8;
 
 export const metadata: Metadata = {
   title: "برنامهٔ من",
@@ -50,8 +54,7 @@ export default async function Page() {
         <CardHeader>
           <CardTitle>در بررسی وضعیت اشتراک مشکلی پیش آمد</CardTitle>
           <CardDescription>
-            این اشکال از سمتِ ماست، نه از حساب تو. اگر اشتراکی داری سرِ جایش است —
-            فقط لحظه‌ای بعد دوباره تلاش کن.
+            چند لحظه بعد دوباره امتحان کن.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -74,8 +77,22 @@ export default async function Page() {
     getWeightAnalysis(user.id),
     getRoleAnalysis(user.id),
     getMistakeBook(user.id, 8),
-    getProgressTrend(user.id, 8),
+    getProgressTrend(user.id, TREND_WEEKS),
   ]);
 
-  return <AnalysisView plan={plan} weights={weights} roles={roles} mistakes={mistakes} trend={trend} />;
+  /* ⚠️ بعد از `trend` و نه کنارش: شاخصِ تسلط باید **همان** عددهای نمودار را
+     بشمارد. اگر هر کدام کوئریِ خودش را می‌زد، روزی نمودار یک چیز می‌گفت و
+     شاخص چیزِ دیگر — و هیچ‌کس نمی‌فهمید کدام درست است. */
+  const insights = await getInsights(user.id, trend, TREND_WEEKS);
+
+  return (
+    <AnalysisView
+      plan={plan}
+      weights={weights}
+      roles={roles}
+      mistakes={mistakes}
+      trend={trend}
+      insights={insights}
+    />
+  );
 }

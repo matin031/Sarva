@@ -78,10 +78,8 @@ function Planet({
   quality: QualityProfile;
   seed: number;
 }) {
-  /** پایین‌ترین سطح یعنی «هیچ حرکتِ تزئینی». همان پرچمی که قبلاً
-   *  `prefers-reduced-motion` بود، حالا از سطحِ کیفیت می‌آید و
-   *  reduced-motion هم مستقیماً به همان سطح نگاشت می‌شود. */
-  const reduced = quality.tier === "low";
+  /** Reduced motion comes from the user preference, not CPU classification. */
+  const reduced = quality.reducedMotion;
   const geo = quality.tier === "high" ? GEO.high : GEO.low;
   const spin = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
@@ -134,13 +132,16 @@ function Planet({
    *  geometry, no material recompiles, so the cost per planet per frame is a
    *  handful of sin/cos calls. `seed` de-syncs the planets from each other. */
   useFrame((state, delta) => {
+    // Culling only skips drawing in Three; useFrame still runs for every planet.
+    // Deriving phase from time lets invisible planets skip the remaining work.
+    if (!lean.current?.parent?.visible || reduced) return;
     const d = Math.min(delta, 0.05);
     const t = state.clock.elapsedTime;
-    if (spin.current) spin.current.rotation.y += d * 0.18;
-    if (moonOrbit.current) moonOrbit.current.rotation.y += d * 0.6;
+    if (spin.current) spin.current.rotation.y = t * 0.18;
+    if (moonOrbit.current) moonOrbit.current.rotation.y = t * 0.6;
 
     if (ringRef.current) {
-      ringRef.current.rotation.z += d * 0.05;
+      ringRef.current.rotation.z = 0.35 + t * 0.05;
       if (!reduced) {
         ringRef.current.rotation.x =
           Math.PI / 2.6 + Math.sin(t * 0.4 + seed) * 0.07;
@@ -322,7 +323,7 @@ function Stars({ quality }: { quality: QualityProfile }) {
 
   const halfH = size.height / 2;
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     // در پایین‌ترین سطح ستاره‌ها ثابت‌اند: یک بار کشیده می‌شوند و تمام.
     if (quality.starFps <= 0) return;
     const points = pointsRef.current;
@@ -330,7 +331,7 @@ function Stars({ quality }: { quality: QualityProfile }) {
     const attr = points.geometry.attributes.position as THREE.BufferAttribute;
     const arr = attr.array as Float32Array;
     for (let i = 0; i < speeds.length; i++) {
-      const y = arr[i * 3 + 1] - speeds[i] * 0.28;
+      const y = arr[i * 3 + 1] - speeds[i] * 0.28 * quality.starFps * Math.min(delta, 0.05);
       arr[i * 3 + 1] = y < -halfH ? halfH : y;
     }
     attr.needsUpdate = true;
@@ -360,7 +361,7 @@ function Planets({
   const measured = useRef<Measured[]>([]);
   /** پیشرفتِ ظاهر شدنِ هر سیاره، ۰ تا ۱. */
   const reveal = useRef<number[]>([]);
-  const reduced = quality.tier === "low";
+  const reduced = quality.reducedMotion;
 
   // ---- the ONLY DOM reads: a single batch, on mount / layout change ----
   useEffect(() => {
@@ -385,15 +386,14 @@ function Planets({
     // می‌شود، پس اندازه از لحظهٔ اول درست است.
     let id = requestAnimationFrame(measure);
 
-    // Re-measure only when the layout could actually have moved the slots, i.e.
-    // when the viewport width changes. The document's height also changes as
-    // sections reveal, but those animations are transform/opacity only and never
-    // shift a planet, so reacting to height would re-measure for nothing.
-    let lastWidth = 0;
+    // vh sections move on height-only resizes, too. Font/content changes can
+    // also move a slot without changing the width. Batch these notifications.
+    let lastBox = "";
     const ro = new ResizeObserver((entries) => {
-      const w = Math.round(entries[0]?.contentRect.width ?? 0);
-      if (w === lastWidth) return;
-      lastWidth = w;
+      const rect = entries[0]?.contentRect;
+      const box = `${rect?.width}:${rect?.height}`;
+      if (box === lastBox) return;
+      lastBox = box;
       cancelAnimationFrame(id);
       id = requestAnimationFrame(measure);
     });
@@ -403,7 +403,7 @@ function Planets({
       cancelAnimationFrame(id);
       ro.disconnect();
     };
-  }, [slots]);
+  }, [slots, size.width, size.height]);
 
   useFrame((_, delta) => {
     const sy = galaxyClock.scrollY;
@@ -452,24 +452,25 @@ function Planets({
   );
 }
 
-/**
- * پلِ میانِ زمان‌بندِ مرکزی و R3F.
- *
- * Canvas روی `frameloop="demand"` است، یعنی خودش هیچ فریمی نمی‌کشد. هر فریم
- * از اینجا و فقط با یک `invalidate()` درخواست می‌شود. نتیجه: وقتی کاربر
- * متنی را می‌خواند و اسکرول نمی‌کند، WebGL به‌جای ۶۰ بار در ثانیه، در
- * بالاترین سطح ۳۰ بار و در پایین‌ترین سطح *اصلاً* رندر نمی‌شود.
- */
+/** Render in the clock's current frame; invalidate() would enqueue a second
+ * rAF and leave fixed-canvas planets behind the scrolling document. */
 function FrameDriver({ quality }: { quality: QualityProfile }) {
-  const invalidate = useThree((s) => s.invalidate);
+  const advance = useThree((s) => s.advance);
+  const clock = useThree((s) => s.clock);
 
   useEffect(() => {
-    galaxyClock.setIdleFps(quality.idleFps);
-    const unsubscribe = galaxyClock.subscribe(() => invalidate());
+    galaxyClock.setAnimated(!quality.reducedMotion);
+    let elapsed = clock.elapsedTime;
+    const unsubscribe = galaxyClock.subscribe(({ delta }) => {
+      // Manual advance uses seconds. Only hidden time is excluded; a slow
+      // visible frame must not slow down the authored wobble/shader timing.
+      elapsed += delta;
+      advance(elapsed, false);
+    });
     return () => {
       unsubscribe();
     };
-  }, [invalidate, quality.idleFps]);
+  }, [advance, clock, quality.reducedMotion]);
 
   return null;
 }
@@ -497,7 +498,7 @@ export default function GalaxyScene({
    *  intend to recover; without it no `webglcontextrestored` is ever dispatched.
    *  On restore we force a frame so the scene reappears instead of staying
    *  blank. Both paths log, so if it happens again there is a breadcrumb. */
-  const onCreated = useCallback(({ gl, invalidate }: RootState) => {
+  const onCreated = useCallback(({ gl }: RootState) => {
     const canvas = gl.domElement;
     const onLost = (e: Event) => {
       e.preventDefault();
@@ -508,7 +509,6 @@ export default function GalaxyScene({
     const onRestored = () => {
       console.info("[galaxy] WebGL context restored.");
       gl.resetState();
-      invalidate();
       galaxyClock.requestFrame();
     };
     canvas.addEventListener("webglcontextlost", onLost, false);
@@ -553,7 +553,7 @@ export default function GalaxyScene({
       // layout read that happened while scrolling.
       resize={{ scroll: false, debounce: { scroll: 0, resize: 50 } }}
       /** هیچ فریمی خودبه‌خود کشیده نمی‌شود؛ همه از FrameDriver می‌آیند. */
-      frameloop="demand"
+      frameloop="never"
       style={{
         position: "fixed",
         inset: 0,

@@ -1,5 +1,7 @@
 "use client";
 
+import HighlightedText from "@/components/exam/HighlightedText";
+
 type PairedListErrorCorrectionContent = {
   type: "paired-list-error-correction";
   items: { id: string; pairText: string }[];
@@ -30,7 +32,7 @@ export default function PairedListErrorCorrectionPart({ content, value, onChange
         return (
           <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-base">{item.pairText}</span>
+              <span className="text-base"><HighlightedText text={item.pairText} /></span>
               <div className="flex shrink-0 gap-1.5">
                 <button
                   type="button"

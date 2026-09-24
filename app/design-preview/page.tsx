@@ -4,7 +4,7 @@ import Link from "next/link";
 import PanelLayout from "@/app/panel/layout";
 import HomePanel from "@/components/UI/panel/HomePanel";
 import { tehranDayKey } from "@/lib/panel/day-counts";
-import type { BookmarkArea, PanelOverview } from "@/lib/panel/types";
+import type { PanelOverview, PracticeArea } from "@/lib/panel/types";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "پیش‌نمایش طراحی پنل سروا", robots: { index: false, follow: false } };
@@ -15,12 +15,12 @@ export default async function DesignPreview({ searchParams }: {
 }) {
   if (process.env.NODE_ENV !== "development") notFound();
   const empty = (await searchParams).empty === "1";
-  const areas: BookmarkArea[] = ["aruz", "vocab", "jasoos", "exam"];
+  const areas: PracticeArea[] = ["aruz", "vocab", "jasoos", "rangAra", "exam"];
   const dayCounts: PanelOverview["dayCounts"] = empty ? [] : Array.from({ length: 30 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const total = i % 8 === 7 ? 0 : 15 + (i * 7) % 30;
-    return { day: tehranDayKey(date), area: areas[i % 4], total, correct: Math.round(total * .83) };
+    return { day: tehranDayKey(date), area: areas[i % areas.length], total, correct: Math.round(total * .83) };
   });
   const counts = Object.fromEntries(areas.map(area => [area, dayCounts.filter(d => d.area === area).reduce(
     (sum, day) => ({ total: sum.total + day.total, correct: sum.correct + day.correct }), { total: 0, correct: 0 },

@@ -34,9 +34,14 @@ export default function SarvaNetwork() {
         <AnimatedBeam containerRef={containerRef} fromRef={meterRef} toRef={centerRef} curvature={-45} delay={1.35} />
         <AnimatedBeam containerRef={containerRef} fromRef={aruzRef} toRef={centerRef} delay={1.8} />
         <AnimatedBeam containerRef={containerRef} fromRef={clubRef} toRef={centerRef} curvature={45} delay={2.25} />
-        <div ref={centerRef} className={styles.networkCenter}>
+        {/* ⚠️ زیرِ نشان دیگر «سروا» نوشته نمی‌شود. همین واژه در همان
+            صفحه دو بار دیگر هم هست — نشانِ هدر و نشانِ فوتر — و بارِ سوم
+            فقط مرکزِ نقشه را شلوغ می‌کرد. خودِ نشان گویاست.
+
+            ⚠️ `role="img"` + `aria-label` جایِ آن متن را برای صفحه‌خوان می‌گیرد؛
+            برداشتنِ متن بدونِ این، مرکزِ نقشه را بی‌نام می‌کرد. */}
+        <div ref={centerRef} className={styles.networkCenter} role="img" aria-label="سروا">
           <span className={styles.networkLogo} aria-hidden="true"><MainLogo /></span>
-          <span>سروا</span>
         </div>
         <NetworkNode nodeRef={lessonsRef} title="درسنامه" icon={BookOpen} href="/doroos" position={styles.nodeOne} />
         <NetworkNode nodeRef={gamesRef} title="بازی‌های ادبی" icon={Gamepad2} href="/game" position={styles.nodeTwo} />

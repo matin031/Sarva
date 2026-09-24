@@ -382,6 +382,7 @@ const TOOL_ENTRIES = [
   "scripts/seed-grammar-circuit.ts", // db:seed-grammar-circuit
   "scripts/seed-aruz.ts",            // db:seed-aruz
   "scripts/seed-aruz-bridge.mjs",    // db:seed-aruz-bridge
+  "scripts/seed-rang-ara.ts",        // db:seed-rang-ara
 ];
 
 // پوشه‌هایی که کامل می‌روند، حتی اگر همین امروز هیچ importی به آن‌ها نباشد:

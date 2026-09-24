@@ -297,16 +297,41 @@ test("علامت‌های نگارشی از واژه جدا می‌شوند ول
   );
 });
 
+/** بلندترین برشِ نثر؛ هم‌اندازهٔ بلندترین مصراع‌های کتاب، تا کارتِ بازی نشکند. */
+const MAX_PROSE_LINE = 45;
+
 test("بیت‌های seedِ کتاب با متنِ درسنامه یکی‌اند و همه معتبرند", async () => {
   const dir = join(process.cwd(), "lib", "doroos", "content");
   const files = new Set(readdirSync(dir));
+  const ids = new Set<string>();
   for (const raw of BOOK_RAW) {
-    const file = raw.id.replace(/-\d+$/, "") + ".ts";
-    assert.ok(files.has(file), `${raw.id}: درس پیدا نشد`);
-    const lesson = (await import(pathToFileURL(join(dir, file)).href)).default;
-    const beyt = lesson.beyts.find((b: { n: number }) => b.n === raw.book.beyt);
-    assert.ok(beyt, `${raw.id}: بیت پیدا نشد`);
-    assert.deepEqual(raw.lines, beyt.hemistichs, `${raw.id}: متنِ بیت با درسنامه فرق دارد`);
+    /* شناسه همان `source_key`ِ seed است؛ شناسهٔ تکراری بی‌صدا وارد نمی‌شد. */
+    assert.ok(!ids.has(raw.id), `شناسهٔ تکراری: ${raw.id}`);
+    ids.add(raw.id);
+    const name = `${raw.book.grade}-${String(raw.book.lesson).padStart(2, "0")}`;
+    assert.match(raw.id, new RegExp(`^${name}-${raw.book.beyt}b?$`), `${raw.id}: شناسه با درس و بیت نمی‌خواند`);
+    assert.ok(files.has(`${name}.ts`), `${raw.id}: درس پیدا نشد`);
+    const lesson = (await import(pathToFileURL(join(dir, `${name}.ts`)).href)).default;
+    if (lesson.kind === "prose") {
+      const passage = lesson.passages.find((p: { n: number }) => p.n === raw.book.beyt);
+      assert.ok(passage, `${raw.id}: بند پیدا نشد`);
+      if (passage.form === "verse") {
+        assert.deepEqual(raw.lines, passage.lines, `${raw.id}: متنِ بیت با درسنامه فرق دارد`);
+      } else {
+        /* برشِ نثر: هر «مصراع» تکه‌ای از همان بند است، به همان ترتیب. */
+        const text: string = passage.lines.join(" ");
+        const first = text.indexOf(raw.lines[0]);
+        assert.ok(first >= 0, `${raw.id}: «${raw.lines[0]}» در متنِ بند نیست`);
+        assert.ok(text.indexOf(raw.lines[1], first + raw.lines[0].length) >= 0, `${raw.id}: «${raw.lines[1]}» بعد از برشِ اول نمی‌آید`);
+        for (const line of raw.lines) {
+          assert.ok([...line].length <= MAX_PROSE_LINE, `${raw.id}: برشِ نثر بلند است؛ کوتاه‌ترش کنید`);
+        }
+      }
+    } else {
+      const beyt = lesson.beyts.find((b: { n: number }) => b.n === raw.book.beyt);
+      assert.ok(beyt, `${raw.id}: بیت پیدا نشد`);
+      assert.deepEqual(raw.lines, beyt.hemistichs, `${raw.id}: متنِ بیت با درسنامه فرق دارد`);
+    }
     assert.equal(raw.book.grade, lesson.grade);
     assert.equal(raw.book.lesson, lesson.number);
     const problem = validateVerse({
@@ -319,6 +344,26 @@ test("بیت‌های seedِ کتاب با متنِ درسنامه یکی‌ان
       steps: raw.steps,
     });
     assert.equal(problem, null, `${raw.id}: ${problem}`);
+  }
+});
+
+test("وجه‌شبه فقط وقتی روی پالت می‌آید که بیت بخواهدش", () => {
+  const kenaye: Step[] = [{ concept: "kenaye", answer: ["0-0"], explanation: "…" }];
+  assert.ok(!paletteFor(kenaye).includes("vajhShabah"), "وجه‌شبه رنگِ پرکننده شد");
+  assert.deepEqual(paletteFor(kenaye), ["mushabbah", "mushabbahBih", "adat", "esteare", "kenaye"]);
+
+  const tashbih: Step[] = [
+    { concept: "adat", answer: ["0-1"], explanation: "…" },
+    { concept: "vajhShabah", answer: ["0-0"], explanation: "…" },
+  ];
+  assert.deepEqual(paletteFor(tashbih).slice(0, 4), ["mushabbah", "mushabbahBih", "adat", "vajhShabah"]);
+  const colors = paletteFor(tashbih).map((c) => CONCEPTS[c].color);
+  assert.equal(new Set(colors).size, colors.length);
+
+  /* افزودنِ انبوه نامش را با فاصله یا نیم‌فاصله می‌شناسد. */
+  for (const label of ["وجه‌شبه", "وجه شبه"]) {
+    const { items } = parseBulk(`بگرای چو اژدهای گرزه / بخروش چو شرزه شیر ارغند\n${label}: بگرای | توضیح`, null);
+    assert.equal(items[0].verse.steps[0]?.concept, "vajhShabah", label);
   }
 });
 

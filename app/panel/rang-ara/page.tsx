@@ -12,6 +12,7 @@ const TONE: Record<string, string> = {
   sky: "oklch(0.72 0.12 246)",
   rose: "oklch(0.7 0.14 8)",
   peach: "oklch(0.75 0.13 55)",
+  iris: "oklch(0.66 0.13 276)",
   butter: "oklch(0.8 0.13 92)",
   sage: "oklch(0.72 0.11 150)",
   lilac: "oklch(0.7 0.13 304)",

@@ -20,12 +20,13 @@
    نیم‌فاصله نوشته شود تا یک واژه بماند. تستِ `rang-ara.test.ts` هر شناسه را
    با متنش چاپ می‌کند و وجودش را بررسی می‌کند. */
 
-export type PastelKey = "sky" | "rose" | "peach" | "butter" | "sage" | "lilac" | "aqua" | "berry" | "lime";
+export type PastelKey = "sky" | "rose" | "peach" | "iris" | "butter" | "sage" | "lilac" | "aqua" | "berry" | "lime";
 
 export type ConceptId =
   | "mushabbah"
   | "mushabbahBih"
   | "adat"
+  | "vajhShabah"
   | "esteare"
   | "majaz"
   | "kenaye"
@@ -98,6 +99,7 @@ export const CONCEPTS: Record<ConceptId, Concept> = {
   mushabbah: { id: "mushabbah", label: "مشبّه", color: "sky", hint: "آنچه به چیزی مانند می‌شود" },
   mushabbahBih: { id: "mushabbahBih", label: "مشبّه‌به", color: "rose", hint: "آنچه مشبّه به آن مانند می‌شود" },
   adat: { id: "adat", label: "ادات تشبیه", short: "ادات", color: "peach", hint: "واژهٔ شباهت؛ مثل چون، چو، همچو" },
+  vajhShabah: { id: "vajhShabah", label: "وجه‌شبه", color: "iris", hint: "ویژگیِ مشترکی که مشبّه و مشبّه‌به در آن همانندند" },
   esteare: { id: "esteare", label: "استعاره", color: "butter", hint: "تشبیهی که فقط یک طرفش در بیت مانده" },
   majaz: { id: "majaz", label: "مجاز", color: "sage", hint: "واژه در معنای غیرحقیقی، با پیوندی میان دو معنا" },
   kenaye: { id: "kenaye", label: "کنایه", color: "lilac", hint: "سخنی که معنای دورش مقصود است" },
@@ -133,6 +135,7 @@ const PALETTE_ORDER: ConceptId[] = [
   "mushabbah",
   "mushabbahBih",
   "adat",
+  "vajhShabah",
   "esteare",
   "majaz",
   "kenaye",
@@ -141,11 +144,15 @@ const PALETTE_ORDER: ConceptId[] = [
   "saj",
 ];
 
+/* وجه‌شبه فقط وقتی روی پالت می‌آید که بیت بخواهدش. رنگِ پرکننده نیست، وگرنه
+   پالتِ همهٔ بیت‌هایی که پیش از آن ساخته شده‌اند عوض می‌شد. */
+const FILLERS = PALETTE_ORDER.filter((c) => c !== "vajhShabah");
+
 export function paletteFor(steps: readonly Step[]): ConceptId[] {
   const needed = new Set(steps.map((s) => s.concept));
   const size = Math.max(5, needed.size);
   const out = PALETTE_ORDER.filter((c) => needed.has(c));
-  for (const c of PALETTE_ORDER) if (out.length < size && !out.includes(c)) out.push(c);
+  for (const c of FILLERS) if (out.length < size && !out.includes(c)) out.push(c);
   return PALETTE_ORDER.filter((c) => out.includes(c));
 }
 

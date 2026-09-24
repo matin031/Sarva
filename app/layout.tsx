@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo/site";
+import { SEO_PAGES } from "@/lib/seo/catalog";
+import { siteGraph } from "@/lib/seo/entity";
+import { safeJsonLd } from "@/lib/seo/jsonld";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_TWITTER_IMAGE,
+  GOOGLE_SITE_VERIFICATION,
+} from "@/lib/seo/metadata";
 import { Vazirmatn, Noto_Naskh_Arabic } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -139,9 +147,12 @@ const dorna = localFont({
    جدا تکرار شده بود و عوض کردنش یعنی پیدا کردنِ هر چهار تا. حالا یک منبع
    دارد: lib/seo/site.ts */
 const siteUrl = siteOrigin();
-const siteTitle = "سروا | آموزش وزن و عروض شعر فارسی به صورت آنلاین و رایگان";
-const siteDescription =
-  "سروا پلتفرم آموزشی تعاملی برای یادگیری وزن، عروض و تقطیع شعر فارسی است. با آموزش گام‌به‌گام، آزمون‌های تعاملی و راهنمای صوتی، اوزان عروضی شعر پارسی را به سادگی یاد بگیرید.";
+/* ⚠️ عنوان و توضیحِ پیش‌فرض از همان فهرستِ صفحه‌ها (`lib/seo/catalog.ts`)
+   می‌آیند. پیش از این اینجا «آموزش وزن و عروض شعر فارسی…» نوشته شده بود —
+   معرفیِ سروایی که فقط عروض داشت — و هر صفحه‌ای که توضیحِ خودش را نداشت
+   (مثلاً /exam) همان را در نتیجهٔ جست‌وجو نشان می‌داد. */
+const siteTitle = SEO_PAGES["/"].title;
+const siteDescription = SEO_PAGES["/"].description;
 
 export const metadata: Metadata = {
   icons: {
@@ -159,20 +170,23 @@ export const metadata: Metadata = {
     template: "%s | سروا",
   },
   verification: {
-    google: "44Gf_E9roc0H5qi8iWxWmEMyZXUJQRRZ0DQ6IDuhaZA",
+    google: GOOGLE_SITE_VERIFICATION,
   },
   description: siteDescription,
+  /* گوگل این فهرست را سال‌هاست نمی‌خواند؛ ولی بی‌ضرر است و بعضی موتورهای
+     دیگر هنوز نگاهش می‌کنند. */
   keywords: [
-    "عروض",
     "سروا",
+    "معنی درس فارسی",
+    "درسنامه فارسی دهم",
+    "درسنامه فارسی یازدهم",
+    "درسنامه فارسی دوازدهم",
+    "آرایه‌های ادبی",
+    "عروض",
     "وزن شعر فارسی",
-    "آموزش عروض",
     "تقطیع شعر",
-    "اوزان عروضی",
-    "شعر فارسی",
+    "امتحان نهایی فارسی",
     "ادبیات فارسی",
-    "آموزش شعر آنلاین",
-    "بحرهای عروضی",
   ],
   authors: [{ name: "سروا", url: siteUrl }],
   creator: "سروا",
@@ -193,25 +207,15 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  /* ⚠️ نه `openGraph.images` دارد و نه `twitter.images` — و این عمدی است.
+  /* ⚠️ تصویرِ اشتراک‌گذاری یک PNGِ ثابت است که `npm run seo:og` می‌سازد
+     (`app/opengraph-image.png`). تا امروز یک Routeِ edge بود که در هر
+     درخواست فونت را از گوگل می‌گرفت و در لاگِ production سی‌وسه بار با
+     «failed to pipe response» افتاده بود.
 
-     تا امروز هر دو به `/opengraph-image` اشاره می‌کردند: یک Route با
-     `runtime = "edge"` که در هر درخواست فونت را از گوگل می‌گرفت و تصویر
-     را می‌ساخت. لاگِ production سی‌وسه بار این را ثبت کرده بود:
-
-         Error: failed to pipe response
-             at pipeToNodeResponse (…/server/pipe-readable.js:135:37)
-             at async NextNodeServer.runEdgeFunction (…)
-         route: /opengraph-image/route
-
-     یعنی هر کسی لینکِ سایت را در پیام‌رسان می‌فرستاد، پیش‌نمایشِ
-     خالی می‌گرفت. حالا تصویر یک PNGِ ثابت است که `npm run seo:og`
-     می‌سازد و در `app/opengraph-image.png` و `app/twitter-image.png` می‌نشیند.
-
-     ⚠️ نوشتنِ `images` در همین شیء جلویِ قراردادِ فایلی را می‌گیرد —
-     مقدارِ صریح برنده است. پس نبودنش لازم است، وگرنه Next تگِ
-     تصویر را از آن دو فایل نمی‌سازد و به مسیری اشاره می‌کند که
-     دیگر وجود ندارد (همان Route حذف شده). */
+     ⚠️ و حالا صریح نوشته می‌شود، برخلافِ نسخهٔ قبل که به قراردادِ فایلی
+     تکیه می‌کرد: آن قرارداد فقط به صفحه‌ای می‌رسد که `openGraph`ِ خودش را
+     ندارد — یعنی عملاً هیچ صفحهٔ مهمی. توضیحِ کامل کنارِ `DEFAULT_OG_IMAGE`
+     در lib/seo/metadata.ts. */
   openGraph: {
     title: siteTitle,
     description: siteDescription,
@@ -219,35 +223,19 @@ export const metadata: Metadata = {
     siteName: "سروا",
     locale: "fa_IR",
     type: "website",
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
+    images: [DEFAULT_TWITTER_IMAGE],
   },
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": `${siteUrl}/#website`,
-      url: siteUrl,
-      name: "سروا",
-      description: siteDescription,
-      inLanguage: "fa-IR",
-    },
-    {
-      "@type": "EducationalOrganization",
-      "@id": `${siteUrl}/#organization`,
-      name: "سروا",
-      url: siteUrl,
-      description: siteDescription,
-      sameAs: [],
-    },
-  ],
-};
+/* گرافِ پایهٔ همهٔ صفحه‌ها — `WebSite` و سازمان، با لوگو و حوزه‌های تخصص.
+   چرایی‌اش در lib/seo/entity.ts. */
+const jsonLd = siteGraph(siteDescription);
 
 export default function RootLayout({
   children,
@@ -296,7 +284,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: READING_FONT_INIT_SCRIPT }} />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
         <script
           dangerouslySetInnerHTML={{

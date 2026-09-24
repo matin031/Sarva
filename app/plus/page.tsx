@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Header from "@/components/UI/Header";
@@ -14,12 +15,7 @@ import { jalaliLong } from "@/lib/panel/format";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "سروا پلاس",
-  description:
-    "اشتراک سروا پلاس: نقش دستوری و آرایه‌های درسنامه، هوشواره، تحلیل اشتباه‌ها در وزن و دستور، و تمرین پیشنهادی روزانه.",
-  alternates: { canonical: "/plus" },
-};
+export const metadata: Metadata = catalogMetadata("/plus");
 
 /**
  * صفحهٔ عمومیِ «سروا پلاس».

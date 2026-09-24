@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import { redirect } from "next/navigation";
 import { breadcrumbList } from "@/lib/seo/jsonld";
+import { gameJsonLd } from "@/lib/seo/entity";
+import { SEO_PAGES } from "@/lib/seo/catalog";
 import JsonLd from "@/components/seo/JsonLd";
-import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import AruzBridgeGame from "@/components/UI/aruz-bridge/AruzBridgeGame";
 import { AssignmentGone } from "@/components/UI/AssignmentNotice";
@@ -10,13 +12,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { loadAssignmentForStudent, loadBridgeQuestions } from "@/lib/teacher/assignments";
 import type { BridgeAssignment } from "@/components/UI/aruz-bridge/useAruzBridgeGame";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/game/aruz-bridge") },
-  title: "پلِ وزن — بازی تشخیص وزن",
-  description:
-    "روی پلِ شیشه‌ای، وزنِ عروضیِ هر واژه را تشخیص بده و روی شیشهٔ امن بپر. اشتباه کنی، شیشه زیرِ پایت می‌شکند.",
-};
+export const metadata: Metadata = catalogMetadata("/game/aruz-bridge");
 
 export default async function Page({
   searchParams,
@@ -44,6 +40,7 @@ export default async function Page({
           { name: "پلِ وزن", path: "/game/aruz-bridge" },
         ])}
       />
+      <JsonLd data={gameJsonLd(SEO_PAGES["/game/aruz-bridge"])} />
       <GameShell
         /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
         ownHeading title="پلِ وزن" dense>

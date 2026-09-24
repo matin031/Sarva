@@ -94,9 +94,14 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
   const admin = await requireAdmin();
 
   if (!(key in SETTING_SPECS)) return { ok: false, errors: ["تنظیم ناشناخته."] };
+  // مقدارهایی که خودِ سایت می‌نویسد (کلیدِ IndexNow، وضعیتِ چک‌لیست) از فرم پذیرفته نمی‌شوند.
+  if (SETTING_SPECS[key].hidden) return { ok: false, errors: ["این مقدار از پنل قابلِ ویرایش نیست."] };
 
   const trimmed = value.trim();
   if (!trimmed) return { ok: false, errors: ["مقدار نمی‌تواند خالی باشد."] };
+
+  const seoError = validateSeoSetting(key, trimmed);
+  if (seoError) return { ok: false, errors: [seoError] };
 
   // «سروا <noreply@example.com>» یا «noreply@example.com» — هر دو قبول است،
   // ولی چیزی که هیچ نشانی از یک ایمیل ندارد نه: یک مقدار غلط اینجا یعنی هیچ
@@ -151,13 +156,59 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
   });
 
   revalidatePath("/admin/settings");
+  if (key.startsWith("seo.")) revalidateSeoOutputs();
   return { ok: true, data: null };
+}
+
+/**
+ * اعتبارسنجیِ تنظیماتِ سئو. پیامِ خطا برای مدیرِ غیرفنی نوشته شده.
+ *
+ * ⚠️ این مقدارها مستقیم در HTMLِ صفحهٔ خانه و در `llms.txt` می‌نشینند؛ ورودیِ
+ * خراب نباید آنجا برسد.
+ */
+function validateSeoSetting(key: SettingKey, value: string): string | null {
+  if (key === "seo.same_as") {
+    const lines = value.split(/[\s,،]+/).filter(Boolean);
+    const bad = lines.filter((l) => {
+      try {
+        const u = new URL(l);
+        return u.protocol !== "https:" && u.protocol !== "http:";
+      } catch {
+        return true;
+      }
+    });
+    if (bad.length) return `این‌ها نشانیِ کامل نیستند: ${bad.join("، ")} — هر خط باید با https:// شروع شود.`;
+    if (lines.length > 20) return "حداکثر ۲۰ نشانی.";
+  }
+  if (key === "seo.contact_email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return "ایمیل معتبر نیست.";
+  }
+  if (key === "seo.brand_summary" && value.length > 600) {
+    return "معرفی حداکثر ۶۰۰ نویسه باشد؛ دو سه جملهٔ دقیق از یک پاراگرافِ بلند بهتر است.";
+  }
+  if ((key === "seo.verify_bing" || key === "seo.verify_yandex") && !/^[A-Za-z0-9_-]{6,128}$/.test(value)) {
+    return "فقط خودِ کد را بچسبانید (مقدارِ content)، نه کلِ تگ <meta>.";
+  }
+  return null;
+}
+
+/**
+ * صفحه‌هایی که از تنظیماتِ سئو ساخته می‌شوند، همان لحظه تازه می‌شوند —
+ * نه یک ساعت بعد، وقتی کشِ ISR خودش منقضی شود.
+ */
+function revalidateSeoOutputs() {
+  revalidatePath("/");
+  revalidatePath("/robots.txt");
+  revalidatePath("/llms.txt");
+  revalidatePath("/llms-full.txt");
+  revalidatePath("/admin/seo");
 }
 
 /** حذف مقدارِ دیتابیس، یعنی برگشت به مقدار .env. */
 export async function adminResetSetting(key: SettingKey): Promise<ActionResult> {
   const admin = await requireAdmin();
   if (!(key in SETTING_SPECS)) return { ok: false, errors: ["تنظیم ناشناخته."] };
+  if (SETTING_SPECS[key].hidden) return { ok: false, errors: ["این مقدار از پنل قابلِ ویرایش نیست."] };
 
   await clearSetting(key);
 
@@ -169,6 +220,7 @@ export async function adminResetSetting(key: SettingKey): Promise<ActionResult> 
     summary: `تنظیم «${SETTING_SPECS[key].label}» به مقدار سرور برگشت`,
   });
   revalidatePath("/admin/settings");
+  if (key.startsWith("seo.")) revalidateSeoOutputs();
   return { ok: true, data: null };
 }
 

@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import { breadcrumbList } from "@/lib/seo/jsonld";
+import { gameJsonLd } from "@/lib/seo/entity";
+import { SEO_PAGES } from "@/lib/seo/catalog";
 import JsonLd from "@/components/seo/JsonLd";
-import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import JasoosGame from "@/components/UI/jasoos/JasoosGame";
 import { loadJasoosLevels } from "@/lib/jasoos-content";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/game/jasoos") },
-  title: "جاسوسِ نقش‌ها — بازی نقش دستوری",
-  description: "یک بیت، چهار مظنون، یک دروغگو؛ نقش‌های دستوری و آرایه‌های ادبی را با جاسوس‌یابی تمرین کن.",
-};
+export const metadata: Metadata = catalogMetadata("/game/jasoos");
 
 // پرونده‌ها از پنل مدیریت می‌آیند.
 export const dynamic = "force-dynamic";
@@ -28,6 +25,7 @@ export default async function Page() {
           { name: "جاسوسِ نقش‌ها", path: "/game/jasoos" },
         ])}
       />
+      <JsonLd data={gameJsonLd(SEO_PAGES["/game/jasoos"])} />
       <GameShell title="جاسوسِ نقش‌ها" progressKeys={["jasoos-progress"]}>
       <JasoosGame levels={levels} />
     </GameShell>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/site";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { lessonDescription, lessonFacts, lessonJsonLd, lessonTitle } from "@/lib/seo/lesson";
 import { breadcrumbList } from "@/lib/seo/jsonld";
 import JsonLd from "@/components/seo/JsonLd";
 import Link from "next/link";
@@ -29,28 +30,29 @@ export async function generateMetadata({
   const number = parseLessonNumber(lessonNo);
   const lesson = number === null ? null : await getLesson(gradeKey, number);
 
-  if (!grade || !lesson) {
+  if (!grade || !lesson || number === null) {
     // درسی که هنوز نوشته نشده نباید ایندکس شود — وگرنه گوگل صفحه‌ای را ثبت
     // می‌کند که محتوایش هیچ‌وقت آنجا نبوده.
     return { title: "درسنامه", robots: { index: false, follow: true } };
   }
 
-  return {
-    // عنوان سه چیز را می‌گوید: نامِ درس، شماره‌اش، و پایه. پیش از این پایه
-    // نبود و «درس ۵» چند کتاب داشت — در نتیجهٔ جست‌وجو معلوم نمی‌شد کدام.
-    title: `${lesson.title} — درس ${number} ${grade.book} پایهٔ ${grade.label}`,
-    description:
-      lesson.kind === "poem"
-        ? `شرحِ بیت‌به‌بیتِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`
-        : `شرحِ «${lesson.title}»، درس ${number} ${grade.book}، با تفکیکِ قلمرو زبانی، ادبی و فکری.`,
+  /* ⚠️ عنوان و توضیح از lib/seo/lesson.ts می‌آیند: «معنی درس اول فارسی
+     یازدهم: نیکی — …». پیش از این «نیکی — درس 1 فارسی ۲ پایهٔ یازدهم» بود،
+     با رقمِ لاتین و بدونِ «معنی» — یعنی بدونِ همان واژه‌ای که دانش‌آموز
+     جست‌وجو می‌کند. چرایی‌اش بالای همان فایل. */
+  const facts = lessonFacts(lesson);
+  return pageMetadata({
+    path: `/doroos/${grade.key}/${number}`,
+    title: lessonTitle(grade, number, facts),
+    description: lessonDescription(grade, number, facts),
+    openGraphType: "article",
     /* ⚠️ canonical از شمارهٔ *نرمال‌شده* ساخته می‌شود، نه از رشتهٔ خام مسیر.
        این همان چیزی است که مسئلهٔ آدرس‌های تکراری را حل می‌کند:
        `/doroos/yazdahom/1` و `/01` و `/۱` و `/١` هر چهار تا همین صفحه را
        نشان می‌دهند (parseLessonNumber ارقام فارسی و عربی و صفرِ ابتدایی را
        می‌پذیرد). حالا هر چهار آدرس یک canonicalِ واحد اعلام می‌کنند و
        موتور جست‌وجو یکی را نگه می‌دارد. */
-    alternates: { canonical: absoluteUrl(`/doroos/${grade.key}/${number}`) },
-  };
+  });
 }
 
 /**
@@ -90,6 +92,15 @@ export default async function Page({
             { name: grade.book, path: `/doroos/${grade.key}` },
             { name: lesson.title, path: `/doroos/${grade.key}/${number}` },
           ])}
+        />
+        {/* درس به‌عنوانِ یک منبعِ آموزشی: پایه، کتاب، شاعرِ متن، ناشر. */}
+        <JsonLd
+          data={lessonJsonLd(
+            grade,
+            number,
+            lessonFacts(lesson),
+            lessonDescription(grade, number, lessonFacts(lesson)),
+          )}
         />
         {/* ⚠️ `toPublicLesson`: نقش‌ها و آرایه‌ها پشتِ سروا پلاس‌اند و در HTML
             نمی‌آیند؛ کلاینت آن‌ها را از `/api/v1/doroos/analysis` می‌گیرد. */}

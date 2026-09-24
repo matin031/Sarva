@@ -41,6 +41,9 @@ const PAGES = [
   { path: "/sarvaclub?sort=popular", kind: "noindex", label: "کلاب، مرتب‌سازی" },
   { path: "/sarvaclub?form=ghazal", kind: "noindex", label: "کلاب، فیلتر قالب" },
   { path: "/guide", kind: "public", label: "راهنما" },
+  { path: "/learn/tashbih", kind: "public", label: "درسنامهٔ تعاملی تشبیه" },
+  { path: "/learn/motammam", kind: "public", label: "درسنامهٔ تعاملی متمم" },
+  { path: "/timeline", kind: "public", label: "خط زمان" },
   { path: "/about", kind: "public", label: "درباره" },
   { path: "/quiz", kind: "noindex", label: "جلسهٔ تمرین" },
   { path: "/auth", kind: "noindex", label: "ورود" },
@@ -70,6 +73,7 @@ async function look(path) {
     canonical: pick(html, /<link rel="canonical" href="([^"]+)"/i),
     robots: pick(html, /<meta name="robots" content="([^"]+)"/i),
     ogUrl: pick(html, /<meta property="og:url" content="([^"]+)"/i),
+    ogImage: pick(html, /<meta property="og:image" content="([^"]+)"/i),
     ogTitle: pick(html, /<meta property="og:title" content="([^"]+)"/i),
     desc: pick(html, /<meta name="description" content="([^"]+)"/i),
     h1: pick(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim(),
@@ -120,6 +124,15 @@ for (const page of PAGES) {
     if (r.title && /سروا \| .*\| سروا|\| سروا \| سروا/.test(r.title))
       bad(`تکرارِ برند در عنوان: ${r.title}`);
     if (!r.desc) bad("توضیح (description) ندارد");
+
+    /* ⚠️ دو ایرادی که ماه‌ها دیده نشدند چون این ابزار og را نمی‌سنجید:
+       هر صفحه‌ای که `openGraph` نداشت og:urlِ *صفحهٔ خانه* را به ارث می‌برد
+       (لینکِ هر بازی در تلگرام خودش را خانه معرفی می‌کرد)، و صفحه‌هایی که
+       `openGraph` داشتند اصلاً og:image نداشتند. */
+    if (!r.ogUrl) bad("og:url ندارد");
+    else if (r.canonical && r.ogUrl !== r.canonical)
+      bad(`og:url با canonical یکی نیست: ${r.ogUrl} ≠ ${r.canonical}`);
+    if (!r.ogImage) bad("og:image ندارد — لینک در تلگرام بی‌تصویر باز می‌شود");
     if (!r.h1) bad("تیترِ H1 در HTMLِ اولیه نیست");
 
     /* لینکِ صفحه‌بندی باید در HTMLِ اولیه باشد، نه فقط با جاوااسکریپت.
@@ -204,6 +217,23 @@ const urls = [...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 console.log(`   ${urls.length} آدرس`);
 if (sm.includes(OLD_DOMAIN)) bad("sitemap هنوز دامنهٔ قدیم دارد");
 if (/<lastmod>/.test(sm)) console.log("   ⚠️ lastmod دارد — مطمئن شوید تاریخِ واقعی است");
+
+// ── تصویرِ اشتراک‌گذاری و llms.txt ─────────────────────────────────────────
+console.log("\n── og:image و llms.txt ──");
+{
+  const home = await look("/");
+  if (home.ogImage) {
+    const img = await fetch(BASE + new URL(home.ogImage).pathname + new URL(home.ogImage).search);
+    if (img.status !== 200) bad(`og:imageِ خانه ${img.status} می‌دهد: ${home.ogImage}`);
+    else console.log(`   og:image خانه: ${img.status}`);
+  }
+  for (const path of ["/llms.txt", "/llms-full.txt"]) {
+    const res = await fetch(BASE + path);
+    const text = await res.text();
+    if (res.status !== 200 || !text.startsWith("# ")) bad(`${path} → ${res.status}`);
+    else console.log(`   ${path}: ${res.status}، ${text.split("\n").length} خط`);
+  }
+}
 
 // هر آدرسِ sitemap باید ۲۰۰ بدهد و noindex نباشد
 console.log("\n── سلامتِ آدرس‌های sitemap ──");

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import ClubFeed from "@/components/UI/club/ClubFeed";
 import FeedPagination from "@/components/UI/club/FeedPagination";
-import { absoluteUrl } from "@/lib/seo/site";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { SEO_PAGES } from "@/lib/seo/catalog";
+import { faNum } from "@/lib/doroos/catalog";
 import {
   feedCanonicalPath,
   feedIsIndexable,
@@ -26,25 +28,23 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const q = readQuery(await searchParams);
-  const canonical = absoluteUrl(feedCanonicalPath(q));
   const indexable = feedIsIndexable(q);
 
-  const title = q.page > 1 ? `سروا کلاب — صفحهٔ ${q.page}` : "سروا کلاب";
+  const base = SEO_PAGES["/sarvaclub"];
+  const title = q.page > 1 ? `سروا کلاب — صفحهٔ ${faNum(q.page)}` : base.title;
 
-  return {
+  /* ⚠️ همه‌چیز از `pageMetadata` رد می‌شود — نسخهٔ قبل `openGraph`ِ ناقصی
+     داشت (بدونِ تصویر، بدونِ نامِ سایت) و تصویرِ اشتراک‌گذاری را از دست
+     می‌داد. `follow` حتی وقتی ایندکس نمی‌شود: خزنده باید از فهرستِ
+     فیلترشده رد شود و به خودِ سروده‌ها برسد. */
+  return pageMetadata({
+    path: "/sarvaclub",
+    canonicalPath: feedCanonicalPath(q),
     title,
-    description:
-      "انجمن شعر سروا: سروده‌ات را با نام خودت یا بی‌نام بفرست و برای سروده‌های دیگران دیدگاه بنویس.",
-    alternates: { canonical },
-    // ⚠️ `follow` حتی وقتی ایندکس نمی‌شود: خزنده باید از فهرستِ فیلترشده رد
-    // شود و به خودِ سروده‌ها برسد.
-    robots: indexable ? undefined : { index: false, follow: true },
-    openGraph: {
-      title,
-      description: "انجمن شعر سروا",
-      url: canonical,
-    },
-  };
+    description: base.description,
+    noindex: !indexable,
+    follow: true,
+  });
 }
 
 // the feed depends on who is reading (own drafts, own likes) and changes the

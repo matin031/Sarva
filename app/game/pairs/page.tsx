@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import { breadcrumbList } from "@/lib/seo/jsonld";
+import { gameJsonLd } from "@/lib/seo/entity";
+import { SEO_PAGES } from "@/lib/seo/catalog";
 import JsonLd from "@/components/seo/JsonLd";
-import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import PairsGame from "@/components/UI/pairs/PairsGame";
 import { loadMemoryDecks } from "@/lib/pairs-content";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/game/pairs") },
-  title: "جفت‌های ادبی — بازی آرایه‌ها",
-  description: "پایه و آزمونت را انتخاب کن و هر اثر را از حافظه به پدیدآورنده‌اش برسان.",
-};
+export const metadata: Metadata = catalogMetadata("/game/pairs");
 
 // کارت‌ها از پنل مدیریت می‌آیند؛ یک صفحهٔ کش‌شده یعنی مدیری که تغییرش را
 // نمی‌بیند.
@@ -29,6 +26,7 @@ export default async function Page() {
           { name: "جفت‌های ادبی", path: "/game/pairs" },
         ])}
       />
+      <JsonLd data={gameJsonLd(SEO_PAGES["/game/pairs"])} />
       <GameShell
         /* این بازی تیترِ دیداریِ خودش را دارد؛ پوسته H1 دوم نسازد. */
         ownHeading title="جفت‌های ادبی" progressKeys={[]}>

@@ -20,7 +20,7 @@
  */
 
 /** گروه‌های صفحهٔ تنظیمات. `SettingSpec.group` از همین می‌آید. */
-export type SettingGroup = "site" | "mail" | "sms" | "notify" | "home" | "plus";
+export type SettingGroup = "site" | "mail" | "sms" | "notify" | "home" | "plus" | "seo";
 
 /** برچسب فارسی هر گروه، برای عنوان بخش‌ها در صفحهٔ تنظیمات. */
 export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: string }> = {
@@ -52,5 +52,10 @@ export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: 
     title: "صفحهٔ اصلی",
     description:
       "بخش حامیان. خودِ فهرست حامیان در صفحهٔ «حامیان» اداره می‌شود؛ این‌جا فقط تعیین می‌کنید دیده بشود یا نه و با چه عنوانی.",
+  },
+  seo: {
+    title: "سئو و هوش مصنوعی",
+    description:
+      "مشخصاتِ برندِ سروا برای گوگل و موتورهای پاسخ‌گو. این‌ها در صفحهٔ «سئو» پنل ویرایش می‌شوند، کنارِ توضیح و آزمونِ هرکدام.",
   },
 };

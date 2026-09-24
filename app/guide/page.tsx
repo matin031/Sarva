@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import GuideView from "@/components/UI/guide/GuideView";
 
 /**
@@ -21,12 +21,7 @@ import GuideView from "@/components/UI/guide/GuideView";
 
    ⚠️ و `openGraph.url` نسبی بود («/guide»)؛ برای اشتراک‌گذاری آدرسِ مطلق
    لازم است، که pageMetadata از منبعِ مشترک می‌سازد. */
-export const metadata: Metadata = pageMetadata({
-  path: "/guide",
-  title: "راهنمای سروا",
-  description:
-    "هر بخشِ سروا در چند خط: عروضِ سماعی، وزن‌یاب، بازی‌های ادبی و دستوری، آزمون‌های نهایی و پنلِ پیشرفت.",
-});
+export const metadata: Metadata = catalogMetadata("/guide");
 
 export default function GuidePage() {
   return <GuideView />;

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/site";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import { breadcrumbList } from "@/lib/seo/jsonld";
+import { gameJsonLd } from "@/lib/seo/entity";
+import { SEO_PAGES } from "@/lib/seo/catalog";
 import JsonLd from "@/components/seo/JsonLd";
 import RapidAruzGame from "@/components/UI/aruz-rapid/RapidAruzGame";
 import { loadRapidAruzQuestions } from "@/lib/aruz-rapid/content";
@@ -11,13 +13,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { loadAssignmentForStudent } from "@/lib/teacher/assignments";
 import { shuffle } from "@/lib/teacher/assignment-rules";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/game/aruz-rapid") },
-  title: "تقطیعِ سریع — بازی تقطیع",
-  description:
-    "یک مصراعِ اعراب‌گذاری‌شده را ببین، پوشیده می‌شود و واحدهای عروضی یکی‌یکی می‌آیند: کوتاه یا بلند؟ یک اشتباه، و از اول.",
-};
+export const metadata: Metadata = catalogMetadata("/game/aruz-rapid");
 
 /*
  * این بازی عمداً داخلِ GameShell نیست.
@@ -71,6 +67,7 @@ export default async function Page({
           { name: "تقطیعِ سریع", path: "/game/aruz-rapid" },
         ])}
       />
+      <JsonLd data={gameJsonLd(SEO_PAGES["/game/aruz-rapid"])} />
       {/* بانک صدها مصراع دارد و هر نشست چندتا؛ فرستادنِ همه به مرورگر فقط
           سنگینی است. صفحه force-dynamic است، پس هر بار نمونهٔ تازه‌ای می‌رسد. */}
       <RapidAruzGame questions={shuffle(questions).slice(0, 40)} />

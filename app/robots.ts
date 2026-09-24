@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl, isNoindexEnvironment } from "@/lib/seo/site";
+import { robotsRules } from "@/lib/seo/policy";
+import { readAiPolicy } from "@/lib/seo/settings";
 
 /**
  * robots.txt
@@ -18,7 +20,16 @@ import { absoluteUrl, isNoindexEnvironment } from "@/lib/seo/site";
  *    بررسیِ سشن محافظت می‌شود؛ ردیفِ زیر فقط جلوی خرجِ بی‌فایدهٔ خزش را
  *    می‌گیرد، نه دسترسی را.
  */
-export default function robots(): MetadataRoute.Robots {
+/**
+ * ⚠️ سیاستِ ربات‌های هوش مصنوعی از پنلِ مدیریت می‌آید (صفحهٔ «سئو»)، پس این
+ * فایل دیگر کاملاً ایستا نیست: ساعتی یک بار از نو ساخته می‌شود و ذخیرهٔ آن
+ * تنظیم هم فوراً بازسازی‌اش می‌کند (`revalidatePath`). اگر خواندنِ تنظیمات
+ * شکست بخورد، پیش‌فرض «همه مجاز» است — یعنی بدترین حالت همان رفتارِ قبلی.
+ * منطقِ قواعد در lib/seo/policy.ts.
+ */
+export const revalidate = 3600;
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
   // پیش‌نمایش و staging نباید ایندکس شوند. production این را ارث نمی‌برد
   // چون متغیر آنجا تنظیم نیست.
   if (isNoindexEnvironment()) {
@@ -26,17 +37,7 @@ export default function robots(): MetadataRoute.Robots {
   }
 
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/",
-      disallow: [
-        "/api/",
-        "/admin",
-        "/panel",
-        // نتیجهٔ شخصیِ یک جلسه — محتوای عمومی نیست.
-        "/result",
-      ],
-    },
+    rules: robotsRules(await readAiPolicy()),
     sitemap: absoluteUrl("/sitemap.xml"),
     host: absoluteUrl("/"),
   };

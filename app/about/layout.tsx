@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { catalogMetadata } from "@/lib/seo/metadata";
 
 /**
  * ⚠️ متن و آدرسِ این صفحه هنوز مالِ برندِ قبلی («عروضینو») بود و
@@ -10,12 +10,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
  * معرفیِ مدرس به تألیفاتِ واقعی‌اش کارِ مرحلهٔ محتواست و به دادهٔ تأییدشدهٔ
  * مالک نیاز دارد.
  */
-export const metadata: Metadata = pageMetadata({
-  path: "/about",
-  title: "دربارهٔ سروا",
-  description:
-    "سروا برای آموزش ادبیات فارسی ساخته شده: درسنامه، عروض و وزن شعر، واژه‌ها و آرایه‌ها، و بازی‌های تمرینی. اینجا می‌خوانید سروا چیست و چه کسانی می‌سازندش.",
-});
+export const metadata: Metadata = catalogMetadata("/about");
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {
   return children;

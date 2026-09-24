@@ -182,8 +182,48 @@ const TRACING_EXCLUDES = [
   "*.tar.gz",
 ];
 
+/**
+ * خزنده‌هایی که متادیتا را باید *داخلِ `<head>`* ببینند.
+ *
+ * ⚠️ چرا لازم است: در Next 16، صفحه‌ای که پویا رندر می‌شود و `generateMetadata`ِ
+ * async دارد (هر سرودهٔ کلاب، فهرستِ کلاب، بازی‌هایی که از دیتابیس
+ * می‌خوانند) می‌تواند متادیتایش را *استریم* کند — یعنی وقتی ساختنِ متادیتا
+ * کند است (دیتابیسِ شلوغ)، تگ‌های عنوان، توضیح و `og:*` بعد از بسته شدنِ
+ * `<head>`، ته `<body>` بیایند. گوگل با این مشکلی ندارد چون جاوااسکریپت را
+ * اجرا می‌کند؛ ولی خزنده‌ای که فقط HTML را می‌خواند و در `<head>` دنبالِ
+ * `og:title` می‌گردد، صفحه را بی‌عنوان و بی‌تصویر می‌بیند. برای ربات‌های این
+ * فهرست، Next صبر می‌کند تا متادیتا آماده شود و همه را در `<head>` می‌گذارد.
+ *
+ * فهرستِ پیش‌فرضِ Next برای همین است، ولی دو خانوادهٔ مهم برای سروا در آن
+ * نیستند:
+ *
+ *   • **ربات‌های هوش مصنوعی** — GPTBot، ChatGPT-User، OAI-SearchBot،
+ *     ClaudeBot، PerplexityBot و… . این‌ها جاوااسکریپت اجرا نمی‌کنند و همان
+ *     چیزی را می‌فهمند که در HTMLِ خام است.
+ *   • **TelegramBot** — پیش‌نمایشِ لینک در تلگرام، که برای مخاطبِ ایرانی
+ *     مهم‌ترین جای اشتراک‌گذاری است. (WhatsApp در فهرستِ پیش‌فرض هست.)
+ *
+ * ⚠️ مقدار دادن به این گزینه فهرستِ پیش‌فرض را *جایگزین* می‌کند، پس
+ * فهرستِ پیش‌فرضِ Next 16.3 (`next/dist/shared/lib/router/utils/html-bots`)
+ * عیناً اول آمده و اضافه‌ها بعدش. از مسیرِ داخلیِ Next import نشده چون
+ * API عمومی نیست و در نسخهٔ بعد ممکن است جابه‌جا شود.
+ */
+const HTML_LIMITED_BOTS = new RegExp(
+  [
+    // ── پیش‌فرضِ Next ──
+    "[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight",
+    // ── هوش مصنوعی ──
+    "GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|meta-externalagent|meta-externalfetcher|Amazonbot|CCBot|Bytespider|DuckAssistBot|MistralAI-User|cohere-ai|YouBot|Diffbot",
+    // ── پیش‌نمایشِ پیام‌رسان‌ها ──
+    "TelegramBot|Pinterestbot|Embedly|Iframely|Mastodon",
+  ].join("|"),
+  "i",
+);
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+
+  htmlLimitedBots: HTML_LIMITED_BOTS,
 
   /**
    * صفحه‌هایی که فقط در توسعه route می‌شوند.

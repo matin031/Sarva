@@ -1,22 +1,48 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/site";
 import HomePage from "@/components/home/HomePage";
+import JsonLd from "@/components/seo/JsonLd";
+import { catalogMetadata, GOOGLE_SITE_VERIFICATION } from "@/lib/seo/metadata";
+import { organizationProfileNode } from "@/lib/seo/entity";
+import { readBrandProfile, readVerification } from "@/lib/seo/settings";
 
-const title = "سروا | یادگیری ادبیات فارسی، درسنامه و بازی‌های تعاملی";
-const description = "ادبیات فارسی را در سروا با درسنامه‌های دهم تا دوازدهم، بازی‌های ادبی، امتحانات نهایی، وزن‌یاب و عروض سماعی یاد بگیر؛ همراه با سروا کلاب و پنل شخصی.";
+/**
+ * ⚠️ صفحهٔ خانه حالا ISR است و نه کاملاً ایستا.
+ *
+ * دو چیز در آن از پنلِ مدیریت می‌آید (صفحهٔ «سئو»): صفحه‌های رسمیِ سروا در
+ * شبکه‌های اجتماعی (`sameAs`) و کدِ تأییدِ Bing/Yandex. هر دو فقط روی صفحهٔ
+ * خانه معنا دارند، پس فقط همین صفحه دیتابیس را می‌خواند — نه لایوتِ ریشه، که
+ * همهٔ صفحه‌ها را پویا می‌کرد.
+ *
+ * خودِ صفحه همچنان از کش سرو می‌شود؛ ساعتی یک بار در پس‌زمینه تازه می‌شود و
+ * ذخیرهٔ هر تنظیمِ سئو هم فوراً تازه‌اش می‌کند (`revalidatePath("/")`). اگر
+ * دیتابیس در دسترس نباشد (مثلاً در build داکر)، خواندن‌ها پیش‌فرضِ خالی
+ * برمی‌گردانند و صفحه دقیقاً مثل قبل ساخته می‌شود.
+ */
+export const revalidate = 3600;
 
-// Keep the homepage's broader introduction and canonical local to this route.
-export const metadata: Metadata = {
-  title: { absolute: title },
-  description,
-  alternates: { canonical: absoluteUrl("/") },
-  openGraph: {
-    title, description, url: absoluteUrl("/"), siteName: "سروا", locale: "fa_IR", type: "website",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "سروا؛ یادگیری ادبیات فارسی" }],
-  },
-  twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const verification = await readVerification();
+  const other: Record<string, string> = {};
+  if (verification.bing) other["msvalidate.01"] = verification.bing;
 
-export default function Home() {
-  return <HomePage />;
+  return {
+    ...catalogMetadata("/"),
+    /* ⚠️ `verification` هم مثلِ بقیهٔ کلیدها *جایگزین* می‌شود و نه ادغام؛
+       پس کدِ گوگلِ لایوتِ ریشه باید اینجا هم باشد. */
+    verification: {
+      google: GOOGLE_SITE_VERIFICATION,
+      ...(verification.yandex ? { yandex: verification.yandex } : {}),
+      ...(Object.keys(other).length ? { other } : {}),
+    },
+  };
+}
+
+export default async function Home() {
+  const profile = organizationProfileNode(await readBrandProfile());
+  return (
+    <>
+      {profile && <JsonLd data={profile} />}
+      <HomePage />
+    </>
+  );
 }

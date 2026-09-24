@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import { breadcrumbList } from "@/lib/seo/jsonld";
+import { gameJsonLd } from "@/lib/seo/entity";
+import { SEO_PAGES } from "@/lib/seo/catalog";
 import JsonLd from "@/components/seo/JsonLd";
-import { absoluteUrl } from "@/lib/seo/site";
 import GameShell from "@/components/UI/games/GameShell";
 import RoleHuntGame from "@/components/UI/role-hunt/RoleHuntGame";
 
-export const metadata: Metadata = {
-  alternates: { canonical: absoluteUrl("/game/role-hunt") },
-  title: "شکار نقش‌ها — بازی نقش دستوری",
-  description:
-    "نقشی که نمایشگر رو می‌کند را ببین و واژه‌ای که آن نقش را دارد از میانِ واژه‌های در حالِ چرخش انتخاب کن.",
-};
+export const metadata: Metadata = catalogMetadata("/game/role-hunt");
 
 export default function Page() {
   return (
@@ -22,6 +19,7 @@ export default function Page() {
           { name: "شکار نقش‌ها", path: "/game/role-hunt" },
         ])}
       />
+      <JsonLd data={gameJsonLd(SEO_PAGES["/game/role-hunt"])} />
       {/* ⚠️ `dense` برای گوشیِ افقی است و نه یک ترجیحِ سلیقه‌ای: آنجا کلِ
           ارتفاع ۳۹۰ پیکسل است و نوارِ بالا با فاصله‌اش نزدیکِ ۵۰ پیکسل از
           آن را می‌گرفت. با این پرچم فقط *متنِ* پیوندِ بازگشت جمع می‌شود؛

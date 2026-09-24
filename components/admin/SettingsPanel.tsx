@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useAdminToast } from "./AdminToast";
 import ConfirmDialog from "./ConfirmDialog";
 import {
@@ -91,7 +92,12 @@ export default function SettingsPanel({
 
      حالا هر گروهی که به `lib/settings` اضافه شود، خودبه‌خود اینجا دیده
      می‌شود. */
-  const groups = Object.keys(SETTING_GROUPS) as (keyof typeof SETTING_GROUPS)[];
+  const groups = (Object.keys(SETTING_GROUPS) as (keyof typeof SETTING_GROUPS)[]).filter(
+    /* ⚠️ گروهِ سئو اینجا فرم نمی‌گیرد: صفحهٔ «سئو و هوش مصنوعی» همین
+       مقدارها را کنارِ توضیح و آزمونِ هرکدام دارد، و دو فرم برای یک مقدار
+       یعنی مالک نداند کدام را باور کند. پایینِ صفحه یک پیوند به آنجا هست. */
+    (group) => group !== "seo",
+  );
 
   return (
     <div dir="rtl" className="flex max-w-3xl flex-col gap-10 p-4 xs:p-6">
@@ -245,6 +251,22 @@ export default function SettingsPanel({
           </section>
         );
       })}
+
+      <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5">
+        <h2 className="text-lg font-bold">{SETTING_GROUPS.seo.title}</h2>
+        <p className="text-sm text-muted-foreground">
+          صفحه‌های رسمیِ شبکه‌های اجتماعی، معرفیِ سروا برای هوش مصنوعی، دسترسیِ ربات‌ها و کدهای
+          تأیید — همه در صفحهٔ «سئو و هوش مصنوعی»، کنارِ چک‌لیست و آزمون‌ها.
+        </p>
+        <div>
+          <Link
+            href="/admin/seo#settings"
+            className="inline-flex min-h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            رفتن به تنظیماتِ سئو
+          </Link>
+        </div>
+      </section>
 
       <ConfirmDialog
         open={resetting !== null}

@@ -45,6 +45,10 @@ export type AuditAction =
   | "setting.update"
   | "setting.reset"
   | "setting.test_email"
+  // سئو
+  | "seo.task_done"
+  | "seo.indexnow_submit"
+  | "seo.ai_check"
   // آزمون‌ها
   | "exam.create"
   | "exam.update"
@@ -170,6 +174,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "setting.update": "تغییر تنظیمات",
   "setting.reset": "بازگرداندن تنظیم",
   "setting.test_email": "ارسال ایمیل آزمایشی",
+  "seo.task_done": "انجامِ یک کارِ سئو",
+  "seo.indexnow_submit": "خبر دادن به موتورهای جست‌وجو",
+  "seo.ai_check": "ثبتِ آزمونِ دیده‌شدن در هوش مصنوعی",
   "exam.create": "ساخت آزمون",
   "exam.update": "ویرایش آزمون",
   "exam.delete": "حذف آزمون",

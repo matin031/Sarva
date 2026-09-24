@@ -1,15 +1,28 @@
 import GamesGalaxy from "@/components/UI/games/GamesGalaxy";
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/site";
+import JsonLd from "@/components/seo/JsonLd";
+import { catalogMetadata } from "@/lib/seo/metadata";
+import { SEO_PAGES, SEO_PAGE_LIST } from "@/lib/seo/catalog";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import { collectionJsonLd } from "@/lib/seo/entity";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/game") },
-  title: "کهکشانِ بازی‌ها",
-  description:
-    "ده بازی برای یادگیریِ ادبیات و دستور زبان فارسی: جاسوسِ نقش‌ها، نینجای دستور زبان، جفت‌های ادبی، واژه‌یاب، تقطیعِ سریع، پلِ وزن، مدار دستور، شکار نقش‌ها، کیمیای وزن و رنگ‌آرا.",
-};
+export const metadata: Metadata = catalogMetadata("/game");
+
+/* فهرستِ بازی‌ها برای موتورِ جست‌وجو: همان ده بازی‌ای که کهکشان نشان
+   می‌دهد، از همان فهرستی که متادیتای هر بازی را می‌سازد. */
+const GAMES = SEO_PAGE_LIST.filter((page) => page.schema === "game");
 
 export default function GamePage() {
-  return <GamesGalaxy />;
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbList([
+          { name: "خانه", path: "/" },
+          { name: "بازی‌ها", path: "/game" },
+        ])}
+      />
+      <JsonLd data={collectionJsonLd(SEO_PAGES["/game"], GAMES)} />
+      <GamesGalaxy />
+    </>
+  );
 }

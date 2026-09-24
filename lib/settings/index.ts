@@ -47,7 +47,15 @@ export type SettingKey =
   | "sms.template_plus_activated"
   | "sms.template_plus_renewed"
   | "sms.template_plus_expiring"
-  | "sms.template_plus_expired";
+  | "sms.template_plus_expired"
+  | "seo.same_as"
+  | "seo.contact_email"
+  | "seo.brand_summary"
+  | "seo.ai_crawlers"
+  | "seo.verify_bing"
+  | "seo.verify_yandex"
+  | "seo.indexnow_key"
+  | "seo.state";
 
 type SettingSpec = {
   /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
@@ -65,6 +73,14 @@ type SettingSpec = {
    * تنظیمات دسترسی پیدا کند کلید API را می‌خواند.
    */
   secret?: boolean;
+  /**
+   * در صفحهٔ تنظیمات نمایش داده نمی‌شود.
+   *
+   * برای مقدارهایی که خودِ سایت می‌سازد و نگه می‌دارد (کلیدِ IndexNow،
+   * وضعیتِ چک‌لیستِ سئو) و نه چیزی که مدیر تایپ کند. همان جدول و همان کش،
+   * بدونِ یک migrationِ تازه.
+   */
+  hidden?: boolean;
   /** ورودی از فهرست، نه متن آزاد. */
   options?: { value: string; label: string }[];
   placeholder?: string;
@@ -332,6 +348,73 @@ export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
       { value: "on", label: "روشن (فقط برای پایلوت)" },
     ],
   },
+
+  // ── سئو و موتورهای پاسخ‌گو ─────────────────────────────────────────────
+  // ⚠️ این‌ها در صفحهٔ «سئو» پنل ویرایش می‌شوند و نه در صفحهٔ تنظیمات؛
+  // آنجا کنارِ توضیح و آزمونِ هرکدام‌اند. جزئیات در lib/seo/settings.ts.
+  "seo.same_as": {
+    envVar: "SEO_SAME_AS",
+    group: "seo",
+    label: "صفحه‌های رسمیِ سروا در شبکه‌های اجتماعی",
+    description:
+      "هر نشانی در یک خط (اینستاگرام، تلگرام، آپارات، یوتیوب، ایتا، بله، لینکدین…). فقط صفحه‌هایی که رسماً مالِ سرواست، نه حسابِ شخصی. گوگل و مدل‌های هوش مصنوعی از همین فهرست می‌فهمند این صفحه‌ها و سایت یک برندند.",
+    placeholder: "https://t.me/sarvaedu",
+  },
+  "seo.contact_email": {
+    envVar: "SEO_CONTACT_EMAIL",
+    group: "seo",
+    label: "ایمیلِ تماس با سروا",
+    description: "ایمیلی که در مشخصاتِ سازمانیِ سروا برای گوگل اعلام می‌شود.",
+    placeholder: "info@sarvaedu.ir",
+  },
+  "seo.brand_summary": {
+    envVar: "SEO_BRAND_SUMMARY",
+    group: "seo",
+    label: "معرفیِ سروا برای هوش مصنوعی",
+    description:
+      "یک تا سه جمله که در فایلِ llms.txt می‌نشیند — همان توصیفی که دوست دارید ChatGPT و Gemini از سروا بدهند. خالی بگذارید تا متنِ پیش‌فرض بیاید.",
+  },
+  "seo.ai_crawlers": {
+    envVar: "SEO_AI_CRAWLERS",
+    group: "seo",
+    label: "دسترسیِ هوش مصنوعی به سروا",
+    description:
+      "تعیین می‌کند ربات‌های ChatGPT، Claude، Gemini، Perplexity و مانندشان سروا را بخوانند یا نه. برای دیده شدن در پاسخ‌های هوش مصنوعی «همه» بهترین است.",
+    options: [
+      { value: "all", label: "همه مجازند (پیشنهادی — بیشترین دیده‌شدن)" },
+      { value: "search-only", label: "فقط جست‌وجو و پاسخ؛ آموزشِ مدل ممنوع" },
+      { value: "none", label: "هیچ ربات هوش مصنوعی‌ای مجاز نیست" },
+    ],
+  },
+  "seo.verify_bing": {
+    envVar: "SEO_VERIFY_BING",
+    group: "seo",
+    label: "کد تأیید Bing Webmaster",
+    description:
+      "فقط اگر Bing کدِ متا خواست (msvalidate.01). راهِ ساده‌تر: در Bing Webmaster گزینهٔ «Import from Google Search Console» را بزنید؛ آن‌وقت کد لازم نیست.",
+    placeholder: "1234567890ABCDEF1234567890ABCDEF",
+  },
+  "seo.verify_yandex": {
+    envVar: "SEO_VERIFY_YANDEX",
+    group: "seo",
+    label: "کد تأیید Yandex Webmaster",
+    description: "مقدارِ content در تگِ yandex-verification. اختیاری است.",
+    placeholder: "a1b2c3d4e5f6a7b8",
+  },
+  "seo.indexnow_key": {
+    envVar: "SEO_INDEXNOW_KEY",
+    group: "seo",
+    label: "کلید IndexNow",
+    description: "خودِ سایت می‌سازد؛ در /indexnow-key.txt منتشر می‌شود.",
+    hidden: true,
+  },
+  "seo.state": {
+    envVar: "SEO_STATE",
+    group: "seo",
+    label: "وضعیتِ چک‌لیستِ سئو",
+    description: "خودِ پنل می‌نویسد (JSON).",
+    hidden: true,
+  },
 };
 
 
@@ -440,7 +523,13 @@ export async function listSettings(): Promise<ListedSetting[]> {
   const stored: Record<string, unknown> = {};
   for (const r of rows) stored[r.key] = r.value;
 
-  return (Object.keys(SETTING_SPECS) as SettingKey[]).map((key) => {
+  // ⚠️ `hidden` ها مقدارهایی‌اند که خودِ سایت می‌نویسد؛ فرمِ تنظیمات جای
+  // تایپ کردنشان نیست.
+  const visible = (Object.keys(SETTING_SPECS) as SettingKey[]).filter(
+    (key) => !SETTING_SPECS[key].hidden,
+  );
+
+  return visible.map((key) => {
     const spec = SETTING_SPECS[key];
     const dbValue = typeof stored[key] === "string" && stored[key] ? (stored[key] as string) : null;
     const envValue = process.env[spec.envVar]?.trim() || null;

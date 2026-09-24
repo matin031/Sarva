@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
-import { absoluteUrl, isNoindexEnvironment } from "@/lib/seo/site";
-import { GRADES, readyLessonParams } from "@/lib/doroos";
-import { isPlusEnabled } from "@/lib/plus/config";
+import { isNoindexEnvironment } from "@/lib/seo/site";
+import { publicSitemapEntries } from "@/lib/seo/urls";
 
 /**
  * sitemap.xml
@@ -49,72 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // پیش‌نمایش و staging هیچ آدرسی اعلام نمی‌کنند.
   if (isNoindexEnvironment()) return [];
 
-  const entries: MetadataRoute.Sitemap = [
-    { url: absoluteUrl("/"), changeFrequency: "weekly", priority: 1 },
-    { url: absoluteUrl("/doroos"), changeFrequency: "weekly", priority: 0.9 },
-    { url: absoluteUrl("/timeline"), changeFrequency: "monthly", priority: 0.8 },
-    { url: absoluteUrl("/aruz"), changeFrequency: "monthly", priority: 0.9 },
-    { url: absoluteUrl("/vazn-yab"), changeFrequency: "monthly", priority: 0.9 },
-    { url: absoluteUrl("/game"), changeFrequency: "monthly", priority: 0.8 },
-    { url: absoluteUrl("/exam"), changeFrequency: "monthly", priority: 0.8 },
-    { url: absoluteUrl("/sarvaclub"), changeFrequency: "daily", priority: 0.8 },
-    { url: absoluteUrl("/guide"), changeFrequency: "monthly", priority: 0.7 },
-    { url: absoluteUrl("/about"), changeFrequency: "yearly", priority: 0.5 },
-  ];
-
-  /* ⚠️ `/plus` فقط وقتی اعلام می‌شود که واقعاً وجود داشته باشد.
-     وقتی مالک سروا پلاس را خاموش کرده، آن صفحه ۴۰۴ می‌دهد — و آدرسِ ۴۰۴ در
-     sitemap دقیقاً همان چیزی است که بالای همین فایل دربارهٔ تک‌سروده‌های کلاب
-     گفته شده. اگر خواندنِ تنظیمات شکست بخورد، نیامدنِ یک آدرس از اعلامِ یک
-     آدرسِ شکسته بهتر است. */
-  try {
-    if (await isPlusEnabled()) {
-      entries.push({ url: absoluteUrl("/plus"), changeFrequency: "monthly", priority: 0.7 });
-    }
-  } catch {
-    /* تنظیمات خوانده نشد؛ آدرس اعلام نمی‌شود. */
-  }
-
-  // صفحهٔ هر پایه.
-  for (const grade of GRADES) {
-    entries.push({
-      url: absoluteUrl(`/doroos/${grade.key}`),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    });
-  }
-
-  // ⚠️ درس‌ها از همان registry می‌آیند که صفحه‌ها را می‌سازد
-  // (`readyLessonParams`). فهرستِ دستیِ موازی نداریم، چون فهرستِ موازی
-  // همیشه از محتوا عقب می‌افتد و کسی متوجه نمی‌شود.
-  for (const { grade, lesson } of readyLessonParams()) {
-    entries.push({
-      url: absoluteUrl(`/doroos/${grade}/${lesson}`),
-      changeFrequency: "monthly",
-      priority: 0.7,
-    });
-  }
-
-  // صفحه‌های عمومیِ بازی‌ها. هرکدام یک ابزارِ آموزشیِ مستقل با مخاطبِ خودش
-  // است، پس آدرسِ خودش را دارد.
-  for (const slug of [
-    "aruz-bridge",
-    "aruz-rapid",
-    "grammar-circuit",
-    "jasoos",
-    "kimia",
-    "ninja",
-    "pairs",
-    "rang-ara",
-    "role-hunt",
-    "vocab",
-  ]) {
-    entries.push({
-      url: absoluteUrl(`/game/${slug}`),
-      changeFrequency: "monthly",
-      priority: 0.7,
-    });
-  }
-
-  return entries;
+  /* فهرستِ واقعی در lib/seo/urls.ts است — همان فهرستی که پنلِ مدیریت برای
+     IndexNow می‌فرستد و آزمونِ سلامتِ سئو می‌سنجد. */
+  return publicSitemapEntries();
 }

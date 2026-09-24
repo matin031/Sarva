@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/site";
+import { catalogMetadata } from "@/lib/seo/metadata";
 import ExamBrowser from "@/components/exam/ExamBrowser";
 import { listExamSummaries } from "@/lib/exam/db-exam";
 
-export const metadata: Metadata = {
-  /* canonicalِ خودش — پیش از این از لایوتِ ریشه «/» را ارث می‌برد. */
-  alternates: { canonical: absoluteUrl("/exam") },
-  title: "آزمون‌های آنلاین",
-};
+export const metadata: Metadata = catalogMetadata("/exam");
 
 /** The exam bank lives in Supabase and is edited from the admin panel, so this
  *  list has to be read per request. Without it Next prerenders the page at

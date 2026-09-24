@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { catalogMetadata } from "@/lib/seo/metadata";
 
 /**
  * ⚠️ `/aruz` تا امروز هیچ متادیتایی نداشت.
@@ -11,12 +11,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
  *
  * خودِ صفحه client component است، پس متادیتا اینجا می‌نشیند.
  */
-export const metadata: Metadata = pageMetadata({
-  path: "/aruz",
-  title: "آموزش عروض سماعی",
-  description:
-    "عروض سماعی را با گوش یاد بگیرید: آموزش گام‌به‌گام وزن شعر فارسی، تمرین شنیداری با نمونه‌های صوتی، و بازی‌هایی برای تشخیص وزن و تقطیع.",
-});
+export const metadata: Metadata = catalogMetadata("/aruz");
 
 export default function AruzLayout({ children }: { children: React.ReactNode }) {
   return children;

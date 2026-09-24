@@ -7,6 +7,10 @@ import CommentThread from "@/components/UI/club/CommentThread";
 import { ClubDate, NameAvatar } from "@/components/UI/club/ClubBits";
 import { getClubComments, getClubPost, getClubViewer } from "@/lib/club/queries";
 import { formLabel, poemExcerpt, tagLabel } from "@/lib/club/types";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { poemJsonLd } from "@/lib/seo/entity";
+import { breadcrumbList } from "@/lib/seo/jsonld";
+import JsonLd from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +25,20 @@ export async function generateMetadata({
     return { title: "سروا کلاب", robots: { index: false, follow: false } };
   }
   const name = post.title ?? poemExcerpt(post.body, 1);
-  return {
-    /* ⚠️ «| سروا کلاب» از عنوان برداشته شد: قالبِ ریشه خودش « | سروا» را
-       اضافه می‌کند و نتیجه «… | سروا کلاب | سروا» می‌شد. این را ممیزیِ
-       اولیه نگرفت چون فقط صفحه‌های ثابت را نمونه می‌گرفت، نه یک سرودهٔ
-       واقعی را. */
+  /* ⚠️ «| سروا کلاب» از عنوان برداشته شد: قالبِ ریشه خودش « | سروا» را
+     اضافه می‌کند و نتیجه «… | سروا کلاب | سروا» می‌شد. این را ممیزیِ
+     اولیه نگرفت چون فقط صفحه‌های ثابت را نمونه می‌گرفت، نه یک سرودهٔ
+     واقعی را.
+
+     ⚠️ و `pageMetadata` و نه شیءِ دستی: نسخهٔ قبل `openGraph` نداشت، پس
+     سروده‌ای که در تلگرام فرستاده می‌شد عنوان و نشانیِ *صفحهٔ خانه* را نشان
+     می‌داد — درست همان جایی که یک شاعرِ جوان لینکِ شعرش را پخش می‌کند. */
+  return pageMetadata({
+    path: `/sarvaclub/${post.id}`,
     title: `${name} — سرودهٔ ${post.authorName}`,
-    description: poemExcerpt(post.body, 2),
-    alternates: { canonical: `/sarvaclub/${post.id}` },
-  };
+    description: `${formLabel(post.form)} از ${post.authorName} در سروا کلاب: ${poemExcerpt(post.body, 2)}`,
+    openGraphType: "article",
+  });
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
@@ -45,8 +54,35 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ? await getClubComments(post.id, viewer)
     : [];
 
+  const name = post.title ?? poemExcerpt(post.body, 1);
+
   return (
     <div dir="rtl" className="container relative z-20 mx-auto mt-10 mb-32 max-w-3xl px-4">
+      {/* دادهٔ ساختاریافته فقط برای سرودهٔ منتشرشده؛ پیش‌نویس و ردشده را
+          فقط نویسنده‌اش می‌بیند و صفحه‌شان noindex است. */}
+      {post.status === "approved" && (
+        <>
+          <JsonLd
+            data={breadcrumbList([
+              { name: "خانه", path: "/" },
+              { name: "سروا کلاب", path: "/sarvaclub" },
+              { name, path: `/sarvaclub/${post.id}` },
+            ])}
+          />
+          <JsonLd
+            data={poemJsonLd({
+              id: post.id,
+              name,
+              authorName: post.authorName,
+              genre: formLabel(post.form),
+              excerpt: poemExcerpt(post.body, 2),
+              publishedAt: post.publishedAt,
+              updatedAt: post.updatedAt,
+              commentCount: post.commentCount,
+            })}
+          />
+        </>
+      )}
       <Link
         href="/sarvaclub"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"

@@ -142,6 +142,17 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/seo",
+    label: "سئو و هوش مصنوعی",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m20 20-4.9-4.9" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m8 12 2-2.5 1.8 1.6L14 8" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/sql",
     label: "کنسول SQL",
     icon: (

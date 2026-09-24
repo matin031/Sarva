@@ -315,10 +315,10 @@ test("بیت‌های seedِ کتاب با متنِ درسنامه یکی‌ان
     if (lesson.kind === "prose") {
       const passage = lesson.passages.find((p: { n: number }) => p.n === raw.book.beyt);
       assert.ok(passage, `${raw.id}: بند پیدا نشد`);
-      if (passage.form === "verse") {
-        assert.deepEqual(raw.lines, passage.lines, `${raw.id}: متنِ بیت با درسنامه فرق دارد`);
-      } else {
-        /* برشِ نثر: هر «مصراع» تکه‌ای از همان بند است، به همان ترتیب. */
+      /* بیتِ دومصراعی عیناً می‌آید؛ هر چیزِ دیگر (نثر، شعرِ نو، بندِ بلند)
+         برش است: هر «مصراع» تکه‌ای از همان بند، به همان ترتیب. */
+      const whole = raw.lines.length === passage.lines.length && raw.lines.every((l, i) => l === passage.lines[i]);
+      if (!whole) {
         const text: string = passage.lines.join(" ");
         const first = text.indexOf(raw.lines[0]);
         assert.ok(first >= 0, `${raw.id}: «${raw.lines[0]}» در متنِ بند نیست`);

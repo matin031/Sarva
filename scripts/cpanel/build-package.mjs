@@ -391,6 +391,10 @@ const TOOL_ENTRIES = [
 const TOOL_DIRS = [
   "scripts/mysql",        // script-db، type-map، split-sql، index-overrides
   "lib/exam/seed-data",   // خودِ آزمون‌ها
+  // بانکِ عروض — `seed-aruz.ts` آن را با readFileSync می‌خواند و نه با
+  // import، پس ردیابیِ importها هیچ‌وقت به آن نمی‌رسید و `db:seed-aruz`
+  // روی هاست با ENOENT می‌افتاد.
+  "lib/quiz/seed-data",
   "mysql-migrations",     // برای db:migrate و برای خواندنِ دستی
 ];
 

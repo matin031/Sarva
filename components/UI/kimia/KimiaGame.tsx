@@ -278,16 +278,17 @@ export default function KimiaGame({
   useSetReportTarget(
     round && phase !== "intro" && phase !== "result"
       ? {
-          /* ⚠️ ناحیه «کوییز» است چون منبعِ واقعیِ این بیت همان بانکِ عروضِ
-             سماعی است؛ گزارش باید به همان ردیفی برسد که مدیر ویرایشش
-             می‌کند و نه به یک ناحیهٔ خیالیِ تازه. */
-          area: "quiz" as const,
+          /* ⚠️ بیتی که از بانکِ عروضِ سماعی آمده در ناحیهٔ «کوییز» گزارش
+             می‌شود تا به همان ردیفی برسد که مدیر ویرایشش می‌کند. بیتِ
+             `kimia_verses` در آن بانک نیست و پنلِ کوییز پیدایش نمی‌کند؛ پس
+             در «سایر» می‌نشیند و `targetRef.source` می‌گوید مالِ کجاست. */
+          area: round.source === "kimia" ? ("other" as const) : ("quiz" as const),
           targetId: round.questionId,
           snapshot: round.verse.join(" / "),
           /* ⚠️ هیچ‌چیزی از پاسخ اینجا نمی‌آید — نه نامِ وزن و نه ارکان.
              `targetRef` در بدنهٔ درخواستِ گزارش می‌نشیند و همان‌جا دیدنی
              است. */
-          targetRef: { game: "kimia", slotCount: round.slotCount },
+          targetRef: { game: "kimia", source: round.source, slotCount: round.slotCount },
         }
       : null,
   );

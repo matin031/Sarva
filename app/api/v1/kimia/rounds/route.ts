@@ -83,6 +83,7 @@ export const POST = withRoute("/api/v1/kimia/rounds", async (request: NextReques
     const round: KimiaRound = {
       roundId,
       questionId: candidate.questionId,
+      source: candidate.source,
       verse: candidate.verse,
       slotCount: candidate.slotCount,
       rhythmUrl: `/api/v1/kimia/rhythm/${candidate.questionId}`,

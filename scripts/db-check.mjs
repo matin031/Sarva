@@ -51,6 +51,7 @@ const MIGRATION_TABLES = [
   "rang_ara_verses", // ۰۲۲
   "teacher_assignments", // ۰۲۳
   "rang_ara_answers", // ۰۲۴
+  "kimia_verses", // ۰۲۵
 ];
 
 const EXPECTED_TABLES = [...TABLE_ORDER, ...RUNNER_TABLES, ...MIGRATION_TABLES].sort();

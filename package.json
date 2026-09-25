@@ -20,6 +20,7 @@
     "db:seed-rang-ara": "tsx --conditions=react-server scripts/seed-rang-ara.ts",
     "db:seed-aruz-rapid": "tsx --conditions=react-server scripts/seed-aruz-rapid.ts",
     "db:seed-aruz": "tsx --conditions=react-server scripts/seed-aruz.ts",
+    "db:seed-kimia": "tsx --conditions=react-server scripts/seed-kimia.ts",
     "db:check-audio": "node scripts/check-audio.mjs",
     "db:check-rotation": "tsx --conditions=react-server scripts/check-refresh-rotation.ts",
     "db:check-otp": "tsx --conditions=react-server scripts/check-otp-attempts.ts",

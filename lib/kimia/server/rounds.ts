@@ -35,6 +35,8 @@ import type { KimiaSolution, KimiaVerdict } from "../types";
 export type RoundRow = {
   id: string;
   question_id: string | null;
+  /** شناسهٔ `kimia_verses` — وقتی بیت از آن جدول آمده. (migration ۰۲۵) */
+  verse_id: string | null;
   verse: string;
   meter_ark: string;
   meter_name: string;
@@ -50,7 +52,7 @@ export type RoundRow = {
 };
 
 /** ستون‌های ردیفِ دور، در یک جا — تا سه کوئری از هم دور نیفتند. */
-const ROUND_COLUMNS = `id, question_id, verse, meter_ark, meter_name, slot_count, status,
+const ROUND_COLUMNS = `id, question_id, verse_id, verse, meter_ark, meter_name, slot_count, status,
             attempts_count, last_attempt_id, last_selected, last_correct, last_error_type,
             revealed_at, reveal_reason`;
 
@@ -85,14 +87,21 @@ export async function createRound(
   candidate: KimiaCandidate,
 ): Promise<string> {
   const roundId = randomUUID();
+  /* ⚠️ شناسه فقط در ستونِ منبعِ خودش می‌نشیند. `question_id` کلیدِ خارجی به
+     `questions` دارد و شناسهٔ یک بیتِ `kimia_verses` آنجا درج نمی‌شود؛ و
+     «فقط یکی از این دو» با CHECK بسته نشده (توضیح در migration ۰۲۵)، پس
+     همین‌جا تضمین می‌شود. */
+  const questionId = candidate.source === "quiz" ? candidate.questionId : null;
+  const verseId = candidate.source === "kimia" ? candidate.questionId : null;
   await execute(
     `insert into kimia_rounds
-       (id, user_id, question_id, verse, meter_ark, meter_name, slot_count)
-     values (?, ?, ?, ?, ?, ?, ?)`,
+       (id, user_id, question_id, verse_id, verse, meter_ark, meter_name, slot_count)
+     values (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       roundId,
       userId,
-      candidate.questionId,
+      questionId,
+      verseId,
       verseSnapshot(candidate.verse),
       joinArk(candidate.meter.canonical),
       candidate.meter.name.slice(0, 191),

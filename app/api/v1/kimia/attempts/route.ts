@@ -102,7 +102,8 @@ export const POST = withRoute("/api/v1/kimia/attempts", async (request: NextRequ
        می‌توانست دورِ یک بیتِ آسان را باز کند و پاسخِ بیتِ دیگری را در آن
        بفرستد. تناقض یعنی درخواست دستکاری شده یا کلاینت گیج شده؛ هیچ‌کدام
        دادهٔ قابلِ ثبتی نیست. */
-    if (round.question_id !== null && round.question_id !== questionId) {
+    const roundItem = round.question_id ?? round.verse_id;
+    if (roundItem !== null && roundItem !== questionId) {
       return fail("این ترکیب برای این دور نیست.", 409);
     }
 

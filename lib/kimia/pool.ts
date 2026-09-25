@@ -41,9 +41,22 @@ import {
    نمی‌شود.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/** یک ردیفِ خامِ خوانده‌شده از بانکِ عروض. */
+/**
+ * بیت از کجا آمده.
+ *
+ *   `quiz`  → بانکِ عروضِ سماعی (`questions`)، مشترک با «آزمون وزن شعر».
+ *   `kimia` → `kimia_verses`، فقط مالِ همین بازی (migration ۰۲۵).
+ *
+ * ⚠️ این دو هیچ‌وقت در هم نوشته نمی‌شوند: بیتی که فقط برای کیمیا آمده اگر
+ * در `questions` بنشیند، بی‌صدا واردِ آزمون و تکلیف‌های دبیر هم می‌شود.
+ */
+export type KimiaItemSource = "quiz" | "kimia";
+
+/** یک ردیفِ خامِ خوانده‌شده از بانکِ عروض — یا از `kimia_verses` به همین شکل. */
 export type KimiaSourceRow = {
   id: string;
+  /** نبودنش یعنی `quiz`؛ ردیف‌های بانکِ عروض همیشه همین بودند. */
+  source?: KimiaItemSource;
   type: string;
   /** بیتِ خودِ سؤال (در `poem-to-audio`). */
   poem: unknown;
@@ -57,7 +70,9 @@ export type KimiaSourceRow = {
 
 /** یک نامزدِ پذیرفته‌شده — همه‌چیزی که یک دور لازم دارد. */
 export type KimiaCandidate = {
+  /** شناسهٔ ردیف در منبعش — `questions.id` یا `kimia_verses.id`. */
   readonly questionId: string;
+  readonly source: KimiaItemSource;
   /** دو مصراع، پاک‌سازی‌شده. */
   readonly verse: readonly string[];
   readonly meter: KimiaMeter;
@@ -179,6 +194,7 @@ export function screenRow(row: KimiaSourceRow): Screened {
     ok: true,
     candidate: {
       questionId: row.id,
+      source: row.source ?? "quiz",
       // دو مصراعِ اول کافی است؛ بانک جایی بیش از دو ندارد ولی اتکا به آن
       // یعنی یک ردیفِ عجیب چیدمانِ بیت را خراب کند.
       verse: verse.slice(0, 2),

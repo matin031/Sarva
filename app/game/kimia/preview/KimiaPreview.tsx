@@ -87,6 +87,7 @@ export default function KimiaPreview() {
         return {
           roundId: `preview-round-${n + 1}`,
           questionId,
+          source: "quiz",
           verse: [verse[0], verse[1]],
           slotCount: feet.length,
           /* ⚠️ اینجا — و *فقط* اینجا — آدرسِ خودِ فایل داده می‌شود. در

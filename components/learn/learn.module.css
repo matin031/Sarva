@@ -422,3 +422,88 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 .spotlit svg { width: 44px; overflow: visible; }
 .spotlit b { font-size: 18px; font-weight: 800; line-height: 1.6; }
 .catchItem[data-state="got"] .spotlit b { color: var(--lx-ink); }
+
+/* ───────── سبدها (sort) ───────── */
+.sortCard { margin: 6px auto 4px; padding: 10px 14px 4px; max-width: 560px; border-radius: 20px; background: color-mix(in oklch, var(--lx-host) 10%, var(--lx-card)); border: var(--sticker); box-shadow: 3px 4px 0 var(--lx-drop); }
+.bins { display: grid; gap: 10px; margin-top: 16px; }
+.bin { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 128px; padding: 10px 6px 8px; border-radius: 20px 20px 26px 26px; background: linear-gradient(to bottom, var(--lx-card), color-mix(in oklch, var(--lx-host) 18%, var(--lx-card))); border: var(--sticker); border-top-style: dashed; box-shadow: 3px 4px 0 var(--lx-drop); transition: background .3s, opacity .3s, border-color .3s; }
+.bin b { font: 16px/1.5 var(--display); }
+.binEmoji { font-size: 30px; line-height: 1.2; }
+.bin[data-state="right"] { border-color: var(--lx-good); background: linear-gradient(to bottom, var(--lx-card), color-mix(in oklch, var(--lx-good) 26%, var(--lx-card))); }
+.bin[data-state="wrong"] { border-color: var(--lx-bad); background: color-mix(in oklch, var(--lx-bad) 14%, var(--lx-card)); }
+.bin[data-state="idle"] { opacity: .5; }
+.bin:disabled { cursor: default; }
+.pile { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 4px; }
+.pile i { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--lx-card); border: 1.5px solid var(--lx-outline); font-style: normal; font-size: 12px; line-height: 1.8; }
+
+/* ───────── جابه‌جاییِ معنی (morph) ───────── */
+.morph { text-align: center; }
+.word[data-clue] { background: color-mix(in oklch, var(--gold) 30%, transparent); border-color: color-mix(in oklch, var(--gold) 75%, var(--foreground)); border-style: dashed; animation: pulse 1.4s ease-in-out 2; }
+.morphStage { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; }
+.sense { position: relative; display: flex; flex-direction: column; align-items: center; width: 150px; min-height: 132px; padding: 10px 8px; border-radius: 22px; background: var(--lx-card); border: var(--sticker); box-shadow: 3px 4px 0 var(--lx-drop); transition: filter .4s; }
+.sense small { color: var(--lx-muted); font-size: 11.5px; line-height: 1.6; }
+.sense b { font-size: 15px; line-height: 1.6; }
+.senseEmoji { font-size: 40px; line-height: 1.25; }
+.sense[data-off] .senseEmoji { filter: grayscale(1); opacity: .6; }
+.sense[data-off] b { text-decoration: line-through; text-decoration-color: var(--lx-bad); text-decoration-thickness: 2.5px; }
+.sense[data-meant] { background: color-mix(in oklch, var(--lx-good) 14%, var(--lx-card)); border-color: var(--lx-good); }
+.senseX { position: absolute; top: -12px; left: -10px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--lx-bad); color: #fff; font-style: normal; font-size: 14px; border: 2px solid var(--lx-outline); }
+.bridge { display: flex; flex-direction: column; align-items: center; flex: 0 0 104px; color: var(--lx-muted); transition: color .4s; }
+.bridge svg { width: 96px; height: 22px; overflow: visible; }
+.bridge span { padding: 0 8px; border-radius: 999px; font-size: 12px; line-height: 1.9; font-weight: 700; opacity: 0; transition: opacity .5s .5s; }
+.bridge[data-on] { color: var(--lx-ink); }
+.bridge[data-on] span { opacity: 1; background: color-mix(in oklch, var(--lx-host) 26%, var(--lx-card)); border: 1.5px solid var(--lx-outline); }
+.clueNote { margin: 12px 0 0; font-size: 14px; font-weight: 700; color: color-mix(in oklch, var(--gold) 65%, var(--foreground)); opacity: 0; transition: opacity .4s; }
+.clueNote[data-on] { opacity: 1; }
+
+/* ───────── سؤال‌ساز (build) ───────── */
+.buildSlots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 58px; margin: 16px 0 4px; padding: 8px 12px; border-radius: 20px; background: color-mix(in oklch, var(--primary) 6%, transparent); border: 2px dashed var(--lx-line); }
+.buildSlot { width: 70px; height: 40px; border-radius: 14px; border: 2px dashed color-mix(in oklch, var(--foreground) 25%, transparent); }
+.buildSlot[data-next] { border-color: var(--primary); animation: blank 1.2s ease-in-out infinite; }
+.buildMark { font: 30px/1 var(--display); color: var(--lx-ink); }
+.buildPool { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.buildChip { display: inline-grid; place-items: center; min-width: 64px; height: 42px; padding: 0 14px; border-radius: 14px; background: var(--lx-card); border: var(--sticker); box-shadow: 2px 3px 0 var(--lx-drop); font-size: 18px; font-weight: 700; }
+.buildChip[data-in] { background: color-mix(in oklch, var(--lx-host) 30%, var(--lx-card)); }
+.buildGhost { display: inline-grid; place-items: center; min-width: 64px; height: 42px; padding: 0 14px; border-radius: 14px; border: 2px dashed var(--lx-line); font-size: 18px; font-weight: 700; color: transparent; }
+.buildReveal { margin: 10px auto 0; padding: 6px 18px; width: fit-content; border-radius: 16px; background: color-mix(in oklch, var(--gold) 22%, var(--lx-card)); border: var(--sticker); font-size: 18px; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .bins { gap: 6px; }
+  .bin { min-height: 112px; padding-inline: 3px; }
+  .bin b { font-size: 14px; }
+  .binEmoji { font-size: 25px; }
+  .sense { width: 118px; min-height: 120px; }
+  .senseEmoji { font-size: 32px; }
+  .sense b { font-size: 13.5px; }
+  .bridge { flex-basis: 70px; }
+  .bridge svg { width: 64px; }
+  .bridge span { font-size: 10.5px; padding: 0 5px; }
+  .buildChip, .buildGhost { min-width: 54px; height: 38px; padding: 0 10px; font-size: 16px; }
+  .buildSlot { width: 54px; height: 36px; }
+}
+
+/* ───────── خانهٔ مفعول ─────────
+   پالتِ سیبل: هلوییِ گرم با آبیِ کم‌رنگ. */
+.page[data-lesson="mafool"] {
+  --lx-host: #ffbb94;
+  --lx-tick: #8fc7e8;
+  --lx-ink: color-mix(in oklch, #c4562f 62%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="mafool"] {
+  --lx-host: #c7825e;
+  --lx-tick: #5f93b3;
+  --lx-ink: color-mix(in oklch, #ffa37a 62%, var(--foreground));
+}
+
+/* ───────── خانهٔ مجاز ─────────
+   پالتِ «فضای مجازی»: آبیِ صفحه‌نمایش با صورتیِ نئون. */
+.page[data-lesson="majaz"] {
+  --lx-host: #9ccbff;
+  --lx-tick: #f5a3c7;
+  --lx-ink: color-mix(in oklch, #2f6fc4 62%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="majaz"] {
+  --lx-host: #5e8fc4;
+  --lx-tick: #b86e90;
+  --lx-ink: color-mix(in oklch, #9ccbff 62%, var(--foreground));
+}

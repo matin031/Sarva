@@ -15,10 +15,10 @@ import s from "./learn.module.css";
 
 type Of<K extends Beat["kind"]> = Extract<Beat, { kind: K }>;
 export type BeatProps<K extends Beat["kind"]> = { beat: Of<K>; solved: boolean; onSolve: (firstTry: boolean) => void; reduced: boolean; fresh: boolean; host: string; memo?: number; onMemo?: (value: number) => void };
-type Tone = "good" | "bad" | "hint";
+export type Tone = "good" | "bad" | "hint";
 
-const SPRING = { type: "spring", stiffness: 360, damping: 24 } as const;
-const sound = (kind: "correct" | "wrong") => { if (!isSoundMuted()) playFeedback(kind); };
+export const SPRING = { type: "spring", stiffness: 360, damping: 24 } as const;
+export const sound = (kind: "correct" | "wrong") => { if (!isSoundMuted()) playFeedback(kind); };
 export const fa = (n: number) => n.toLocaleString("fa-IR");
 
 /* ───────── pieces ───────── */
@@ -47,7 +47,7 @@ function StudentLine({ text, reduced }: { text: string; reduced: boolean }) {
   </motion.div>;
 }
 
-function Feedback({ message, tone, host, reduced }: { message: string; tone: Tone; host: string; reduced: boolean }) {
+export function Feedback({ message, tone, host, reduced }: { message: string; tone: Tone; host: string; reduced: boolean }) {
   const { persona } = useStage();
   return <AnimatePresence mode="wait">
     {message && <motion.div key={message} className={s.feedback} data-tone={tone} role="status" initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2 }}>
@@ -57,17 +57,17 @@ function Feedback({ message, tone, host, reduced }: { message: string; tone: Ton
   </AnimatePresence>;
 }
 
-function Card({ children, className = "", reduced }: { children: ReactNode; className?: string; reduced: boolean }) {
+export function Card({ children, className = "", reduced }: { children: ReactNode; className?: string; reduced: boolean }) {
   return <motion.section className={`${s.card} ${className}`} initial={reduced ? false : { opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={SPRING}>{children}</motion.section>;
 }
 
 /** Where a line comes from in the textbook. */
-const Source = ({ src }: { src?: string }) => src ? <p className={s.source}>{src}</p> : null;
+export const Source = ({ src }: { src?: string }) => src ? <p className={s.source}>{src}</p> : null;
 
 /** A marked line (lib/learn/line.ts) as words. With `onTap` every word is a
  *  button; `found` crowns answers; `hint` lights up the prepositions (1) and
  *  then makes the answers pulse (2); `blank` hides the prepositions. */
-function LineView({ tokens, onTap, found = [], hint = 0, miss, blank, filled, focus, reduced, big }: {
+export function LineView({ tokens, onTap, found = [], hint = 0, miss, blank, filled, focus, reduced, big }: {
   tokens: Token[]; onTap?: (i: number) => void; found?: number[]; hint?: number; miss?: number | null;
   blank?: boolean; filled?: boolean; focus?: "yes" | "no" | "ask"; reduced: boolean; big?: boolean;
 }) {
@@ -254,7 +254,7 @@ export function TapBeat({ beat, reduced, solved, onSolve, host }: BeatProps<"tap
 }
 
 /** Progress for a queue of lines, where a missed line comes back at the end. */
-function useQueue<T>(items: T[], solved: boolean) {
+export function useQueue<T>(items: T[], solved: boolean) {
   const [queue, setQueue] = useState<number[]>(() => solved ? [] : items.map((_, i) => i));
   const [streak, setStreak] = useState(0);
   const [best, setBest] = useState(0);
@@ -281,7 +281,7 @@ function useQueue<T>(items: T[], solved: boolean) {
   return { current, queue, streak, best, next, round, left: queue.length };
 }
 
-function QueueHead({ done, total, streak, left }: { done: number; total: number; streak: number; left: number }) {
+export function QueueHead({ done, total, streak, left }: { done: number; total: number; streak: number; left: number }) {
   return <div className={s.queueHead}>
     <div className={s.queueBar}><motion.i animate={{ width: `${Math.min(1, done / total) * 100}%` }} transition={SPRING} /></div>
     <span className={s.streak} data-hot={streak >= 3 || undefined}><Flame size={14} /> {fa(streak)}</span>
@@ -446,7 +446,7 @@ export function DetourBeat({ beat, reduced }: BeatProps<"detour">) {
 /** ترتیبِ ثابتِ گزینه‌ها. تصادفیِ واقعی نه: سرور و مرورگر باید یک چیز بسازند،
  *  وگرنه هیدریشن سرِ همین چند تا دکمه می‌شکند. */
 const rank = (text: string) => [...text].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
-const shuffle = <T,>(items: T[], of: (item: T) => string) => [...items].sort((a, b) => rank(of(a)) - rank(of(b)));
+export const shuffle = <T,>(items: T[], of: (item: T) => string) => [...items].sort((a, b) => rank(of(a)) - rank(of(b)));
 
 /** نمایشِ خودکارِ دو معنی: نقاب اول می‌افتد، نقاب دوم می‌آید، بعد هر دو با هم. */
 export function DuoBeat({ beat, reduced }: BeatProps<"duo">) {

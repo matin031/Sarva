@@ -12,7 +12,7 @@ export type Mood = "cool" | "happy" | "wow" | "think";
 
 /** شخصیتِ میزبانِ درس. چهره، نشانِ جواب و لحنِ بازخوردهای پیش‌فرض از همین
  *  می‌آید (components/learn/persona.tsx). */
-export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad";
+export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad" | "mafool" | "majaz";
 
 export type Beat =
   /** فصل تازه؛ در نوار پیشرفت هم دیده می‌شود. */
@@ -53,7 +53,22 @@ export type Beat =
   | { kind: "list"; title: string; intro: string; rows: { word: string; a: string; b: string }[] }
   /** میان‌بُر به مبحث دیگر، با یادآوری کوتاه همان‌جا. */
   | { kind: "detour"; text: string; to: string; label: string; recap: { title: string; rows: [string, string][]; example: string } }
+  /** سبدها: هر سطر را در سبدِ درستش بینداز. کلمهٔ `|…|` همانی است که سؤال
+   *  دربارهٔ آن است و `bin` ایندکسِ سبدِ درست در `bins`. */
+  | { kind: "sort"; prompt: string; bins: Bin[]; items: (Example & { bin: number; why: string })[]; success: string }
+  /** نمایشِ متحرکِ جابه‌جاییِ معنی (مجاز): کلمهٔ `|…|` اول با معنیِ حقیقی‌اش
+   *  می‌آید، `clue` (قرینه) روشن می‌شود و آن معنی خط می‌خورد، بعد معنیِ مقصود
+   *  با پلِ `bridge` (علاقه) جایش می‌نشیند. */
+  | { kind: "morph"; line: string; said: Sense; meant: Sense; clue: string; bridge: string; caption: string; src?: string }
+  /** سؤال‌ساز: تکه‌ها را به ترتیبِ `answer` بزن تا پرسشِ تشخیص ساخته شود؛
+   *  بعد جوابِ `[…]` از دلِ سطر بیرون می‌پرد. `notes` توضیحِ تکه‌های غلط است. */
+  | { kind: "build"; prompt: string; line: string; pieces: string[]; answer: string[]; notes?: Record<string, string>; reveal: string; success: string }
   | { kind: "finish"; learned: string[] };
+
+/** یک سبد در قدمِ `sort`. */
+export type Bin = { label: string; emoji: string };
+/** یک معنی در نمایشِ `morph`: شکلک و نوشته. */
+export type Sense = { emoji: string; text: string };
 
 /** یک روی کارتِ برگردان: یا سطری از کتاب، یا دو معنیِ یک کلمه. */
 export type Flip = { front: string; src?: string } & ({ example: string; meanings?: never } | { meanings: [string, string]; example?: never });
@@ -90,6 +105,6 @@ export type Lesson = {
 };
 
 /** قدم‌هایی که بدون جواب درست رد نمی‌شوند. */
-export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice"].includes(beat.kind);
+export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build"].includes(beat.kind);
 /** قدم‌هایی که جواب درستِ بار اول ستاره می‌گیرد. */
-export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice"].includes(beat.kind);
+export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build"].includes(beat.kind);

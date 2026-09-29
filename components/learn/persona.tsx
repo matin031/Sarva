@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactElement } from "react";
 import type { CharacterId, Mood } from "@/lib/learn/types";
-import { Iham, Likeness, Masked, Motammam, Nahad, Spotlit, Tashbih, Tick } from "./Characters";
+import { Iham, Likeness, Mafool, Majaz, Masked, Motammam, Nahad, Spotlit, Swap, Target, Tashbih, Tick } from "./Characters";
 
 /** آنچه از یک شخصیت به شکلِ قدم‌ها می‌رسد: چهره‌اش، نشانی که روی جواب درست
  *  می‌گذارد، و لحنِ جمله‌های آماده‌ای که کدِ مشترک می‌سازد. جمله‌ها رشته‌اند
@@ -68,6 +68,24 @@ export const PERSONAS: Record<CharacterId, Persona> = {
     judge: ["نهاده", "نهاد نیست"],
     glow: 3,
     finish: "نهادیاب شدی! ⭐",
+  },
+  mafool: {
+    Face: Mafool,
+    Chip: Target,
+    mark: "🎯",
+    miss: "«%کلمه%» مفعول نیست. فعل رو پیدا کن و بپرس «چه کسی ==را==؟ / چه چیزی ==را==؟».",
+    judge: ["مفعوله", "مفعول نیست"],
+    glow: 3,
+    finish: "مفعول‌شکار شدی! 🎯",
+  },
+  majaz: {
+    Face: Majaz,
+    Chip: Swap,
+    mark: "🔁",
+    miss: "«%کلمه%» اینجا توی همون معنیِ خودشه. دنبالِ کلمه‌ای بگرد که ==یه چیزِ دیگه== رو می‌خواد.",
+    judge: ["مجازه", "مجاز نیست"],
+    glow: 3,
+    finish: "مجازشناس شدی! 🔁",
   },
 };
 

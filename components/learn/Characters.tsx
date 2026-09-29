@@ -205,3 +205,94 @@ export function Spotlit({ label, className = "" }: { label: string; className?: 
     <b>{label}</b>
   </span>;
 }
+
+/** چشم و دهانِ مشترکِ شخصیت‌های تازه؛ `y` ارتفاعِ خطِ چشم است. */
+function FaceParts({ mood, y }: { mood: Mood; y: number }) {
+  return <>
+    {mood === "cool" ? <g>
+      <path d={`M27 ${y - 3}h46`} stroke="var(--lx-outline)" strokeWidth="2.6" />
+      <rect x="27" y={y - 6} width="19" height="12" rx="5" fill="#241c33" />
+      <rect x="54" y={y - 6} width="19" height="12" rx="5" fill="#241c33" />
+      <path d={`M31 ${y - 3}h6M58 ${y - 3}h6`} stroke="#fff" strokeOpacity=".55" strokeWidth="2" strokeLinecap="round" />
+    </g> : <g className={s.hostEyes}>
+      {mood === "happy" && <path d={`M31 ${y + 2}q5-7 10 0M59 ${y + 2}q5-7 10 0`} fill="none" stroke="#241c33" strokeWidth="3" strokeLinecap="round" />}
+      {mood === "wow" && <><circle cx="36" cy={y} r="6" fill="#fff" stroke="#241c33" strokeWidth="2" /><circle cx="64" cy={y} r="6" fill="#fff" stroke="#241c33" strokeWidth="2" /><circle cx="36" cy={y} r="2.8" fill="#241c33" /><circle cx="64" cy={y} r="2.8" fill="#241c33" /></>}
+      {mood === "think" && <><circle cx="38" cy={y - 1} r="3.6" fill="#241c33" /><circle cx="66" cy={y - 1} r="3.6" fill="#241c33" /><path d={`M31 ${y - 8}l9-2M59 ${y - 10}l9 2`} stroke="#241c33" strokeWidth="2.4" strokeLinecap="round" /></>}
+    </g>}
+    <ellipse cx="28" cy={y + 13} rx="5" ry="3" fill="#f49a9a" opacity=".7" />
+    <ellipse cx="72" cy={y + 13} rx="5" ry="3" fill="#f49a9a" opacity=".7" />
+    {mood === "wow" ? <ellipse cx="50" cy={y + 21} rx="5" ry="6" fill="#241c33" />
+      : mood === "think" ? <path d={`M43 ${y + 22}h13`} stroke="#241c33" strokeWidth="2.6" strokeLinecap="round" />
+        : <path d={mood === "cool" ? `M42 ${y + 18}q10 6 17-2` : `M40 ${y + 17}q10 10 20 0`} fill="none" stroke="#241c33" strokeWidth="2.8" strokeLinecap="round" />}
+  </>;
+}
+
+/** «مفعول»: کاشیِ کلمه با یک سیبلِ روی سینه و تیری که درست وسطش نشسته —
+ *  همان کسی یا چیزی که کارِ فعل «به او می‌خورد». */
+export function Mafool({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 66c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="28" width="72" height="66" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M22 38c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <FaceParts mood={mood} y={53} />
+      {/* سیبلِ کوچک روی شکم */}
+      <circle cx="50" cy="86" r="7" fill="#fff" stroke="var(--lx-outline)" strokeWidth="2" />
+      <circle cx="50" cy="86" r="4" fill="#e0736e" />
+      <circle cx="50" cy="86" r="1.6" fill="#fff" />
+      {/* تیری که از بالا آمده و در گوشهٔ سر نشسته */}
+      <g className={s.hostCrown}>
+        <path d="M78 30 94 8" stroke="var(--lx-outline)" strokeWidth="3" strokeLinecap="round" />
+        <path d="m90 6 8-4-2 8Z" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="m94 8 5 1M92 11l3 4" stroke="#e0736e" strokeWidth="2.4" strokeLinecap="round" />
+      </g>
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ مفعول: کلمه زیرِ یک سیبل. */
+export function Target({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <circle cx="32" cy="13" r="11" fill="#fff" stroke="var(--lx-outline)" strokeWidth="2" />
+      <circle cx="32" cy="13" r="7" fill="#e0736e" />
+      <circle cx="32" cy="13" r="3" fill="#fff" />
+      <path d="M52 2 34 12" stroke="var(--lx-outline)" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}
+
+/** «مجاز»: کاشیِ کلمه با عینکِ واقعیتِ مجازی روی پیشانی و موجِ وای‌فای بالای
+ *  سرش — همان شوخیِ «دوره، دورهٔ ماست». */
+export function Majaz({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <g className={s.hostCrown} fill="none" stroke="var(--lx-outline)" strokeWidth="3" strokeLinecap="round">
+        <path d="M36 14q14-12 28 0" />
+        <path d="M41 19q9-7 18 0" />
+        <circle cx="50" cy="23" r="2.4" fill="var(--lx-outline)" />
+      </g>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 66c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="28" width="72" height="66" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      {/* عینکِ واقعیتِ مجازی، بالا زده */}
+      <path d="M14 38h72" stroke="var(--lx-outline)" strokeWidth="3" />
+      <rect x="26" y="31" width="48" height="13" rx="6" fill="#3b2f52" stroke="var(--lx-outline)" strokeWidth="2.4" />
+      <path d="M31 36h14" stroke="#8ec5ff" strokeWidth="2.4" strokeLinecap="round" />
+      <FaceParts mood={mood} y={58} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ مجاز: دو پیکانِ جابه‌جایی — «این را گفت، آن را خواست». */
+export function Swap({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <path d="M12 8h38m-7-6 7 6-7 6" fill="none" stroke="var(--lx-outline)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M52 19H14m7-6-7 6 7 6" fill="none" stroke="#8ec5ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}

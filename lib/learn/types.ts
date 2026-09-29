@@ -12,7 +12,7 @@ export type Mood = "cool" | "happy" | "wow" | "think";
 
 /** شخصیتِ میزبانِ درس. چهره، نشانِ جواب و لحنِ بازخوردهای پیش‌فرض از همین
  *  می‌آید (components/learn/persona.tsx). */
-export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad" | "mafool" | "majaz" | "esteare" | "hosnTalil" | "paradox";
+export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad" | "mafool" | "majaz" | "esteare" | "hosnTalil" | "paradox" | "mozafElayh" | "sefat";
 
 export type Beat =
   /** فصل تازه؛ در نوار پیشرفت هم دیده می‌شود. */
@@ -72,6 +72,10 @@ export type Beat =
    *  یک نقطه (متناقض‌نما)، وگرنه روی دو نقطهٔ جدا (تضاد). شاگرد پیش از افتادن
    *  حدس می‌زند. */
   | { kind: "timeline"; prompt: string; items: TimelineItem[]; success: string }
+  /** گروه‌ساز: هسته وسط است و وابسته‌ها یکی‌یکی می‌آیند؛ شاگرد می‌گوید هر
+   *  کدام پیش از هسته (پیشین) می‌نشیند یا پس از آن (پسین)، و گروهِ اسمی جلوی
+   *  چشمش ساخته می‌شود. ترتیبِ `parts` همان ترتیبِ نهاییِ هر طرف است. */
+  | { kind: "grow"; prompt: string; head: string; parts: GrowPart[]; success: string }
   /** نمایشِ متحرکِ دو خطِ زمان زیرِ هم: اولی تضاد، دومی متناقض‌نما. */
   | { kind: "timelineDemo"; apart: TimelineItem; together: TimelineItem; caption: string }
   | { kind: "finish"; learned: string[] };
@@ -80,6 +84,8 @@ export type Beat =
  *  وصف («سارا · الان»). دو `at`ِ یکسان یعنی یک نقطه. */
 export type TimelineItem = { line: string; src?: string; a: Sense & { at: string }; b: Sense & { at: string }; why: string };
 
+/** یک وابسته در قدمِ `grow`. */
+export type GrowPart = { text: string; side: "pre" | "post"; label: string; why: string };
 /** یک سبد در قدمِ `sort`. */
 export type Bin = { label: string; emoji: string };
 /** یک معنی در نمایشِ `morph`: شکلک و نوشته. */
@@ -120,6 +126,6 @@ export type Lesson = {
 };
 
 /** قدم‌هایی که بدون جواب درست رد نمی‌شوند. */
-export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline"].includes(beat.kind);
+export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline", "grow"].includes(beat.kind);
 /** قدم‌هایی که جواب درستِ بار اول ستاره می‌گیرد. */
-export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline"].includes(beat.kind);
+export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline", "grow"].includes(beat.kind);

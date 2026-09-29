@@ -286,3 +286,57 @@ export function TimelineBeat({ beat, reduced, solved, onSolve, host }: BeatProps
       : <TimelineLine key={q.round} item={beat.items[q.current]} reduced={reduced} host={host} onDone={clean => q.next(clean, onSolve)} />}
   </Card>;
 }
+
+/* ───────── گروه‌ساز ───────── */
+
+/** هسته وسطِ صحنه است؛ وابسته‌ها یکی‌یکی می‌آیند و شاگرد جایشان را تعیین
+ *  می‌کند. در فارسی پیشین سمتِ راستِ هسته می‌نشیند (پیش از آن خوانده
+ *  می‌شود) و پسین سمتِ چپ. */
+export function GrowBeat({ beat, reduced, solved, onSolve, host }: BeatProps<"grow">) {
+  const [placed, setPlaced] = useState(solved ? beat.parts.length : 0);
+  const [misses, setMisses] = useState(0);
+  const [shake, setShake] = useState(0);
+  const [message, setMessage] = useState("");
+  const [tone, setTone] = useState<Tone>("hint");
+  const done = placed >= beat.parts.length;
+  const current = beat.parts[placed];
+  function put(side: "pre" | "post") {
+    if (done || !current) return;
+    if (side === current.side) {
+      sound("correct"); setTone("good"); setMessage(current.why);
+      const next = placed + 1;
+      setPlaced(next);
+      if (next >= beat.parts.length) window.setTimeout(() => { setMessage(beat.success); onSolve(misses === 0); }, 900);
+      return;
+    }
+    sound("wrong"); setMisses(n => n + 1); setShake(n => n + 1); setTone("bad");
+    setMessage(`نه، «${current.text}» ${current.side === "pre" ? "==قبل از== هسته" : "==بعد از== هسته"} می‌شینه. ${current.why}`);
+  }
+  const shown = beat.parts.map((part, i) => ({ ...part, i })).filter(part => part.i < placed);
+  const word = (part: { text: string; label: string; i: number }) => <motion.span key={part.i} className={s.growWord}
+    initial={reduced ? false : { opacity: 0, scale: .4, y: -40 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 420, damping: 16 }}>
+    <small>{part.label}</small>{part.text}
+  </motion.span>;
+  return <Card reduced={reduced}>
+    <p className={s.prompt}><Rich text={beat.prompt} /></p>
+    <div className={s.growRow}>
+      {shown.filter(part => part.side === "pre").map(word)}
+      <motion.span className={s.growHead} animate={done && !reduced ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: .5 }}><small>هسته</small>{beat.head}</motion.span>
+      {shown.filter(part => part.side === "post").map(word)}
+    </div>
+    {!done && current && <>
+      <motion.div key={`${placed}-${shake}`} className={s.growChip} initial={reduced ? false : { opacity: 0, y: -14 }}
+        animate={shake && !reduced ? { opacity: 1, y: 0, x: [0, -9, 8, -5, 0] } : { opacity: 1, y: 0 }} transition={{ duration: .4 }}>
+        {current.text}
+      </motion.div>
+      <div className={s.growButtons}>
+        <button onClick={() => put("pre")}><ArrowRightIcon /> قبل از هسته <small>پیشین</small></button>
+        <button onClick={() => put("post")}>بعد از هسته <small>پسین</small> <ArrowLeft size={18} /></button>
+      </div>
+    </>}
+    <p className={s.counter} data-done={done || undefined}>{fa(Math.min(placed, beat.parts.length))} از {fa(beat.parts.length)}</p>
+    <Feedback message={solved ? beat.success : message} tone={solved ? "good" : tone} host={host} reduced={reduced} />
+  </Card>;
+}
+
+const ArrowRightIcon = () => <ArrowLeft size={18} style={{ transform: "scaleX(-1)" }} />;

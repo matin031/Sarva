@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactElement } from "react";
 import type { CharacterId, Mood } from "@/lib/learn/types";
-import { Bulb, Esteare, HalfMoon, HosnTalil, Iham, Likeness, Mafool, Majaz, Mane, Masked, Motammam, Nahad, Paradox, Spotlit, Swap, Target, Tashbih, Tick } from "./Characters";
+import { Brush, Bulb, Chain, Esteare, HalfMoon, HosnTalil, Iham, Likeness, Mafool, Majaz, Mane, Masked, Motammam, MozafElayh, Nahad, Paradox, Sefat, Spotlit, Swap, Target, Tashbih, Tick } from "./Characters";
 
 /** آنچه از یک شخصیت به شکلِ قدم‌ها می‌رسد: چهره‌اش، نشانی که روی جواب درست
  *  می‌گذارد، و لحنِ جمله‌های آماده‌ای که کدِ مشترک می‌سازد. جمله‌ها رشته‌اند
@@ -113,6 +113,24 @@ export const PERSONAS: Record<CharacterId, Persona> = {
     judge: ["متناقض‌نماست", "نیست"],
     glow: 3,
     finish: "گره‌گشا شدی! 🌗",
+  },
+  mozafElayh: {
+    Face: MozafElayh,
+    Chip: Chain,
+    mark: "🔗",
+    miss: "«%کلمه%» اون نیست. بپرس «==مالِ کی؟ مربوط به چی؟==»؛ مضاف‌الیه نسبت می‌سازه، نه ویژگی.",
+    judge: ["مضاف‌الیهه", "نیست"],
+    glow: 3,
+    finish: "زنجیرباز شدی! 🔗",
+  },
+  sefat: {
+    Face: Sefat,
+    Chip: Brush,
+    mark: "🎨",
+    miss: "«%کلمه%» اون نیست. بپرس «==چه‌جور؟ کدوم؟ چندتا؟==»؛ صفت خودِ اسم رو توصیف یا مشخص می‌کنه.",
+    judge: ["صفته", "صفت نیست"],
+    glow: 3,
+    finish: "رنگ‌شناس شدی! 🎨",
   },
 };
 

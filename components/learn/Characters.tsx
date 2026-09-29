@@ -388,3 +388,66 @@ export function HalfMoon({ label, className = "" }: { label: string; className?:
     <b>{label}</b>
   </span>;
 }
+
+/** «مضاف‌الیه»: کاشیِ کلمه که با یک زنجیرِ کوچک به یک برچسب وصل است —
+ *  کارش ساختنِ «نسبت» است، نه توصیف. */
+export function MozafElayh({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <g className={s.hostCrown}>
+        <ellipse cx="80" cy="22" rx="6" ry="4" fill="none" stroke="var(--lx-outline)" strokeWidth="2.6" transform="rotate(-35 80 22)" />
+        <ellipse cx="87" cy="13" rx="6" ry="4" fill="none" stroke="var(--lx-outline)" strokeWidth="2.6" transform="rotate(-35 87 13)" />
+        <rect x="84" y="-2" width="15" height="11" rx="3" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="2" />
+      </g>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 60c3-6 1-14-3-24" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="30" width="72" height="64" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M22 40c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <FaceParts mood={mood} y={55} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ مضاف‌الیه: دو حلقهٔ زنجیر. */
+export function Chain({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <rect x="14" y="7" width="20" height="12" rx="6" fill="none" stroke="var(--lx-outline)" strokeWidth="2.4" />
+      <rect x="30" y="7" width="20" height="12" rx="6" fill="none" stroke="#e59a3a" strokeWidth="2.4" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}
+
+/** «صفت»: کاشیِ کلمه با قلم‌مو و یک لکهٔ رنگ — کارش رنگ و ویژگی دادن به اسم. */
+export function Sefat({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <g className={s.hostCrown}>
+        <path d="M76 36 92 8" stroke="#8a5a2b" strokeWidth="4" strokeLinecap="round" />
+        <path d="M90 4c5-1 8 2 6 7l-4 3-4-2Z" fill="#e0736e" stroke="var(--lx-outline)" strokeWidth="1.8" strokeLinejoin="round" />
+        <circle cx="30" cy="14" r="5" fill="#9ccbff" stroke="var(--lx-outline)" strokeWidth="1.6" />
+        <circle cx="42" cy="8" r="4" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="1.6" />
+        <circle cx="52" cy="16" r="3.5" fill="#a8d98a" stroke="var(--lx-outline)" strokeWidth="1.6" />
+      </g>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 64c3-8 0-16-5-24" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="30" width="72" height="64" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M60 86c6-4 14-2 18 3" fill="none" stroke="#e0736e" strokeWidth="4" strokeLinecap="round" opacity=".8" />
+      <path d="M22 40c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <FaceParts mood={mood} y={55} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ صفت: یک قلم‌موی کوچک. */
+export function Brush({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <path d="M18 22 40 6" stroke="#8a5a2b" strokeWidth="3" strokeLinecap="round" />
+      <path d="M39 3c4-1 7 2 5 6l-3 2-3-2Z" fill="#e0736e" stroke="var(--lx-outline)" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="16" cy="20" r="3" fill="#9ccbff" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}

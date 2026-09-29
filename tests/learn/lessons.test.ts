@@ -60,6 +60,12 @@ for (const lesson of LESSONS) test(`${lesson.slug}: every beat is well-formed an
         for (const item of beat.items) assert.ok(item.a.at && item.b.at && item.why, `${at}: «${item.line}» is incomplete`);
         break;
       }
+      case "grow":
+        assert.ok(beat.head.trim(), `${at}: no head`);
+        // با یک طرفِ خالی، دکمهٔ درست همیشه همان یکی است و سؤالی نمی‌ماند.
+        assert.ok(beat.parts.some(p => p.side === "pre") && beat.parts.some(p => p.side === "post"), `${at}: needs parts on both sides`);
+        for (const part of beat.parts) assert.ok(part.text.trim() && part.label && part.why, `${at}: «${part.text}» is incomplete`);
+        break;
       case "timelineDemo":
         assert.notEqual(beat.apart.a.at, beat.apart.b.at, `${at}: «apart» must land on two points`);
         assert.equal(beat.together.a.at, beat.together.b.at, `${at}: «together» must land on one point`);

@@ -43,12 +43,14 @@ export const labelsAt = (roles: Role[], i: number) => roles.filter(role => role.
 /* ───────── ادعاهای آرایه‌ای ───────── */
 
 import type { Beat } from "../../lib/learn/types";
-import { parseLine, plainLine } from "../../lib/learn/line";
+import { parseLine, plainLine, targetCount } from "../../lib/learn/line";
 
-type Claim = { where: string; line: string; src: string; kind: "target" | "yes" | "no" | "bin" | "exists"; bin?: string; every?: boolean };
+type Claim = { where: string; line: string; src: string; kind: "target" | "yes" | "no" | "bin" | "exists" | "role"; bin?: string; every?: boolean;
+  /** برای `role`: نامِ رکنِ هر کروشهٔ این سطر، به ترتیب. */
+  roles?: string[] };
 
 /** هر سطرِ کتاب در درس، با ادعایی که درس دربارهٔ کلمه‌های نشان‌دارش دارد. */
-function claims(beats: Beat[]): Claim[] {
+function claims(beats: Beat[], pillarRoles: boolean): Claim[] {
   const out: Claim[] = [];
   const add = (where: string, line: string, src: string | undefined, kind: Claim["kind"], extra: Partial<Claim> = {}) => {
     if (fromDoroos(src)) out.push({ where, line, src: src!, kind, ...extra });
@@ -61,21 +63,35 @@ function claims(beats: Beat[]): Claim[] {
     if (beat.kind === "morph") add(at, beat.line, beat.src, "yes");
     if (beat.kind === "sort") for (const item of beat.items) add(at, item.line, item.src, "bin", { bin: beat.bins[item.bin].label });
     // هر مصراعِ یک سطرِ دومصراعی جدا در کتاب است.
-    if (beat.kind === "pillars") for (const item of beat.items) for (const half of item.line.split(" / ")) add(at, half, item.src, "target");
+    // در درسِ دستوری رکن‌ها نام‌های جدا دارند («هسته»، «مضاف‌الیه»…)؛ آن‌جا هر
+    // کروشه با قاعدهٔ نامِ خودش سنجیده می‌شود (`roles` در `checkDevices`).
+    if (beat.kind === "pillars") for (const item of beat.items) {
+      let seen = 0;
+      for (const half of item.line.split(" / ")) {
+        const count = targetCount(half);
+        add(at, half, item.src, pillarRoles ? "role" : "target", { roles: item.roles.slice(seen, seen + count) });
+        seen += count;
+      }
+    }
     if (beat.kind === "choice" && beat.stimulus) add(at, beat.stimulus, beat.src, "exists");
     if (beat.kind === "timeline") for (const item of beat.items) add(at, item.line, item.src, "exists");
   });
   return out;
 }
 
-/** سطرهای کتابِ یک درسِ آرایه‌ای را با `devices`ِ lib/doroos می‌سنجد.
- *  `yes` یعنی «این آرایه»؛ `bins` برای هر اسمِ سبد می‌گوید برچسبِ کتاب چه
- *  باید باشد. خروجی فهرستِ خطاهاست. */
-export async function checkDevices(beats: Beat[], yes: RegExp, bins: Record<string, (labels: string) => boolean> = {}) {
+type Rule = (labels: string) => boolean;
+
+/** سطرهای کتابِ یک درس را با lib/doroos می‌سنجد: درس‌های آرایه‌ای با
+ *  `devices`، درس‌های دستوری (`layer: "syntax"`) با `syntax`.
+ *  `yes` یعنی «این آرایه/نقش»؛ `bins` برای هر اسمِ سبد می‌گوید برچسبِ کتاب چه
+ *  باید باشد، و `roles` همین را برای هر نامِ رکن در `pillars` (نباشد، هر رکن
+ *  باید `yes` باشد). خروجی فهرستِ خطاهاست. */
+export async function checkDevices(beats: Beat[], yes: RegExp, bins: Record<string, Rule> = {},
+  { layer = "devices", roles }: { layer?: "devices" | "syntax"; roles?: Record<string, Rule> } = {}) {
   const units = await textbook();
-  const list = claims(beats);
+  const list = claims(beats, !!roles);
   const failures: string[] = [];
-  for (const { where, line, src, kind, bin, every } of list) { try {
+  for (const { where, line, src, kind, bin, every, roles: named } of list) { try {
     const plain = plainLine(line);
     const unit = units.find(u => norm(u.line) === norm(plain));
     if (!unit) throw new Error(`${where}: «${plain}» is not a line in lib/doroos`);
@@ -85,12 +101,17 @@ export async function checkDevices(beats: Beat[], yes: RegExp, bins: Record<stri
     const marked = tokens.flatMap((token, i) => token.target !== undefined || token.focus ? [i] : []);
     if (!marked.length) throw new Error(`${where}: nothing is marked in «${plain}»`);
     for (const i of marked) {
-      const labels = labelsAt(unit.devices, i);
+      const labels = labelsAt(unit[layer], i);
       const word = tokens[i].text;
       if (kind === "target" || kind === "yes") { if (!yes.test(labels)) throw new Error(`${where}: the textbook does not tag «${word}» as ${yes} (it says «${labels}»)`); }
       else if (kind === "no") {
         if (yes.test(labels)) throw new Error(`${where}: the textbook does tag «${word}» as ${yes}`);
         if (!labels && !labelsAt(unit.syntax, i)) throw new Error(`${where}: the textbook says nothing about «${word}»`);
+      } else if (kind === "role") {
+        const role = named![tokens[i].target!];
+        const rule = roles![role];
+        if (!rule) throw new Error(`${where}: no rule for role «${role}»`);
+        if (!rule(labels)) throw new Error(`${where}: «${word}» is «${role}», but the textbook says «${labels}»`);
       } else {
         const rule = bins[bin!];
         if (!rule) throw new Error(`${where}: no rule for bin «${bin}»`);
@@ -98,7 +119,7 @@ export async function checkDevices(beats: Beat[], yes: RegExp, bins: Record<stri
       }
     }
     // در سطرِ تپ‌کردنی، هر جای این آرایه که کتاب می‌بیند باید جواب باشد.
-    if (every) for (const role of unit.devices) if (yes.test(role.label) && !role.words.some(i => tokens[i]?.target !== undefined))
+    if (every) for (const role of unit[layer]) if (yes.test(role.label) && !role.words.some(i => tokens[i]?.target !== undefined))
       throw new Error(`${where}: textbook «${role.words.map(i => tokens[i]?.text).join(" ")}» (${role.label}) is not an answer`);
   } catch (error) { failures.push((error as Error).message); } }
   return { failures, count: list.length };

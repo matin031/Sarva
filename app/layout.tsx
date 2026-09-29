@@ -168,10 +168,18 @@ const siteTitle = SEO_PAGES["/"].title;
 const siteDescription = SEO_PAGES["/"].description;
 
 export const metadata: Metadata = {
+  /* ⚠️ `app/favicon.ico` را Next خودش اولِ این فهرست می‌گذارد. تا امروز آن
+     فایل مثلثِ پیش‌فرضِ ورسل بود و گوگل همان را در نتیجهٔ جست‌وجو نشان
+     می‌داد، در حالی که مرورگر SVG را برمی‌داشت و سایت درست دیده می‌شد.
+     `/favicon.svg` هم مربع نیست و گوگل آیکونِ نامربع را نمی‌پذیرد. همهٔ این
+     فایل‌ها را `npm run seo:icons` از روی `favicon.svg` می‌سازد.
+     ⚠️ apple باید PNG باشد؛ iOS برای apple-touch-icon فایلِ SVG را نمی‌خواند. */
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: { url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
   },
   metadataBase: new URL(siteUrl),
   title: {

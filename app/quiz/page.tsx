@@ -1,5 +1,6 @@
 import Quiz from "@/components/UI/Quiz";
-import { placeholders, query } from "@/lib/db";
+import QuizBankLoader from "@/components/UI/QuizBankLoader";
+import { loadQuestions } from "@/lib/quiz/bank";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AssignmentGone } from "@/components/UI/AssignmentNotice";
@@ -19,19 +20,6 @@ export const metadata: Metadata = {
  *  حذف آن وابستگی، صفحه ناگهان کاندید پیش‌رندر شد و build با
  *  «DATABASE_URL تنظیم نشده» شکست — چون مرحلهٔ build دیتابیس ندارد. */
 export const dynamic = "force-dynamic";
-
-type Row = {
-  id: string;
-  type: string;
-  poem: string[] | null;
-  audio_url: string | null;
-  option_id: string | null;
-  option_label: string | null;
-  option_poem: string[] | null;
-  option_audio_url: string | null;
-  option_is_correct: boolean | null;
-  option_x: number | null;
-};
 
 async function page({
   searchParams,
@@ -54,55 +42,9 @@ async function page({
     return <Quiz data={picked} assignment={{ id: gate.id, title: gate.title }} />;
   }
 
-  return <Quiz data={await loadQuestions()} />;
-}
-
-async function loadQuestions(ids?: readonly string[]): Promise<Question[]> {
-  // یک JOIN به‌جای کوئری تودرتوی PostgREST. ترتیب گزینه‌ها با x و بعد id
-  // تثبیت شده تا چیدمان بین بارگذاری‌ها نپرد — قبلاً ترتیبی تعریف نشده بود و
-  // به هرچه دیتابیس برمی‌گرداند وابسته بود.
-  if (ids && ids.length === 0) return [];
-  const rows = await query<Row>(
-    `select q.id, q.type, q.poem, q.audio_url,
-            o.id as option_id, o.label as option_label, o.poem as option_poem,
-            o.audio_url as option_audio_url, o.is_correct as option_is_correct, o.x as option_x
-       from questions q
-       left join question_options o on o.question_id = q.id
-      ${ids ? `where q.id in (${placeholders(ids.length)})` : ""}
-      order by q.created_at, q.id, o.x, o.id`,
-    ids ? [...ids] : [],
-  );
-
-  const byQuestion = new Map<string, Question>();
-
-  for (const r of rows) {
-    let question = byQuestion.get(r.id);
-    if (!question) {
-      question = {
-        id: r.id,
-        type: r.type as Question["type"],
-        poem: r.poem ?? undefined,
-        audioSrc: r.audio_url ?? undefined,
-        options: [],
-      };
-      byQuestion.set(r.id, question);
-    }
-
-    // left join یعنی سؤالِ بی‌گزینه هم یک ردیف با ستون‌های null می‌دهد؛
-    // نباید به یک گزینهٔ خالی تبدیل شود.
-    if (r.option_id) {
-      question.options.push({
-        id: r.option_id,
-        label: r.option_label ?? undefined,
-        poem: r.option_poem ?? undefined,
-        audioSrc: r.option_audio_url ?? undefined,
-        isCorrect: r.option_is_correct ?? false,
-        x: r.option_x ?? 30,
-      });
-    }
-  }
-
-  return [...byQuestion.values()];
+  /* ⚠️ دورِ آزاد بانک را در HTML نمی‌گذارد؛ از یک API کش‌شونده می‌گیرد.
+     چرایی‌اش بالای lib/quiz/bank.ts است. */
+  return <QuizBankLoader />;
 }
 
 export type Question = {

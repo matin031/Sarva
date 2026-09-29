@@ -5,6 +5,8 @@ import { DEMO_RAPID_ARUZ_QUESTIONS } from "./demo-questions";
 import { screenRapidAruzQuestions } from "./validator";
 import { readStoredUnits, withRevealProgress } from "./units";
 import type { RapidAruzQuestion } from "./types";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * مصراع‌های بازی «کوتاه یا بلند؟» — از دیتابیس.
@@ -31,7 +33,16 @@ type QuestionRow = {
   has_unit_overlap: boolean | number;
 };
 
-export async function loadRapidAruzQuestions(): Promise<RapidAruzContent> {
+/**
+ * همان خواندن، با کشِ کوتاهِ درون‌حافظه‌ای: محتوا برای همهٔ بازیکن‌ها یکی است
+ * و بدونِ این هر بازدید یک کوئریِ یکسان می‌زد. تازه‌سازی پس از ذخیرهٔ مدیر با
+ * `refreshPublicContent("aruz-rapid")` است (lib/cache/public.ts).
+ */
+export function loadRapidAruzQuestions(): Promise<RapidAruzContent> {
+  return memo(publicKey("aruz-rapid"), PUBLIC_TTL_MS.content, readRapidAruzQuestionsFromDb);
+}
+
+async function readRapidAruzQuestionsFromDb(): Promise<RapidAruzContent> {
   let rows: QuestionRow[];
   try {
     rows = await query<QuestionRow>(

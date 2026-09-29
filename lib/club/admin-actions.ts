@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshPublicContent } from "@/lib/cache/public";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { boolArg, enumArg, optionalTextArg, uuidArg } from "@/lib/api/action-input";
@@ -33,6 +34,8 @@ import {
  */
 
 function revalidateClub(postId?: string) {
+  // فید و آمارِ مهمان در حافظه کش می‌شوند (lib/club/queries.ts).
+  refreshPublicContent("club");
   revalidatePath("/admin/club");
   revalidatePath("/sarvaclub");
   revalidatePath("/panel/club");

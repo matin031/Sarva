@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, boolArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { safeExternalUrl } from "@/lib/site/content";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * ادارهٔ فهرست حامیان.
@@ -171,6 +172,7 @@ export async function supporterAdminSave(
   });
 
   revalidatePath("/admin/supporters");
+  refreshPublicContent("site");
   return { ok: true, data: { id: supporterId } };
 }
 
@@ -203,6 +205,7 @@ export async function supporterAdminToggle(id: string, visible: boolean): Promis
   });
 
   revalidatePath("/admin/supporters");
+  refreshPublicContent("site");
   return { ok: true, data: null };
 }
 
@@ -227,5 +230,6 @@ export async function supporterAdminDelete(id: string): Promise<ActionResult> {
   });
 
   revalidatePath("/admin/supporters");
+  refreshPublicContent("site");
   return { ok: true, data: null };
 }

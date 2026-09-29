@@ -15,6 +15,7 @@ import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit, recordError } from "@/lib/admin/audit";
 import { formatUnitSpec, parseUnitSpec, readStoredUnits, unitPattern, type ParsedUnit } from "@/lib/aruz-rapid/units";
 import { fitMeter, meterPattern } from "@/lib/aruz-rapid/scan";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * محتوای بازی «کوتاه یا بلند؟» از دیدِ مدیر.
@@ -250,6 +251,7 @@ export async function aruzRapidAdminUpsert(input: RapidAruzInput): Promise<Actio
         metadata: { units: q.units.length },
       });
 
+      refreshPublicContent("aruz-rapid");
       return { ok: true };
     }
 
@@ -285,6 +287,7 @@ export async function aruzRapidAdminUpsert(input: RapidAruzInput): Promise<Actio
       metadata: { units: q.units.length },
     });
 
+    refreshPublicContent("aruz-rapid");
     return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -314,6 +317,7 @@ export async function aruzRapidAdminPublish(id: string, published: boolean): Pro
     metadata: { published },
   });
 
+  refreshPublicContent("aruz-rapid");
   return { ok: true };
 }
 
@@ -339,6 +343,7 @@ export async function aruzRapidAdminDelete(id: string): Promise<ActionResult> {
     metadata: {},
   });
 
+  refreshPublicContent("aruz-rapid");
   return { ok: true };
 }
 
@@ -434,6 +439,7 @@ export async function aruzRapidAdminBulkAdd(items: RapidAruzBulkItem[]): Promise
       metadata: { added, failed: failures.length },
     });
 
+    refreshPublicContent("aruz-rapid");
     return {
       ok: true,
       added,

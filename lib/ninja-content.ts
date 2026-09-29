@@ -6,6 +6,8 @@ import {
   buildNinjaDecoys,
   type NinjaRound,
 } from "@/lib/ninja-data";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * نقش‌های بازی «نینجای دستور زبان» و کلماتِ هر نقش.
@@ -32,7 +34,16 @@ type RoundRow = {
   words: string[] | null;
 };
 
-export async function loadNinjaRounds(): Promise<NinjaRoundData> {
+/**
+ * همان خواندن، با کشِ کوتاهِ درون‌حافظه‌ای: محتوا برای همهٔ بازیکن‌ها یکی است
+ * و بدونِ این هر بازدید یک کوئریِ یکسان می‌زد. تازه‌سازی پس از ذخیرهٔ مدیر با
+ * `refreshPublicContent("ninja")` است (lib/cache/public.ts).
+ */
+export function loadNinjaRounds(): Promise<NinjaRoundData> {
+  return memo(publicKey("ninja"), PUBLIC_TTL_MS.content, readNinjaRoundsFromDb);
+}
+
+async function readNinjaRoundsFromDb(): Promise<NinjaRoundData> {
   let rows: RoundRow[];
   try {
     // ⚠️ `array_agg(… order by …) filter (where …)` هیچ‌کدام از سه تکه‌اش در

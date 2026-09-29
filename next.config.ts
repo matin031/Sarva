@@ -220,6 +220,41 @@ const HTML_LIMITED_BOTS = new RegExp(
   "i",
 );
 
+/**
+ * کشِ مرورگر برای فایل‌های `public/`.
+ *
+ * ⚠️ پیش‌فرضِ Next برای این پوشه `public, max-age=0` است، یعنی مرورگر در
+ * *هر* بازدید برای هر تصویر، صوت و مدلِ سه‌بعدی دوباره از سرور می‌پرسد «عوض
+ * شده؟». روی هاستِ اشتراکی هر کدامِ این پرسش‌ها از Passenger و خودِ Node رد
+ * می‌شود: یک صفحهٔ خط زمان ده‌ها تصویر دارد و یک بازی چند مگابایت مدل و صدا.
+ * با کاربرِ زیاد، همین پرسش‌های ۳۰۴ بخشِ بزرگی از بارِ سرور بودند بی‌آنکه
+ * هیچ‌چیزی تغییر کرده باشد.
+ *
+ * ⚠️ `immutable` عمداً *نیست*: نامِ این فایل‌ها هش ندارد و ممکن است با یک
+ * استقرارِ تازه محتوایشان عوض شود. پس یک روز تازه می‌مانند و تا یک هفته پس
+ * از آن نسخهٔ قبلی نشان داده می‌شود و هم‌زمان در پس‌زمینه تازه می‌شود
+ * (`stale-while-revalidate`) — کاربر هرگز منتظرِ شبکه نمی‌ماند و فایلِ عوض‌شده
+ * هم حداکثر یک روز بعد می‌رسد.
+ *
+ * (فایل‌های `/_next/static` و قلم‌های next/font هش دارند و خودِ Next برایشان
+ * `immutable` می‌گذارد؛ اینجا نیستند و نباید باشند. `/uploads` هم کشِ خودش
+ * را در Route Handler دارد.)
+ */
+const PUBLIC_ASSET_CACHE = "public, max-age=86400, stale-while-revalidate=604800";
+
+const PUBLIC_ASSET_SOURCES = [
+  "/audio/:path*",
+  "/games/:path*",
+  "/literary-timeline/:path*",
+  "/vocab-images/:path*",
+  "/maintenance-assets/:path*",
+  "/logo.png",
+  "/photo_5884104276857000207_x.webp",
+  "/favicon.svg",
+  "/bg.jpg",
+  "/currectsound.mp3",
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
@@ -312,6 +347,10 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      ...PUBLIC_ASSET_SOURCES.map((source) => ({
+        source,
+        headers: [{ key: "Cache-Control", value: PUBLIC_ASSET_CACHE }],
+      })),
     ];
   },
 };

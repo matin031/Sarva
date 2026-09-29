@@ -347,6 +347,14 @@ async function resolveRequestId(explicit?: string | null): Promise<string | null
   const fromContext = explicit ?? currentRequestId();
   if (fromContext) return fromContext;
 
+  /* ⚠️ در `next build` هیچ درخواستی در کار نیست، و صدا زدنِ `headers()` آنجا
+     بی‌صدا نیست: Next همان را «استفادهٔ پویا» می‌شمارد و صفحه را از ایستا به
+     پویا می‌برد — حتی وقتی خطایش همین پایین گرفته شود. صفحه‌های ISRِ بازی‌ها
+     در build دیتابیس ندارند، loader خطا را با `recordError` ثبت می‌کند و بی
+     این خط، فقط همین ثبتِ خطا کافی بود تا کلِ صفحه در هر درخواست از صفر رندر
+     شود. */
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
+
   try {
     return normalizeRequestId((await headers()).get(REQUEST_ID_HEADER));
   } catch {

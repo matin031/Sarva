@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { requestMeta } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { rateLimit, rateLimitSubject } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 import { logger } from "@/lib/observability";
 import { hemistichSchema } from "@/lib/aruz/input";
@@ -99,8 +98,7 @@ export const GET = withRoute("/api/random-beyt", async (request: NextRequest) =>
   // endpoint needs no session. Without a cap it amplifies traffic ~5x against
   // a third party we do not own, and ties up our own connections while doing
   // it. A person clicking «بیت تصادفی» never gets near this.
-  const { ip } = requestMeta(request);
-  const limit = rateLimit(`random-beyt:${ip ?? "unknown"}`, 30, 60);
+  const limit = rateLimit(`random-beyt:${await rateLimitSubject(request)}`, 30, 60);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: `درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کن.` },

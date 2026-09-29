@@ -320,6 +320,22 @@
 
 ## آزمون وزن شعر (عروض سماعی)
 
+### `GET /api/v1/quiz/bank`
+
+کلِ بانکِ سؤالِ دورِ آزاد (`/quiz` بدونِ `?assignment=`)، برای همه یکسان.
+
+```jsonc
+// ۲۰۰
+{ "ok": true, "data": { "questions": [ { "id": "…uuid…", "type": "audio-to-poem", "options": [ … ] } ] } }
+```
+
+> صفحهٔ `/quiz` این بانک را دیگر در HTML نمی‌گذارد (حدود ۱٫۴ مگابایت در هر
+> بازدید بود). روی سرور دقیقه‌ای یک بار خوانده و یک بار gzip می‌شود
+> (`lib/quiz/bank.ts`)؛ پاسخ `Cache-Control: public, max-age=60,
+> stale-while-revalidate=600` و `ETag` دارد، پس بازدیدِ دوباره یا چیزی
+> دانلود نمی‌کند یا یک `304` می‌گیرد. درستیِ پاسخ همچنان فقط روی سرور سنجیده
+> می‌شود (`quiz/answer`).
+
 ### `POST /api/v1/quiz/answer` 🔒
 
 ```jsonc

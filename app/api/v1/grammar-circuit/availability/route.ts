@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
-import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { fail, handleError, ok } from "@/lib/api/http";
+import { rateLimit, rateLimitSubject } from "@/lib/api/rate-limit";
 import { GRADE_KEYS, selectableLessons } from "@/lib/grammar-circuit/curriculum";
 import {
   logRejected,
@@ -31,8 +31,7 @@ import { cachedAvailability } from "@/lib/grammar-circuit/availability-cache";
 
 export const GET = withRoute("/api/v1/grammar-circuit/availability", async (request: NextRequest) => {
   try {
-    const { ip } = requestMeta(request);
-    const limit = rateLimit(`gc-availability:${ip ?? "unknown"}`, 60, 60);
+    const limit = rateLimit(`gc-availability:${await rateLimitSubject(request)}`, 60, 60);
     if (!limit.allowed) {
       return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }

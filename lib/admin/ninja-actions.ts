@@ -5,6 +5,7 @@ import { query, queryOne, execute, transaction, isUniqueViolation } from "@/lib/
 import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * مدیریت محتوای «نینجای دستور زبان».
@@ -146,6 +147,7 @@ export async function ninjaCategorySave(
         summary: `نقشِ «${label}» ویرایش شد`,
         metadata: { enabled: input.enabled },
       });
+      refreshPublicContent("ninja");
       return { ok: true };
     }
 
@@ -173,6 +175,7 @@ export async function ninjaCategorySave(
       summary: `نقشِ «${label}» ساخته شد`,
       metadata: { enabled: input.enabled },
     });
+    refreshPublicContent("ninja");
     return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -209,6 +212,7 @@ export async function ninjaCategoryDelete(id: string): Promise<ActionResult> {
     metadata: target ? { words: target.n } : {},
   });
 
+  refreshPublicContent("ninja");
   return { ok: true };
 }
 
@@ -289,6 +293,7 @@ export async function ninjaWordsAdd(input: {
       metadata: { category: category.label, added },
     });
 
+    refreshPublicContent("ninja");
     return { ok: true, added, duplicates: words.length - added };
   } catch (err) {
     const { recordError } = await import("@/lib/admin/audit");
@@ -323,6 +328,7 @@ export async function ninjaWordRename(
       targetId: id,
       summary: `کلمه به «${trimmed}» تغییر کرد`,
     });
+    refreshPublicContent("ninja");
     return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -386,6 +392,7 @@ export async function ninjaWordMove(
       summary: `یک کلمه به نقشِ «${target.label}» منتقل شد`,
       metadata: { category: target.label },
     });
+    refreshPublicContent("ninja");
     return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -421,5 +428,6 @@ export async function ninjaWordDelete(id: string): Promise<ActionResult> {
       : "یک کلمه حذف شد",
   });
 
+  refreshPublicContent("ninja");
   return { ok: true };
 }

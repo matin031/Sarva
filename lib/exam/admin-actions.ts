@@ -14,6 +14,7 @@ import {
 } from "@/lib/exam/content-schemas";
 import type { SeedOption } from "./seed-data/seed-types";
 import { logger } from "@/lib/observability";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 // ---------------------------------------------------------------------------
 // Input/detail shapes
@@ -301,6 +302,7 @@ export async function adminCreateExam(input: {
       metadata: { examKey: input.examKey, grade: input.grade, totalScore: input.totalScore },
     });
 
+    refreshPublicContent("exams");
     return { ok: true, data: { id: examId } };
   } catch (err) {
     // exam_session یکتاست و این محتمل‌ترین خطای این تابع است. پیام خام پستگرس
@@ -336,6 +338,7 @@ export async function adminCreateSection(
       metadata: { examId, sectionScore: input.sectionScore },
     });
 
+    refreshPublicContent("exams");
     return { ok: true, data: { id: sectionId } };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -451,6 +454,7 @@ export async function adminUpsertQuestion(
       metadata: { sectionId, parts: input.parts?.length ?? 0 },
     });
 
+    refreshPublicContent("exams");
     return { ok: true, data: { id: questionId } };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -530,6 +534,7 @@ export async function adminUpdateExam(
     },
   });
 
+  refreshPublicContent("exams");
   return { ok: true, data: null };
 }
 
@@ -564,6 +569,7 @@ export async function adminDeleteQuestion(questionId: string): Promise<ActionRes
     summary: target ? `سؤال ${target.number} از یک آزمون حذف شد` : "یک سؤال آزمون حذف شد",
   });
 
+  refreshPublicContent("exams");
   return { ok: true, data: null };
 }
 
@@ -591,6 +597,7 @@ export async function adminDeleteSection(sectionId: string): Promise<ActionResul
       : "یک بخش آزمون حذف شد",
   });
 
+  refreshPublicContent("exams");
   return { ok: true, data: null };
 }
 
@@ -619,5 +626,6 @@ export async function adminDeleteExam(examId: string): Promise<ActionResult<null
     metadata: { examKey: target?.exam_session, attempts: target?.n },
   });
 
+  refreshPublicContent("exams");
   return { ok: true, data: null };
 }

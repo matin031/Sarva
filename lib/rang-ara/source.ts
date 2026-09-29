@@ -3,6 +3,8 @@ import { query, queryOne } from "@/lib/db";
 import { recordError } from "@/lib/admin/audit";
 import { OUTSIDE, type Level } from "./content";
 import { isGradeKey, parseSteps, toLevel } from "./verse";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * بیت‌های منتشرشدهٔ «رنگ‌آرا» از دیتابیس.
@@ -28,7 +30,16 @@ type Row = {
   steps: unknown;
 };
 
-export async function loadRangAraLevels(): Promise<RangAraLevelData> {
+/**
+ * همان خواندن، با کشِ کوتاهِ درون‌حافظه‌ای: محتوا برای همهٔ بازیکن‌ها یکی است
+ * و بدونِ این هر بازدید یک کوئریِ یکسان می‌زد. تازه‌سازی پس از ذخیرهٔ مدیر با
+ * `refreshPublicContent("rang-ara")` است (lib/cache/public.ts).
+ */
+export function loadRangAraLevels(): Promise<RangAraLevelData> {
+  return memo(publicKey("rang-ara"), PUBLIC_TTL_MS.content, readRangAraLevelsFromDb);
+}
+
+async function readRangAraLevelsFromDb(): Promise<RangAraLevelData> {
   try {
     const rows = await query<Row>(
       `select id, grade, lesson, poet, source, line_1, line_2, meaning, steps

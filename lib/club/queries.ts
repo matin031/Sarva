@@ -1,5 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import { query, queryOne, placeholders } from "@/lib/db";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 import { isUuid } from "@/lib/api/action-input";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type { ClubComment, ClubFeedSort, ClubPost, ClubPostForm, ClubStatus } from "@/lib/club/types";
@@ -26,12 +29,12 @@ export const FEED_PAGE_SIZE = 12;
 export type ClubViewer = { id: string; name: string } | null;
 
 /** خواننده کیست، و با چه نامی می‌نویسد. */
-export async function getClubViewer(): Promise<ClubViewer> {
+export const getClubViewer = cache(async (): Promise<ClubViewer> => {
   const user = await getCurrentUser();
   if (!user) return null;
 
   return { id: user.id, name: (user.fullName || "کاربر سروا").trim() };
-}
+});
 
 type PostRow = {
   id: string;
@@ -117,7 +120,25 @@ export type FeedOptions = {
 };
 
 /** فید عمومی. فقط سروده‌های تأییدشده. */
-export async function getClubFeed(
+export function getClubFeed(
+  viewer: ClubViewer,
+  options: FeedOptions = {},
+): Promise<{ posts: ClubPost[]; hasMore: boolean }> {
+  /* ⚠️ فقط برای مهمان کش می‌شود. فیدِ کاربرِ واردشده «پسندیده‌ام» و «مالِ
+     من» دارد و نباید به کسِ دیگری برسد؛ برای مهمان هر دو خالی‌اند، پس فید
+     برای همهٔ مهمان‌ها یکی است — و بیشترِ بازدیدِ صفحهٔ عمومیِ کلاب هم
+     مهمان است. تأیید، حذف یا برگزیده کردنِ یک سروده کش را همان لحظه پاک
+     می‌کند (revalidateClub). */
+  if (viewer) return readClubFeed(viewer, options);
+  const { sort = "recent", form, tag, page = 0 } = options;
+  return memo(
+    publicKey("club", `feed:${sort}:${form ?? ""}:${tag ?? ""}:${page}`),
+    PUBLIC_TTL_MS.club,
+    () => readClubFeed(null, options),
+  );
+}
+
+async function readClubFeed(
   viewer: ClubViewer,
   { sort = "recent", form, tag, page = 0 }: FeedOptions = {},
 ): Promise<{ posts: ClubPost[]; hasMore: boolean }> {
@@ -200,7 +221,10 @@ export async function getClubFeed(
  * دقیقاً همان چیزی است که یک ۴۰۴ باید باشد: خواننده نمی‌فهمد شعر وجود ندارد
  * یا وجود دارد و هنوز تأیید نشده.
  */
-export async function getClubPost(id: string, viewer: ClubViewer): Promise<ClubPost | null> {
+/* `cache`: generateMetadata و خودِ صفحه هر دو یک سروده را می‌خوانند. چون
+   `getClubViewer` هم کش شده، هر دو همان شیءِ viewer را می‌دهند و کلید یکی
+   می‌شود — یعنی دو کوئری به‌جای چهار. */
+export const getClubPost = cache(async (id: string, viewer: ClubViewer): Promise<ClubPost | null> => {
   // شناسه از آدرس می‌آید، پس هر رشته‌ای می‌تواند باشد. بدون این بررسی،
   // `/sarvaclub/abc` به پستگرس می‌رسید و `invalid input syntax for type uuid`
   // می‌گرفت — یعنی صفحهٔ خطای ۵۰۰ برای چیزی که فقط «وجود ندارد» است.
@@ -220,7 +244,7 @@ export async function getClubPost(id: string, viewer: ClubViewer): Promise<ClubP
 
   const liked = await likedSet([row.id], viewer?.id ?? null);
   return toPost(row, viewer?.id ?? null, liked);
-}
+});
 
 type CommentRow = {
   id: string;
@@ -322,7 +346,13 @@ export async function getMyComments(viewer: ClubViewer): Promise<MyComment[]> {
  *  یک نفر حساب می‌کرد؛ دو همنام هم همین‌طور. در آزمون با سه شاعر (که یکی‌شان
  *  بی‌نام نوشته بود) عدد ۲ برمی‌گشت. user_id هویت واقعی است و کوچک‌شماری ندارد
  *  — و چون هرگز بیرون نمی‌رود، بی‌نامی هم نمی‌شکند. */
-export async function getClubStats(): Promise<{ poems: number; poets: number; comments: number }> {
+export function getClubStats(): Promise<{ poems: number; poets: number; comments: number }> {
+  /* سه شمارشِ کامل روی جدول‌های سروده و نظر، برای هر بازدیدِ /sarvaclub.
+     عددی که چند ثانیه عقب باشد برای یک بنرِ آماری بی‌اهمیت است. */
+  return memo(publicKey("club", "stats"), PUBLIC_TTL_MS.club, readClubStats);
+}
+
+async function readClubStats(): Promise<{ poems: number; poets: number; comments: number }> {
   const row = await queryOne<{ poems: number; poets: number; comments: number }>(
     `select
        (select count(*) from club_posts where status = 'approved')                as poems,

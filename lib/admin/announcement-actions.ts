@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { uuidArg, boolArg, InvalidInputError } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { safeExternalUrl, type AnnouncementTone } from "@/lib/site/content";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * ادارهٔ نوار اعلان سایت.
@@ -213,6 +214,7 @@ export async function announcementAdminSave(
   });
 
   revalidatePath("/admin/announcements");
+  refreshPublicContent("site");
   return { ok: true, data: { id: announcementId } };
 }
 
@@ -250,6 +252,7 @@ export async function announcementAdminToggle(id: string, active: boolean): Prom
   });
 
   revalidatePath("/admin/announcements");
+  refreshPublicContent("site");
   return { ok: true, data: null };
 }
 
@@ -275,5 +278,6 @@ export async function announcementAdminDelete(id: string): Promise<ActionResult>
   });
 
   revalidatePath("/admin/announcements");
+  refreshPublicContent("site");
   return { ok: true, data: null };
 }

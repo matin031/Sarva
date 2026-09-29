@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { query } from "@/lib/db";
-import { fail, handleError, ok, requestMeta } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { fail, handleError, ok } from "@/lib/api/http";
+import { rateLimit, rateLimitSubject } from "@/lib/api/rate-limit";
 import { withRoute } from "@/lib/api/route";
 
 const GRADES = new Set(["dahom", "yazdahom", "davazdahom"]);
@@ -22,8 +22,7 @@ export const GET = withRoute("/api/v1/vocab/words", async (request: NextRequest)
     // واژه‌های یک پایه را برمی‌گرداند. یعنی گران‌ترین کوئریِ عمومیِ سایت است و
     // هرکسی می‌تواند در حلقه صدایش بزند. سقف طوری انتخاب شده که یک دور بازی
     // (که چند بار این را می‌خواند) هرگز به آن نخورد.
-    const { ip } = requestMeta(request);
-    const limit = rateLimit(`vocab-words:${ip ?? "unknown"}`, 60, 60);
+    const limit = rateLimit(`vocab-words:${await rateLimitSubject(request)}`, 60, 60);
     if (!limit.allowed) {
       return fail(`درخواست‌های زیاد. ${limit.retryAfterSeconds} ثانیه دیگر تلاش کنید.`, 429);
     }

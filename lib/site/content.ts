@@ -3,6 +3,8 @@ import { query } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 // از فایل جدا می‌آید تا بشود بدون بالا آوردنِ لایهٔ سرور تستش کرد.
 import { safeExternalUrl } from "@/lib/site/safe-url";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * محتوایی که سایت عمومی از دیتابیس می‌خواند: نوار اعلان و بخش حامیان.
@@ -173,10 +175,16 @@ export async function supportersSection(): Promise<PublicSupportersSection> {
  * یک درخواست به‌جای دو تا: نوار اعلان بالای صفحه است و بخش حامیان پایین‌تر،
  * ولی هر دو در همان بارگذاری اول لازم می‌شوند.
  */
-export async function siteContent(): Promise<SiteContent> {
-  const [announcement, supporters] = await Promise.all([
-    activeAnnouncement(),
-    supportersSection(),
-  ]);
-  return { announcement, supporters };
+export function siteContent(): Promise<SiteContent> {
+  /* ⚠️ این تنها endpointی است که *هر* بارگذاریِ کاملِ هر صفحهٔ سایت صدا
+     می‌زند (SiteContentProvider). بدونِ کش، هر بازدیدکنندهٔ تازه دو کوئری
+     می‌زد؛ حالا هر پروسه حداکثر هر ۳۰ ثانیه یک بار. ذخیرهٔ اعلان، حامی یا
+     تنظیمِ `home.*` کش را همان لحظه پاک می‌کند. */
+  return memo(publicKey("site"), PUBLIC_TTL_MS.site, async () => {
+    const [announcement, supporters] = await Promise.all([
+      activeAnnouncement(),
+      supportersSection(),
+    ]);
+    return { announcement, supporters };
+  });
 }

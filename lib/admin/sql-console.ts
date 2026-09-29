@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshAllPublicContent } from "@/lib/cache/public";
 import {
   SCHEMA_COLUMNS_SQL,
   SCHEMA_CONSTRAINTS_SQL,
@@ -296,6 +297,9 @@ export async function adminRunSql(sql: string, mode: string): Promise<SqlRunResu
     if (committed) {
       // یک insert در جدولِ محتوا باید بلافاصله در صفحه‌های ادمین دیده شود.
       revalidatePath("/admin", "layout");
+      // و در صفحه‌های عمومی: کشِ محتوای بازی‌ها و آزمون‌ها نمی‌داند کدام جدول
+      // عوض شده، پس همه‌اش کنار می‌رود.
+      refreshAllPublicContent();
     }
   }
 }

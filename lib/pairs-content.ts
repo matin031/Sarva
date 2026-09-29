@@ -8,6 +8,8 @@ import {
   isMemoryTerm,
   type MemoryDecks,
 } from "@/lib/literary-pairs";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * دسته‌کارت‌های بازی «جفت‌های ادبی» — همهٔ شش دسته (سه پایه × دو نوبت) با هم.
@@ -31,7 +33,16 @@ type PairRow = {
   image: string;
 };
 
-export async function loadMemoryDecks(): Promise<MemoryDeckData> {
+/**
+ * همان خواندن، با کشِ کوتاهِ درون‌حافظه‌ای: محتوا برای همهٔ بازیکن‌ها یکی است
+ * و بدونِ این هر بازدید یک کوئریِ یکسان می‌زد. تازه‌سازی پس از ذخیرهٔ مدیر با
+ * `refreshPublicContent("pairs")` است (lib/cache/public.ts).
+ */
+export function loadMemoryDecks(): Promise<MemoryDeckData> {
+  return memo(publicKey("pairs"), PUBLIC_TTL_MS.content, readMemoryDecksFromDb);
+}
+
+async function readMemoryDecksFromDb(): Promise<MemoryDeckData> {
   const decks = emptyMemoryDecks();
 
   let rows: PairRow[];

@@ -273,7 +273,10 @@ function Page() {
               <div className="relative w-40 flex items-center h-40 md:w-52 md:h-52 rounded-2xl overflow-hidden ring-4 ring-primary/20 shadow-xl">
                 <img
                   className=" object-cover"
-                  src="/photo_5884104276857000207_x.png"
+                  /* ⚠️ webp و نه png: اصلِ عکس ۱۰۸۶×۱۴۴۸ و ۱٫۸ مگابایت بود برای
+                     قابی که حداکثر ۲۰۸ پیکسل پهنا دارد. این نسخه ۴۲۰ پیکسل است
+                     (دو برابرِ قاب، برای صفحه‌های رتینا) و ۱۰ کیلوبایت. */
+                  src="/photo_5884104276857000207_x.webp"
                   alt=""
                 />
               </div>

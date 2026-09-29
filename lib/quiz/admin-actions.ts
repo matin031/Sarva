@@ -6,6 +6,7 @@ import { uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { query, queryOne, execute, transaction } from "@/lib/db";
 import { logger } from "@/lib/observability";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /** Scoped to the three types the admin panel authors today. The DB/UI
  *  (Quiz.tsx, QuestionCard.tsx, QuestionOption.tsx) also support
@@ -276,6 +277,7 @@ export async function quizAdminUpsertQuestion(input: QuizQuestionInput): Promise
       metadata: { type: input.type, difficulty: input.difficulty },
     });
 
+    refreshPublicContent("quiz");
     return { ok: true, data: { id: questionId } };
   } catch (err) {
     logger.error("ذخیرهٔ سؤال عروض سماعی ناموفق بود", { event: "quiz.question_save_failed", err });
@@ -306,5 +308,6 @@ export async function quizAdminDeleteQuestion(questionId: string): Promise<Actio
     metadata: { type: target?.type },
   });
 
+  refreshPublicContent("quiz");
   return { ok: true, data: null };
 }

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { BookMarked, CreditCard, House, LogOut, Presentation, Settings, ShieldCheck, UserRound } from "lucide-react";
-import { toast } from "react-toastify";
 import { apiPost } from "@/lib/api/client";
 import { clearCurrentUser, useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
 import { formatPhone } from "@/lib/auth/phone";
@@ -94,6 +93,10 @@ export default function AccountMenu() {
     clearCurrentUser();
     router.push("/");
     router.refresh();
+    /* ⚠️ import پویا: این منو در هدرِ *همهٔ* صفحه‌های سایت است و این تنها
+       جایی بود که react-toastify را به باندلِ عمومی می‌کشید (~۲۴ کیلوبایتِ
+       فشرده در هر بارگذاری) — برای پیامی که فقط هنگامِ خروج لازم است. */
+    const { toast } = await import("react-toastify");
     toast.success("از حسابت خارج شدی", { className: "glass-toast" });
     setLeaving(false);
   };

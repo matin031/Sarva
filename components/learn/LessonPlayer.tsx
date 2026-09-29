@@ -8,7 +8,7 @@ import { isGate, isScored, type Beat, type Lesson } from "@/lib/learn/types";
 import { isSoundMuted, setSoundMuted } from "@/lib/exam/feedback-sfx";
 import { AskBeat, CardsBeat, CatchBeat, ChapterBeat, ChoiceBeat, DemoBeat, DetourBeat, DuoBeat, FillBeat, ForkBeat, JudgeBeat, ListBeat, MasksBeat, PairBeat, PillarsBeat, RoundBeat, SayBeat, TapBeat, TipBeat, fa, type BeatProps } from "./Beats";
 import { LessonStage, PERSONAS, useStage } from "./persona";
-import { BuildBeat, MorphBeat, SortBeat } from "./VisualBeats";
+import { BuildBeat, MorphBeat, SortBeat, TimelineBeat, TimelineDemoBeat } from "./VisualBeats";
 import { Rich } from "./Rich";
 import s from "./learn.module.css";
 
@@ -129,6 +129,8 @@ export default function LessonPlayer({ lesson, name = "رفیق" }: { lesson: Le
       case "sort": return <SortBeat beat={beat} {...props} />;
       case "morph": return <MorphBeat beat={beat} {...props} />;
       case "build": return <BuildBeat beat={beat} {...props} />;
+      case "timeline": return <TimelineBeat beat={beat} {...props} />;
+      case "timelineDemo": return <TimelineDemoBeat beat={beat} {...props} />;
       case "finish": return <Finish beat={beat} stars={stars} gates={scored} onRestart={restart} reduced={reduced} />;
     }
   }

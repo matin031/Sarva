@@ -39,3 +39,67 @@ export function textbook(): Promise<Unit[]> {
 }
 
 export const labelsAt = (roles: Role[], i: number) => roles.filter(role => role.words.includes(i)).map(role => role.label).join(" + ");
+
+/* ───────── ادعاهای آرایه‌ای ───────── */
+
+import type { Beat } from "../../lib/learn/types";
+import { parseLine, plainLine } from "../../lib/learn/line";
+
+type Claim = { where: string; line: string; src: string; kind: "target" | "yes" | "no" | "bin" | "exists"; bin?: string; every?: boolean };
+
+/** هر سطرِ کتاب در درس، با ادعایی که درس دربارهٔ کلمه‌های نشان‌دارش دارد. */
+function claims(beats: Beat[]): Claim[] {
+  const out: Claim[] = [];
+  const add = (where: string, line: string, src: string | undefined, kind: Claim["kind"], extra: Partial<Claim> = {}) => {
+    if (fromDoroos(src)) out.push({ where, line, src: src!, kind, ...extra });
+  };
+  beats.forEach((beat, i) => {
+    const at = `beat ${i} ${beat.kind}`;
+    if (beat.kind === "tap") add(at, beat.item.line, beat.item.src, "target", { every: true });
+    if (beat.kind === "round") for (const item of beat.items) add(at, item.line, item.src, "target", { every: true });
+    if (beat.kind === "judge") for (const item of beat.items) add(at, item.line, item.src, item.yes ? "yes" : "no");
+    if (beat.kind === "morph") add(at, beat.line, beat.src, "yes");
+    if (beat.kind === "sort") for (const item of beat.items) add(at, item.line, item.src, "bin", { bin: beat.bins[item.bin].label });
+    // هر مصراعِ یک سطرِ دومصراعی جدا در کتاب است.
+    if (beat.kind === "pillars") for (const item of beat.items) for (const half of item.line.split(" / ")) add(at, half, item.src, "target");
+    if (beat.kind === "choice" && beat.stimulus) add(at, beat.stimulus, beat.src, "exists");
+    if (beat.kind === "timeline") for (const item of beat.items) add(at, item.line, item.src, "exists");
+  });
+  return out;
+}
+
+/** سطرهای کتابِ یک درسِ آرایه‌ای را با `devices`ِ lib/doroos می‌سنجد.
+ *  `yes` یعنی «این آرایه»؛ `bins` برای هر اسمِ سبد می‌گوید برچسبِ کتاب چه
+ *  باید باشد. خروجی فهرستِ خطاهاست. */
+export async function checkDevices(beats: Beat[], yes: RegExp, bins: Record<string, (labels: string) => boolean> = {}) {
+  const units = await textbook();
+  const list = claims(beats);
+  const failures: string[] = [];
+  for (const { where, line, src, kind, bin, every } of list) { try {
+    const plain = plainLine(line);
+    const unit = units.find(u => norm(u.line) === norm(plain));
+    if (!unit) throw new Error(`${where}: «${plain}» is not a line in lib/doroos`);
+    if (norm(src) !== norm(unit.src)) throw new Error(`${where}: «${plain}» is from «${unit.src}», not «${src}»`);
+    if (kind === "exists") continue;
+    const tokens = parseLine(line);
+    const marked = tokens.flatMap((token, i) => token.target !== undefined || token.focus ? [i] : []);
+    if (!marked.length) throw new Error(`${where}: nothing is marked in «${plain}»`);
+    for (const i of marked) {
+      const labels = labelsAt(unit.devices, i);
+      const word = tokens[i].text;
+      if (kind === "target" || kind === "yes") { if (!yes.test(labels)) throw new Error(`${where}: the textbook does not tag «${word}» as ${yes} (it says «${labels}»)`); }
+      else if (kind === "no") {
+        if (yes.test(labels)) throw new Error(`${where}: the textbook does tag «${word}» as ${yes}`);
+        if (!labels && !labelsAt(unit.syntax, i)) throw new Error(`${where}: the textbook says nothing about «${word}»`);
+      } else {
+        const rule = bins[bin!];
+        if (!rule) throw new Error(`${where}: no rule for bin «${bin}»`);
+        if (!rule(labels)) throw new Error(`${where}: «${word}» is in «${bin}», but the textbook says «${labels}»`);
+      }
+    }
+    // در سطرِ تپ‌کردنی، هر جای این آرایه که کتاب می‌بیند باید جواب باشد.
+    if (every) for (const role of unit.devices) if (yes.test(role.label) && !role.words.some(i => tokens[i]?.target !== undefined))
+      throw new Error(`${where}: textbook «${role.words.map(i => tokens[i]?.text).join(" ")}» (${role.label}) is not an answer`);
+  } catch (error) { failures.push((error as Error).message); } }
+  return { failures, count: list.length };
+}

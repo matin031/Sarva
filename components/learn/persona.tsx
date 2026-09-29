@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactElement } from "react";
 import type { CharacterId, Mood } from "@/lib/learn/types";
-import { Iham, Likeness, Mafool, Majaz, Masked, Motammam, Nahad, Spotlit, Swap, Target, Tashbih, Tick } from "./Characters";
+import { Bulb, Esteare, HalfMoon, HosnTalil, Iham, Likeness, Mafool, Majaz, Mane, Masked, Motammam, Nahad, Paradox, Spotlit, Swap, Target, Tashbih, Tick } from "./Characters";
 
 /** آنچه از یک شخصیت به شکلِ قدم‌ها می‌رسد: چهره‌اش، نشانی که روی جواب درست
  *  می‌گذارد، و لحنِ جمله‌های آماده‌ای که کدِ مشترک می‌سازد. جمله‌ها رشته‌اند
@@ -86,6 +86,33 @@ export const PERSONAS: Record<CharacterId, Persona> = {
     judge: ["مجازه", "مجاز نیست"],
     glow: 3,
     finish: "مجازشناس شدی! 🔁",
+  },
+  esteare: {
+    Face: Esteare,
+    Chip: Mane,
+    mark: "🦁",
+    miss: "«%کلمه%» اینجا توی معنیِ خودشه. دنبالِ کلمه‌ای بگرد که ==به خاطرِ شباهت== جای یه چیزِ دیگه نشسته.",
+    judge: ["استعاره‌ست", "استعاره نیست"],
+    glow: 3,
+    finish: "شیرشناس شدی! 🦁",
+  },
+  hosnTalil: {
+    Face: HosnTalil,
+    Chip: Bulb,
+    mark: "💡",
+    miss: "«%کلمه%» اون علتِ خیالی نیست. اول بپرس «چرا این اتفاق افتاد؟» و جوابِ ==شاعرانه== رو پیدا کن.",
+    judge: ["حسن تعلیله", "نیست"],
+    glow: 3,
+    finish: "علت‌تراش شدی! 💡",
+  },
+  paradox: {
+    Face: Paradox,
+    Chip: HalfMoon,
+    mark: "🌗",
+    miss: "«%کلمه%» جزوِ گره نیست. دنبالِ دو تا وصفِ ناسازگار بگرد که مالِ ==یه چیز== باشن.",
+    judge: ["متناقض‌نماست", "نیست"],
+    glow: 3,
+    finish: "گره‌گشا شدی! 🌗",
   },
 };
 

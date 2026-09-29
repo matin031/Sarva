@@ -6,7 +6,7 @@ import { bare, parseLine, targetCount } from "../../lib/learn/line";
 
 /** میان‌بُرهایی که مقصدشان هنوز ساخته نشده؛ `DetourBeat` برایشان «به‌زودی»
  *  نشان می‌دهد. هر مقصدِ دیگری باید درسِ واقعی باشد. */
-const SOON = new Set(["/learn/esteare"]);
+const SOON = new Set<string>();
 
 for (const lesson of LESSONS) test(`${lesson.slug}: every beat is well-formed and answerable`, () => {
   assert.ok(existsSync(`app/learn/${lesson.slug}/page.tsx`), `no page for /learn/${lesson.slug}`);
@@ -54,6 +54,16 @@ for (const lesson of LESSONS) test(`${lesson.slug}: every beat is well-formed an
         assert.ok(targetCount(beat.line), `${at}: the line marks no answer`);
         break;
       }
+      case "timeline": {
+        const same = beat.items.filter(item => item.a.at === item.b.at).length;
+        assert.ok(same > 0 && same < beat.items.length, `${at}: needs both one-point and two-point lines`);
+        for (const item of beat.items) assert.ok(item.a.at && item.b.at && item.why, `${at}: «${item.line}» is incomplete`);
+        break;
+      }
+      case "timelineDemo":
+        assert.notEqual(beat.apart.a.at, beat.apart.b.at, `${at}: «apart» must land on two points`);
+        assert.equal(beat.together.a.at, beat.together.b.at, `${at}: «together» must land on one point`);
+        break;
       case "detour": assert.ok(SOON.has(beat.to) || LESSONS.some(l => `/learn/${l.slug}` === beat.to), `${at}: ${beat.to} is not a lesson`); break;
       case "fork": assert.ok(lesson.beats.slice(i).some(b => b.kind === "finish"), `${at}: the «no» branch needs a finish`); break;
     }

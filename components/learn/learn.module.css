@@ -507,3 +507,76 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
   --lx-tick: #b86e90;
   --lx-ink: color-mix(in oklch, #9ccbff 62%, var(--foreground));
 }
+
+/* ───────── خانهٔ استعاره ─────────
+   پالتِ شیر: طلاییِ یال با صورتیِ ملایم. */
+.page[data-lesson="esteare"] {
+  --lx-host: #ffd98a;
+  --lx-tick: #f5a3c7;
+  --lx-ink: color-mix(in oklch, #b8741f 64%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="esteare"] {
+  --lx-host: #c9a04e;
+  --lx-tick: #b86e90;
+  --lx-ink: color-mix(in oklch, #ffd27a 62%, var(--foreground));
+}
+
+/* ───────── خانهٔ حسن تعلیل ─────────
+   پالتِ لامپ: ارکیده‌ای با زردِ روشن. */
+.page[data-lesson="hosnTalil"] {
+  --lx-host: #dcc2fa;
+  --lx-tick: #ffe07a;
+  --lx-ink: color-mix(in oklch, #8a4fd1 60%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="hosnTalil"] {
+  --lx-host: #9d7fc7;
+  --lx-tick: #bfa33e;
+  --lx-ink: color-mix(in oklch, #dcc2fa 62%, var(--foreground));
+}
+
+/* ───────── خانهٔ متناقض‌نما ─────────
+   پالتِ روز و شب: آبی‌خاکستری با نارنجیِ غروب. */
+.page[data-lesson="paradox"] {
+  --lx-host: #bccbe0;
+  --lx-tick: #ffb38a;
+  --lx-ink: color-mix(in oklch, #3f5d8a 64%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="paradox"] {
+  --lx-host: #7d8faa;
+  --lx-tick: #c7825e;
+  --lx-ink: color-mix(in oklch, #bccbe0 62%, var(--foreground));
+}
+
+/* ───────── خطِ زمان (timeline) ───────── */
+.tlRow + .tlRow { margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--lx-line); }
+.tlRowHead { margin: 0; font: 17px/1.8 var(--display); color: var(--lx-ink); }
+.tlSentence { margin: 2px 0 0; text-align: center; font-size: 17px; font-weight: 700; }
+.tlSentence[data-big] { font-size: 20px; }
+.timeline { position: relative; margin: 8px 6px 0; }
+.tlStage { position: relative; height: 104px; }
+.tlQuestion { position: absolute; inset: 0; display: grid; place-items: center; font: 40px/1 var(--display); color: var(--lx-muted); opacity: .6; }
+.tlStack { position: absolute; bottom: 4px; translate: 50% 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tlChip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 11px; border-radius: 999px; background: var(--lx-card); border: var(--sticker); box-shadow: 2px 3px 0 var(--lx-drop); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.tlChip i { font-style: normal; font-size: 17px; }
+.timeline[data-same] .tlChip { background: color-mix(in oklch, var(--lx-host) 30%, var(--lx-card)); }
+.tlSpark { position: absolute; top: 50%; right: -20px; translate: 0 -50%; font-size: 26px; filter: drop-shadow(0 0 6px color-mix(in oklch, var(--gold) 70%, transparent)); }
+.tlLine { position: relative; height: 22px; }
+.tlArrow { position: absolute; inset: 9px 0 auto; height: 4px; border-radius: 999px; background: linear-gradient(to left, color-mix(in oklch, var(--lx-ink) 25%, transparent), var(--lx-ink)); transform-origin: right; }
+.tlArrow::after { content: ""; position: absolute; left: -2px; top: 50%; translate: 0 -50%; border: 7px solid transparent; border-right-color: var(--lx-ink); }
+.tlTick { position: absolute; top: 2px; width: 18px; height: 18px; translate: 50% 0; border-radius: 50%; background: var(--lx-tick); border: 3px solid var(--lx-outline); }
+.timeline[data-same] .tlTick { background: var(--gold); box-shadow: 0 0 0 6px color-mix(in oklch, var(--gold) 30%, transparent); }
+.tlLabels { position: relative; height: 26px; }
+.tlLabels span { position: absolute; top: 2px; translate: 50% 0; white-space: nowrap; font-size: 12.5px; color: var(--lx-muted); }
+.tlLabels b { color: color-mix(in oklch, var(--gold) 65%, var(--foreground)); }
+.tlChoices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.tlChoices button { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 8px 6px; border-radius: 18px; border: var(--sticker); background: var(--lx-card); box-shadow: 3px 4px 0 var(--lx-drop); font-weight: 700; font-size: 15px; transition: background .3s, opacity .3s; }
+.tlChoices button span { font-size: 24px; }
+.tlChoices button small { color: var(--lx-muted); font-weight: 600; }
+.tlChoices button[data-state="right"] { border-color: var(--lx-good); background: color-mix(in oklch, var(--lx-good) 16%, var(--lx-card)); }
+.tlChoices button[data-state="wrong"] { border-color: var(--lx-bad); background: color-mix(in oklch, var(--lx-bad) 14%, var(--lx-card)); }
+.tlChoices button[data-state="idle"] { opacity: .5; }
+@media (max-width: 640px) {
+  .tlChip { font-size: 12.5px; padding: 2px 8px; }
+  .tlChip i { font-size: 15px; }
+  .tlStage { height: 96px; }
+}

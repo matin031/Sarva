@@ -296,3 +296,95 @@ export function Swap({ label, className = "" }: { label: string; className?: str
     <b>{label}</b>
   </span>;
 }
+
+/** «استعاره»: کاشیِ کلمه با یالِ شیر — شباهتی که قرض گرفته و به جای
+ *  خودش پوشیده. */
+export function Esteare({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  const mane = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * Math.PI * 2, r = 44;
+    return `${50 + Math.cos(a) * r},${61 + Math.sin(a) * r * .9}`;
+  });
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <g className={s.maskPair}>
+        <path d={`M${mane.map((p, i) => i % 2 ? p : `${50 + (+p.split(",")[0] - 50) * .8},${61 + (+p.split(",")[1] - 61) * .8}`).join("L")}Z`} fill="#e59a3a" stroke="var(--lx-outline)" strokeWidth="2.4" strokeLinejoin="round" />
+      </g>
+      <path d="M17 70c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 70c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="18" y="30" width="64" height="62" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M26 40c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <FaceParts mood={mood} y={55} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ استعاره: کلمه زیرِ یک یالِ کوچک. */
+export function Mane({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <circle cx="32" cy="13" r="11" fill="#e59a3a" stroke="var(--lx-outline)" strokeWidth="2" strokeDasharray="4 2" />
+      <circle cx="32" cy="13" r="6.5" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="1.8" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}
+
+/** «حسن تعلیل»: کاشیِ کلمه با لامپی بالای سر — همان «آهان، پس به این خاطر!». */
+export function HosnTalil({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      <g className={s.hostCrown}>
+        <path d="M50 2v4M36 7l3 3M64 7l-3 3M30 19h4M66 19h4" stroke="#f5c542" strokeWidth="2.6" strokeLinecap="round" />
+        <path d="M50 8a10 10 0 0 0-6 18v3h12v-3a10 10 0 0 0-6-18Z" fill="#fff3b0" stroke="var(--lx-outline)" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d="M45 30h10" stroke="var(--lx-outline)" strokeWidth="2.2" strokeLinecap="round" />
+      </g>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 66c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="34" width="72" height="62" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M22 44c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <FaceParts mood={mood} y={58} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ حسن تعلیل: یک لامپِ کوچک. */
+export function Bulb({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <path d="M32 2a8 8 0 0 0-5 14v3h10v-3a8 8 0 0 0-5-14Z" fill="#fff3b0" stroke="var(--lx-outline)" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M28 23h8M20 8h3M41 8h3" stroke="var(--lx-outline)" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}
+
+/** «متناقض‌نما»: کاشیِ کلمه‌ای که نصفش روز است و نصفش شب — دو وصفِ ناسازگار
+ *  روی یک صورت. */
+export function Paradox({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <defs><clipPath id="paradox-half"><rect x="50" y="0" width="50" height="110" /></clipPath></defs>
+    <g className={s.hostBody}>
+      <g className={s.hostCrown}>
+        <circle cx="36" cy="14" r="7" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="2" />
+        <path d="M68 7a8 8 0 1 0 5 13 7 7 0 0 1-5-13Z" fill="#3b2f52" stroke="var(--lx-outline)" strokeWidth="2" strokeLinejoin="round" />
+      </g>
+      <path d="M17 66c-7 1-11 6-11 12" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 66c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="28" width="72" height="66" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <rect x="14" y="28" width="72" height="66" rx="20" fill="#3b2f52" opacity=".28" clipPath="url(#paradox-half)" />
+      <path d="M50 30v62" stroke="var(--lx-outline)" strokeWidth="1.6" strokeDasharray="3 4" opacity=".6" />
+      <FaceParts mood={mood} y={53} />
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ متناقض‌نما: دایره‌ای نیمه‌روشن، نیمه‌تاریک. */
+export function HalfMoon({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <circle cx="32" cy="13" r="10" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="2" />
+      <path d="M32 3a10 10 0 0 1 0 20Z" fill="#3b2f52" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}

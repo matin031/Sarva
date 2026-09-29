@@ -12,7 +12,7 @@ export type Mood = "cool" | "happy" | "wow" | "think";
 
 /** شخصیتِ میزبانِ درس. چهره، نشانِ جواب و لحنِ بازخوردهای پیش‌فرض از همین
  *  می‌آید (components/learn/persona.tsx). */
-export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad" | "mafool" | "majaz";
+export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad" | "mafool" | "majaz" | "esteare" | "hosnTalil" | "paradox";
 
 export type Beat =
   /** فصل تازه؛ در نوار پیشرفت هم دیده می‌شود. */
@@ -59,11 +59,26 @@ export type Beat =
   /** نمایشِ متحرکِ جابه‌جاییِ معنی (مجاز): کلمهٔ `|…|` اول با معنیِ حقیقی‌اش
    *  می‌آید، `clue` (قرینه) روشن می‌شود و آن معنی خط می‌خورد، بعد معنیِ مقصود
    *  با پلِ `bridge` (علاقه) جایش می‌نشیند. */
-  | { kind: "morph"; line: string; said: Sense; meant: Sense; clue: string; bridge: string; caption: string; src?: string }
+  | { kind: "morph"; line: string; said: Sense; meant: Sense; clue: string; bridge: string; caption: string; src?: string;
+      /** برچسبِ دو کارت؛ پیش‌فرض «معنیِ حقیقی» و «معنیِ مقصود». */
+      labels?: [string, string];
+      /** کارتِ اول خط نخورد: در استعارهٔ مکنیه چیزِ گفته‌شده غلط نیست، فقط
+       *  همتای پنهانش رو می‌شود. */
+      keep?: boolean }
   /** سؤال‌ساز: تکه‌ها را به ترتیبِ `answer` بزن تا پرسشِ تشخیص ساخته شود؛
    *  بعد جوابِ `[…]` از دلِ سطر بیرون می‌پرد. `notes` توضیحِ تکه‌های غلط است. */
   | { kind: "build"; prompt: string; line: string; pieces: string[]; answer: string[]; notes?: Record<string, string>; reveal: string; success: string }
+  /** خطِ زمان: دو وصفِ مخالف روی یک خط می‌افتند؛ اگر `at`شان یکی باشد روی
+   *  یک نقطه (متناقض‌نما)، وگرنه روی دو نقطهٔ جدا (تضاد). شاگرد پیش از افتادن
+   *  حدس می‌زند. */
+  | { kind: "timeline"; prompt: string; items: TimelineItem[]; success: string }
+  /** نمایشِ متحرکِ دو خطِ زمان زیرِ هم: اولی تضاد، دومی متناقض‌نما. */
+  | { kind: "timelineDemo"; apart: TimelineItem; together: TimelineItem; caption: string }
   | { kind: "finish"; learned: string[] };
+
+/** یک سطر روی خطِ زمان. `at` برچسبِ نقطه است: زمان، و اگر لازم شد صاحبِ
+ *  وصف («سارا · الان»). دو `at`ِ یکسان یعنی یک نقطه. */
+export type TimelineItem = { line: string; src?: string; a: Sense & { at: string }; b: Sense & { at: string }; why: string };
 
 /** یک سبد در قدمِ `sort`. */
 export type Bin = { label: string; emoji: string };
@@ -105,6 +120,6 @@ export type Lesson = {
 };
 
 /** قدم‌هایی که بدون جواب درست رد نمی‌شوند. */
-export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build"].includes(beat.kind);
+export const isGate = (beat: Beat) => ["ask", "fork", "cards", "catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline"].includes(beat.kind);
 /** قدم‌هایی که جواب درستِ بار اول ستاره می‌گیرد. */
-export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build"].includes(beat.kind);
+export const isScored = (beat: Beat) => ["catch", "tap", "round", "fill", "judge", "masks", "pair", "pillars", "choice", "sort", "build", "timeline"].includes(beat.kind);

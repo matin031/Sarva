@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LearnHub from "@/components/learn/LearnHub";
+import LearnHub from "@/components/learn/hub/LearnHub";
 import JsonLd from "@/components/seo/JsonLd";
 import { LESSONS, LESSON_GROUPS, lessonCard } from "@/lib/learn";
 import { SEO_PAGES } from "@/lib/seo/catalog";

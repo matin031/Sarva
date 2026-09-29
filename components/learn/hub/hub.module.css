@@ -1,0 +1,245 @@
+/* فهرستِ درسنامه‌های تعاملی (`/learn`).
+   سه لایه: سردرِ «دو عینک» روی شفقِ آرام، دو کاشیِ «جهان» (کارگاهِ دستور با
+   کاغذِ نقشه‌کشی، آسمانِ آرایه با ستاره و صورت‌فلکی)، و مسیرِ پیچانِ درس‌ها
+   که با اسکرول کشیده می‌شود. رنگِ هر درس از `.palette`ِ learn.module.css
+   می‌آید (`--lx-host`)؛ بقیه از توکن‌های سایت. */
+
+.hub {
+  --w-grammar: #0f9f95;
+  --w-figures: #7c5cf0;
+  --ink-soft: color-mix(in srgb, var(--foreground) 62%, transparent);
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: clamp(24px, 5vw, 56px) 16px 80px;
+  overflow-x: clip;
+  color: var(--foreground);
+  font-family: var(--font-vazirmatn), sans-serif;
+}
+:global(.dark) .hub { --w-grammar: #2fc4b8; --w-figures: #a58cff; }
+.hub :where(*) { box-sizing: border-box; }
+.hub > :not(.aurora) { position: relative; z-index: 1; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── شفق ─────────────────────────────────────────── */
+
+/* لبه‌ها با ماسکِ بیضی محو می‌شوند؛ وگرنه جایی که قابِ صفحه می‌بُردش خطِ صاف می‌افتاد. */
+.aurora { position: absolute; inset: -40px 0 auto; height: 820px; z-index: 0; pointer-events: none; overflow: hidden;
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 42%, #000 35%, transparent 100%); }
+.aurora span { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(90px); opacity: .32; animation: drift 22s ease-in-out infinite alternate; }
+.aurora span:nth-child(1) { top: 40px; right: 4%; background: var(--w-grammar); }
+.aurora span:nth-child(2) { top: 160px; left: 6%; background: var(--w-figures); animation-duration: 28s; animation-delay: -6s; }
+.aurora span:nth-child(3) { top: -120px; left: 38%; width: 380px; height: 380px; background: var(--gold); opacity: .18; animation-duration: 34s; }
+:global(.dark) .aurora span { opacity: .22; }
+@keyframes drift { to { transform: translate(60px, 40px) scale(1.12); } }
+
+/* ── سردر ───────────────────────────────────────── */
+
+.hero { display: grid; gap: 36px; align-items: center; margin-bottom: clamp(40px, 7vw, 88px); }
+@media (min-width: 960px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; } }
+
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 5px 14px 5px 12px; border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-radius: 999px; background: color-mix(in srgb, var(--card) 70%, transparent); backdrop-filter: blur(8px); color: var(--primary); font-size: 13px; font-weight: 800; }
+.eyebrowDot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 60%, transparent); animation: ping 2.2s infinite; }
+@keyframes ping { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+.title { margin: 0; font-size: clamp(34px, 5.8vw, 62px); font-weight: 900; line-height: 1.22; letter-spacing: -.015em; text-wrap: balance; }
+.title em { font-style: normal; background: linear-gradient(100deg, var(--w-grammar), var(--w-figures)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { margin: 18px 0 0; max-width: 50ch; color: var(--ink-soft); font-size: clamp(15.5px, 1.9vw, 18px); line-height: 2; }
+
+.heroActions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 28px; }
+.cta { display: inline-flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 22px; border-radius: 999px; background: var(--foreground); color: var(--background);
+  font-size: 15.5px; font-weight: 800; text-decoration: none; box-shadow: 0 10px 30px -12px color-mix(in srgb, var(--foreground) 70%, transparent); transition: transform .2s, box-shadow .2s; }
+.cta small { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--background) 22%, transparent); font-size: 12.5px; }
+.cta:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -14px color-mix(in srgb, var(--foreground) 75%, transparent); }
+.heroMeta { color: var(--muted-foreground); font-size: 13px; font-weight: 600; }
+
+/* ── دو عینک ─────────────────────────────────────── */
+
+.lens { padding: 18px 18px 22px; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); border-radius: 28px;
+  background: color-mix(in srgb, var(--card) 72%, transparent); backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 30px 80px -40px color-mix(in srgb, var(--foreground) 55%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent); }
+:global(.dark) .lens { box-shadow: 0 30px 80px -40px #000, inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent); }
+
+.lensSwitch { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.lensSwitch button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-radius: 999px;
+  background: none; color: var(--muted-foreground); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; transition: color .25s; }
+.lensSwitch button[aria-pressed="true"] { color: var(--foreground); }
+.lensThumb { position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); border-radius: 999px; background: var(--card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 14%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--foreground) 40%, transparent); }
+.lensThumb[data-side="grammar"] { inset-inline-start: 4px; }
+.lensThumb[data-side="figures"] { inset-inline-start: 50%; }
+
+.lensLine { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 12px; margin: 26px 0 10px; font-size: clamp(26px, 3.1vw, 36px); font-weight: 900; line-height: 1.3; }
+.lensWord { --c: var(--muted-foreground); display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+.lensTag { display: grid; place-items: center; min-width: 1px; height: 28px; }
+.lensChip { padding: 3px 11px; border-radius: 999px; background: color-mix(in srgb, var(--c) 16%, var(--card)); color: color-mix(in srgb, var(--c) 80%, var(--foreground));
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); font-size: 12.5px; font-weight: 800; line-height: 20px; white-space: nowrap; }
+.lensText { padding-bottom: 4px; background: linear-gradient(var(--c), var(--c)) bottom / 100% 4px no-repeat; background-size: 100% 4px; transition: color .4s, opacity .4s, background-color .4s; }
+.lensWord[data-role="none"] .lensText { opacity: .35; background-size: 0 4px; }
+.lens[data-lens="grammar"] .lensWord[data-role="0"] { --c: #0f9f95; }
+.lens[data-lens="grammar"] .lensWord[data-role="1"] { --c: #8a94a6; }
+.lens[data-lens="grammar"] .lensWord[data-role="2"] { --c: #e0773a; }
+.lens[data-lens="grammar"] .lensWord[data-role="3"] { --c: #7c5cf0; }
+.lens[data-lens="grammar"] .lensWord[data-role="4"] { --c: #3b82c4; }
+.lens[data-lens="figures"] .lensWord[data-role="0"] { --c: #e0527a; }
+.lens[data-lens="figures"] .lensWord[data-role="1"] { --c: #c9971c; }
+.lens[data-lens="figures"] .lensWord[data-role="2"] { --c: #2f8fd8; }
+.lens[data-lens="figures"] .lensWord[data-role="3"] { --c: #2fa66a; }
+.lensCaption { margin: 12px 0 0; color: var(--muted-foreground); font-size: 14px; text-align: center; }
+
+/* ── جهان‌ها ─────────────────────────────────────── */
+
+.worlds { scroll-margin-top: 90px; }
+.worldTabs { display: grid; gap: 16px; }
+@media (min-width: 760px) { .worldTabs { grid-template-columns: 1fr 1fr; } }
+
+.world { --wc: var(--w-grammar); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px; min-height: 216px; padding: 22px;
+  overflow: hidden; border: 1px solid var(--border); border-radius: 28px; background: var(--card); color: inherit; font: inherit; text-align: start; cursor: pointer;
+  transition: transform .25s, box-shadow .25s, border-color .25s, opacity .25s, filter .25s; }
+.world[data-world="grammar"] {
+  background:
+    linear-gradient(color-mix(in srgb, var(--wc) 9%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, color-mix(in srgb, var(--wc) 9%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--wc) 16%, transparent), transparent 60%),
+    var(--card);
+}
+.world[data-world="figures"] { --wc: var(--w-figures); color: #f3f0ff; border-color: #2b2560;
+  background: radial-gradient(90% 80% at 10% 10%, #4a3aa8 0%, transparent 60%), radial-gradient(70% 70% at 100% 100%, #7c3a8f 0%, transparent 55%), linear-gradient(160deg, #181538, #221c4d); }
+.world[aria-selected="false"] { opacity: .72; filter: saturate(.6); }
+.world[aria-selected="false"]:hover { opacity: 1; filter: none; }
+.world[aria-selected="true"] { border-color: color-mix(in srgb, var(--wc) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wc) 22%, transparent), 0 24px 60px -30px color-mix(in srgb, var(--wc) 80%, transparent); }
+.world:hover { transform: translateY(-3px); }
+.world:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+.worldArt { position: absolute; inset: 0; pointer-events: none; }
+.tree { position: absolute; top: 18px; inset-inline-end: 18px; width: 150px; overflow: visible; }
+.tree path { fill: none; stroke: color-mix(in srgb, var(--wc) 55%, transparent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 200; stroke-dashoffset: 0; }
+.tree circle { fill: var(--card); stroke: var(--wc); stroke-width: 2.2; }
+.world[aria-selected="true"] .tree path { animation: draw 1.4s ease-out both; }
+@keyframes draw { from { stroke-dashoffset: 200; } }
+.star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: .7; animation: twinkle 3.2s ease-in-out infinite; }
+.star[data-big] { width: 4px; height: 4px; box-shadow: 0 0 10px 2px #cbbcff; }
+@keyframes twinkle { 50% { opacity: .15; transform: scale(.6); } }
+.constellation { position: absolute; top: 14px; inset-inline-end: 14px; width: 46%; height: 55%; overflow: visible; }
+.constellation polyline { fill: none; stroke: #d9ceff; stroke-opacity: .5; stroke-width: 1.2; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+
+.worldBody { position: relative; display: grid; gap: 2px; }
+.worldKicker { color: var(--wc); font-size: 12.5px; font-weight: 800; }
+.world[data-world="figures"] .worldKicker { color: #cbbcff; }
+.worldTitle { font-size: clamp(24px, 3vw, 30px); font-weight: 900; line-height: 1.4; }
+.worldTagline { color: var(--muted-foreground); font-size: 14px; }
+.world[data-world="figures"] .worldTagline { color: #c9c3e8; }
+.worldFaces { display: flex; margin-top: 12px; }
+.worldFace { display: grid; place-items: center; width: 36px; height: 36px; margin-inline-start: -8px; border-radius: 50%; background: color-mix(in srgb, var(--lx-host) 55%, var(--card));
+  box-shadow: 0 0 0 2.5px var(--card); transition: transform .25s; }
+.worldFace:first-child { margin-inline-start: 0; }
+.world[data-world="figures"] .worldFace { box-shadow: 0 0 0 2.5px #221c4d; }
+.world:hover .worldFace { transform: translateY(-3px); }
+.world:hover .worldFace:nth-child(2n) { transform: translateY(-5px); }
+.worldFace .face { width: 26px; }
+
+.ring { position: relative; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%; }
+.ringText { font-size: 17px; font-weight: 900; }
+.ringText small { font-size: 12px; opacity: .6; }
+/* حلقه روی لایهٔ جداست تا ماسکش عدد را نبُرد. */
+.ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--wc) calc(var(--p) * 360deg), color-mix(in srgb, currentColor 14%, transparent) 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px)); }
+.world[data-world="figures"] .ring::before { background: conic-gradient(#cbbcff calc(var(--p) * 360deg), #ffffff26 0); }
+
+/* ── مسیر ───────────────────────────────────────── */
+
+.panel { margin-top: 36px; }
+.panelLede { margin: 0 0 8px; color: var(--muted-foreground); font-size: 15px; text-align: center; }
+
+.path { --row: 176px; --node: 80px; position: relative; max-width: 860px; height: calc(var(--rows) * var(--row)); margin: 0 auto; padding: 0; list-style: none; }
+.track { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.trackBase { fill: none; stroke: color-mix(in srgb, var(--foreground) 16%, transparent); stroke-width: 3; stroke-dasharray: 2 9; stroke-linecap: round; }
+.trackDrawn { fill: none; stroke: var(--w, var(--primary)); stroke-width: 4; stroke-linecap: round; }
+.panel[data-world="grammar"] .trackDrawn, .panel[data-world="grammar"] .rail > span { --w: var(--w-grammar); }
+.panel[data-world="figures"] .trackDrawn, .panel[data-world="figures"] .rail > span { --w: var(--w-figures); }
+.rail { display: none; }
+
+.stop { position: relative; height: var(--row); }
+.node { position: absolute; top: 50%; left: calc(var(--x) * 1%); z-index: 2; display: grid; place-items: center; width: var(--node); height: var(--node); translate: -50% -50%;
+  border-radius: 50%; padding: 5px; background: conic-gradient(color-mix(in srgb, var(--lx-host) 55%, var(--foreground)) calc(var(--pct) * 3.6deg), color-mix(in srgb, var(--foreground) 10%, var(--card)) 0);
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--foreground) 60%, transparent); transition: transform .25s; }
+.nodeFace { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: color-mix(in srgb, var(--lx-host) 42%, var(--card)); border: 3px solid var(--card); }
+.nodeFace .face { width: 44px; }
+.stop:hover .node { transform: scale(1.06); }
+.stop[data-state="done"] .node { background: color-mix(in srgb, var(--lx-host) 55%, var(--foreground)); }
+.stop[data-state="idle"] .nodeFace { filter: saturate(.75); }
+.nodeBadge { position: absolute; bottom: 0; inset-inline-end: 0; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); border: 2.5px solid var(--card); }
+.stop[data-state="next"] .node::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--lx-host) 70%, var(--foreground)); animation: halo 1.8s ease-out infinite; }
+@keyframes halo { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.45); } }
+.bubble { position: absolute; bottom: calc(100% + 12px); left: 50%; translate: -50% 0; padding: 5px 12px; border-radius: 999px; background: var(--foreground); color: var(--background);
+  font-size: 12.5px; font-weight: 900; white-space: nowrap; animation: bob 2.4s ease-in-out infinite; }
+.bubble::after { content: ""; position: absolute; top: 100%; left: 50%; translate: -50% -1px; border: 6px solid transparent; border-top-color: var(--foreground); }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+
+.card { position: absolute; top: 50%; translate: 0 -50%; display: grid; gap: 4px; width: min(380px, calc(var(--x) * 1% - 64px)); padding: 16px 18px 16px 44px;
+  overflow: hidden; isolation: isolate; border: 1px solid var(--border); border-radius: 20px; background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(10px);
+  color: inherit; text-decoration: none; transition: border-color .25s, box-shadow .25s, transform .25s; }
+.stop[data-side="right"] .card { right: calc((100 - var(--x)) * 1% + 58px); }
+.stop[data-side="left"] .card { left: calc(var(--x) * 1% + 58px); width: min(380px, calc((100 - var(--x)) * 1% - 64px)); }
+/* نورافکنی که دنبالِ نشانگر می‌آید: یک لایه نورِ نرم، یک لایه لبهٔ روشن. */
+.card::before, .card::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.card::before { background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--lx-host) 30%, transparent), transparent 70%); }
+.card::after { z-index: 1; padding: 1px; background: radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--lx-host) 90%, var(--foreground)), transparent 70%);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.card:hover::before, .card:hover::after { opacity: 1; }
+.card:hover { box-shadow: 0 18px 40px -24px color-mix(in srgb, var(--foreground) 60%, transparent); transform: translateY(-2px); }
+.card:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+.cardHead { display: flex; align-items: baseline; gap: 8px; }
+.num { color: color-mix(in srgb, var(--lx-host) 45%, var(--muted-foreground)); font-size: 12.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.cardTitle { font-size: 19px; font-weight: 900; line-height: 1.5; }
+.lock { align-self: center; color: var(--muted-foreground); opacity: .7; }
+.tagline { display: -webkit-box; overflow: hidden; color: var(--muted-foreground); font-size: 14px; line-height: 1.85; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 4px; color: var(--muted-foreground); font-size: 12.5px; }
+.meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.pct { color: var(--foreground); font-weight: 800; }
+.done { color: var(--primary); font-weight: 800; }
+.chev { position: absolute; top: 50%; left: 16px; translate: 0 -50%; color: var(--muted-foreground); transition: transform .25s, color .25s; }
+.card:hover .chev { color: var(--foreground); transform: translateX(-4px); }
+
+.face { display: block; width: 40px; height: auto; }
+/* شخصیت‌ها در درس تکان می‌خورند؛ این‌جا فقط کنارِ نشانگر، تا صفحه آرام بماند. */
+.face :global(*) { animation-play-state: paused; }
+.stop:hover .face :global(*), .world:hover .face :global(*), .stop[data-state="next"] .face :global(*) { animation-play-state: running; }
+
+.foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 36px 0 0; color: var(--muted-foreground); font-size: 13px; }
+
+/* ── گوشی و تبلت ───────────────────────────────── */
+
+@media (max-width: 719px) {
+  .path { --row: 152px; --node: 66px; }
+  .track { display: none; }
+  .rail { position: absolute; display: block; top: calc(var(--row) / 2); bottom: calc(var(--row) / 2); right: calc(var(--node) / 2 - 2px); width: 4px; border-radius: 4px;
+    background: repeating-linear-gradient(color-mix(in srgb, var(--foreground) 18%, transparent) 0 3px, transparent 3px 11px); }
+  .rail > span { display: block; height: 100%; border-radius: inherit; background: var(--w, var(--primary)); transform-origin: top; }
+  .node { left: auto; right: 0; translate: 0 -50%; }
+  .nodeFace .face { width: 36px; }
+  .stop .card, .stop[data-side="left"] .card { left: 0; right: calc(var(--node) + 14px); width: auto; padding: 14px 16px; }
+  .cardTitle { font-size: 17px; }
+  .tagline { font-size: 13.5px; }
+  .chev { display: none; }
+  .bubble { left: auto; right: 50%; translate: 50% 0; }
+  .world { min-height: 190px; padding: 18px; border-radius: 24px; }
+  .tree { width: 110px; }
+  .ring { width: 58px; height: 58px; }
+  .lens { padding: 14px 14px 18px; border-radius: 24px; }
+  .lensLine { gap: 4px 8px; margin-top: 20px; font-size: 22px; }
+  .lensChip { padding: 2px 7px; font-size: 11px; }
+  .lensTag { height: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora span, .eyebrowDot, .star, .bubble, .stop[data-state="next"] .node::after, .face :global(*) { animation: none !important; }
+  .world, .card, .cta, .node, .chev, .worldFace { transition: none; }
+  .world:hover, .card:hover, .cta:hover, .stop:hover .node, .world:hover .worldFace { transform: none; }
+}

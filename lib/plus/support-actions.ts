@@ -7,6 +7,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { rateLimitDb } from "@/lib/api/rate-limit-db";
 import { isUuid } from "@/lib/api/action-input";
 import { ticketNumber } from "./order-number";
+import { TICKET_CATEGORY_LABEL } from "./labels";
+import { alertAdmins } from "@/lib/notify/admin-alerts";
 import type { TicketCategory } from "./types";
 
 /**
@@ -133,6 +135,20 @@ export async function createTicket(input: {
     return { id, seq: row?.ticket_seq ?? 0 };
   });
 
+  alertAdmins("ticket", {
+    event: "ticket",
+    heading: `تیکتِ تازه ${ticketNumber(created.seq)} — ${subject}`,
+    rows: [
+      { label: "موضوع", value: TICKET_CATEGORY_LABEL[category] },
+      { label: "عنوان", value: subject },
+      // ⚠️ فقط آغازِ پیام: متنِ کامل ممکن است جزئیاتِ پرداخت داشته باشد و
+      // جایش پنل است، نه صندوقِ ایمیل.
+      { label: "پیام", value: body.length > 400 ? `${body.slice(0, 400)}…` : body },
+      { label: "کاربر", value: user.email ?? user.phone ?? user.fullName },
+    ],
+    href: "/admin/plus/tickets",
+  });
+
   revalidatePath("/panel/support");
   return { ok: true, data: { id: created.id, ticketNumber: ticketNumber(created.seq) } };
 }
@@ -186,6 +202,24 @@ export async function replyToTicket(input: {
     // قابلِ کشف نباشد.
     return { ok: false, errors: ["این تیکت پیدا نشد یا بسته شده است."] };
   }
+
+  const ticketId = input.ticketId;
+  alertAdmins("ticket", async () => {
+    const t = await queryOne<{ ticket_seq: number; subject: string }>(
+      "select ticket_seq, subject from plus_tickets where id = ? and user_id = ?",
+      [ticketId, user.id],
+    );
+    if (!t) return null;
+    return {
+      event: "ticket",
+      heading: `پاسخِ تازهٔ کاربر در ${ticketNumber(t.ticket_seq)} — ${t.subject}`,
+      rows: [
+        { label: "پیام", value: body.length > 400 ? `${body.slice(0, 400)}…` : body },
+        { label: "کاربر", value: user.email ?? user.phone ?? user.fullName },
+      ],
+      href: "/admin/plus/tickets",
+    };
+  });
 
   revalidatePath("/panel/support");
   return { ok: true, data: { id: message.id } };

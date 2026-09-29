@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { boundedRecord } from "@/lib/api/bounded-record";
 import { execute } from "@/lib/db";
+import { alertAdmins } from "@/lib/notify/admin-alerts";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { fail, handleError, ok, readJson, requestMeta } from "@/lib/api/http";
 import { withRoute } from "@/lib/api/route";
@@ -9,7 +10,9 @@ import { rateLimit } from "@/lib/api/rate-limit";
 import { currentRequestId, logger, redactRecord } from "@/lib/observability";
 import {
   REPORT_AREAS,
+  REPORT_AREA_LABELS,
   REPORT_NOTE_MAX,
+  REPORT_REASON_LABELS,
   REPORT_REASONS,
   REPORT_SNAPSHOT_MAX,
 } from "@/lib/reports/constants";
@@ -115,6 +118,20 @@ export const POST = withRoute("/api/v1/reports", async (request: Request) => {
       report_area: area,
       report_reason: reason,
       signed_in: Boolean(user),
+    });
+
+    alertAdmins("content_report", {
+      event: "content_report",
+      heading: `گزارشِ ایراد در «${REPORT_AREA_LABELS[area] ?? area}»`,
+      rows: [
+        { label: "بخش", value: REPORT_AREA_LABELS[area] ?? area },
+        { label: "دلیل", value: REPORT_REASON_LABELS[reason]?.label ?? reason },
+        // متنِ کاربر تا سقفِ کوتاهی — ایمیل جای خواندنِ کاملش نیست، پنل هست.
+        { label: "توضیح", value: note ? note.slice(0, 300) : null },
+        { label: "محتوا", value: snapshot ? snapshot.slice(0, 200) : null },
+        { label: "گزارش‌دهنده", value: user ? (user.email ?? user.phone ?? user.fullName) : "مهمان" },
+      ],
+      href: "/admin/reports",
     });
 
     return ok({ recorded: true, id: reportId }, 201);

@@ -41,6 +41,11 @@ export type AuditAction =
   | "user.ban"
   | "user.unban"
   | "user.delete"
+  | "user.profile_update"
+  | "user.verify_contact"
+  | "user.session_revoke"
+  | "user.sessions_revoke"
+  | "user.export"
   // تنظیمات
   | "setting.update"
   | "setting.reset"
@@ -171,6 +176,11 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   "user.ban": "مسدود کردن کاربر",
   "user.unban": "رفع مسدودی کاربر",
   "user.delete": "حذف کاربر",
+  "user.profile_update": "ویرایش نام کاربر",
+  "user.verify_contact": "تأیید دستیِ ایمیل یا موبایل",
+  "user.session_revoke": "خارج کردن کاربر از یک دستگاه",
+  "user.sessions_revoke": "خارج کردن کاربر از همهٔ دستگاه‌ها",
+  "user.export": "خروجی گرفتن از فهرست کاربران",
   "setting.update": "تغییر تنظیمات",
   "setting.reset": "بازگرداندن تنظیم",
   "setting.test_email": "ارسال ایمیل آزمایشی",
@@ -542,7 +552,7 @@ export async function recordError(
     //
     // $11 دو بار می‌آمد (first و last request id) و در MySQL دو ? جدا
     // می‌خواهد، پس مقدار دو بار فرستاده می‌شود.
-    await execute(
+    const affected = await execute(
       `insert into app_error_log
          (id, source, message, context, detail, fingerprint,
           error_name, error_code, digest, environment, \`release\`,
@@ -575,6 +585,38 @@ export async function recordError(
         JSON.stringify(row.metadata),
       ],
     );
+
+    /* خبرِ خطای **تازه** برای مدیر.
+
+       ⚠️ `affected === 1` یعنی ردیفِ تازه ساخته شد؛ در `on duplicate key
+       update` ردیفِ موجود ۲ برمی‌گرداند. پس تکرارِ هزارم همان خطا هیچ
+       ایمیلی نمی‌سازد — فقط اولین بار، و دوباره فقط اگر پس از «رسیدگی‌شده»
+       برگردد.
+
+       ⚠️ import پویا: این فایل از همه‌جا وارد می‌شود و نباید زنجیرهٔ ایمیل
+       را با خودش بیاورد. و خطای خودِ ارسال به اینجا برنمی‌گردد — `sendMail`
+       فقط لاگ می‌کند و `recordError` را صدا نمی‌زند، پس حلقه‌ای ساخته
+       نمی‌شود. */
+    if (affected === 1) {
+      const alertRow = row;
+      void import("@/lib/notify/admin-alerts")
+        .then(({ alertAdmins }) =>
+          alertAdmins("server_error", {
+            event: "server_error",
+            heading: `خطای تازه: ${alertRow.message.slice(0, 120)}`,
+            rows: [
+              { label: "بخش", value: alertRow.source },
+              { label: "پیام", value: alertRow.message.slice(0, 500) },
+              { label: "جا", value: alertRow.context },
+              { label: "نوع", value: alertRow.errorName },
+              { label: "نسخه", value: alertRow.release },
+              { label: "شناسهٔ درخواست", value: alertRow.requestId },
+            ],
+            href: "/admin/activity",
+          }),
+        )
+        .catch(() => {});
+    }
   } catch (err) {
     // اینجا انتهای خط است: نه throw، نه تلاش دوباره برای نوشتن در دیتابیس.
     try {

@@ -13,6 +13,9 @@ import {
 import { activateForOrder } from "./grants";
 import { notify } from "./notifications";
 import { notifyUser } from "@/lib/notify";
+import { alertAdmins } from "@/lib/notify/admin-alerts";
+import { jalali } from "@/lib/panel/format";
+import { formatRials } from "./money";
 import { orderNumber } from "./order-number";
 import type { CANONICAL_CURRENCY } from "./money";
 import type {
@@ -539,6 +542,33 @@ export async function settlePayment(params: {
       event: activation.isRenewal ? "plus_renewed" : "plus_activated",
       endsAt: activation.endsAt,
       dedupeKey: `plus_receipt:${order.id}`,
+    });
+
+    /* خبرِ خرید برای مدیر. ⚠️ پشتِ همان `activation.created`، پس یک سفارش
+       یک ایمیل — رفرشِ صفحهٔ نتیجه دوباره خبر نمی‌دهد. و بعد از پاسخ
+       فرستاده می‌شود؛ صفحهٔ «پرداخت موفق» پشتِ SMTP منتظر نمی‌ماند. */
+    alertAdmins("purchase", async () => {
+      const buyer = await queryOne<{ email: string | null; phone: string | null; full_name: string | null }>(
+        "select email, phone, full_name from users where id = ?",
+        [order.user_id],
+      );
+      return {
+        event: "purchase",
+        heading: `${activation.isRenewal ? "تمدید" : "خرید"} سروا پلاس — ${formatRials(order.amount_rials)}`,
+        rows: [
+          { label: "سفارش", value: orderNumber(order.order_seq) },
+          { label: "پلن", value: order.plan_title },
+          { label: "مبلغ", value: formatRials(order.amount_rials) },
+          { label: "نوع", value: activation.isRenewal ? "تمدید" : "خرید تازه" },
+          { label: "خریدار", value: buyer?.full_name },
+          { label: "ایمیل", value: buyer?.email },
+          { label: "موبایل", value: buyer?.phone },
+          { label: "درگاه", value: provider.isTest ? `${provider.name} (آزمایشی)` : provider.name },
+          { label: "کد پیگیری", value: result.trackingId ?? null },
+          { label: "اعتبار تا", value: activation.endsAt ? jalali(activation.endsAt) : "دائمی" },
+        ],
+        href: "/admin/plus",
+      };
     });
   }
 

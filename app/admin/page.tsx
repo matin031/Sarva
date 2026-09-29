@@ -8,6 +8,9 @@ import { adminExamStatsOverview } from "@/lib/admin/exam-stats-actions";
 import { clubAdminStats } from "@/lib/club/admin-actions";
 import { adminRecentActivity } from "@/lib/admin/log-actions";
 import { openReportCount } from "@/lib/admin/report-actions";
+import { adminDailyTrends, adminSystemHealth } from "@/lib/admin/overview-actions";
+import DashboardTrends from "@/components/admin/DashboardTrends";
+import SystemHealthCard from "@/components/admin/SystemHealthCard";
 import { loadAdminData, AdminAccessDenied } from "@/components/admin/AdminGate";
 
 export const metadata: Metadata = {
@@ -19,7 +22,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 async function loadStats() {
-  const [exams, quizList, users, quizActivity, examActivity, club, recent, contentReports] =
+  const [exams, quizList, users, quizActivity, examActivity, club, recent, contentReports, trends, health] =
     await Promise.all([
     adminListExams(),
     quizAdminList({ limit: 1 }),
@@ -29,6 +32,8 @@ async function loadStats() {
     clubAdminStats(),
     adminRecentActivity(),
     openReportCount(),
+    adminDailyTrends(),
+    adminSystemHealth(),
   ]);
   return {
     examCount: exams.length,
@@ -39,6 +44,8 @@ async function loadStats() {
     club,
     recent,
     contentReports,
+    trends,
+    health,
   };
 }
 
@@ -97,14 +104,14 @@ export default async function Page() {
     { href: "/admin/vocab", title: "واژه‌یاب", desc: "افزودن و ویرایش واژگانِ درس‌های فارسی دهم تا دوازدهم." },
     { href: "/admin/games", title: "بازی‌ها", desc: "محتوای جفت‌های ادبی، نینجای دستور زبان و جاسوسِ نقش‌ها." },
     { href: "/admin/club", title: "سروا کلاب", desc: "بررسی سروده‌ها و دیدگاه‌ها و رسیدگی به گزارش‌ها." },
-    { href: "/admin/users", title: "کاربران", desc: "جست‌وجو، مسدودسازی، تغییر نقش و حذف حساب." },
-    { href: "/admin/settings", title: "تنظیمات", desc: "ایمیل، پیامک و وضعیت سرویس‌های سایت." },
+    { href: "/admin/users", title: "کاربران", desc: "جست‌وجو، مسدودسازی، تغییر نقش، خروج از دستگاه‌ها و خروجی CSV." },
+    { href: "/admin/settings", title: "تنظیمات", desc: "ایمیل، پیامک، خبرهای ایمیلیِ مدیر و وضعیت سرویس‌ها." },
   ];
 
   const clubQueue = stats.club.pendingPosts + stats.club.pendingComments;
 
   return (
-    <div dir="rtl" className="flex max-w-4xl flex-col gap-8 p-4 xs:p-6">
+    <div dir="rtl" className="flex max-w-6xl flex-col gap-8 p-4 xs:p-6">
       <div>
         <h1 className="text-2xl font-bold">داشبورد</h1>
         <p className="text-sm text-muted-foreground">
@@ -155,6 +162,11 @@ export default async function Page() {
           )}
         </div>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">روندِ سی روزِ گذشته</h2>
+        <DashboardTrends trends={stats.trends} />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">در مجموع</h2>
@@ -258,6 +270,16 @@ export default async function Page() {
           </div>
         </section>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-muted-foreground">سلامتِ سیستم</h2>
+          <Link href="/admin/settings" className="text-xs text-primary hover:underline">
+            تنظیمات
+          </Link>
+        </div>
+        <SystemHealthCard health={stats.health} />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">دسترسی سریع</h2>

@@ -1,36 +1,35 @@
 "use client";
 
-import { useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { buildFracture } from "@/lib/aruz-bridge/fracture";
 import { TILE_DEPTH, TILE_THICKNESS, TILE_WIDTH } from "@/lib/aruz-bridge/layout";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
-import type { GlassState } from "@/lib/aruz-bridge/types";
-import { getEdgeMaterial, getGlassMaterial } from "./glassMaterial";
+import type { GlassState, Side } from "@/lib/aruz-bridge/types";
+import { createGlassMaterial } from "./glassMaterial";
 import { AnswerHitTarget, NO_RAYCAST } from "./AnswerHitTarget";
 import { CrackLines } from "./CrackLines";
 import { GlassLabel } from "./GlassLabel";
+import type { ScenePalette } from "./palette";
 import { Shards } from "./Shards";
 
-/** هندسهٔ کاشی برای همهٔ کاشی‌ها یکی است — یک بار ساخته و یک بار به GPU
- *  فرستاده می‌شود. همان الگوی `GalaxyScene` برای کره‌ها و حلقه‌هایش. */
+/** هندسهٔ کاشی برای همهٔ کاشی‌ها یکی است — یک بار ساخته و یک بار به GPU فرستاده می‌شود. */
 const SLAB_GEOMETRY = new THREE.BoxGeometry(TILE_WIDTH, TILE_THICKNESS, TILE_DEPTH);
-const EDGE_GEOMETRY = new THREE.EdgesGeometry(SLAB_GEOMETRY);
 
 /* یک کاشیِ شیشه‌ای.
  *
  * کاشی مسئولِ *ظاهرِ* خودش است و بس: `state` را می‌گیرد و می‌داند در هر حالت
- * چه شکلی باشد. اینکه چرا به `cracking` رسیده — پاسخِ غلط بوده یا تایمر تمام
- * شده — هیچ ربطی به او ندارد. منطقِ بازی فقط حالت را عوض می‌کند. */
+ * چه شکلی باشد. اینکه چرا به `cracking` رسیده — پاسخِ غلط یا تمام‌شدنِ زمان —
+ * به او ربطی ندارد. همهٔ واکنش‌ها uniformِ مادهٔ خودِ اوست و در `useFrame`
+ * نوشته می‌شود؛ هیچ‌کدام از راهِ React رد نمی‌شود. */
 
 export interface GlassTileProps {
   position: [number, number, number];
   state: GlassState;
   quality: QualitySettings;
-  /** نقطهٔ تماسِ پا در مختصاتِ محلیِ کاشی؛ ترک از همین‌جا شروع می‌شود.
-   *  دو عددِ جدا و نه یک آرایه، چون آرایه هر رندر مرجعِ تازه می‌گیرد و
-   *  محاسبهٔ شکست را بی‌دلیل دوباره راه می‌اندازد. */
+  palette: ScenePalette;
+  /** نقطهٔ تماسِ پا در مختصاتِ محلیِ کاشی؛ ترک از همین‌جا شروع می‌شود. */
   impactX?: number;
   impactZ?: number;
   /** ۰..۱ پیشرَویِ ترک — صحنه هر فریم از روی زمانِ حالتِ `cracking` پُرش می‌کند. */
@@ -42,25 +41,30 @@ export interface GlassTileProps {
   seed: number;
   /** شناسهٔ یکتای این کاشی — hover و انتخاب هر دو با همین کار می‌کنند. */
   tileId?: string;
-  side?: import("@/lib/aruz-bridge/types").Side;
+  side?: Side;
   /** آیا ماشینِ حالت همین حالا پاسخ می‌پذیرد. */
   selectable?: boolean;
   /** کدام کاشیِ کلِ صحنه hover است. مقایسه با `tileId` تنها معیار است. */
   hoveredTileId?: string | null;
   onHover?: (tileId: string, entering: boolean) => void;
-  onSelect?: (side: import("@/lib/aruz-bridge/types").Side) => void;
+  onSelect?: (side: Side) => void;
   debugHitTargets?: boolean;
-  /** وزنی که روی این شیشه نوشته شده. نبودنش یعنی کاشیِ بی‌متن (سکوی آغاز). */
+  /** وزنی که روی این شیشه نوشته شده. نبودنش یعنی کاشیِ بی‌متن. */
   label?: string;
   /** ۰..۱ — نمایانیِ متن. بازی از روی حالت می‌دهد. */
   labelOpacity?: number;
   labelHighlight?: "correct" | "wrong" | null;
+  /** بازیکن همین حالا درست روی این کاشی فرود آمد. */
+  landedCorrect?: boolean;
+  /** بازیکن روی این کاشی ایستاده. */
+  standing?: boolean;
 }
 
 export function GlassTile({
   position,
   state,
   quality,
+  palette,
   impactX = 0,
   impactZ = 0.3,
   crackProgressRef,
@@ -77,20 +81,19 @@ export function GlassTile({
   label,
   labelOpacity = 0,
   labelHighlight = null,
+  landedCorrect = false,
+  standing = false,
 }: GlassTileProps) {
   const groupRef = useRef<THREE.Group>(null);
   const slabRef = useRef<THREE.Mesh>(null);
-  /* hover دیگر حالتِ *درونیِ* کاشی نیست. یک شناسه در سطحِ صحنه نگه داشته
-     می‌شود و هر کاشی فقط می‌پرسد «آن یکی من هستم؟» — پس دو کاشی نمی‌توانند
-     هم‌زمان روشن شوند، حتی اگر رویدادها اشتباه شلیک کنند. */
+  /* hover حالتِ درونیِ کاشی نیست: یک شناسه در سطحِ صحنه نگه داشته می‌شود و هر
+     کاشی فقط می‌پرسد «آن یکی من هستم؟» — پس دو کاشی هم‌زمان روشن نمی‌شوند. */
   const hovered = tileId != null && hoveredTileId === tileId;
 
-  // ماده و هندسهٔ کاشی بینِ همهٔ کاشی‌ها مشترک‌اند (توضیحش در glassMaterial.ts)
-  const glassMaterial = getGlassMaterial(quality, TILE_THICKNESS);
-  const edgeMaterial = getEdgeMaterial();
+  const material = useMemo(() => createGlassMaterial(), []);
+  useEffect(() => () => material.dispose(), [material]);
 
-  /* شکست فقط وقتی لازم می‌شود که کاشی واقعاً بشکند. تا آن لحظه ساختنش
-     هزینهٔ بی‌دلیل است — و در یک دورِ ده‌مرحله‌ای فقط یکی از کاشی‌ها می‌شکند. */
+  /* شکست فقط وقتی ساخته می‌شود که کاشی واقعاً بشکند؛ در یک دور فقط یکی. */
   const needsFracture = state === "cracking" || state === "shattering" || state === "broken";
   const fracture = useMemo(() => {
     if (!needsFracture) return null;
@@ -105,22 +108,30 @@ export function GlassTile({
 
   const shattered = state === "shattering" || state === "broken";
 
-  useFrame((_, delta) => {
+  const hover = useRef(0);
+  const selectableAmt = useRef(0);
+  const flash = useRef(0);
+  const visited = useRef(0);
+  const shownReveal = useRef(reveal);
+  const landedAt = useRef<number | null>(null);
+  const shatteredAt = useRef<number | null>(null);
+
+  useFrame((frame, delta) => {
     const group = groupRef.current;
-    if (!group) return;
-
-    // ظهور از مه: بالا آمدن + بزرگ‌شدنِ ملایم، نه پاپ‌شدنِ ناگهانی.
-    const targetY = position[1] + (1 - reveal) * -0.5;
-    group.position.x = position[0];
-    group.position.z = position[2];
-    group.position.y += (targetY - group.position.y) * Math.min(1, delta * 8);
-
     const slab = slabRef.current;
-    if (!slab) return;
+    if (!group || !slab) return;
+    const dt = Math.min(delta, 0.05);
+    const time = frame.clock.elapsedTime;
+    const k = (speed: number) => 1 - Math.exp(-speed * dt);
 
-    // لرزشِ پیش از ترک — کاشی هشدار می‌دهد که دارد می‌شکند.
+    // ظهور از مه: بالا آمدن و روشن‌شدنِ نرم، نه پاپ‌شدنِ ناگهانی
+    shownReveal.current += (reveal - shownReveal.current) * k(5);
+    const r = shownReveal.current;
+    group.position.set(position[0], position[1] - (1 - r) * 0.7, position[2]);
+
+    // لرزشِ پیش از ترک — کاشی هشدار می‌دهد
     if (state === "impact" || state === "cracking") {
-      const amp = state === "cracking" ? 0.012 : 0.004;
+      const amp = state === "cracking" ? 0.014 : 0.006;
       slab.position.x = (Math.random() - 0.5) * amp;
       slab.position.z = (Math.random() - 0.5) * amp;
     } else {
@@ -128,46 +139,83 @@ export function GlassTile({
       slab.position.z = 0;
     }
 
-    /* بازخوردِ اشاره‌گر با بزرگ‌نماییِ خودِ کاشی است، نه با دست‌کاریِ ماده:
-       ماده بینِ همهٔ کاشی‌ها مشترک است و تغییرش روی کلِ پل اثر می‌گذاشت. */
-    const target = hovered ? 1.03 : 1;
-    const s = slab.scale.x + (target - slab.scale.x) * Math.min(1, delta * 12);
+    hover.current += ((hovered && selectable ? 1 : 0) - hover.current) * k(14);
+    selectableAmt.current += ((selectable ? 1 : 0) - selectableAmt.current) * k(6);
+    visited.current += ((standing ? 1 : 0) - visited.current) * k(4);
+
+    /* فلش. فرودِ درست یک ضربهٔ روشن است که فرو می‌نشیند؛ ترک قرمزیِ رو به
+       افزایش؛ و قطعات قرمزی‌ای که در سقوط خاموش می‌شود. */
+    let flashTarget = 0;
+    let flashColor = palette.success;
+    if (landedCorrect) {
+      if (landedAt.current === null) landedAt.current = time;
+      flashTarget = Math.exp(-(time - landedAt.current) * 3.2);
+    } else {
+      landedAt.current = null;
+    }
+    if (state === "impact") {
+      flashTarget = 0.18 + 0.12 * Math.sin(time * 30);
+      flashColor = palette.danger;
+    } else if (state === "cracking") {
+      flashTarget = 0.35 + 0.5 * crackProgressRef.current;
+      flashColor = palette.danger;
+    } else if (shattered) {
+      if (shatteredAt.current === null) shatteredAt.current = time;
+      flashTarget = 0.9 * Math.exp(-(time - shatteredAt.current) * 1.5);
+      flashColor = palette.danger;
+    } else {
+      shatteredAt.current = null;
+    }
+    flash.current += (flashTarget - flash.current) * k(landedCorrect ? 30 : 12);
+
+    const u = material.uniforms;
+    u.uTime.value = time;
+    u.uOpacity.value = r;
+    u.uHover.value = hover.current;
+    u.uSelectable.value = selectableAmt.current;
+    u.uVisited.value = visited.current;
+    u.uFlash.value = flash.current;
+    u.uGlowGain.value = palette.glowGain;
+    u.uLight.value = palette.dark ? 0 : 1;
+    u.uDeep.value.copy(palette.glassDeep);
+    u.uTint.value.copy(palette.glassTint);
+    u.uRim.value.copy(palette.glassRim);
+    u.uAccent.value.copy(palette.gold);
+    u.uFlashColor.value.copy(flashColor);
+
+    /* hover با بالاآمدنِ کاشی دیده می‌شود، نه فقط با رنگ. بزرگ‌نمایی ملایم
+       است و روی خودِ تخته، پس جعبهٔ برخورد تکان نمی‌خورد. */
+    const lift = hover.current * 0.06 + (landedCorrect ? -0.05 * flash.current : 0);
+    slab.position.y = lift;
+    const s = 1 + hover.current * 0.035;
     slab.scale.set(s, 1, s);
   });
 
   return (
     <group ref={groupRef} position={position}>
-      {/* تختهٔ اصلی. بعد از خردشدن پنهان می‌شود تا فقط قطعات بمانند —
-          ولی حذف نمی‌شود، چون دورِ بعد دوباره لازمش داریم. */}
-      {/* تخته و هر چیزِ درونش صرفاً دیداری‌اند: هیچ‌کدام رویدادِ اشاره‌گر
-          نمی‌گیرند و هیچ‌کدام در پرتوافکنی شرکت نمی‌کنند. ثبتِ پاسخ فقط
-          کارِ `AnswerHitTarget` است. */}
+      {/* تخته و هر چیزِ درونش صرفاً دیداری‌اند: هیچ‌کدام رویدادِ اشاره‌گر نمی‌گیرند.
+          ثبتِ پاسخ فقط کارِ `AnswerHitTarget` است. */}
       <mesh
         ref={slabRef}
         geometry={SLAB_GEOMETRY}
-        material={glassMaterial}
-        visible={!shattered && reveal > 0.02}
+        material={material}
+        visible={!shattered}
+        renderOrder={2}
         raycast={NO_RAYCAST}
       >
-        <lineSegments
-          geometry={EDGE_GEOMETRY}
-          material={edgeMaterial}
-          renderOrder={2}
-          /* ریشهٔ باگِ «راست زدم، چپ پرید». خطوط با آستانهٔ یک‌متریِ
-             پیش‌فرض تقاطع می‌گرفتند و فاصله‌ای نزدیک‌تر از خودِ شیشه
-             گزارش می‌کردند. */
-          raycast={NO_RAYCAST}
-        />
-
-        {/* متن و حلقه *فرزندِ خودِ تخته‌اند*. برای همین هیچ محاسبهٔ
-            هم‌ترازی‌ای وجود ندارد که بتواند اشتباه شود: هرجا کاشی برود،
-            نوشته‌اش هم می‌رود — روی هر نسبتِ تصویری و در هر زاویه. */}
+        {/* متن فرزندِ خودِ تخته است؛ هرجا کاشی برود نوشته‌اش هم می‌رود. */}
         {label && !shattered && (
-          <GlassLabel text={label} opacity={labelOpacity} highlight={labelHighlight} />
+          <GlassLabel
+            text={label}
+            opacity={labelOpacity}
+            highlight={labelHighlight}
+            hoverRef={hover}
+            palette={palette}
+          />
         )}
       </mesh>
 
-      {/* تنها شنوندهٔ رویداد. بیرون از تخته است تا مقیاسِ hover رویش اثر نگذارد. */}
+      {/* تنها شنوندهٔ رویداد. بیرون از تخته است تا بالاآمدنِ hover رویش اثر نگذارد. */}
       {selectable && tileId && side && onHover && onSelect && (
         <AnswerHitTarget
           side={side}
@@ -191,7 +239,7 @@ export function GlassTile({
       {fracture && shattered && (
         <Shards
           fracture={fracture}
-          material={glassMaterial}
+          material={material}
           thickness={TILE_THICKNESS}
           y={0}
           elapsedRef={shatterElapsedRef}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, History, MessageSquare, Music2 } from "lucide-react";
+import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, History, MoonStar, Music2 } from "lucide-react";
 import { usePlusSummary } from "@/lib/auth/use-current-user";
 import MainLogo from "../svgs/mainLogo";
 import AccountMenu from "./AccountMenu";
@@ -18,7 +18,7 @@ const learningLinks = [
   { title: "عروض", href: "/aruz", icon: Activity },
   { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 },
   { title: "خط زمان", href: "/timeline", icon: History },
-  { title: "کلاب", href: "/sarvaclub", icon: MessageSquare },
+  { title: "شب امتحان", href: "/shab-emtehan", icon: MoonStar },
 ];
 
 /** ستارهٔ چهارپرِ کنارِ «پلاس». */

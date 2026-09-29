@@ -1,5 +1,11 @@
 import type { SeedExam } from "./seed-types";
 
+import { farsi2Sobh1403 } from "./11/farsi2/farsi2-1403-sobh";
+import { farsi2Asr1403 } from "./11/farsi2/farsi2-1403-asr";
+import { farsi2Khordad1403 } from "./11/farsi2/farsi2-1403-khordad";
+import { farsi2Asr1404 } from "./11/farsi2/farsi2-1404-asr";
+import { farsi2Khordad1404 } from "./11/farsi2/farsi2-1404-khordad";
+
 import { farsi3Khordad1400 } from "./12/farsi3/farsi3-1400-khordad";
 import { farsi3Dey1401 } from "./12/farsi3/farsi3-1401-dey";
 import { farsi3Shahrivar1402 } from "./12/farsi3/farsi3-1402-shahrivar";
@@ -30,6 +36,12 @@ import { olumFonoon3Mordad1405 } from "./12/olum-fonoon3/olum-fonoon3-1405-morda
  * عوض‌کردنشان آدرس‌ها و پیوندِ آزمون‌های داده‌شده را می‌شکند.
  */
 export const seedExams: readonly SeedExam[] = [
+  // ---- پایهٔ یازدهم: فارسی ۲
+  farsi2Sobh1403,
+  farsi2Asr1403,
+  farsi2Khordad1403,
+  farsi2Asr1404,
+  farsi2Khordad1404,
   // ---- پایهٔ دوازدهم: فارسی ۳
   farsi3Khordad1400,
   farsi3Dey1401,

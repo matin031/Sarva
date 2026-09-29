@@ -39,6 +39,8 @@ export interface MachineState {
   /** چرا دور تمام شد. تا وقتی بازی زنده است `null`. */
   failure: FailureReason | null;
   score: number;
+  /** امتیازِ آخرین پاسخِ درست — برای «+۱۲۴»ِ روی صحنه. در هر پاسخِ دیگری صفر. */
+  lastGain: number;
   streak: number;
   bestStreak: number;
   correctCount: number;
@@ -98,6 +100,7 @@ export function initialMachineState(
     chosen: null,
     failure: null,
     score: 0,
+    lastGain: 0,
     streak: 0,
     bestStreak: 0,
     correctCount: 0,
@@ -165,7 +168,7 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
 
     case "answer": {
       if (s.state !== "waitingForAnswer") return s;
-      return to(s, "jumping", { chosen: a.side, answeredAt: a.now });
+      return to(s, "jumping", { chosen: a.side, answeredAt: a.now, lastGain: 0 });
     }
 
     case "timeout":
@@ -204,12 +207,14 @@ export function machineReducer(s: MachineState, a: MachineAction): MachineState 
           ? 0
           : Math.max(0, s.answeredAt - s.answerOpenedAt);
       const streak = s.streak + 1;
+      const gain = scoreForAnswer(s, elapsed, streak);
       return to(s, "correct", {
         streak,
         bestStreak: Math.max(s.bestStreak, streak),
         correctCount: s.correctCount + 1,
         answeredCount: s.answeredCount + 1,
-        score: s.score + scoreForAnswer(s, elapsed, streak),
+        score: s.score + gain,
+        lastGain: gain,
       });
     }
 

@@ -6,6 +6,7 @@ import { revokeAllSessions } from "@/lib/auth/session";
 import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
+import { userSearchClause } from "@/lib/admin/user-search";
 import { removeTeacherDocumentChecked } from "@/lib/teacher/documents";
 import { documentKeyFingerprint } from "@/lib/teacher/doc-paths";
 import { logger } from "@/lib/observability";
@@ -14,6 +15,8 @@ import type { UserRole } from "@/lib/auth/types";
 export type AdminUserRow = {
   id: string;
   email: string | undefined;
+  /** شکلِ متعارفِ `989…` — کاربرِ ثبت‌نام‌کرده با موبایل ممکن است ایمیل نداشته باشد. */
+  phone: string | undefined;
   fullName: string | undefined;
   role: UserRole;
   createdAt: string;
@@ -32,7 +35,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export type UserListParams = {
-  /** جست‌وجو در ایمیل و نام */
+  /** جست‌وجو در ایمیل، نام و موبایل */
   query?: string;
   role?: UserRole;
   status?: "active" | "banned" | "unverified";
@@ -67,7 +70,7 @@ export async function adminListUsers(
     // ⚠️ در MySQL هر `?` یک پارامتر مصرف می‌کند.
     //
     // نسخهٔ پستگرسی `$n` را دو بار می‌نوشت و *یک* مقدار می‌فرستاد، چون آنجا
-    // شماره‌گذاری است. اینجا باید دو بار فرستاده شود، وگرنه شمارِ پارامترها
+    // شماره‌گذاری است. اینجا هر مقدار به تعدادِ `?` هایش فرستاده می‌شود، وگرنه شمارِ پارامترها
     // با شمارِ `?` ها نمی‌خواند و کوئری رد می‌شود.
     //
     // ⚠️ و `like` به‌جای `ilike`: ILIKE اصلاً در MySQL وجود ندارد. لازم هم
@@ -76,11 +79,10 @@ export async function adminListUsers(
     // می‌شوند. (utf8mb4_0900_ai_ci اینجا کار نمی‌کرد: ستون email از نوع
     // citext-معادل است و ستون full_name نیست.)
     //
-    // % ها اینجا اضافه می‌شوند و نه در رشتهٔ کوئری، پس ورودی کاربر هرگز
-    // بخشی از خودِ SQL نمی‌شود.
-    const pattern = `%${search.toLowerCase()}%`;
-    values.push(pattern, pattern);
-    conditions.push("(lower(u.email) like ? or lower(u.full_name) like ?)");
+    // الگو و شاخهٔ موبایل در `userSearchClause` ساخته می‌شوند.
+    const clause = userSearchClause(search);
+    values.push(...clause.values);
+    conditions.push(clause.sql);
   }
 
   if (params.role) {
@@ -104,7 +106,8 @@ export async function adminListUsers(
 
   const rows = await query<{
     id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     full_name: string | null;
     role: UserRole;
     created_at: string;
@@ -113,7 +116,7 @@ export async function adminListUsers(
     is_banned: boolean;
     total_count: number;
   }>(
-    `select u.id, u.email, u.full_name, u.role, u.created_at,
+    `select u.id, u.email, u.phone, u.full_name, u.role, u.created_at,
             u.email_verified_at, u.is_banned,
             (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at,
             count(*) over () as total_count
@@ -130,7 +133,8 @@ export async function adminListUsers(
     total: rows[0]?.total_count ?? 0,
     users: rows.map((u) => ({
       id: u.id,
-      email: u.email,
+      email: u.email ?? undefined,
+      phone: u.phone ?? undefined,
       fullName: u.full_name ?? undefined,
       role: u.role,
       createdAt: u.created_at,
@@ -154,7 +158,8 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
 
   const row = await queryOne<{
     id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     full_name: string | null;
     role: UserRole;
     created_at: string;
@@ -162,7 +167,7 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
     email_verified_at: string | null;
     is_banned: boolean;
   }>(
-    `select u.id, u.email, u.full_name, u.role, u.created_at,
+    `select u.id, u.email, u.phone, u.full_name, u.role, u.created_at,
             u.email_verified_at, u.is_banned,
             (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at
        from users u
@@ -174,7 +179,8 @@ export async function adminGetUser(userId: string): Promise<AdminUserRow | null>
 
   return {
     id: row.id,
-    email: row.email,
+    email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
     fullName: row.full_name ?? undefined,
     role: row.role,
     createdAt: row.created_at,

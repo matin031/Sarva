@@ -55,7 +55,16 @@ export type SettingKey =
   | "seo.verify_bing"
   | "seo.verify_yandex"
   | "seo.indexnow_key"
-  | "seo.state";
+  | "seo.state"
+  | "alerts.enabled"
+  | "alerts.recipients"
+  | "alerts.signup"
+  | "alerts.purchase"
+  | "alerts.teacher_request"
+  | "alerts.content_report"
+  | "alerts.ticket"
+  | "alerts.club_post"
+  | "alerts.server_error";
 
 type SettingSpec = {
   /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
@@ -83,6 +92,13 @@ type SettingSpec = {
   hidden?: boolean;
   /** ورودی از فهرست، نه متن آزاد. */
   options?: { value: string; label: string }[];
+  /**
+   * مقداری که کدِ مصرف‌کننده وقتی چیزی ثبت نشده فرض می‌کند — فقط برای
+   * نمایش در پنل. ⚠️ خودِ `getSetting` همچنان `null` می‌دهد؛ این فیلد
+   * رفتار را عوض نمی‌کند، فقط نمی‌گذارد فرم «یکی را انتخاب کنید» نشان
+   * بدهد وقتی در واقع چیزی روشن است.
+   */
+  defaultValue?: string;
   placeholder?: string;
 };
 
@@ -415,6 +431,108 @@ export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
     description: "خودِ پنل می‌نویسد (JSON).",
     hidden: true,
   },
+
+  // ── خبر برای مدیر ─────────────────────────────────────────────────────────
+  // ⚠️ همه پیش‌فرضِ «روشن» دارند: بدونِ هیچ تنظیمی، هر مدیری که ایمیل دارد
+  // خبرها را می‌گیرد. چراییِ هر رویداد و سقفِ ساعتی‌اش در
+  // `lib/notify/admin-alert-events.ts`.
+  "alerts.enabled": {
+    defaultValue: "on",
+    envVar: "ALERTS_ENABLED",
+    group: "alerts",
+    label: "ایمیلِ خبر برای مدیر",
+    description:
+      "کلیدِ سراسری. وقتی خاموش باشد هیچ‌کدام از خبرهای پایین فرستاده نمی‌شود. ایمیل‌ها بعد از پاسخ به کاربر فرستاده می‌شوند، پس ثبت‌نام و خرید هرگز پشتِ آن‌ها منتظر نمی‌مانند.",
+    options: [
+      { value: "on", label: "روشن" },
+      { value: "off", label: "خاموش" },
+    ],
+  },
+  "alerts.recipients": {
+    envVar: "ALERTS_RECIPIENTS",
+    group: "alerts",
+    label: "گیرنده‌ها",
+    description:
+      "یک یا چند ایمیل، با ویرگول یا در خط‌های جدا (حداکثر ۱۰). خالی بگذارید تا خبرها به ایمیلِ همهٔ مدیرانِ سایت برود.",
+    placeholder: "you@example.com",
+  },
+  "alerts.signup": {
+    defaultValue: "on",
+    envVar: "ALERTS_SIGNUP",
+    group: "alerts",
+    label: "ثبت‌نامِ کاربرِ تازه",
+    description: "برای هر حسابِ تازه (ایمیل، موبایل یا گوگل). حداکثر ۳۰ ایمیل در ساعت.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.purchase": {
+    defaultValue: "on",
+    envVar: "ALERTS_PURCHASE",
+    group: "alerts",
+    label: "خریدِ سروا پلاس",
+    description: "بعد از تأییدِ هر پرداخت — با مبلغ، پلن، خریدار و کدِ پیگیری.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.teacher_request": {
+    defaultValue: "on",
+    envVar: "ALERTS_TEACHER_REQUEST",
+    group: "alerts",
+    label: "درخواستِ دبیری",
+    description: "وقتی کسی مدارکِ دبیری‌اش را می‌فرستد یا اصلاح می‌کند. کد ملی و حکم در ایمیل نمی‌آیند؛ در پنل ببینید.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.content_report": {
+    defaultValue: "on",
+    envVar: "ALERTS_CONTENT_REPORT",
+    group: "alerts",
+    label: "گزارشِ ایرادِ محتوا",
+    description: "وقتی کاربری می‌گوید سؤال یا محتوایی ایراد دارد.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.ticket": {
+    defaultValue: "on",
+    envVar: "ALERTS_TICKET",
+    group: "alerts",
+    label: "تیکتِ پشتیبانی",
+    description: "تیکتِ تازه، و پاسخِ تازهٔ کاربر در تیکتِ باز.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.club_post": {
+    defaultValue: "on",
+    envVar: "ALERTS_CLUB_POST",
+    group: "alerts",
+    label: "سرودهٔ تازه در کلاب",
+    description: "وقتی سروده‌ای برای بررسی فرستاده می‌شود.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.server_error": {
+    defaultValue: "on",
+    envVar: "ALERTS_SERVER_ERROR",
+    group: "alerts",
+    label: "خطای تازه روی سرور",
+    description: "فقط اولین بارِ هر خطا؛ تکرارِ همان خطا ایمیلِ دوباره نمی‌سازد. حداکثر ۱۰ در ساعت.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
 };
 
 
@@ -501,6 +619,7 @@ export type ListedSetting = {
   secret: boolean;
   options: { value: string; label: string }[] | null;
   placeholder: string | null;
+  defaultValue: string | null;
   /** برای رازها همیشه null است — مقدار واقعی هرگز از سرور بیرون نمی‌رود. */
   value: string | null;
   /** فقط برای رازها معنی دارد: «مقداری ثبت شده یا نه». */
@@ -543,6 +662,7 @@ export async function listSettings(): Promise<ListedSetting[]> {
       secret: spec.secret ?? false,
       options: spec.options ?? null,
       placeholder: spec.placeholder ?? null,
+      defaultValue: spec.defaultValue ?? null,
       // ⚠️ اینجاست که راز از پاسخ حذف می‌شود. اگر روزی کلیدی secret علامت
       // بخورد ولی این شرط را رد کند، مقدارش مستقیم در HTML صفحهٔ تنظیمات
       // می‌نشیند.

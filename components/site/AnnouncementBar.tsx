@@ -11,19 +11,19 @@ import type { AnnouncementTone } from "@/lib/site/content";
  * ---------------------------------------------------------------------------
  * چرا این شکل
  * ---------------------------------------------------------------------------
- * الگوی جاافتادهٔ وب برای «خبری که همه باید ببینند» یک نوارِ تمام‌عرض در
- * بالاترین نقطهٔ صفحه است — بالاتر از هدر. سه دلیل دارد و هر سه عملی‌اند:
+ * «خبری که همه باید ببینند» بالاترین چیزِ صفحه است — بالاتر از هدر. سه
+ * تصمیم این شکل را می‌سازند:
  *
- *   ۱) **بالاتر از هدر، نه شناور روی آن.** این نوار در جریان عادیِ صفحه
+ *   ۱) **بالاتر از هدر، نه شناور روی آن.** کارت در جریان عادیِ صفحه
  *      می‌نشیند و بقیه را پایین می‌راند. جایگزینش (position: fixed) روی
- *      محتوا می‌افتد و منوی چسبانِ هدر را می‌پوشاند — و روی گوشی، ارتفاعِ
- *      کوچکِ صفحه را می‌خورد.
+ *      محتوا می‌افتد و منوی هدر را می‌پوشاند — و روی گوشی، ارتفاعِ کوچکِ
+ *      صفحه را می‌خورد.
  *
- *   ۲) **تمام‌عرض.** نواری که به عرضِ ستونِ متن باشد، به چشم یک کارتِ دیگر
- *      در صفحه می‌آید و رد می‌شود. تمام‌عرض بودن است که می‌گوید «این دربارهٔ
- *      کلِ سایت است».
+ *   ۲) **هم‌عرضِ هدر، نه تمام‌عرض.** کارت در همان `container`ِ هدر است و
+ *      همان سطحِ شیشه‌ایِ منوهایش را دارد؛ جایگاهش (بالای همه‌چیز) می‌گوید
+ *      «این دربارهٔ کلِ سایت است»، و شکلش می‌گوید «این بخشی از سرواست».
  *
- *   ۳) **همیشه فقط یکی.** کوئری هم همین را برمی‌گرداند. دو نوار روی هم یعنی
+ *   ۳) **همیشه فقط یکی.** کوئری هم همین را برمی‌گرداند. دو اعلان روی هم یعنی
  *      هیچ‌کدام خوانده نمی‌شود.
  *
  * ---------------------------------------------------------------------------
@@ -94,83 +94,69 @@ function useDismissed(storageKey: string): boolean {
 }
 
 /**
- * پالتِ هر لحن.
+ * هویتِ هر لحن.
  *
- * ⚠️ نسخهٔ اول یک نوارِ تخت با یک تهِ‌رنگ بود و «به‌سختی دیده می‌شد» — چیزی
- * که نه خبر می‌رساند و نه زیباست. این نسخه سه لایه دارد و هر سه ارزان‌اند:
+ * ⚠️ نسخهٔ اول یک نوارِ تخت با یک تهِ‌رنگ بود و «به‌سختی دیده می‌شد»؛ نسخهٔ
+ * دوم یک نوارِ تمام‌عرضِ گرادیانی شد که از لبهٔ صفحه تا لبهٔ صفحه می‌رفت و با
+ * بقیهٔ سایت — که همه‌چیزش در `container` و کارت‌های شیشه‌ایِ گرد است — هم‌زبان
+ * نبود؛ بیشتر به بنرِ مرورگر می‌مانْد تا به بخشی از سروا.
  *
- *   ۱) یک نوارِ گرادیانیِ نازک در بالا، که لحن را در یک نگاه می‌گوید.
- *   ۲) شیشهٔ نیمه‌شفاف با `backdrop-blur` روی یک گرادیانِ افقیِ ملایم.
- *   ۳) یک درخششِ آرامِ متحرک که فقط `transform` را عوض می‌کند — پس روی
- *      رشتهٔ compositor اجرا می‌شود و رنگ‌آمیزیِ دوباره لازم ندارد. با
- *      `prefers-reduced-motion` کاملاً می‌ایستد.
+ * این نسخه یک **کارتِ شیشه‌ای** است، هم‌عرض و هم‌لبه با هدر (همان `container`)
+ * و با همان سطحِ `glass-pop`ِ منوهای هدر. چهار چیز لحن را می‌رسانند و هیچ‌کدام
+ * به‌تنهایی حاملِ معنا نیست:
  *
- * هیچ‌کدام از این‌ها `filter` یا `box-shadow` متحرک نیستند؛ نوارِ بالای همهٔ
- * صفحه‌ها جای گران‌ترین جلوه‌ها نیست.
+ *   ۱) کاشیِ آیکونِ پُررنگ — اولین نقطه‌ای که چشم می‌گیرد.
+ *   ۲) برچسبِ متنیِ لحن («اطلاع‌رسانی»، «فوری» …) — برای کسی که رنگ را
+ *      نمی‌بیند، و برای همه، چون یک کلمه سریع‌تر از یک رنگ خوانده می‌شود.
+ *   ۳) لبهٔ رنگیِ سمتِ شروع و یک هالهٔ ملایم که از همان‌جا محو می‌شود.
+ *   ۴) درخششِ آرامی که فقط `transform` را عوض می‌کند (روی compositor) و با
+ *      `prefers-reduced-motion` می‌ایستد.
  */
 const TONE: Record<
   AnnouncementTone,
   {
-    /** گرادیانِ زمینه — دو ایستگاه، بسیار ملایم. */
-    surface: string;
-    /** نوارِ رنگیِ بالا. */
-    rail: string;
-    /** حلقه و رنگِ آیکون. */
-    chip: string;
-    ring: string;
-    /** رنگِ دکمهٔ لینک. */
-    action: string;
-    glow: string;
+    /** رنگِ پُر — کاشیِ آیکون، لبه و دکمه. متنِ روی آن سفید است. */
+    accent: string;
+    /** رنگِ *متنِ* برچسب روی سطحِ کارت، جدا برای تمِ تیره. */
+    ink: string;
     icon: React.ReactNode;
     label: string;
+    /** فوری‌ها یک نقطهٔ تپنده دارند؛ بقیه آرام‌اند. */
+    live?: boolean;
   }
 > = {
   info: {
-    surface:
-      "linear-gradient(90deg, color-mix(in oklab, var(--color-primary) 16%, transparent), color-mix(in oklab, var(--color-primary) 6%, transparent) 55%, transparent)",
-    rail: "linear-gradient(90deg, transparent, var(--color-primary), color-mix(in oklab, var(--color-primary) 40%, transparent), transparent)",
-    chip: "text-primary",
-    ring: "color-mix(in oklab, var(--color-primary) 38%, transparent)",
-    action: "var(--color-primary)",
-    glow: "color-mix(in oklab, var(--color-primary) 30%, transparent)",
+    accent: "var(--color-primary)",
+    ink: "text-primary",
     label: "اطلاع‌رسانی",
     icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-5m0-3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 10.5v3a1 1 0 0 0 1 1h2l5 4V5.5l-5 4H5a1 1 0 0 0-1 1Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" />
+      </>
     ),
   },
   success: {
-    surface:
-      "linear-gradient(90deg, color-mix(in oklab, #10b981 18%, transparent), color-mix(in oklab, #10b981 6%, transparent) 55%, transparent)",
-    rail: "linear-gradient(90deg, transparent, #10b981, color-mix(in oklab, #10b981 40%, transparent), transparent)",
-    chip: "text-emerald-600 dark:text-emerald-300",
-    ring: "color-mix(in oklab, #10b981 40%, transparent)",
-    action: "#0f9b73",
-    glow: "color-mix(in oklab, #10b981 30%, transparent)",
+    accent: "#0f9b73",
+    ink: "text-emerald-700 dark:text-emerald-300",
     label: "خبر خوب",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4.5 4.5L19 7" />,
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5 14.4 8l5 .7-3.6 3.5.9 5-4.7-2.4-4.7 2.4.9-5L4.6 8.7l5-.7L12 3.5Z" />
+    ),
   },
   warning: {
-    surface:
-      "linear-gradient(90deg, color-mix(in oklab, var(--color-gold) 24%, transparent), color-mix(in oklab, var(--color-gold) 8%, transparent) 55%, transparent)",
-    rail: "linear-gradient(90deg, transparent, var(--color-gold), color-mix(in oklab, var(--color-gold) 45%, transparent), transparent)",
-    chip: "text-gold-ink dark:text-gold",
-    ring: "color-mix(in oklab, var(--color-gold) 45%, transparent)",
-    action: "var(--color-gold-ink)",
-    glow: "color-mix(in oklab, var(--color-gold) 34%, transparent)",
+    accent: "var(--color-gold-ink)",
+    ink: "text-gold-ink dark:text-gold",
     label: "توجه",
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
     ),
   },
   critical: {
-    surface:
-      "linear-gradient(90deg, color-mix(in oklab, var(--color-destructive) 22%, transparent), color-mix(in oklab, var(--color-destructive) 8%, transparent) 55%, transparent)",
-    rail: "linear-gradient(90deg, transparent, var(--color-destructive), color-mix(in oklab, var(--color-destructive) 45%, transparent), transparent)",
-    chip: "text-destructive",
-    ring: "color-mix(in oklab, var(--color-destructive) 42%, transparent)",
-    action: "var(--color-destructive)",
-    glow: "color-mix(in oklab, var(--color-destructive) 32%, transparent)",
+    accent: "var(--color-destructive)",
+    ink: "text-destructive",
     label: "فوری",
+    live: true,
     icon: (
       <>
         <circle cx="12" cy="12" r="9" />
@@ -179,6 +165,8 @@ const TONE: Record<
     ),
   },
 };
+
+const mix = (color: string, pct: number) => `color-mix(in oklab, ${color} ${pct}%, transparent)`;
 
 export default function AnnouncementBar() {
   const content = useSiteContent();
@@ -204,12 +192,13 @@ export default function AnnouncementBar() {
   if (!announcement || dismissed) return null;
 
   const tone = TONE[announcement.tone] ?? TONE.info;
+  const hasLink = !!(announcement.linkUrl && announcement.linkLabel);
 
   const close = () => {
     // اول انیمیشن جمع شدن، بعد ثبت — وگرنه کامپوننت همان لحظه ناپدید می‌شود
     // و بستن، پرشی به نظر می‌رسد.
     setOpen(false);
-    setTimeout(() => markDismissed(storageKey), 220);
+    setTimeout(() => markDismissed(storageKey), 260);
   };
 
   return (
@@ -217,70 +206,103 @@ export default function AnnouncementBar() {
       role="region"
       aria-label="اعلان سایت"
       dir="rtl"
-      className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+      className={`relative z-40 grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
         open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
       }`}
     >
       <div className="overflow-hidden">
-        <div
-          className="relative isolate overflow-hidden border-b border-border/50 bg-card/70 backdrop-blur-xl"
-          style={{ backgroundImage: tone.surface }}
-        >
-          {/* ۱) نوارِ رنگیِ بالا */}
-          <div aria-hidden className="h-[2px] w-full" style={{ backgroundImage: tone.rail }} />
-
-          {/* ۲) درخششِ آرام. فقط transform انیمیت می‌شود، پس compositor
-                خودش انجامش می‌دهد و هیچ رنگ‌آمیزیِ دوباره‌ای لازم نیست. */}
+        {/* ⚠️ همان `container`ِ هدر: لبه‌های کارت دقیقاً با لبه‌های لوگو و
+            منو هم‌خط‌اند، پس اعلان جزئی از سرِ صفحه دیده می‌شود و نه چیزی که
+            رویش چسبانده شده. */}
+        <div className="container pt-3">
           <div
-            aria-hidden
-            className="ann-sheen pointer-events-none absolute inset-y-0 -z-10 w-1/3"
-            style={{
-              background: `linear-gradient(90deg, transparent, ${tone.glow}, transparent)`,
-            }}
-          />
-
-          <div className="container mx-auto flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
-            {/* آیکون در یک کپسولِ حلقه‌دار */}
+            className={`glass-pop relative isolate overflow-hidden rounded-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
+              open ? "translate-y-0" : "-translate-y-2"
+            }`}
+            style={{ borderColor: mix(tone.accent, 30) }}
+          >
+            {/* هاله‌ای که از لبهٔ شروع (راست) محو می‌شود */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 -z-10"
+              style={{
+                background: `linear-gradient(270deg, ${mix(tone.accent, 14)}, ${mix(tone.accent, 4)} 45%, transparent 80%)`,
+              }}
+            />
+            {/* درخششِ آرام — فقط transform */}
+            <div
+              aria-hidden
+              className="ann-sheen pointer-events-none absolute inset-y-0 -z-10 w-1/3"
+              style={{ background: `linear-gradient(90deg, transparent, ${mix(tone.accent, 12)}, transparent)` }}
+            />
+            {/* لبهٔ رنگیِ سمتِ شروع */}
             <span
               aria-hidden
-              className={`flex size-8 shrink-0 items-center justify-center rounded-xl bg-background/60 ring-1 ${tone.chip}`}
-              style={{ boxShadow: `inset 0 0 0 1px ${tone.ring}` }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="size-4">
-                {tone.icon}
-              </svg>
-            </span>
+              className="absolute inset-y-3 start-0 w-[3px] rounded-e-full"
+              style={{ background: tone.accent }}
+            />
 
-            <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] leading-relaxed sm:text-sm">
-              {/* برچسبِ لحن برای کسی که رنگ را نمی‌بیند — رنگ به‌تنهایی هرگز
-                  تنها حاملِ معنا نیست. */}
-              <span className="sr-only">{tone.label}: </span>
-              {announcement.title && (
-                <strong className="font-bold tracking-tight">{announcement.title}</strong>
-              )}
-              <span className="text-foreground/80">{announcement.body}</span>
-            </p>
-
-            {announcement.linkUrl && announcement.linkLabel && (
-              <LinkButton
-                url={announcement.linkUrl}
-                label={announcement.linkLabel}
-                accent={tone.action}
-              />
-            )}
-
-            {announcement.dismissible && (
-              <button
-                type="button"
-                onClick={close}
-                aria-label="بستن اعلان"
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground"
+            {/* روی گوشی: [آیکون | متن | بستن] و دکمه در ردیفِ دوم، هم‌خط با
+                متن. از sm به بالا همه در یک ردیف. */}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 py-3 ps-4 pe-2.5 sm:flex sm:items-center sm:gap-4 sm:py-3.5 sm:pe-3">
+              <span
+                aria-hidden
+                className="relative flex size-10 shrink-0 items-center justify-center rounded-xl text-white"
+                style={{
+                  background: `linear-gradient(145deg, ${tone.accent}, color-mix(in oklab, ${tone.accent} 72%, black))`,
+                  boxShadow: `0 6px 16px -6px ${mix(tone.accent, 70)}, inset 0 1px 0 rgb(255 255 255 / 0.25)`,
+                }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4">
-                  <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="size-5">
+                  {tone.icon}
                 </svg>
-              </button>
-            )}
+                {tone.live && (
+                  <span className="absolute -end-1 -top-1 flex size-3">
+                    <span
+                      className="absolute inset-0 animate-ping rounded-full opacity-70 motion-reduce:animate-none"
+                      style={{ background: tone.accent }}
+                    />
+                    <span className="relative size-3 rounded-full ring-2 ring-card" style={{ background: tone.accent }} />
+                  </span>
+                )}
+              </span>
+
+              <div className="min-w-0 sm:flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-5 ${tone.ink}`}
+                    style={{ background: mix(tone.accent, 13) }}
+                  >
+                    {tone.label}
+                  </span>
+                  {announcement.title && (
+                    <strong className="text-[14px] font-extrabold leading-6 tracking-tight text-foreground sm:text-[15px]">
+                      {announcement.title}
+                    </strong>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[13px] leading-6 text-foreground/75 sm:text-sm">{announcement.body}</p>
+              </div>
+
+              {announcement.dismissible && (
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="بستن اعلان"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:order-last"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4" aria-hidden>
+                    <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              )}
+
+              {hasLink && (
+                <div className="col-span-2 col-start-2 sm:col-auto">
+                  <LinkButton url={announcement.linkUrl!} label={announcement.linkLabel!} accent={tone.accent} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -299,8 +321,12 @@ function LinkButton({
 }) {
   const internal = url.startsWith("/");
   const className =
-    "group inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-white shadow-sm transition-transform active:scale-95";
-  const style = { background: accent } as const;
+    "group inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-4 text-[13px] font-bold text-white transition-[transform,filter] hover:brightness-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2";
+  const style = {
+    background: accent,
+    outlineColor: accent,
+    boxShadow: `0 6px 14px -8px ${mix(accent, 80)}, inset 0 1px 0 rgb(255 255 255 / 0.2)`,
+  } as const;
 
   const inner = (
     <>

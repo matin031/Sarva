@@ -6,6 +6,7 @@ import { useAdminToast } from "./AdminToast";
 import ConfirmDialog from "./ConfirmDialog";
 import {
   adminResetSetting,
+  adminSendTestAlert,
   adminSendTestEmail,
   adminSetSetting,
   type AdapterStatus,
@@ -38,7 +39,7 @@ export default function SettingsPanel({
   // برای رازها مقدار اولیه خالی است — سرور اصلاً نفرستاده. جای خالی یعنی
   // «دست نزن»، نه «پاک کن».
   const [drafts, setDrafts] = useState<Record<string, string>>(
-    Object.fromEntries(settings.map((s) => [s.key, s.value ?? ""])),
+    Object.fromEntries(settings.map((s) => [s.key, s.value ?? s.defaultValue ?? ""])),
   );
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [testTo, setTestTo] = useState("");
@@ -77,6 +78,15 @@ export default function SettingsPanel({
       const result = await adminSendTestEmail(testTo);
       if (result.ok) toast("ایمیل آزمایشی ارسال شد. صندوق ورودی را بررسی کنید.", "success");
       else toast(result.errors.join("\n"));
+    });
+  };
+
+  const sendTestAlert = () => {
+    startTransition(async () => {
+      const result = await adminSendTestAlert();
+      if (result.ok) {
+        toast(`خبرِ آزمایشی برای ${result.data.sent.toLocaleString("fa-IR")} گیرنده فرستاده شد.`, "success");
+      } else toast(result.errors.join("\n"));
     });
   };
 
@@ -147,7 +157,9 @@ export default function SettingsPanel({
                             : "bg-gold/15 text-gold"
                       }`}
                     >
-                      {SOURCE_LABEL[setting.source]}
+                      {setting.source === "none" && setting.defaultValue
+                        ? "پیش‌فرض"
+                        : SOURCE_LABEL[setting.source]}
                     </span>
                   </div>
 
@@ -186,7 +198,11 @@ export default function SettingsPanel({
                       )}
                       <input
                         type={setting.secret ? "password" : "text"}
-                        dir={setting.secret || setting.key.startsWith("mail") ? "ltr" : "rtl"}
+                        dir={
+                          setting.secret || setting.key.startsWith("mail") || setting.key === "alerts.recipients"
+                            ? "ltr"
+                            : "rtl"
+                        }
                         autoComplete={setting.secret ? "new-password" : "off"}
                         value={drafts[setting.key] ?? ""}
                         onChange={(e) => setDrafts((d) => ({ ...d, [setting.key]: e.target.value }))}
@@ -244,6 +260,26 @@ export default function SettingsPanel({
                     className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     ارسال
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {group === "alerts" && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+                <h3 className="font-semibold">امتحانِ خبرها</h3>
+                <p className="text-sm text-muted-foreground">
+                  یک ایمیلِ نمونه به همان گیرنده‌هایی می‌رود که خبرهای واقعی را می‌گیرند — حتی اگر
+                  خبرها خاموش باشند. اگر گیرنده‌ها خالی است، به ایمیلِ همهٔ مدیران.
+                </p>
+                <div>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={sendTestAlert}
+                    className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    فرستادنِ خبرِ آزمایشی
                   </button>
                 </div>
               </div>

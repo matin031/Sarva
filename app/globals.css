@@ -3790,6 +3790,450 @@ html[data-quality="low"] [class*="backdrop-blur"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   پلِ وزن — HUD و لایهٔ بازخوردِ روی صحنه
+   ═══════════════════════════════════════════════════════════════════════
+
+   ⚠️ دو قاعده در کلِ این بخش:
+   ۱. فقط `transform` و `opacity` متحرک‌اند. رنگ و سایه فقط با عوض‌شدنِ
+      `data-level` (دو بار در هر پرسش) تغییر می‌کنند، نه در هر فریم.
+   ۲. هیچ `backdrop-filter`ـی روی بوم نیست؛ تار کردنِ بومی که هر فریم عوض
+      می‌شود یعنی تار کردنِ دوباره در هر فریم — روی گوشی همین لگ می‌سازد.
+
+   همهٔ رنگ‌ها از توکن‌های سایت‌اند، پس با پالت و تمِ روشن/تیره عوض می‌شوند. */
+
+.ab-hud {
+  background:
+    radial-gradient(120% 140% at 50% -40%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 60%),
+    var(--card);
+}
+
+.ab-word {
+  display: inline-block;
+  font-family: var(--font-morabba), var(--font-sans);
+  font-weight: 700;
+  color: var(--foreground);
+  animation: abWordIn 420ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes abWordIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, var(--primary));
+  background: color-mix(in oklch, var(--background) 70%, transparent);
+  padding: 0.2rem 0.6rem 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.ab-chip-icon {
+  display: inline-flex;
+  color: var(--primary);
+}
+
+.ab-chip-value {
+  display: inline-block;
+  animation: abChipPop 360ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.ab-chip-hot {
+  border-color: color-mix(in oklch, var(--gold) 70%, transparent);
+  background: color-mix(in oklch, var(--gold) 16%, var(--background));
+  box-shadow: 0 0 14px -2px color-mix(in oklch, var(--gold) 55%, transparent);
+}
+
+.ab-chip-hot .ab-chip-icon {
+  color: var(--gold-ink);
+  animation: abFlicker 900ms ease-in-out infinite alternate;
+}
+
+@keyframes abChipPop {
+  from {
+    transform: scale(1.35);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes abFlicker {
+  from {
+    transform: scale(1) rotate(-4deg);
+  }
+  to {
+    transform: scale(1.18) rotate(4deg);
+  }
+}
+
+/* نوارِ زمان: پهنای کامل، از راست به چپ خالی می‌شود — جهتِ خواندنِ فارسی. */
+.ab-timer {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+
+.ab-timer-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  transform-origin: right center;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--primary) 55%, var(--card)), var(--primary));
+  box-shadow: 0 0 12px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+.ab-timer[data-level="idle"] .ab-timer-fill {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.ab-timer[data-level="pressure"] .ab-timer-fill {
+  background: linear-gradient(90deg, var(--gold-light), var(--gold));
+  box-shadow: 0 0 14px color-mix(in oklch, var(--gold) 70%, transparent);
+}
+
+.ab-timer[data-level="panic"] .ab-timer-fill {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--destructive) 55%, white), var(--destructive));
+  box-shadow: 0 0 16px color-mix(in oklch, var(--destructive) 75%, transparent);
+}
+
+/* ── لایهٔ روی صحنه ─────────────────────────────────────────────────────── */
+
+/* قابِ فشار: دو انیمیشن با یک delay (از `style` می‌آید). اولی با
+   fill-mode: both تا رسیدنِ آستانه قاب را در صفر نگه می‌دارد؛ دومی — که در
+   فهرست بعدی است و برنده می‌شود — از همان لحظه می‌تپد. */
+.ab-pressure {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  box-shadow: inset 0 0 70px 10px color-mix(in oklch, var(--gold) 55%, transparent);
+  animation:
+    abFadeIn 250ms ease-out both,
+    abPressure 900ms ease-in-out infinite alternate;
+}
+
+.ab-pressure.ab-panic {
+  box-shadow: inset 0 0 90px 18px color-mix(in oklch, var(--destructive) 70%, transparent);
+  animation:
+    abFadeIn 150ms ease-out both,
+    abPressure 380ms ease-in-out infinite alternate;
+}
+
+@keyframes abFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes abPressure {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ab-crack-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 70%, color-mix(in oklch, var(--destructive) 45%, transparent), transparent 70%);
+  box-shadow: inset 0 0 120px 30px color-mix(in oklch, var(--destructive) 55%, transparent);
+  animation: abFlash 700ms ease-out both;
+}
+
+@keyframes abFlash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ab-gain {
+  position: absolute;
+  inset-inline: 0;
+  top: 22%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  animation: abGain 1150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ab-gain-praise {
+  font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  color: var(--game-night-ink);
+  text-shadow:
+    0 0 18px color-mix(in oklch, var(--primary) 80%, transparent),
+    0 2px 0 color-mix(in oklch, var(--primary-deep) 90%, transparent);
+}
+
+.ab-gain-points {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  line-height: 1;
+  color: var(--gold-light);
+  text-shadow:
+    0 0 22px color-mix(in oklch, var(--gold) 85%, transparent),
+    0 3px 0 var(--gold-deep);
+}
+
+:root:not(.dark) .ab-gain-praise {
+  color: var(--primary-deep);
+  text-shadow:
+    0 0 14px var(--background),
+    0 0 4px var(--background);
+}
+
+:root:not(.dark) .ab-gain-points {
+  color: var(--gold-ink);
+  text-shadow:
+    0 0 18px var(--background),
+    0 0 4px var(--background),
+    0 3px 0 color-mix(in oklch, var(--gold) 45%, transparent);
+}
+
+.ab-gain-combo {
+  margin-top: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--gold-deep) 70%, transparent);
+  padding: 0.1rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+@keyframes abGain {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+  }
+  30% {
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.96);
+  }
+}
+
+.ab-hint {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0.9rem;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--primary) 35%, transparent);
+  background: color-mix(in oklch, var(--card) 82%, transparent);
+  padding: 0.35rem 0.9rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  animation: abWordIn 500ms 300ms ease-out both;
+}
+
+.ab-hint kbd {
+  display: inline-block;
+  min-width: 1.35rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  background: var(--background);
+  padding: 0 0.3rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+/* ── پیش‌نمایشِ پل روی صفحهٔ تنظیمات (SessionSetup) ──────────────────────── */
+.ab-hero {
+  position: relative;
+  height: 10.5rem;
+  margin: -0.5rem -0.5rem 1rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  background:
+    radial-gradient(90% 80% at 50% 0%, color-mix(in oklch, var(--primary) 26%, transparent), transparent 70%),
+    linear-gradient(to bottom, color-mix(in oklch, var(--primary) 10%, var(--card)), var(--card));
+  perspective: 30rem;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%);
+  mask-image: linear-gradient(to bottom, transparent, #000 30%);
+}
+
+.ab-hero-deck {
+  position: absolute;
+  inset-inline-start: 50%;
+  bottom: 0.4rem;
+  display: grid;
+  width: 16rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem 1.6rem;
+  transform: translateX(50%) rotateX(56deg);
+  transform-origin: 50% 100%;
+}
+
+/* نرده‌های نئون، دو طرفِ پل */
+.ab-hero-deck::before,
+.ab-hero-deck::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, transparent, var(--primary));
+  box-shadow: 0 0 10px var(--primary);
+}
+
+.ab-hero-deck::before {
+  inset-inline-start: -1.2rem;
+}
+
+.ab-hero-deck::after {
+  inset-inline-end: -1.2rem;
+}
+
+.ab-hero-tile {
+  position: relative;
+  display: flex;
+  height: 4.2rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1.5px solid color-mix(in oklch, var(--primary) 70%, var(--card));
+  background: linear-gradient(135deg, color-mix(in oklch, var(--primary) 32%, transparent), color-mix(in oklch, var(--primary) 10%, transparent));
+  box-shadow:
+    0 0 16px color-mix(in oklch, var(--primary) 35%, transparent),
+    inset 0 0 14px color-mix(in oklch, var(--primary) 25%, transparent);
+  font-family: var(--font-morabba), var(--font-sans);
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--foreground);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--primary) 70%, transparent);
+}
+
+.ab-hero-tile:nth-child(-n + 2) {
+  opacity: 0.35;
+}
+
+.ab-hero-tile:nth-child(3),
+.ab-hero-tile:nth-child(4) {
+  opacity: 0.6;
+}
+
+/* بازتابِ مورب که آرام از روی شیشه‌ها می‌گذرد — فقط transform. */
+.ab-hero-tile::after {
+  content: "";
+  position: absolute;
+  inset: -50% -30%;
+  background: linear-gradient(105deg, transparent 42%, color-mix(in oklch, white 45%, transparent) 50%, transparent 58%);
+  transform: translateX(-60%);
+  animation: abSheen 4.5s ease-in-out infinite;
+}
+
+.ab-hero-tile-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 22px color-mix(in oklch, var(--gold) 75%, transparent);
+  animation: abPressure 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes abSheen {
+  0%,
+  55% {
+    transform: translateX(-60%);
+  }
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+/* دکمهٔ شروع: درخششِ نرمِ پالت، همان زبانِ نورِ خودِ پل. */
+.ab-start {
+  box-shadow:
+    0 8px 24px -8px color-mix(in oklch, var(--primary) 70%, transparent),
+    inset 0 -3px 0 var(--primary-deep);
+}
+
+/* شمارشِ معکوس: عدد درونِ یک حلقهٔ نور. */
+.ab-countdown-ring {
+  position: absolute;
+  inset: -1.4rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklch, var(--gold) 70%, transparent);
+  box-shadow:
+    0 0 40px color-mix(in oklch, var(--primary) 55%, transparent),
+    inset 0 0 30px color-mix(in oklch, var(--gold) 35%, transparent);
+  animation: abRing var(--gc-countdown-beat-ms, 800ms) ease-out both;
+}
+
+@keyframes abRing {
+  from {
+    opacity: 1;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-word,
+  .ab-chip-value,
+  .ab-chip-hot .ab-chip-icon,
+  .ab-hint,
+  .ab-countdown-ring,
+  .ab-hero-tile::after,
+  .ab-hero-tile-glow::before {
+    animation: none;
+  }
+  .ab-pressure,
+  .ab-pressure.ab-panic {
+    animation: abFadeIn 1ms linear both;
+  }
+  .ab-gain {
+    animation: abFlash 1150ms linear both;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    سروا پلاس — هویتِ بصری
    ═══════════════════════════════════════════════════════════════════════
 
@@ -4091,4 +4535,17 @@ html[data-quality="low"] [class*="backdrop-blur"] {
 .reading-scope .reading-num {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------- ستاره‌های شبِ امتحان */
+/* فقط `opacity` — روی compositor، بدونِ رنگ‌آمیزیِ دوباره. */
+@keyframes examNightTwinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.25; }
+}
+.exam-night-twinkle {
+  animation: examNightTwinkle 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .exam-night-twinkle { animation: none; opacity: 0.7; }
 }

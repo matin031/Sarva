@@ -102,14 +102,17 @@ export default function Countdown({
       aria-live="polite"
       aria-label={`شروع بازی تا ${BEATS[beat]}`}
     >
-      <span
-        key={BEATS[beat]}
-        className={`font-sans text-7xl font-black text-[var(--game-night-ink)] drop-shadow-[0_0_24px_var(--gold-deep)] sm:text-8xl ${
-          reducedMotion ? "" : "gc-countdown-beat"
-        }`}
-      >
-        {fa.format(BEATS[beat])}
-      </span>
+      <div className="relative flex size-32 items-center justify-center sm:size-40">
+        {!reducedMotion && <span key={`r${BEATS[beat]}`} className="ab-countdown-ring" aria-hidden />}
+        <span
+          key={BEATS[beat]}
+          className={`game-display text-7xl text-[var(--game-night-ink)] drop-shadow-[0_0_24px_var(--gold-deep)] sm:text-8xl ${
+            reducedMotion ? "" : "gc-countdown-beat"
+          }`}
+        >
+          {fa.format(BEATS[beat])}
+        </span>
+      </div>
     </div>
   );
 }

@@ -99,6 +99,38 @@ function CheckRow({
   );
 }
 
+/**
+ * پیش‌نمایشِ پل روی صفحهٔ تنظیمات — CSSِ خالص، بدونِ WebGL.
+ *
+ * بازیکن پیش از شروع باید بداند قرار است چه ببیند: دو شیشه، و روی هرکدام
+ * *نامِ یک رکن*. همین دو کاشی با پرسپکتیوِ واقعی (`perspective` + `rotateX`)
+ * و رنگِ پالتِ سایت کشیده می‌شوند؛ صحنهٔ سه‌بعدیِ واقعی هنوز بار نشده و
+ * لازم هم نیست برای یک تصویرِ خوش‌آمد بار شود. تزئینی است و از فناوریِ
+ * کمکی پنهان.
+ */
+function BridgeHero() {
+  const rows = [
+    ["", ""],
+    ["", ""],
+    ["", ""],
+    ["فاعلاتن", "مفاعلن"],
+  ];
+  return (
+    <div className="ab-hero" aria-hidden>
+      <div className="ab-hero-deck">
+        {rows.flatMap(([right, left], r) => [
+          <span key={`${r}r`} className={`ab-hero-tile ${right ? "ab-hero-tile-glow" : ""}`}>
+            {right}
+          </span>,
+          <span key={`${r}l`} className="ab-hero-tile">
+            {left}
+          </span>,
+        ])}
+      </div>
+    </div>
+  );
+}
+
 export function SessionSetup({
   session,
   onChange,
@@ -133,11 +165,18 @@ export function SessionSetup({
       transition={{ type: "spring", damping: 24, stiffness: 260 }}
       className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7"
     >
+      <BridgeHero />
       <div className="text-center">
         <h1 className="game-display text-2xl font-black text-foreground sm:text-3xl">پل وزن</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {assignmentTitle ? `تکلیف: ${assignmentTitle}` : "آماده‌ای از پل عبور کنی؟"}
         </p>
+        {!assignmentTitle && (
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            روی هر شیشه نامِ یک رکن نوشته شده. روی شیشه‌ای بپر که وزنِ واژه را درست می‌گوید — شیشهٔ
+            نادرست زیرِ پایت می‌شکند.
+          </p>
+        )}
       </div>
 
       <div className="mt-6 space-y-5">
@@ -218,7 +257,7 @@ export function SessionSetup({
         type="button"
         onClick={onStart}
         disabled={loading}
-        className="mt-6 w-full rounded-xl bg-primary py-3 font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
+        className="ab-start mt-6 w-full rounded-xl bg-primary py-3 font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
       >
         {loading ? "در حال آماده‌سازی…" : "شروع بازی"}
       </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { meterLabel } from "@/lib/aruz-bridge/meter-label";
 import type { PreparedStep, Side } from "@/lib/aruz-bridge/types";
 
 /**
@@ -41,8 +42,9 @@ export function AccessibleOptions({
   if (!step) return null;
 
   const options: { side: Side; label: string; pattern: string }[] = [
-    { side: "left", label: "سمتِ چپ", pattern: step.leftPattern },
-    { side: "right", label: "سمتِ راست", pattern: step.rightPattern },
+    // همان متنی که روی شیشه است — نامِ رکن، نه خط‌کشیِ هجایی.
+    { side: "left", label: "سمتِ چپ", pattern: meterLabel(step.leftPattern) },
+    { side: "right", label: "سمتِ راست", pattern: meterLabel(step.rightPattern) },
   ];
 
   return (

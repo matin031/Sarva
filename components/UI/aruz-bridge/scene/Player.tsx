@@ -6,9 +6,9 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { NO_RAYCAST } from "./AnswerHitTarget";
 import { aruzBridgeAssets } from "@/lib/aruz-bridge/assets";
+import { BRIDGE_Y, TILE_THICKNESS } from "@/lib/aruz-bridge/layout";
 import type { CharacterAnimation } from "@/lib/aruz-bridge/types";
-import { useTokenRgb } from "@/lib/theme/use-primary-rgb";
-import { sceneColor } from "./sceneColor";
+import type { ScenePalette } from "./palette";
 
 /* کاراکتر.
  *
@@ -28,6 +28,7 @@ interface PlayerProps {
   /** رو به کدام سمت بچرخد (رادیان). */
   facingRef: RefObject<number>;
   useModel: boolean;
+  palette: ScenePalette;
 }
 
 /* ── نسخهٔ رویه‌ای ─────────────────────────────────────────────────────────
@@ -37,9 +38,11 @@ interface PlayerProps {
 function ProceduralBody({
   animation,
   jumpPhaseRef,
+  palette,
 }: {
   animation: CharacterAnimation;
   jumpPhaseRef: RefObject<number>;
+  palette: ScenePalette;
 }) {
   const leftArm = useRef<THREE.Group>(null);
   const rightArm = useRef<THREE.Group>(null);
@@ -53,23 +56,20 @@ function ProceduralBody({
   );
   /* لباس و نوارِ کمر از پالتِ سایت می‌آیند: کاراکتر باید مالِ همین سروا به
      نظر برسد، نه یک مدلِ حاضریِ فیروزه‌ای که هر تمی را نادیده می‌گیرد. */
-  const primary = useTokenRgb("--primary");
-  const gold = useTokenRgb("--gold", "217,164,65");
   const cloth = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: sceneColor(primary, 1.05),
-        roughness: 0.62,
-        metalness: 0.05,
-        emissive: sceneColor(primary, 0.34),
-        emissiveIntensity: 0.35,
-      }),
-    [primary],
+    () => new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05, emissiveIntensity: 0.4 }),
+    [],
   );
   const trim = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: sceneColor(gold), roughness: 0.45, metalness: 0.3 }),
-    [gold],
+    () => new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.4, emissiveIntensity: 0.9 }),
+    [],
   );
+  useEffect(() => {
+    cloth.color.copy(palette.primary);
+    cloth.emissive.copy(palette.primary).multiplyScalar(0.35);
+    trim.color.copy(palette.gold);
+    trim.emissive.copy(palette.gold).multiplyScalar(0.45);
+  }, [cloth, trim, palette]);
 
   useEffect(
     () => () => {
@@ -180,11 +180,15 @@ function ProceduralBody({
   return (
     <group ref={torso}>
       {/* سر */}
-      <mesh position={[0, 0.92, 0]} material={skin} castShadow>
+      <mesh position={[0, 0.92, 0]} material={skin}>
         <sphereGeometry args={[0.13, 20, 16]} />
       </mesh>
+      {/* شال — یک حلقهٔ طلایی زیرِ سر که کاراکتر را از دور هم خوانا می‌کند */}
+      <mesh position={[0, 0.8, 0]} rotation={[Math.PI / 2, 0, 0]} material={trim}>
+        <torusGeometry args={[0.1, 0.03, 8, 20]} />
+      </mesh>
       {/* تنه */}
-      <mesh position={[0, 0.6, 0]} material={cloth} castShadow>
+      <mesh position={[0, 0.6, 0]} material={cloth}>
         <capsuleGeometry args={[0.15, 0.3, 6, 14]} />
       </mesh>
       {/* کمربند */}
@@ -193,23 +197,23 @@ function ProceduralBody({
       </mesh>
 
       <group ref={leftArm} position={[-0.19, 0.76, 0]}>
-        <mesh position={[0, -0.16, 0]} material={cloth} castShadow>
+        <mesh position={[0, -0.16, 0]} material={cloth}>
           <capsuleGeometry args={[0.045, 0.26, 4, 10]} />
         </mesh>
       </group>
       <group ref={rightArm} position={[0.19, 0.76, 0]}>
-        <mesh position={[0, -0.16, 0]} material={cloth} castShadow>
+        <mesh position={[0, -0.16, 0]} material={cloth}>
           <capsuleGeometry args={[0.045, 0.26, 4, 10]} />
         </mesh>
       </group>
 
       <group ref={leftLeg} position={[-0.075, 0.42, 0]}>
-        <mesh position={[0, -0.2, 0]} material={cloth} castShadow>
+        <mesh position={[0, -0.2, 0]} material={cloth}>
           <capsuleGeometry args={[0.055, 0.3, 4, 10]} />
         </mesh>
       </group>
       <group ref={rightLeg} position={[0.075, 0.42, 0]}>
-        <mesh position={[0, -0.2, 0]} material={cloth} castShadow>
+        <mesh position={[0, -0.2, 0]} material={cloth}>
           <capsuleGeometry args={[0.055, 0.3, 4, 10]} />
         </mesh>
       </group>
@@ -262,25 +266,110 @@ function ModelBody({ animation }: { animation: CharacterAnimation }) {
   return <primitive object={root} />;
 }
 
-export function Player({ positionRef, animation, jumpPhaseRef, facingRef, useModel }: PlayerProps) {
-  const groupRef = useRef<THREE.Group>(null);
+/* سایهٔ گردِ زیرِ پا — جایگزینِ نقشهٔ سایه.
+   نقشهٔ سایه برای *یک* کاراکتر یک پاسِ رندرِ کامل از دیدِ نور می‌خواست؛ این
+   یک صفحهٔ کوچک است. هرچه بازیکن بالاتر برود، سایه کوچک‌تر و کم‌رنگ‌تر
+   می‌شود — همان سرنخی که چشم برای خواندنِ ارتفاعِ پرش لازم دارد. */
+const SHADOW_PLANE = new THREE.PlaneGeometry(0.9, 0.9);
 
-  useFrame(() => {
+export function Player({ positionRef, animation, jumpPhaseRef, facingRef, useModel, palette }: PlayerProps) {
+  const groupRef = useRef<THREE.Group>(null);
+  const bodyRef = useRef<THREE.Group>(null);
+  const shadowRef = useRef<THREE.Mesh>(null);
+  const landClock = useRef(0);
+  const squash = useRef(1);
+
+  const shadowMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: { uOpacity: { value: 0.5 }, uColor: { value: new THREE.Color() } },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform float uOpacity;
+          uniform vec3 uColor;
+          varying vec2 vUv;
+          void main() {
+            float r = length(vUv - 0.5) * 2.0;
+            gl_FragColor = vec4(uColor, smoothstep(1.0, 0.1, r) * uOpacity);
+            #include <colorspace_fragment>
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+      }),
+    [],
+  );
+  useEffect(() => () => shadowMaterial.dispose(), [shadowMaterial]);
+  useEffect(() => {
+    shadowMaterial.uniforms.uColor.value.copy(palette.dark ? new THREE.Color(0, 0, 0) : palette.glassDeep);
+  }, [shadowMaterial, palette]);
+
+  useEffect(() => {
+    landClock.current = 0;
+  }, [animation]);
+
+  useFrame((_, delta) => {
     const g = groupRef.current;
     if (!g) return;
-    g.position.copy(positionRef.current);
+    const dt = Math.min(delta, 0.05);
+    const p = positionRef.current;
+    g.position.copy(p);
     // چرخشِ نرم به سمتِ مقصد، بدونِ پرش از ‎π به ‎−π
-    const delta = ((facingRef.current - g.rotation.y + Math.PI) % (Math.PI * 2)) - Math.PI;
-    g.rotation.y += delta * 0.2;
+    const turn = ((facingRef.current - g.rotation.y + Math.PI) % (Math.PI * 2)) - Math.PI;
+    g.rotation.y += turn * 0.2;
+
+    /* کش‌وقوس: در اوجِ پرش کشیده، در لحظهٔ فرود له و بعد فنری برمی‌گردد.
+       همان اصلِ قدیمیِ انیمیشن که به یک بدنِ ساده «وزن» می‌دهد. */
+    landClock.current += dt;
+    let target = 1;
+    if (animation === "jump") {
+      const phase = jumpPhaseRef.current;
+      target = 1 + 0.14 * Math.sin(phase * Math.PI) - (phase < 0.12 ? 0.12 * (1 - phase / 0.12) : 0);
+    } else if (animation === "land") {
+      const t = landClock.current;
+      target = 1 - 0.2 * Math.exp(-t * 9) * Math.cos(t * 22);
+    }
+    squash.current += (target - squash.current) * (1 - Math.exp(-dt * 30));
+    const body = bodyRef.current;
+    if (body) {
+      const sy = squash.current;
+      const sxz = 1 / Math.sqrt(sy);
+      body.scale.set(sxz, sy, sxz);
+    }
+
+    const shadow = shadowRef.current;
+    if (shadow) {
+      const height = p.y - BRIDGE_Y;
+      shadow.position.set(p.x, BRIDGE_Y + TILE_THICKNESS / 2 + 0.006, p.z);
+      shadow.visible = height > -0.05;
+      const s = 1 / (1 + Math.max(0, height) * 0.9);
+      shadow.scale.set(s, s, s);
+      shadowMaterial.uniforms.uOpacity.value = (palette.dark ? 0.55 : 0.35) * s;
+    }
   });
 
   return (
-    <group ref={groupRef} raycast={NO_RAYCAST}>
-      {useModel ? (
-        <ModelBody animation={animation} />
-      ) : (
-        <ProceduralBody animation={animation} jumpPhaseRef={jumpPhaseRef} />
-      )}
-    </group>
+    <>
+      <group ref={groupRef} raycast={NO_RAYCAST}>
+        <group ref={bodyRef}>
+          {useModel ? (
+            <ModelBody animation={animation} />
+          ) : (
+            <ProceduralBody animation={animation} jumpPhaseRef={jumpPhaseRef} palette={palette} />
+          )}
+        </group>
+      </group>
+      <mesh
+        ref={shadowRef}
+        geometry={SHADOW_PLANE}
+        material={shadowMaterial}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={3}
+        raycast={NO_RAYCAST}
+      />
+    </>
   );
 }

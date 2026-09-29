@@ -12,8 +12,11 @@ import { BuildBeat, GrowBeat, MorphBeat, SortBeat, TimelineBeat, TimelineDemoBea
 import { Rich } from "./Rich";
 import s from "./learn.module.css";
 
-type Saved = { step: number; solved: number[]; stars: number; memo: Record<number, number> };
+/** `at` زمانِ آخرین ذخیره است؛ فهرستِ `/learn` با آن «ادامه از جایی که
+ *  موندی» را انتخاب می‌کند. */
+type Saved = { step: number; solved: number[]; stars: number; memo: Record<number, number>; at?: number };
 const EMPTY: Saved = { step: 0, solved: [], stars: 0, memo: {} };
+const stamped = (saved: Saved) => JSON.stringify({ ...saved, at: Date.now() });
 
 /** Skip past chapter headings so a heading always arrives with its first line. */
 function advance(beats: Beat[], from: number) {
@@ -41,7 +44,7 @@ function Finish({ beat, stars, gates, onRestart, reduced }: { beat: Extract<Beat
     <ul>{beat.learned.map((item, i) => <motion.li key={i} initial={reduced ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: reduced ? 0 : .4 + i * .12 }}><Check size={16} /><Rich text={item} /></motion.li>)}</ul>
     <div className={s.finishActions}>
       <button className={s.ghostButton} onClick={onRestart}><RotateCcw size={15} /> از اول</button>
-      <Link className={s.primaryButton} href="/doroos">درسنامه‌ها <ArrowLeft size={16} /></Link>
+      <Link className={s.primaryButton} href="/learn">درس‌های دیگه <ArrowLeft size={16} /></Link>
     </div>
   </motion.section>;
 }
@@ -80,7 +83,7 @@ export default function LessonPlayer({ lesson, name = "رفیق" }: { lesson: Le
 
   function save(next: Saved) {
     setState(next);
-    try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* progress just won't survive a reload */ }
+    try { localStorage.setItem(key, stamped(next)); } catch { /* progress just won't survive a reload */ }
   }
 
   // Bring each new step into view, and put the continue button under the keyboard.
@@ -138,7 +141,7 @@ export default function LessonPlayer({ lesson, name = "رفیق" }: { lesson: Le
 
   return <LessonStage value={stage}><div className={s.page} data-lesson={lesson.character} dir="rtl">
     <header className={s.bar}>
-      <Link href="/doroos" className={s.barBack} aria-label="بازگشت به درسنامه‌ها"><ArrowRight size={18} /></Link>
+      <Link href="/learn" className={s.barBack} aria-label="بازگشت به فهرستِ درس‌ها"><ArrowRight size={18} /></Link>
       <div className={s.barTitle}><persona.Face mood="cool" className={s.barHost} /><strong>{lesson.title}</strong></div>
       <div className={s.track} role="progressbar" aria-label="پیشرفت درس" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
         <motion.i className={s.trackFill} animate={{ width: `${progress * 100}%` }} transition={{ type: "spring", stiffness: 120, damping: 22 }} />

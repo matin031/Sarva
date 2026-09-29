@@ -24,6 +24,8 @@ export const IHAM: Lesson = {
   character: "iham",
   needsName: true,
   description: "ایهام رو از پشتِ نقاب‌هاش بشناس: دو معنیِ هم‌زمان، فرقش با ایهامِ تناسب، و کلی سطر از کتاب فارسی دهم تا دوازدهم.",
+  group: "figures",
+  tagline: "یه کلمه، دو تا معنی، هر دو درست.",
   beats: [
     { kind: "chapter", title: "یه غریبه با دو تا نقاب", emoji: "🎭" },
     { kind: "say", mood: "cool", text: "درود! من ==ایهام==ـم. 🎭", next: "سلام!" },

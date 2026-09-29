@@ -1,6 +1,8 @@
 /* درسنامهٔ تعاملی — هم‌خانوادهٔ خط زمان: کارت‌های استیکری، خط دور تیره،
    سایهٔ تخت، فونت پفک برای تیترها. رنگ‌ها از توکن‌های سایت می‌آیند. */
-.page {
+/* `.palette` gives the same colour variables without the page chrome — the
+   /learn hub uses it so each card wears its character's colours. */
+.page, .palette {
   --lx-ink: color-mix(in oklch, var(--primary) 70%, var(--foreground));
   --lx-outline: color-mix(in oklch, var(--foreground) 85%, var(--background));
   --lx-drop: color-mix(in oklch, var(--foreground) 88%, transparent);
@@ -14,6 +16,8 @@
   --lx-bad: #e0736e;
   --sticker: 2.5px solid var(--lx-outline);
   --display: var(--font-pofak), var(--font-vazirmatn), sans-serif;
+}
+.page {
   position: relative;
   min-height: 100vh;
   padding-bottom: 140px;
@@ -25,7 +29,7 @@
     radial-gradient(color-mix(in oklch, var(--foreground) 9%, transparent) 1px, transparent 1.5px) 0 0 / 26px 26px,
     var(--background);
 }
-:global(.dark) .page {
+:global(.dark) .page, :global(.dark) .palette {
   --lx-outline: color-mix(in oklch, var(--foreground) 42%, var(--background));
   --lx-drop: #00000090;
   --lx-host: #4fa89d;
@@ -286,12 +290,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ ایهام ─────────
    همان کارت‌های استیکری، با پالتِ شب‌تئاتر: بنفشِ نقاب به‌جای فیروزه‌ای. */
-.page[data-lesson="iham"] {
+.page[data-lesson="iham"], .palette[data-lesson="iham"] {
   --lx-host: #a99af0;
   --lx-tick: #d9a441;
   --lx-ink: color-mix(in oklch, #7a5cf0 62%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="iham"] {
+:global(.dark) .page[data-lesson="iham"], :global(.dark) .palette[data-lesson="iham"] {
   --lx-host: #7e6fc9;
   --lx-tick: #b08532;
   --lx-ink: color-mix(in oklch, #b5a6ff 62%, var(--foreground));
@@ -372,12 +376,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ تشبیه ─────────
    پالتِ آینه: صورتیِ گرم، که نه فیروزه‌ایِ متمم است نه بنفشِ ایهام. */
-.page[data-lesson="tashbih"] {
+.page[data-lesson="tashbih"], .palette[data-lesson="tashbih"] {
   --lx-host: #f0a6a6;
   --lx-tick: #7fb3d5;
   --lx-ink: color-mix(in oklch, #c2506b 60%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="tashbih"] {
+:global(.dark) .page[data-lesson="tashbih"], :global(.dark) .palette[data-lesson="tashbih"] {
   --lx-host: #c07f84;
   --lx-tick: #5d87a6;
   --lx-ink: color-mix(in oklch, #f0909f 62%, var(--foreground));
@@ -408,12 +412,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 /* ───────── خانهٔ نهاد ─────────
    پالتِ صحنه: سبزِ روشن زیرِ نورِ زرد، که نه فیروزه‌ایِ متمم است، نه
    بنفشِ ایهام و نه صورتیِ تشبیه. */
-.page[data-lesson="nahad"] {
+.page[data-lesson="nahad"], .palette[data-lesson="nahad"] {
   --lx-host: #a8d98a;
   --lx-tick: #f2b263;
   --lx-ink: color-mix(in oklch, #3f8f3a 62%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="nahad"] {
+:global(.dark) .page[data-lesson="nahad"], :global(.dark) .palette[data-lesson="nahad"] {
   --lx-host: #6fa65a;
   --lx-tick: #b9833f;
   --lx-ink: color-mix(in oklch, #9edb8a 62%, var(--foreground));
@@ -484,12 +488,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ مفعول ─────────
    پالتِ سیبل: هلوییِ گرم با آبیِ کم‌رنگ. */
-.page[data-lesson="mafool"] {
+.page[data-lesson="mafool"], .palette[data-lesson="mafool"] {
   --lx-host: #ffbb94;
   --lx-tick: #8fc7e8;
   --lx-ink: color-mix(in oklch, #c4562f 62%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="mafool"] {
+:global(.dark) .page[data-lesson="mafool"], :global(.dark) .palette[data-lesson="mafool"] {
   --lx-host: #c7825e;
   --lx-tick: #5f93b3;
   --lx-ink: color-mix(in oklch, #ffa37a 62%, var(--foreground));
@@ -497,12 +501,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ مجاز ─────────
    پالتِ «فضای مجازی»: آبیِ صفحه‌نمایش با صورتیِ نئون. */
-.page[data-lesson="majaz"] {
+.page[data-lesson="majaz"], .palette[data-lesson="majaz"] {
   --lx-host: #9ccbff;
   --lx-tick: #f5a3c7;
   --lx-ink: color-mix(in oklch, #2f6fc4 62%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="majaz"] {
+:global(.dark) .page[data-lesson="majaz"], :global(.dark) .palette[data-lesson="majaz"] {
   --lx-host: #5e8fc4;
   --lx-tick: #b86e90;
   --lx-ink: color-mix(in oklch, #9ccbff 62%, var(--foreground));
@@ -510,12 +514,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ استعاره ─────────
    پالتِ شیر: طلاییِ یال با صورتیِ ملایم. */
-.page[data-lesson="esteare"] {
+.page[data-lesson="esteare"], .palette[data-lesson="esteare"] {
   --lx-host: #ffd98a;
   --lx-tick: #f5a3c7;
   --lx-ink: color-mix(in oklch, #b8741f 64%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="esteare"] {
+:global(.dark) .page[data-lesson="esteare"], :global(.dark) .palette[data-lesson="esteare"] {
   --lx-host: #c9a04e;
   --lx-tick: #b86e90;
   --lx-ink: color-mix(in oklch, #ffd27a 62%, var(--foreground));
@@ -523,12 +527,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ حسن تعلیل ─────────
    پالتِ لامپ: ارکیده‌ای با زردِ روشن. */
-.page[data-lesson="hosnTalil"] {
+.page[data-lesson="hosnTalil"], .palette[data-lesson="hosnTalil"] {
   --lx-host: #dcc2fa;
   --lx-tick: #ffe07a;
   --lx-ink: color-mix(in oklch, #8a4fd1 60%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="hosnTalil"] {
+:global(.dark) .page[data-lesson="hosnTalil"], :global(.dark) .palette[data-lesson="hosnTalil"] {
   --lx-host: #9d7fc7;
   --lx-tick: #bfa33e;
   --lx-ink: color-mix(in oklch, #dcc2fa 62%, var(--foreground));
@@ -536,12 +540,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ متناقض‌نما ─────────
    پالتِ روز و شب: آبی‌خاکستری با نارنجیِ غروب. */
-.page[data-lesson="paradox"] {
+.page[data-lesson="paradox"], .palette[data-lesson="paradox"] {
   --lx-host: #bccbe0;
   --lx-tick: #ffb38a;
   --lx-ink: color-mix(in oklch, #3f5d8a 64%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="paradox"] {
+:global(.dark) .page[data-lesson="paradox"], :global(.dark) .palette[data-lesson="paradox"] {
   --lx-host: #7d8faa;
   --lx-tick: #c7825e;
   --lx-ink: color-mix(in oklch, #bccbe0 62%, var(--foreground));
@@ -599,12 +603,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ مضاف‌الیه ─────────
    پالتِ زنجیر: آبیِ فیروزه‌ایِ روشن با نارنجیِ حلقه. */
-.page[data-lesson="mozafElayh"] {
+.page[data-lesson="mozafElayh"], .palette[data-lesson="mozafElayh"] {
   --lx-host: #9fe0d6;
   --lx-tick: #f2b263;
   --lx-ink: color-mix(in oklch, #1f7f73 64%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="mozafElayh"] {
+:global(.dark) .page[data-lesson="mozafElayh"], :global(.dark) .palette[data-lesson="mozafElayh"] {
   --lx-host: #5fa89e;
   --lx-tick: #b9833f;
   --lx-ink: color-mix(in oklch, #9fe0d6 62%, var(--foreground));
@@ -612,12 +616,12 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
 
 /* ───────── خانهٔ صفت ─────────
    پالتِ نقاشی: زردِ کرم با صورتیِ رنگ. */
-.page[data-lesson="sefat"] {
+.page[data-lesson="sefat"], .palette[data-lesson="sefat"] {
   --lx-host: #ffe7a3;
   --lx-tick: #f5a3c7;
   --lx-ink: color-mix(in oklch, #b0452f 60%, var(--foreground));
 }
-:global(.dark) .page[data-lesson="sefat"] {
+:global(.dark) .page[data-lesson="sefat"], :global(.dark) .palette[data-lesson="sefat"] {
   --lx-host: #c9ae5e;
   --lx-tick: #b86e90;
   --lx-ink: color-mix(in oklch, #ffe7a3 62%, var(--foreground));

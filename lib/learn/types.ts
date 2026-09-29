@@ -120,6 +120,11 @@ export type Lesson = {
   /** چهره و لحنِ میزبان. */
   character: CharacterId;
   description: string;
+  /** قفسه‌اش در فهرستِ `/learn`: دستورِ زبان یا آرایه‌های ادبی. */
+  group: "grammar" | "figures";
+  /** یک جملهٔ کوتاه برای کارتِ فهرست؛ `description` برای متای صفحه است و
+   *  روی کارت بلند می‌افتد. */
+  tagline: string;
   /** درس‌هایی که در متنشان `%نام%` دارند بدون ورود بی‌معنی‌اند. */
   needsName?: boolean;
   beats: Beat[];

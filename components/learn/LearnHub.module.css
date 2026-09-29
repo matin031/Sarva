@@ -1,0 +1,271 @@
+/* فهرستِ درسنامه‌های تعاملی (`/learn`).
+   مینیمال و آرام، برخلافِ خودِ درس‌ها که استیکری و پرجنب‌وجوش‌اند: این‌جا
+   کارِ صفحه انتخاب است، پس فقط رنگِ شخصیتِ هر درس روی آواتار و نوارِ
+   پیشرفتش می‌نشیند و بقیه از توکن‌های سایت می‌آید. `--lx-host` و
+   `--lx-outline` را `.palette`ِ learn.module.css روی هر کارت می‌گذارد. */
+
+.hub {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: clamp(28px, 6vw, 64px) 16px 72px;
+  color: var(--foreground);
+  font-family: var(--font-vazirmatn), sans-serif;
+}
+.hub :where(*) { box-sizing: border-box; }
+
+/* ── سردر ───────────────────────────────────────── */
+
+.hero { max-width: 640px; margin-bottom: clamp(24px, 4vw, 40px); }
+.eyebrow {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--primary) 11%, transparent);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.title {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.title em { font-style: normal; color: var(--primary); }
+.lede {
+  margin: 14px 0 0;
+  max-width: 54ch;
+  color: var(--muted-foreground);
+  font-size: clamp(15px, 2vw, 17px);
+  line-height: 1.95;
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 18px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.statDone { display: inline-flex; align-items: center; gap: 4px; color: var(--primary); }
+
+/* ── ادامه ───────────────────────────────────────── */
+
+.resume {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--lx-host) 55%, var(--border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--lx-host) 14%, var(--card));
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.resume:hover { box-shadow: 0 8px 24px -14px color-mix(in oklch, var(--foreground) 45%, transparent); }
+.resumeBody { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.resumeLabel { color: var(--muted-foreground); font-size: 12.5px; font-weight: 600; }
+.resumeTitle { font-size: 17px; font-weight: 800; }
+.resumeGo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
+  font-weight: 700;
+}
+.resume .bar { max-width: 260px; }
+
+/* ── زبانه‌ها ───────────────────────────────────── */
+
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--muted) 70%, transparent);
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .2s, color .2s, box-shadow .2s;
+}
+.tab:hover { color: var(--foreground); }
+.tab[aria-selected="true"] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 12%, transparent), 0 4px 14px -8px color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+.tabCount {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 8%, transparent);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+.tab[aria-selected="true"] .tabCount { background: color-mix(in oklch, var(--primary) 14%, transparent); color: var(--primary); }
+
+.panel { margin-top: 18px; }
+.panelLede { margin: 0 0 16px; color: var(--muted-foreground); font-size: 14.5px; }
+
+/* ── کارت‌ها ─────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 720px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--lx-host) 70%, var(--border));
+  box-shadow: 0 10px 28px -18px color-mix(in oklch, var(--foreground) 55%, transparent);
+  transform: translateY(-2px);
+}
+.card:focus-visible, .resume:focus-visible, .tab:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--lx-host) 30%, var(--card));
+}
+.face { width: 42px; height: auto; }
+/* شخصیت‌ها در درس بالا-پایین می‌روند و پلک می‌زنند؛ این‌جا فقط وقتی
+   کارت زیرِ نشانگر است، تا یازده چهرهٔ متحرک حواس را پرت نکنند. */
+.face :global(*) { animation-play-state: paused; }
+.card:hover .face :global(*), .resume .face :global(*) { animation-play-state: running; }
+.resumeAvatar { width: 48px; height: 48px; }
+.resumeAvatar .face { width: 36px; }
+
+.cardBody { display: grid; gap: 4px; min-width: 0; }
+.cardHead { display: flex; align-items: baseline; gap: 8px; }
+.num {
+  color: color-mix(in oklch, var(--muted-foreground) 75%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cardTitle { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.5; }
+.lock { align-self: center; color: var(--muted-foreground); opacity: .7; }
+.tagline {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.8;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+}
+.meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.pct { color: var(--foreground); font-weight: 700; }
+.done { color: var(--primary); font-weight: 700; }
+.card[data-done] .avatar { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--primary) 55%, transparent); }
+
+.bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--lx-host) 45%, var(--primary));
+}
+
+.chev { color: var(--muted-foreground); transition: transform .2s, color .2s; }
+.card:hover .chev { color: var(--foreground); transform: translateX(-3px); }
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 28px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+/* ── گوشی ───────────────────────────────────────── */
+
+@media (max-width: 560px) {
+  .tabs { display: flex; width: 100%; }
+  .tab { flex: 1; padding: 0 12px; }
+  .card { gap: 12px; padding: 14px; }
+  .avatar { width: 48px; height: 48px; border-radius: 14px; }
+  .face { width: 36px; }
+  .chev { display: none; }
+  .resumeGo { padding: 8px 12px; }
+  .resume .bar { max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .chev, .resume, .tab { transition: none; }
+  .card:hover, .card:hover .chev { transform: none; }
+  .face :global(*), .card:hover .face :global(*), .resume .face :global(*) { animation: none; }
+}

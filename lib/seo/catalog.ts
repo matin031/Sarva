@@ -120,6 +120,17 @@ export const SEO_PAGES = {
     priority: 0.8,
     changeFrequency: "monthly",
   }),
+  "/learn": page({
+    path: "/learn",
+    name: "درسنامهٔ تعاملی",
+    title: "آموزش تعاملی دستور زبان و آرایه‌های ادبی فارسی — نهاد تا صفت، تشبیه تا متناقض‌نما",
+    description:
+      "درسنامه‌های تعاملی دستور زبان (نهاد، مفعول، متمم، مضاف‌الیه، صفت) و آرایه‌های ادبی (تشبیه، استعاره، مجاز، ایهام) با تمرین و مثال‌های کتاب فارسی دبیرستان.",
+    section: "learn",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    schema: "course",
+  }),
   "/learn/tashbih": page({
     path: "/learn/tashbih",
     name: "درسنامهٔ تعاملی تشبیه",

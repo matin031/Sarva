@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { LESSONS } from "../../lib/learn";
+import { LESSONS, LESSON_GROUPS } from "../../lib/learn";
 import { bare, parseLine, targetCount } from "../../lib/learn/line";
 
 /** میان‌بُرهایی که مقصدشان هنوز ساخته نشده؛ `DetourBeat` برایشان «به‌زودی»
@@ -75,6 +75,17 @@ for (const lesson of LESSONS) test(`${lesson.slug}: every beat is well-formed an
     }
   }
   assert.equal(lesson.beats.at(-1)?.kind, "finish", "the lesson must end on its finish");
+});
+
+test("every lesson sits on a shelf of /learn with a short card line", () => {
+  assert.ok(existsSync("app/learn/page.tsx"), "the /learn hub page is missing");
+  for (const group of LESSON_GROUPS) assert.ok(LESSONS.some(l => l.group === group.id), `shelf «${group.title}» is empty`);
+  for (const lesson of LESSONS) {
+    assert.ok(LESSON_GROUPS.some(g => g.id === lesson.group), `${lesson.slug}: unknown group`);
+    // کارت دو خط جا دارد؛ بلندتر، زیرِ «…» گم می‌شود.
+    assert.ok(lesson.tagline.length >= 10 && lesson.tagline.length <= 70, `${lesson.slug}: tagline is ${lesson.tagline.length} chars`);
+    assert.doesNotMatch(lesson.tagline, /%نام%/, `${lesson.slug}: the hub has no name to put in the tagline`);
+  }
 });
 
 test("slugs are unique", () => {

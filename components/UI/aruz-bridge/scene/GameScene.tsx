@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import { BRIDGE_Y, stepZ, tileX } from "@/lib/aruz-bridge/layout";
 import { breakingTile, glassStateFor, standSide } from "@/lib/aruz-bridge/glass";
+import { meterLabel } from "@/lib/aruz-bridge/meter-label";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
 import type { QualitySettings } from "@/lib/aruz-bridge/quality";
 import type {
@@ -16,6 +17,9 @@ import type {
   Side,
 } from "@/lib/aruz-bridge/types";
 import { BridgeEnvironment } from "./BridgeEnvironment";
+import { Burst, type BurstTrigger } from "./Effects";
+import { prewarmLabels } from "./labelTexture";
+import { useScenePalette } from "./palette";
 import { publishInteractionDebug } from "./interactionDebug";
 import { GameCamera } from "./GameCamera";
 import { GlassTile } from "./GlassTile";
@@ -104,6 +108,23 @@ export function GameScene({
 }: GameSceneProps) {
   const { state, stepIndex, chosen, epoch } = machine;
   const step = machine.steps[stepIndex] ?? null;
+  const palette = useScenePalette();
+  const gl = useThree((s) => s.gl);
+
+  /* نامِ رکن‌های کلِ دور، یک بار. روی شیشه نامِ رکن نوشته می‌شود و نه
+     خط‌کشیِ هجایی؛ `meterLabel` هر نشانه‌گذاری‌ای را به همان نام درمی‌آورد. */
+  const labels = useMemo(
+    () => machine.steps.map((s) => ({ left: meterLabel(s.leftPattern), right: meterLabel(s.rightPattern) })),
+    [machine.steps],
+  );
+
+  /* ⚠️ بافتِ نوشته‌ها *پیش از* اولین پرسش پخته می‌شود — حینِ شمارشِ معکوس.
+     ساختنشان در لحظهٔ ظاهرشدنِ پرسش همان فریمِ گمشده‌ای بود که بازی را
+     درست در حساس‌ترین لحظه «لگ‌دار» نشان می‌داد. */
+  useEffect(
+    () => prewarmLabels(labels.flatMap((l) => [l.left, l.right]), gl),
+    [labels, gl],
+  );
 
   /* ── ساعتِ حالت ─────────────────────────────────────────────────────────
      ثانیه از لحظهٔ ورود به حالتِ فعلی. با هر گذار صفر می‌شود. همهٔ
@@ -185,6 +206,8 @@ export function GameScene({
   const crackProgress = useRef(0);
   const shatterElapsed = useRef(0);
   const cameraImpulse = useRef(0);
+  /** فرورفتنِ کوتاهِ دوربین در لحظهٔ فرودِ درست — «وزنِ» فرود. */
+  const landBump = useRef(0);
 
   /* مبدأ و مقصدِ پرشِ فعلی. فقط وقتی مرحله عوض می‌شود دوباره حساب می‌شوند. */
   const origin = useMemo(() => standVector(machine, stepIndex), [machine, stepIndex]);
@@ -271,6 +294,8 @@ export function GameScene({
         cameraImpulse.current = 0;
         if (state !== "correct") jumpPhase.current = 0;
     }
+
+    landBump.current = state === "correct" && !reducedMotion ? Math.exp(-t * 7) * Math.min(1, t * 30) : 0;
   });
 
   /* حالتِ دیداریِ کاشی‌ها منطقِ خالص است و در `lib/aruz-bridge/glass.ts`
@@ -286,6 +311,34 @@ export function GameScene({
       }),
     [state, machine.failure, machine.steps, stepIndex, chosen],
   );
+
+  /* ── جلوه‌ها ─────────────────────────────────────────────────────────────
+     هر شلیک به یک گذارِ حالت گره خورده، پس با `epoch` کلید می‌خورد و فقط
+     یک بار در هر ورود رخ می‌دهد. */
+  const burst = useMemo<BurstTrigger | null>(() => {
+    if (state === "correct" && chosen) {
+      return {
+        key: epoch,
+        position: [tileX(chosen), BRIDGE_Y + 0.07, stepZ(stepIndex)],
+        color: palette.success,
+        accent: palette.gold,
+        sparks: true,
+      };
+    }
+    if (state === "cracking") {
+      const b = breaking;
+      return b
+        ? {
+            key: epoch,
+            position: [b.side ? tileX(b.side) : 0, BRIDGE_Y + 0.07, b.index < 0 ? 0 : stepZ(b.index)],
+            color: palette.danger,
+            accent: palette.danger,
+            sparks: false,
+          }
+        : null;
+    }
+    return null;
+  }, [state, epoch, chosen, stepIndex, palette, breaking]);
 
   const tileState = (index: number, side: Side | null): GlassState =>
     glassStateFor(state, breaking, index, side);
@@ -322,11 +375,13 @@ export function GameScene({
         mode={CAMERA_MODE[state]}
         followSpeed={config.cameraFollowSpeed}
         impulseRef={cameraImpulse}
+        bumpRef={landBump}
         reducedMotion={reducedMotion}
       />
 
       <BridgeEnvironment
         quality={quality}
+        palette={palette}
         steps={machine.steps.length || config.questionsPerRun}
         fogNear={config.fogNear}
         fogFar={config.fogFar}
@@ -338,11 +393,13 @@ export function GameScene({
         position={[0, BRIDGE_Y, 0]}
         state={tileState(-1, null)}
         quality={quality}
+        palette={palette}
         impactX={impact.x}
         impactZ={impact.z}
         crackProgressRef={crackProgress}
         shatterElapsedRef={shatterElapsed}
         seed={7}
+        standing={stepIndex === 0 && state !== "jumping"}
       />
 
       {visiblePairs.map((index) => {
@@ -360,6 +417,7 @@ export function GameScene({
                 position={[tileX(side), BRIDGE_Y, stepZ(index)]}
                 state={tileState(index, side)}
                 quality={quality}
+                palette={palette}
                 impactX={impact.x}
                 impactZ={impact.z}
                 crackProgressRef={crackProgress}
@@ -383,10 +441,18 @@ export function GameScene({
                 /* فقط جفتِ فعلی متن دارد. جفت‌های بعدی از دلِ مه پیدا
                    می‌شوند ولی هنوز خالی‌اند — چشمِ بازیکن نباید بینِ چند
                    وزن در چند عمق تقسیم شود. */
-                label={isCurrent ? (side === "left" ? pair.leftPattern : pair.rightPattern) : undefined}
+                label={isCurrent ? labels[index]?.[side] : undefined}
                 labelOpacity={isCurrent ? optionsOpacity : 0}
                 labelHighlight={
-                  revealAnswer ? (pair.correctSide === side ? "correct" : "wrong") : null
+                  revealAnswer || (isCurrent && state === "correct" && chosen === side)
+                    ? pair.correctSide === side
+                      ? "correct"
+                      : "wrong"
+                    : null
+                }
+                landedCorrect={isCurrent && state === "correct" && chosen === side}
+                standing={
+                  index === stepIndex - 1 && pair.correctSide === side && state !== "jumping"
                 }
               />
             ))}
@@ -400,7 +466,10 @@ export function GameScene({
         jumpPhaseRef={jumpPhase}
         facingRef={facing}
         useModel={usePlayerModel}
+        palette={palette}
       />
+
+      <Burst trigger={burst} enabled={!reducedMotion && quality.tier !== "low"} gain={palette.glowGain} />
     </>
   );
 }

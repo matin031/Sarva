@@ -122,3 +122,21 @@ test("پاسخِ درست از پرسشِ بعد جدا حساب می‌شود �
   assert.equal(s.answerOpenedAt, opened + 3000);
   assert.equal(s.answeredAt, null, "لحظهٔ انتخابِ پرسشِ قبلی نباید باقی بماند");
 });
+
+test("lastGain همان امتیازِ همین پاسخ است و با پاسخِ بعدی صفر می‌شود", () => {
+  const opened = 10_000;
+  let s = openAnswerWindow(opened);
+  s = reduce(s, { type: "answer", side: s.steps[0]!.correctSide, now: opened + 300 });
+  s = reduce(s, { type: "landed" });
+  s = reduce(s, { type: "resolve" });
+  assert.equal(s.state, "correct");
+  assert.ok(s.lastGain > 0);
+  assert.equal(s.lastGain, s.score);
+
+  s = reduce(s, { type: "advance", now: opened + 2000 });
+  s = reduce(s, { type: "questionShown", now: opened + 2100 });
+  s = reduce(s, { type: "answerWindowOpen", now: opened + 2200 });
+  const wrong = s.steps[1]!.correctSide === "left" ? "right" : "left";
+  s = reduce(s, { type: "answer", side: wrong, now: opened + 2400 });
+  assert.equal(s.lastGain, 0);
+});

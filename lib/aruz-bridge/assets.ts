@@ -7,7 +7,7 @@
  *   player.glb          → کاراکترِ رویه‌ای (procedural) در `scene/Player.tsx`
  *   glass-fractured.glb → شکستِ رویه‌ایِ ورونوی در `fracture.ts`
  *   glass-crack.png     → ترک‌های هندسی (خطوطِ ورونوی) در `scene/CrackLines.tsx`
- *   environment.hdr     → نقشهٔ محیطیِ رویه‌ای در `scene/useProceduralEnv.ts`
+ *   environment.hdr     → لازم نیست؛ شیشه شیدرِ خودش را دارد و آسمان گنبدِ شیدری است (`scene/BridgeEnvironment.tsx`)
  *   audio/*             → سکوت؛ کلِ توالیِ دیداری بدون صدا هم کامل اجرا می‌شود
  *
  * پیش از استفاده، `useOptionalAssets` وجودِ فایل را با یک درخواستِ HEAD

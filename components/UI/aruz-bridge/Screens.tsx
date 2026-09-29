@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
+import { meterLabel } from "@/lib/aruz-bridge/meter-label";
 import type { PreparedStep, RunSummary } from "@/lib/aruz-bridge/types";
 
 /* صفحه‌های بیرون از بازی: شروع، پایان و پیروزی.
@@ -123,7 +124,7 @@ export function GameOverScreen({
       {step && (
         <div className="mt-4 rounded-xl border border-primary/40 bg-primary/8 p-4">
           <p className="text-xs text-muted-foreground">پاسخِ درست</p>
-          <p className="mt-0.5 text-xl font-black text-primary">{step.question.correctPattern}</p>
+          <p className="mt-0.5 text-xl font-black text-primary">{meterLabel(step.question.correctPattern)}</p>
           {step.question.promptText && (
             <p className="mt-1 text-xs text-muted-foreground">
               برای «{step.question.promptText}»

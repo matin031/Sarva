@@ -79,6 +79,16 @@ export const SEO_PAGES = {
     changeFrequency: "weekly",
     schema: "course",
   }),
+  "/shab-emtehan": page({
+    path: "/shab-emtehan",
+    name: "شب امتحان",
+    title: "شب امتحان فارسی — جمع‌بندی و مفهوم درس‌های دهم، یازدهم و دوازدهم",
+    description:
+      "مرور فشردهٔ شب امتحان: مفهوم هر بیت و بند، معنی، آرایه‌ها و نکته‌های پایانی درس‌های فارسی ۱، ۲ و ۳، با حالت خودآزمایی و پیگیری درس‌های مرورشده.",
+    section: "learn",
+    priority: 0.8,
+    changeFrequency: "weekly",
+  }),
   "/aruz": page({
     path: "/aruz",
     name: "عروض سماعی",

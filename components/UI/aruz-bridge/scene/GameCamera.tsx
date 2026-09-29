@@ -83,10 +83,12 @@ interface GameCameraProps {
   followSpeed: number;
   /** ۰..۱ — شدتِ ضربهٔ لحظهٔ ترک‌خوردن. ref است چون هر فریم افت می‌کند. */
   impulseRef: RefObject<number>;
+  /** ۰..۱ — فرورفتنِ کوتاهِ دوربین در لحظهٔ فرودِ درست. */
+  bumpRef?: RefObject<number>;
   reducedMotion: boolean;
 }
 
-export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMotion }: GameCameraProps) {
+export function GameCamera({ targetRef, mode, followSpeed, impulseRef, bumpRef, reducedMotion }: GameCameraProps) {
   /* دوربین را خودمان می‌سازیم و ref می‌گیریم، به‌جای دست‌کاریِ دوربینِ
      پیش‌فرضِ صحنه. `makeDefault` باعث می‌شود R3F همین را دوربینِ فعال بداند. */
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -179,6 +181,11 @@ export function GameCamera({ targetRef, mode, followSpeed, impulseRef, reducedMo
       );
       camera.position.add(shake.current);
     }
+
+    /* فرودِ درست: دوربین چند سانت پایین می‌رود و برمی‌گردد. یک تکانِ
+       عمودیِ کوچک، نه لرزش — ولی همان است که فرود را «سنگین» حس می‌کند. */
+    const bump = bumpRef?.current ?? 0;
+    if (bump > 0.001) camera.position.y -= bump * 0.07;
 
     camera.lookAt(lookAt.current);
 

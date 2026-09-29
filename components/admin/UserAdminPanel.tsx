@@ -12,6 +12,7 @@ import {
 import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { adminRevokeTeacher } from "@/lib/admin/teacher-actions";
+import { adminExportUsersCsv } from "@/lib/admin/user-control-actions";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import RevokeTeacherDialog from "@/components/admin/RevokeTeacherDialog";
 import type { UserRole } from "@/lib/auth/types";
@@ -22,6 +23,11 @@ function formatDate(iso: string | undefined) {
 }
 
 type RoleFilter = "" | UserRole;
+
+/** نشانیِ تماسِ قابلِ نمایش — کاربرِ فقط-موبایلی ایمیل ندارد. */
+function contactOf(u: AdminUserRow): string | undefined {
+  return u.email || (u.phone ? u.phone.replace(/^98/, "0") : undefined);
+}
 
 /** ⚠️ یک `Record` روی اتحادِ بسته و نه یک شرطِ دوحالتی: با آمدنِ نقشِ
  *  `teacher`، شرطِ قبلی (`role === "admin" ? … : "دانش‌آموز"`) هر دبیری را
@@ -155,15 +161,59 @@ export default function UserAdminPanel({
 
   const hasFilters = Boolean(query || role || status);
 
+  /** خروجیِ CSV با همین فیلترها. فایل در مرورگر ساخته می‌شود؛ سرور فقط متن را می‌دهد. */
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const result = await adminExportUsersCsv({
+        query: query || undefined,
+        role: role || undefined,
+        status: status || undefined,
+      });
+      if (!result.ok) return toast(result.errors.join("\n"));
+      const blob = new Blob([result.data.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sarva-users-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast(
+        result.data.truncated
+          ? `فقط ${result.data.count.toLocaleString("fa-IR")} کاربرِ اول در فایل آمد؛ با فیلتر محدودتر کنید.`
+          : `${result.data.count.toLocaleString("fa-IR")} کاربر در فایل آمد.`,
+        result.data.truncated ? "error" : "success",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div dir="rtl" className="flex flex-col gap-5 p-4 xs:p-6">
-      <div>
-        <h1 className="text-xl font-bold">مدیریت کاربران</h1>
-        <p className="text-sm text-muted-foreground">
-          {hasFilters
-            ? `${total.toLocaleString("fa-IR")} کاربر با این فیلترها`
-            : `${total.toLocaleString("fa-IR")} کاربر ثبت‌شده`}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">مدیریت کاربران</h1>
+          <p className="text-sm text-muted-foreground">
+            {hasFilters
+              ? `${total.toLocaleString("fa-IR")} کاربر با این فیلترها`
+              : `${total.toLocaleString("fa-IR")} کاربر ثبت‌شده`}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={exporting || total === 0}
+          onClick={exportCsv}
+          className="flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm transition-colors hover:bg-muted/50 disabled:opacity-50"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-4" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
+          </svg>
+          {exporting ? "در حال ساخت فایل…" : hasFilters ? "خروجی CSV (همین فیلترها)" : "خروجی CSV"}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -171,7 +221,7 @@ export default function UserAdminPanel({
           dir="rtl"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="جست‌وجو با ایمیل یا نام…"
+          placeholder="جست‌وجو با ایمیل، نام یا موبایل…"
           className="min-h-11 w-full max-w-xs flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
         />
         <select
@@ -222,9 +272,9 @@ export default function UserAdminPanel({
               <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                 <td className="px-4 py-3">
                   <Link href={`/admin/users/${u.id}`} className="flex flex-col gap-0.5 hover:text-primary">
-                    <span className="font-medium">{u.fullName || u.email || u.id}</span>
+                    <span className="font-medium">{u.fullName || contactOf(u) || u.id}</span>
                     <span className="text-xs text-muted-foreground" dir="ltr">
-                      {u.email}
+                      {contactOf(u)}
                     </span>
                   </Link>
                 </td>
@@ -256,9 +306,9 @@ export default function UserAdminPanel({
         {users.map((u) => (
           <div key={u.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
             <Link href={`/admin/users/${u.id}`} className="flex flex-col gap-0.5">
-              <span className="font-medium">{u.fullName || u.email || u.id}</span>
+              <span className="font-medium">{u.fullName || contactOf(u) || u.id}</span>
               <span className="text-xs text-muted-foreground" dir="ltr">
-                {u.email}
+                {contactOf(u)}
               </span>
             </Link>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -297,14 +347,14 @@ export default function UserAdminPanel({
         title={confirming ? CONFIRM_COPY[confirming.kind].title : ""}
         body={
           confirming
-            ? CONFIRM_COPY[confirming.kind].body(confirming.user.email || confirming.user.id)
+            ? CONFIRM_COPY[confirming.kind].body(contactOf(confirming.user) || confirming.user.id)
             : ""
         }
         consequence={confirming ? CONFIRM_COPY[confirming.kind].consequence : undefined}
         confirmLabel={confirming ? CONFIRM_COPY[confirming.kind].confirmLabel : "تأیید"}
         // حذف حساب تنها کاری در این صفحه است که هیچ راه برگشتی ندارد — تایپ
         // کردن ایمیل یعنی مدیر حتماً نگاه کرده که دارد کدام حساب را حذف می‌کند.
-        requireTyping={confirming?.kind === "delete" ? confirming.user.email : undefined}
+        requireTyping={confirming?.kind === "delete" ? contactOf(confirming.user) || confirming.user.id : undefined}
         onConfirm={() => confirming && run(confirming)}
         onCancel={() => setConfirming(null)}
       />

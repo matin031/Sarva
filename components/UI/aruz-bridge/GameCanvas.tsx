@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import SceneReady from "./scene/SceneReady";
 import { Canvas } from "@react-three/fiber";
+import { PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import type { AruzBridgeConfig } from "@/lib/aruz-bridge/config";
 import type { MachineState } from "@/lib/aruz-bridge/machine";
@@ -32,13 +33,30 @@ export default function GameCanvas(props: GameCanvasProps) {
      مصرف‌کننده‌اش `SceneReady` است، نه صحنه. */
   const { onSceneReady, ...sceneProps } = props;
   const { quality } = props;
+  const [minDpr, maxDpr] = quality.dpr;
+
+  /* ── وضوحِ تطبیقی ─────────────────────────────────────────────────────
+     حدسِ پله از روی سخت‌افزار فقط یک شروع است. `PerformanceMonitor` نرخِ
+     فریمِ واقعی را می‌پاید و اگر دستگاه کم آورد، وضوح را پله‌پله تا کفِ بازه
+     پایین می‌آورد (و اگر جا داشت، بالا می‌برد). یعنی به‌جای لگِ دائمی روی
+     یک گوشیِ متوسط، تصویری کمی نرم‌تر ولی روان. */
+  const deviceDpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  const [factor, setFactor] = useState(1);
+  const dpr = useMemo(
+    () => Math.max(minDpr, Math.min(maxDpr, deviceDpr) * (0.55 + 0.45 * factor)),
+    [minDpr, maxDpr, deviceDpr, factor],
+  );
+  const onPerf = useCallback(({ factor: f }: { factor: number }) => {
+    // گرد به یک‌دهم، تا نوسانِ ریز هر ثانیه بوم را از نو اندازه نگیرد
+    setFactor(Math.round(f * 10) / 10);
+  }, []);
 
   const glSettings = useMemo(
     () => ({
       antialias: quality.antialias,
       alpha: false,
+      stencil: false,
       powerPreference: "high-performance" as const,
-      // برای شیشهٔ transmission لازم است؛ بدونِ آن پاسِ عبورِ نور خالی می‌شود.
       preserveDrawingBuffer: false,
     }),
     [quality.antialias],
@@ -46,19 +64,13 @@ export default function GameCanvas(props: GameCanvasProps) {
 
   return (
     <Canvas
-      // dpr سقف‌دار است: روی نمایشگرِ ۳x بدونِ سقف، نُه برابرِ پیکسلِ لازم
-      // رندر می‌شد و همان‌جا نرخِ فریم نصف می‌شد.
-      dpr={quality.dpr}
+      dpr={dpr}
       gl={glSettings}
-      /* «percentage» یعنی PCFShadowMap. مقدارِ بولیِ `true` در three به
-         PCFSoftShadowMap نگاشته می‌شد که منسوخ شده و در کنسول هشدار می‌داد. */
-      shadows={quality.shadows ? "percentage" : false}
+      shadows={false}
       camera={{ fov: 50, near: 0.1, far: 220, position: [0, 3.05, 5.2] }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.08;
-        // هزینهٔ عبورِ نور اینجا کوک می‌شود — این تنظیم روی رندرر است، نه ماده.
-        gl.transmissionResolutionScale = quality.tier === "high" ? 0.5 : 0.25;
+        gl.toneMappingExposure = 1.05;
 
         /* ⚠️ بوم برای فناوریِ کمکی پنهان می‌شود، و این عمدی است.
 
@@ -76,6 +88,13 @@ export default function GameCanvas(props: GameCanvasProps) {
       }}
       className="absolute inset-0"
     >
+      <PerformanceMonitor
+        factor={1}
+        bounds={(refresh) => (refresh > 90 ? [60, 100] : [42, 56])}
+        flipflops={4}
+        onChange={onPerf}
+        onFallback={() => setFactor(0)}
+      />
       {/* ⚠️ `SceneReady` عمداً *داخلِ* همین مرز است: mount شدنش یعنی هرچه
           این Suspense منتظرش بود حل شده. بیرونِ مرز، بی‌معنی می‌شد. */}
       <Suspense fallback={null}>

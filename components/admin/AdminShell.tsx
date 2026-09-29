@@ -2,186 +2,134 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import MobileDrawer, { DrawerToggle } from "@/components/UI/MobileDrawer";
+import { adminNavBadges, type NavBadges } from "@/lib/admin/overview-actions";
+import { NAV, NAV_GROUPS, isActive, type NavItem } from "./admin-nav";
+import CommandPalette from "./CommandPalette";
 
-const NAV = [
-  {
-    href: "/admin",
-    label: "داشبورد",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10.5 12 3l9 7.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 9.5V21h14V9.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 21v-6h5v6" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/exams",
-    label: "امتحانات نهایی",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 17.5v-12Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 17.5a2.5 2.5 0 0 1 2.5-2.5H20" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7.5h8M8 10.5h5" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/quiz",
-    label: "عروض سماعی",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 18V6l11-2v12" />
-        <circle cx="6" cy="18" r="3" />
-        <circle cx="17" cy="16" r="3" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/vocab",
-    label: "واژه‌یاب",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <rect x="3" y="4" width="18" height="14" rx="2" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="m3 14 4.5-4a2 2 0 0 1 2.7 0L15 14" />
-        <circle cx="15.5" cy="8.5" r="1.5" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/games",
-    label: "بازی‌ها",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <rect x="2.5" y="7" width="19" height="10" rx="4" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 10.5v3M5.5 12h3" />
-        <circle cx="16" cy="11" r="1" />
-        <circle cx="18" cy="13.5" r="1" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/club",
-    label: "سروا کلاب",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3h9a2.5 2.5 0 0 1 2.5 2.5V15a2.5 2.5 0 0 1-2.5 2.5h-6L5 21v-3.5A2.5 2.5 0 0 1 4 15V5.5Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 8h6M8 11.5h4" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/plus",
-    label: "سروا پلاس",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/users",
-    label: "کاربران",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <circle cx="9" cy="8" r="3.25" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 19.5c.7-3.4 3-5.25 5.5-5.25s4.8 1.85 5.5 5.25" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 5.1a3.25 3.25 0 0 1 0 6.3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.7 14.3c2.1.5 3.6 2.2 4.1 5.2" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/teachers",
-    label: "درخواست دبیران",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m12 4 9 4.5-9 4.5-9-4.5L12 4Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 10.8V16c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5v-5.2" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.5 9v5" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/activity",
-    label: "فعالیت و خطاها",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4l2.5-7 4 14 2.5-7H21" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/reports",
-    label: "گزارش‌های محتوا",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V4.5m0 0c3.5-1.8 6.5 1.8 10 0v9c-3.5 1.8-6.5-1.8-10 0" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/announcements",
-    label: "اعلان سایت",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/supporters",
-    label: "حامیان",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.6-7 9-7 9Z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/seo",
-    label: "سئو و هوش مصنوعی",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <circle cx="10.5" cy="10.5" r="6.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="m20 20-4.9-4.9" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="m8 12 2-2.5 1.8 1.6L14 8" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/sql",
-    label: "کنسول SQL",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <ellipse cx="12" cy="6" rx="7.5" ry="3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/settings",
-    label: "تنظیمات",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
-        <circle cx="12" cy="12" r="3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-      </svg>
-    ),
-  },
-];
+const fa = (n: number) => n.toLocaleString("fa-IR");
 
-function isActive(pathname: string, href: string) {
-  return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+/**
+ * نشانِ «چند کار منتظر است» کنارِ هر بخش.
+ *
+ * ⚠️ layout در ناوبریِ سمتِ کاربر دوباره رندر نمی‌شود، پس عددِ اولیه‌ای که
+ * از سرور آمده با رفتن به صفحهٔ دیگر کهنه می‌ماند. با هر تغییرِ مسیر یک بار
+ * تازه خوانده می‌شود — یعنی مدیری که ده گزارش را بسته، وقتی به داشبورد
+ * برمی‌گردد عددِ درست را می‌بیند.
+ */
+function useNavBadges(initial: NavBadges, pathname: string): NavBadges {
+  const [badges, setBadges] = useState(initial);
+  useEffect(() => {
+    let stale = false;
+    adminNavBadges()
+      .then((b) => {
+        if (!stale) setBadges(b);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [pathname]);
+  return badges;
 }
 
-export default function AdminShell({ children }: { children: ReactNode }) {
+function NavList({
+  pathname,
+  badges,
+  mobile = false,
+}: {
+  pathname: string;
+  badges: NavBadges;
+  mobile?: boolean;
+}) {
+  return (
+    <>
+      {NAV_GROUPS.map((group) => {
+        const items = NAV.filter((n) => n.group === group.id);
+        if (!items.length) return null;
+        return (
+          <div key={group.id || "root"} className="flex flex-col gap-0.5">
+            {group.title && (
+              <span className="px-3 pb-1 pt-4 text-[11px] font-semibold text-muted-foreground/80">
+                {group.title}
+              </span>
+            )}
+            {items.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} badge={badges[item.href]} mobile={mobile} />
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function NavLink({
+  item,
+  pathname,
+  badge,
+  mobile,
+}: {
+  item: NavItem;
+  pathname: string;
+  badge: number | undefined;
+  mobile: boolean;
+}) {
+  const active = isActive(pathname, item.href);
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
+        mobile ? "min-h-12" : "py-2"
+      } ${
+        active
+          ? "bg-primary/15 font-semibold text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      }`}
+    >
+      {item.icon}
+      <span className="flex-1">{item.label}</span>
+      {badge ? (
+        /* ⚠️ عدد و نه فقط یک نقطه: «سه گزارش» و «سی گزارش» دو فوریتِ
+           متفاوت‌اند. و `aria-label` تا صفحه‌خوان «۳» را بی‌بافت نخواند. */
+        <span
+          aria-label={`${fa(badge)} مورد منتظر`}
+          className="min-w-5 rounded-full bg-destructive px-1.5 text-center text-[11px] font-semibold leading-5 text-destructive-foreground"
+        >
+          {badge > 99 ? "۹۹+" : fa(badge)}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+export default function AdminShell({
+  children,
+  initialBadges = {},
+}: {
+  children: ReactNode;
+  initialBadges?: NavBadges;
+}) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const badges = useNavBadges(initialBadges, pathname);
+  const waiting = Object.values(badges).reduce<number>((sum, n) => sum + (n ?? 0), 0);
+
+  // Ctrl+K / ⌘K از هر جای پنل. ⚠️ `preventDefault` لازم است: بدونِ آن،
+  // کروم نوارِ جست‌وجوی خودش را هم باز می‌کند.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K" || e.key === "ن")) {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const activeLabel = NAV.find((item) => isActive(pathname, item.href))?.label ?? "پنل مدیریت";
 
@@ -198,32 +146,29 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </Link>
 
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          className="mx-3 mt-3 flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-4" aria-hidden>
+            <circle cx="11" cy="11" r="6.5" />
+            <path strokeLinecap="round" d="m20 20-4.2-4.2" />
+          </svg>
+          <span className="flex-1 text-right">جست‌وجو…</span>
+          <kbd dir="ltr" className="rounded border border-border px-1 font-sans text-[10px]">Ctrl K</kbd>
+        </button>
+
         {/* ⚠️ `min-h-0` و `overflow-y-auto` هر دو لازم‌اند و هیچ‌کدام به تنهایی
             کافی نیست. `<aside>` ارتفاعِ ثابتِ `h-screen` دارد و این نوار
-            چهارده آیتم — روی لپ‌تاپِ کوتاه بلندتر از صفحه می‌شود. آیتمِ
+            شانزده آیتم در هفت دسته — روی لپ‌تاپِ کوتاه بلندتر از صفحه می‌شود. آیتمِ
             `flex-1` به‌طور پیش‌فرض `min-height: auto` دارد، یعنی زیرِ ارتفاعِ
             محتوایش کوچک نمی‌شود؛ پس بدونِ `min-h-0` نوار از پایینِ `aside`
             بیرون می‌زد و «کنسول SQL» و «تنظیمات» اصلاً قابلِ رسیدن نبودند.
             `overscroll-contain` هم جلوی این را می‌گیرد که رسیدن به تهِ فهرست،
             اسکرول را به صفحهٔ پشتِ سر بدهد. */}
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain p-3">
-          {NAV.map((item) => {
-            const active = isActive(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                  active
-                    ? "bg-primary/15 font-semibold text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-3">
+          <NavList pathname={pathname} badges={badges} />
         </nav>
 
         <Link
@@ -251,7 +196,28 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 نشانهٔ «کجا هستم» همین است. */}
             <span className="truncate text-[11px] text-muted-foreground">{activeLabel}</span>
           </div>
-          <DrawerToggle onClick={() => setDrawerOpen(true)} label="باز کردن منوی مدیریت" />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="جست‌وجو در پنل"
+              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5" aria-hidden>
+                <circle cx="11" cy="11" r="6.5" />
+                <path strokeLinecap="round" d="m20 20-4.2-4.2" />
+              </svg>
+            </button>
+            <span className="relative">
+              <DrawerToggle onClick={() => setDrawerOpen(true)} label="باز کردن منوی مدیریت" />
+              {waiting > 0 && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute right-1.5 top-1.5 size-2.5 rounded-full bg-destructive ring-2 ring-card"
+                />
+              )}
+            </span>
+          </div>
         </header>
 
         <MobileDrawer
@@ -259,25 +225,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           onClose={() => setDrawerOpen(false)}
           title="پنل مدیریت"
         >
-          <nav className="flex flex-col gap-1">
-            {NAV.map((item) => {
-              const active = isActive(pathname, item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
-                    active
-                      ? "bg-primary/15 font-semibold text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="flex flex-col">
+            <NavList pathname={pathname} badges={badges} mobile />
           </nav>
 
           <Link
@@ -292,6 +241,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </MobileDrawer>
 
         <main className="flex-1">{children}</main>
+
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       </div>
     </div>
   );

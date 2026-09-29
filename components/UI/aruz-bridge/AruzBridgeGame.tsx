@@ -34,6 +34,7 @@ import { useOptionalAssets, useReducedMotion } from "./useOptionalAssets";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 import { AccessibleOptions } from "./AccessibleOptions";
+import { GameOverlay } from "./GameOverlay";
 
 /* بومِ سه‌بعدی فقط وقتی بارگذاری می‌شود که کاربر واقعاً وارد این مسیر شده
    باشد. `ssr: false` لازم است چون WebGL روی سرور وجود ندارد — و در Next ۱۶
@@ -41,7 +42,7 @@ import { AccessibleOptions } from "./AccessibleOptions";
 const GameCanvas = dynamic(() => import("./runtime").then((m) => m.GameCanvas), {
   ssr: false,
   loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center bg-[var(--game-night-3)]">
+    <div className="absolute inset-0 flex items-center justify-center bg-muted dark:bg-[var(--game-night-3)]">
       <div className="flex flex-col items-center gap-3">
         <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
         <p className="text-xs text-muted-foreground">در حالِ ساختنِ پل…</p>
@@ -207,6 +208,19 @@ export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssi
       : undefined,
   };
 
+  /* بازخوردِ خواندنی روی صحنه — «+امتیاز»، قابِ فشار، برقِ ترک. */
+  const overlay = (
+    <GameOverlay
+      state={state}
+      epoch={game.epoch}
+      config={game.config}
+      score={machine.score}
+      lastGain={machine.lastGain}
+      streak={machine.streak}
+      stepIndex={machine.stepIndex}
+    />
+  );
+
   /* ── بازیِ فعال روی موبایل: یک صفحهٔ تمام‌قد ──────────────────────────────
      ریشه دقیقاً به اندازهٔ `100dvh` است و سرریز ندارد؛ نوارِ بالا و HUD
      ارتفاعِ محتواییِ خودشان را می‌گیرند و بومِ سه‌بعدی *تمامِ باقی‌مانده* را.
@@ -243,7 +257,7 @@ export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssi
         </div>
 
         {/* تمامِ ارتفاعِ باقی‌مانده، و اجازهٔ کوچک‌شدن. */}
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--game-night-3)]">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-muted dark:bg-[var(--game-night-3)]">
           {webgl === null ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
@@ -262,6 +276,7 @@ export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssi
             />
           )}
 
+          {overlay}
           {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
           <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
           {/* ⚠️ شمارش فقط پس از آماده‌شدنِ واقعیِ صحنه. تا آن‌وقت پیامِ
@@ -349,7 +364,7 @@ export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssi
               (`useGameViewportSize`), پس هیچ پرسمانِ CSSـی نمی‌تواند سرِ
               ارتفاع با دیگری رقابت کند. */}
           <div
-            className="relative w-full overflow-hidden bg-[var(--game-night-3)]"
+            className="relative w-full overflow-hidden bg-muted dark:bg-[var(--game-night-3)]"
             style={{ height: viewport.height }}
           >
             {webgl === null ? (
@@ -370,6 +385,7 @@ export default function AruzBridgeGame({ assignment }: { assignment?: BridgeAssi
               />
             )}
 
+            {overlay}
             {/* گزینه‌ها به‌صورتِ HTML — توضیحش در AccessibleOptions.tsx */}
             <AccessibleOptions step={step} disabled={game.inputLocked} onChoose={game.choose} />
 

@@ -8,43 +8,35 @@ export interface QualitySettings {
   /** سقفِ devicePixelRatio. بدونِ سقف، یک گوشیِ ۳x چهار برابرِ پیکسلِ لازم را می‌کشد. */
   dpr: [number, number];
   shardCount: number;
-  /** شیشهٔ واقعی (transmission) گران است؛ روی دستگاهِ ضعیف شفافیتِ ساده جایش را می‌گیرد. */
-  useTransmission: boolean;
-  transmissionSamples: number;
-  shadows: boolean;
-  /** اندازهٔ نقشهٔ محیطی که شیشه بازتابش می‌دهد. */
-  envMapSize: number;
-  /** ذراتِ معلق در عمق — صرفاً حسِ عمق می‌دهند، پس اولین چیزی‌اند که حذف می‌شوند. */
+  /** ذراتِ معلق در عمق — صرفاً حسِ عمق می‌دهند، پس اولین چیزی‌اند که کم می‌شوند. */
   particleCount: number;
   antialias: boolean;
 }
 
+/* ⚠️ دیگر نه transmission هست، نه نقشهٔ سایه، نه نقشهٔ محیطی.
+
+   هر سه در این جدول بودند و هر سه روی پلهٔ «متوسط» — یعنی تقریباً هر گوشی —
+   روشن یا نیمه‌روشن بودند. transmission به‌تنهایی یک پاسِ رندرِ کاملِ اضافه
+   در هر فریم بود. شیشه حالا یک شیدرِ یک‌پاسه است (glassMaterial.ts)، سایهٔ
+   کاراکتر یک صفحهٔ کوچک، و آسمان یک گنبدِ شیدری؛ پس تفاوتِ پله‌ها فقط در
+   وضوح و تعدادِ ذرات است و ظاهرِ اصلیِ بازی روی ضعیف‌ترین گوشی هم همان است.
+
+   وضوح هم ثابت نمی‌ماند: `PerformanceMonitor` در `GameCanvas` اگر نرخِ فریم
+   افت کند، آن را تا کفِ همین بازه پایین می‌آورد. */
 const TIERS: Record<QualityTier, Omit<QualitySettings, "tier" | "shardCount">> = {
   high: {
     dpr: [1, 2],
-    useTransmission: true,
-    transmissionSamples: 6,
-    shadows: true,
-    envMapSize: 256,
-    particleCount: 220,
+    particleCount: 260,
     antialias: true,
   },
   medium: {
-    dpr: [1, 1.5],
-    useTransmission: true,
-    transmissionSamples: 2,
-    shadows: false,
-    envMapSize: 128,
-    particleCount: 120,
+    dpr: [0.9, 1.5],
+    particleCount: 150,
     antialias: true,
   },
   low: {
-    dpr: [1, 1.25],
-    useTransmission: false,
-    transmissionSamples: 0,
-    shadows: false,
-    envMapSize: 64,
-    particleCount: 0,
+    dpr: [0.75, 1.2],
+    particleCount: 60,
     antialias: false,
   },
 };

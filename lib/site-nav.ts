@@ -6,7 +6,7 @@ export type NavLink = { href: string; label: string };
 export const MORE_NAV_LINKS: NavLink[] = [
   { href: "/timeline", label: "خط زمان ادبیات" },
   { href: "/exam", label: "امتحانات نهایی" },
-  { href: "/sarvaclub", label: "سروا کلاب" },
+  { href: "/shab-emtehan", label: "شب امتحان" },
   { href: "/vazn-yab", label: "وزن‌یاب" },
   { href: "/game", label: "بازی" },
   { href: "/about", label: "درباره" },
@@ -23,6 +23,7 @@ export const FOOTER_SECTIONS: { title: string; links: NavLink[] }[] = [
     title: "یادگیری",
     links: [
       { href: "/doroos", label: "درسنامه" },
+      { href: "/shab-emtehan", label: "شب امتحان" },
       { href: "/timeline", label: "خط زمان ادبیات" },
       { href: "/guide", label: "راهنمای یادگیری" },
       { href: "/quiz", label: "عروض سماعی" },

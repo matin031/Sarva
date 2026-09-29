@@ -54,6 +54,13 @@ const morabba = localFont({
   ],
   variable: "--font-morabba",
   display: "swap",
+  /* ⚠️ preload خاموش: مربّع فقط زیرِ `.panel-scope` مصرف می‌شود، ولی با
+     preloadِ پیش‌فرضِ next/font هر صفحهٔ سایت — خانه، درس، بازی — چهار فایلِ
+     آن (~۹۰ کیلوبایت) را در مسیرِ بحرانیِ بارگذاری می‌کشید و با CSS و
+     جاوااسکریپتِ خودِ صفحه بر سرِ پهنای باند رقابت می‌کرد. حالا مرورگر فقط
+     وقتی می‌گیردش که یک عنوانِ پنل واقعاً آن را بخواهد؛ تا رسیدنش همان
+     وزیرمتن دیده می‌شود (`swap`). */
+  preload: false,
   /* همان وزیرمتن، تا جایگزینیِ قلم طولِ عنوان را نپراند. */
   fallback: ["Vazirmatn", "system-ui", "sans-serif"],
   adjustFontFallback: false,
@@ -84,6 +91,12 @@ const pofak = localFont({
   ],
   variable: "--font-pofak",
   display: "swap",
+  /* ⚠️ preload خاموش، به همان دلیلِ مربّع و بدتر: پفک فقط در بازی‌ها
+     (`.game-display`) دیده می‌شود، ولی هر صفحه‌ای هر چهار فایلش را پیشاپیش
+     می‌کشید (~۱۵۰ کیلوبایت) — *از جمله دو فایلِ woff* که فقط مرورگرهای بی‌woff2
+     به آن نیاز دارند؛ یعنی مرورگری که preload را می‌فهمد، هرگز مصرفشان
+     نمی‌کند. */
+  preload: false,
   fallback: ["Vazirmatn", "system-ui", "sans-serif"],
   adjustFontFallback: false,
 });

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshPublicContent } from "@/lib/cache/public";
 import { requireAdmin } from "@/lib/require-admin";
 import {
   SETTING_SPECS,
@@ -167,6 +168,8 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
 
   revalidatePath("/admin/settings");
   if (key.startsWith("seo.")) revalidateSeoOutputs();
+  // بخشِ حامیانِ صفحهٔ اصلی از تنظیماتِ `home.*` ساخته می‌شود (lib/site/content.ts).
+  if (key.startsWith("home.")) refreshPublicContent("site");
   return { ok: true, data: null };
 }
 
@@ -231,6 +234,8 @@ export async function adminResetSetting(key: SettingKey): Promise<ActionResult> 
   });
   revalidatePath("/admin/settings");
   if (key.startsWith("seo.")) revalidateSeoOutputs();
+  // بخشِ حامیانِ صفحهٔ اصلی از تنظیماتِ `home.*` ساخته می‌شود (lib/site/content.ts).
+  if (key.startsWith("home.")) refreshPublicContent("site");
   return { ok: true, data: null };
 }
 

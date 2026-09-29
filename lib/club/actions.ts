@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { refreshPublicContent } from "@/lib/cache/public";
 import { queryOne, execute, transaction } from "@/lib/db";
 import { getClubViewer } from "@/lib/club/queries";
 import { rateLimit } from "@/lib/api/rate-limit";
@@ -63,6 +64,8 @@ function badId(id: unknown, what: string): { ok: false; error: string } | null {
 }
 
 function revalidateClub(postId?: string) {
+  // فید و آمارِ مهمان در حافظه کش می‌شوند (lib/club/queries.ts).
+  refreshPublicContent("club");
   revalidatePath("/sarvaclub");
   revalidatePath("/panel/club");
   revalidatePath("/admin/club");

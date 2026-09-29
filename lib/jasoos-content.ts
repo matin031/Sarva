@@ -10,6 +10,8 @@ import {
   type JasoosLevel,
   type Suspect,
 } from "@/lib/jasoos-data";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 
 /**
  * سطح‌های بازی «جاسوسِ نقش‌ها» از دیتابیس.
@@ -146,7 +148,16 @@ export async function loadJasoosLevel(levelId: number): Promise<JasoosLevel | nu
   return JASOOS_LEVELS.find((l) => l.id === levelId) ?? null;
 }
 
-export async function loadJasoosLevels(): Promise<JasoosLevelData> {
+/**
+ * همان خواندن، با کشِ کوتاهِ درون‌حافظه‌ای: محتوا برای همهٔ بازیکن‌ها یکی است
+ * و بدونِ این هر بازدید یک کوئریِ یکسان می‌زد. تازه‌سازی پس از ذخیرهٔ مدیر با
+ * `refreshPublicContent("jasoos")` است (lib/cache/public.ts).
+ */
+export function loadJasoosLevels(): Promise<JasoosLevelData> {
+  return memo(publicKey("jasoos"), PUBLIC_TTL_MS.content, readJasoosLevelsFromDb);
+}
+
+async function readJasoosLevelsFromDb(): Promise<JasoosLevelData> {
   let rows: LevelRow[];
   try {
     rows = groupLevels(

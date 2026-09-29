@@ -10,8 +10,20 @@ import { loadJasoosLevels } from "@/lib/jasoos-content";
 
 export const metadata: Metadata = catalogMetadata("/game/jasoos");
 
-// پرونده‌ها از پنل مدیریت می‌آیند.
-export const dynamic = "force-dynamic";
+/* پرونده‌ها از پنلِ مدیریت می‌آیند، ولی برای *همهٔ* بازدیدکننده‌ها یکی‌اند.
+
+   ⚠️ تا امروز `force-dynamic` بود، یعنی هر بازدید صفحه را از صفر رندر می‌کرد
+   و یک کوئری می‌زد. زیرِ بار اندازه گرفته شد: صفحهٔ پویا حدود ۱۲۵ درخواست در
+   ثانیه و صفحهٔ ایستای مشابه حدود ۴۵۰ (۵۰ کاربرِ هم‌زمان، یک پروسه).
+
+   حالا ISR است: HTMLِ آماده سرو می‌شود و حداکثر هر ۶۰ ثانیه یک بار در
+   پس‌زمینه تازه می‌شود. ذخیرهٔ مدیر با `refreshPublicContent("jasoos")` همان
+   لحظه صفحه را باطل می‌کند، پس «مدیری که تغییرش را نمی‌بیند» برنمی‌گردد.
+
+   ⚠️ در `next build` دیتابیس نیست؛ loader آن را می‌گیرد و دادهٔ ثابت
+   برمی‌گرداند (همان قراردادِ صفحهٔ خانه). پس صفحهٔ ساخته‌شده در build حداکثر
+   ۶۰ ثانیه پس از بالا آمدن عمر دارد و بعد با دادهٔ دیتابیس جایگزین می‌شود. */
+export const revalidate = 60;
 
 export default async function Page() {
   const { levels } = await loadJasoosLevels();

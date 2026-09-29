@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { InvalidInputError } from "@/lib/api/action-input";
 import { recordAudit } from "@/lib/admin/audit";
 import { JASOOS_SUSPECT_COUNT, isSuspectRole } from "@/lib/jasoos-data";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * مدیریت پرونده‌های «جاسوسِ نقش‌ها».
@@ -286,6 +287,7 @@ export async function jasoosAdminSave(input: JasoosLevelInput): Promise<SaveResu
       metadata: { category: input.category, published: input.isPublished },
     });
 
+    refreshPublicContent("jasoos");
     return { ok: true, id: levelId };
   } catch (err) {
     if (err instanceof InvalidInputError) return { ok: false, error: err.message };
@@ -338,6 +340,7 @@ export async function jasoosAdminSetPublished(
       : `پروندهٔ «${target.title}» از دسترس دانش‌آموزان خارج شد`,
   });
 
+  refreshPublicContent("jasoos");
   return { ok: true };
 }
 
@@ -361,5 +364,6 @@ export async function jasoosAdminDelete(id: number): Promise<ActionResult> {
     summary: target ? `پروندهٔ «${target.title}» حذف شد` : "یک پروندهٔ جاسوس حذف شد",
   });
 
+  refreshPublicContent("jasoos");
   return { ok: true };
 }

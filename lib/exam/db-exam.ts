@@ -1,5 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import { query, queryOne } from "@/lib/db";
+import { memo } from "@/lib/cache/memo";
+import { PUBLIC_TTL_MS, publicKey } from "@/lib/cache/public";
 import type { QuestionPartType } from "@/lib/exam/content-schemas";
 import type { SeedExam, SeedOption, SeedPart, SeedQuestion } from "./seed-data/seed-types";
 
@@ -13,7 +16,18 @@ import type { SeedExam, SeedOption, SeedPart, SeedQuestion } from "./seed-data/s
  * این فایل server-only است چون کلید پاسخ را می‌خواند. toClientExam() قبل از
  * رسیدن به مرورگر آن را حذف می‌کند.
  */
-export async function getExamByKey(examKey: string): Promise<SeedExam | null> {
+export const getExamByKey = cache((examKey: string): Promise<SeedExam | null> =>
+  /* دو لایه، برای دو مشکلِ جدا:
+     • `cache` (ری‌اکت): generateMetadata و خودِ صفحه هر دو این را صدا
+       می‌زدند؛ یعنی هر بازدیدِ یک آزمون ده کوئری به‌جای پنج.
+     • `memo`: برگهٔ آزمون برای همه یکی است و فقط با ذخیرهٔ مدیر عوض می‌شود.
+       «پیدا نشد» کش نمی‌شود، چون کلید از نشانی می‌آید.
+     ⚠️ شیءِ برگشتی میانِ درخواست‌ها مشترک است؛ مصرف‌کننده‌ها فقط می‌خوانند
+     (toClientExam، regradeAttempt و پنل‌ها همه شیءِ تازه می‌سازند). */
+  memo(publicKey("exams", `paper:${examKey}`), PUBLIC_TTL_MS.content, () => readExam(examKey), (e) => e !== null),
+);
+
+async function readExam(examKey: string): Promise<SeedExam | null> {
   const exam = await queryOne<{
     id: string;
     subject: string;
@@ -171,7 +185,11 @@ export type ExamSummary = {
  * در صورت رد شدن، فهرست را بدون تعداد نشان بدهد. در SQL خام این فقط یک
  * زیرکوئری است — نه شرطی، نه fallback، نه چیزی که در نسخهٔ دیگری خراب شود.
  */
-export async function listExamSummaries(): Promise<ExamSummary[]> {
+export function listExamSummaries(): Promise<ExamSummary[]> {
+  return memo(publicKey("exams", "summaries"), PUBLIC_TTL_MS.content, readExamSummaries);
+}
+
+async function readExamSummaries(): Promise<ExamSummary[]> {
   const rows = await query<{
     exam_session: string | null;
     title: string | null;
@@ -226,7 +244,11 @@ export async function listExams(): Promise<{ examKey: string; exam: SeedExam }[]
  * نمونهٔ رایگان هم خودبه‌خود همان تازه می‌شود و کسی مجبور نیست یادش بیاید
  * جایی را دستی عوض کند.
  */
-export async function freeExamKey(): Promise<string | null> {
+export function freeExamKey(): Promise<string | null> {
+  return memo(publicKey("exams", "free"), PUBLIC_TTL_MS.content, readFreeExamKey);
+}
+
+async function readFreeExamKey(): Promise<string | null> {
   const rows = await query<{ exam_session: string | null }>(
     `select e.exam_session
        from exams e

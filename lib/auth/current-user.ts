@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "./config";
 import { signAccessToken, verifyAccessToken } from "./tokens";
@@ -18,8 +19,15 @@ import { AuthError, type AuthUser } from "./types";
  *
  * مرحلهٔ ۲ یک کوئری روی کلید اصلی است؛ در ازای آن، تصمیم‌های دسترسی هرگز به
  * ادعای داخل توکن تکیه نمی‌کنند.
+ *
+ * ⚠️ `cache` (ری‌اکت): در یک رندر — layout، generateMetadata، صفحه و هر
+ * کامپوننتِ سروری که این را بخواند — همان یک کوئری به اشتراک گذاشته می‌شود.
+ * دامنه‌اش فقط *همان درخواست* است؛ درخواستِ بعدی دوباره از دیتابیس می‌خواند،
+ * پس «ادمینِ عزل‌شده» همچنان در درخواستِ بعدی عزل‌شده دیده می‌شود. بیرون از
+ * رندر (Route Handler، Server Action) `cache` هیچ کاری نمی‌کند و رفتار همان
+ * قبلی است.
  */
-export async function getCurrentUser(): Promise<AuthUser | null> {
+export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!token) return null;
 
@@ -33,7 +41,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (user.isBanned) return null;
 
   return user;
-}
+});
 
 /**
  * توکنِ دسترسیِ تازه برای **همین** سشن.

@@ -1,8 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, normalize, sep } from "node:path";
 import type { NextRequest } from "next/server";
-import { requestMeta } from "@/lib/api/http";
-import { rateLimit } from "@/lib/api/rate-limit";
+import { rateLimit, rateLimitSubject } from "@/lib/api/rate-limit";
 import { candidateById } from "@/lib/kimia/server/source";
 
 /**
@@ -52,10 +51,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ questionId: string }> },
 ) {
-  const { ip } = requestMeta(request);
   /* سخاوتمندانه: یک دور ممکن است پنج‌شش بار پخش شود و نشست شش دور دارد.
      سقف فقط جلوی کشیدنِ کلِ بانکِ صوتی در یک حلقه را می‌گیرد. */
-  const limit = rateLimit(`kimia-rhythm:${ip ?? "unknown"}`, 240, 10 * 60);
+  const limit = rateLimit(`kimia-rhythm:${await rateLimitSubject(request)}`, 240, 10 * 60);
   if (!limit.allowed) {
     return new Response("too many requests", {
       status: 429,

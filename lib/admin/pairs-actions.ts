@@ -13,6 +13,7 @@ import {
   type MemoryGrade,
   type MemoryTerm,
 } from "@/lib/literary-pairs";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 export type AdminMemoryPair = {
   id: string;
@@ -162,6 +163,7 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
         metadata: { grade: input.grade, term: input.term },
       });
 
+      refreshPublicContent("pairs");
       return { ok: true };
     }
 
@@ -197,6 +199,7 @@ export async function pairsAdminUpsert(input: MemoryPairInput): Promise<ActionRe
       metadata: { grade: input.grade, term: input.term },
     });
 
+    refreshPublicContent("pairs");
     return { ok: true };
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -323,6 +326,7 @@ export async function pairsAdminBulkAdd(input: {
       metadata: { grade: input.grade, term: input.term, added, skipped },
     });
 
+    refreshPublicContent("pairs");
     return { ok: true, added, skipped, duplicates: parsed.length - added };
   } catch (err) {
     const { recordError } = await import("@/lib/admin/audit");
@@ -355,5 +359,6 @@ export async function pairsAdminDelete(id: string): Promise<ActionResult> {
     metadata: target ? { grade: target.grade, term: target.term } : {},
   });
 
+  refreshPublicContent("pairs");
   return { ok: true };
 }

@@ -54,7 +54,7 @@ import {
  * درخواست بزند و اصلاً از این مسیر رد نشود.
  */
 
-/** سقفِ کلیِ درخواست به ازای هر IP روی /api.
+/** سقفِ کلیِ درخواست روی /api، به ازای هر کاربرِ واردشده یا هر IPِ مهمان.
  *
  *  عمداً بلند است — یک کاربر عادی که در پنل بین صفحه‌ها می‌چرخد یا وسط بازی
  *  است، در یک دقیقه ده‌ها درخواست می‌زند و نباید به دیوار بخورد. کارِ این سقف
@@ -164,6 +164,13 @@ export async function proxy(request: NextRequest) {
     return response;
   };
 
+  const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+
+  /* تأییدِ امضای توکن فقط محاسبه است و هیچ I/O ندارد، پس پیش از گاردها هم
+     ارزان است — و سقفِ نرخِ پایین به آن نیاز دارد. */
+  let claims = accessToken ? await verifyAccessToken(accessToken) : null;
+
   // ---------------------------------------------------------------- گاردها --
   // قبل از هر کار دیگری، چون هیچ‌کدام به سشن نیاز ندارند و یک درخواستِ رد شده
   // نباید هزینهٔ تازه‌سازی توکن یا کوئری دیتابیس را تحمیل کند.
@@ -187,8 +194,13 @@ export async function proxy(request: NextRequest) {
       );
     }
 
-    const { ip } = requestMeta(request);
-    const limit = rateLimit(`api:${ip ?? "unknown"}`, API_RATE_LIMIT, API_RATE_WINDOW_SECONDS);
+    /* ⚠️ کاربرِ واردشده با شناسهٔ خودش شمرده می‌شود و مهمان با IP.
+       با کلیدِ IP، یک کلاسِ سی‌نفره پشتِ یک NAT (یا هزاران مشترکِ یک
+       اپراتورِ همراه پشتِ CGNAT) *یک* سهمیهٔ ۲۴۰تایی را با هم تقسیم
+       می‌کردند و وسطِ بازی ۴۲۹ می‌گرفتند. توضیحِ کامل کنارِ
+       `rateLimitSubject` در lib/api/rate-limit.ts. */
+    const subject = claims ? `u:${claims.sub}` : `ip:${requestMeta(request).ip ?? "unknown"}`;
+    const limit = rateLimit(`api:${subject}`, API_RATE_LIMIT, API_RATE_WINDOW_SECONDS);
     if (!limit.allowed) {
       // ⚠️ IP لاگ نمی‌شود. برای فهمیدنِ «سقف کلی خورده شد» مسیر و شناسه کافی
       // است، و آدرس شبکهٔ کاربر داده‌ای است که لاگ عملیاتی نباید نگه دارد.
@@ -203,9 +215,6 @@ export async function proxy(request: NextRequest) {
       return stamp(tooManyRequests(limit.retryAfterSeconds, requestId));
     }
   }
-
-  const accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
-  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 
   /**
    * مسیرهایی که خودشان صاحبِ کوکی‌های سشن‌اند و proxy نباید در کارشان دخالت کند.
@@ -225,7 +234,6 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/api/v1/auth/refresh" ||
     request.nextUrl.pathname === "/api/v1/auth/logout";
 
-  let claims = accessToken ? await verifyAccessToken(accessToken) : null;
   let response: NextResponse | null = null;
 
   // توکن دسترسی نداریم ولی refresh داریم → یک بار تلاش برای تازه‌سازی.
@@ -441,8 +449,13 @@ export const config = {
    *
    * فایل‌های public/audio (۳۱ فایل صوتی اوزان) و تصاویر عمداً بیرون‌اند —
    * اجرای این کد برای یک mp3 فقط تأخیر اضافه می‌کند.
+   *
+   * پوشه‌های دارایی‌های `public/` (games، literary-timeline، vocab-images،
+   * maintenance-assets) هم کامل بیرون‌اند، نه فقط با پسوند: بازی‌ها فایلِ
+   * `.json` و `.glb` چندمگابایتی دارند که پسوندشان در فهرستِ بالا نبود و هر
+   * بار از تأییدِ توکن و گیتِ حالتِ بروزرسانی رد می‌شدند.
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|audio/|vocab/|uploads/|.*\\.(?:png|jpe?g|gif|svg|webp|ico|mp3|wav|ogg|m4a|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|audio/|vocab/|uploads/|games/|literary-timeline/|vocab-images/|maintenance-assets/|.*\\.(?:png|jpe?g|gif|svg|webp|ico|mp3|wav|ogg|m4a|woff2?|glb)$).*)",
   ],
 };

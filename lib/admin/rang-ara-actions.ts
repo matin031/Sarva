@@ -9,6 +9,7 @@ import { faNum } from "@/lib/doroos/catalog";
 import { verseKey } from "@/lib/rang-ara/bulk";
 import type { GradeKey, Step } from "@/lib/rang-ara/content";
 import { isGradeKey, parseSteps, storageProblem, validateVerse, type VerseRecord } from "@/lib/rang-ara/verse";
+import { refreshPublicContent } from "@/lib/cache/public";
 
 /**
  * مدیریتِ بانکِ بیت‌های «رنگ‌آرا».
@@ -174,6 +175,7 @@ export async function rangAraAdminSave(input: RangAraVerseInput): Promise<SaveRe
       summary: input.id ? `بیتِ «${v.lines[0]}» ویرایش شد` : `بیتِ «${v.lines[0]}» ساخته شد`,
       metadata: { grade: v.grade, lesson: v.lesson, published: v.isPublished, steps: v.steps.length },
     });
+    refreshPublicContent("rang-ara");
     return { ok: true, id };
   } catch (err) {
     if (err instanceof InvalidInputError) return { ok: false, error: err.message };
@@ -249,6 +251,7 @@ export async function rangAraAdminImport(inputs: RangAraVerseInput[]): Promise<R
       summary: `${faNum(fresh.length)} بیتِ رنگ‌آرا افزوده شد`,
       metadata: { added: fresh.length, published, duplicates: verses.length - fresh.length },
     });
+    refreshPublicContent("rang-ara");
     return { ok: true, added: fresh.length, published, duplicates: verses.length - fresh.length };
   } catch (err) {
     const { recordError } = await import("@/lib/admin/audit");
@@ -281,6 +284,7 @@ export async function rangAraAdminSetPublished(id: string, published: boolean): 
     targetId: verseId,
     summary: published ? `بیتِ «${v.lines[0]}» منتشر شد` : `بیتِ «${v.lines[0]}» از بازی خارج شد`,
   });
+  refreshPublicContent("rang-ara");
   return { ok: true };
 }
 
@@ -297,5 +301,6 @@ export async function rangAraAdminDelete(id: string): Promise<ActionResult> {
     targetId: verseId,
     summary: target ? `بیتِ «${target.line_1}» حذف شد` : "یک بیتِ رنگ‌آرا حذف شد",
   });
+  refreshPublicContent("rang-ara");
   return { ok: true };
 }

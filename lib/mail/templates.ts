@@ -396,3 +396,62 @@ export function plusExpiredEmail(): Omit<MailMessage, "to"> {
     text: `اشتراک سروا پلاس به پایان رسید. حساب و پیشرفتت سر جایش است.\n\nتمدید: ${emailUrl("/checkout")}`,
   };
 }
+
+/* ──────────────────────────── خبرِ مدیر ──────────────────────────────── */
+
+/**
+ * ایمیلِ «خبر برای مدیر» — ثبت‌نام، خرید، درخواستِ دبیری، …
+ *
+ * ⚠️ همهٔ مقدارها از کاربر می‌آیند (نام، ایمیل، عنوانِ تیکت) و همه از `esc`
+ * رد می‌شوند. این ایمیل به صندوقِ مدیر می‌رود — همان کسی که یک HTMLِ تزریق‌شده
+ * در آن بیشترین آسیب را می‌زند.
+ *
+ * جدولِ «برچسب ← مقدار» و نه یک پاراگراف: مدیر این‌ها را در گوشی و بین ده
+ * ایمیلِ دیگر نگاه می‌کند و باید در یک نگاه ببیند «کی، چه، چقدر».
+ */
+export function adminAlertEmail(input: {
+  /** برچسبِ رویداد — «ثبت‌نامِ کاربرِ تازه». */
+  eventLabel: string;
+  heading: string;
+  rows: { label: string; value: string }[];
+  /** مسیرِ نسبی در پنل، مثل `/admin/users/<id>`. */
+  href?: string;
+}): Omit<MailMessage, "to"> {
+  const rows = input.rows
+    .filter((r) => r.value.trim())
+    .map(
+      (r) => `                <tr>
+                  <td style="padding:8px 12px; font-size:12px; color:#5c6b7f; white-space:nowrap; vertical-align:top;">${esc(r.label)}</td>
+                  <td style="padding:8px 12px; font-size:13px; color:#d7dee7; word-break:break-word;">${esc(r.value)}</td>
+                </tr>`,
+    )
+    .join("\n");
+
+  const table = rows
+    ? `          <tr>
+            <td style="padding:20px 32px 0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#111c29; border-radius:12px;">
+${rows}
+              </table>
+            </td>
+          </tr>
+`
+    : "";
+
+  const link = input.href ? emailUrl(input.href) : undefined;
+  const html = shell(
+    input.heading,
+    noticeBody(input.heading, [`<span style="font-size:12px; color:#5c6b7f;">${esc(input.eventLabel)}</span>`]) +
+      table +
+      (link ? noticeBody("", [], { label: "باز کردن در پنل مدیریت", href: link }) : ""),
+  );
+
+  const text = [
+    input.heading,
+    "",
+    ...input.rows.filter((r) => r.value.trim()).map((r) => `${r.label}: ${r.value}`),
+    ...(link ? ["", link] : []),
+  ].join("\n");
+
+  return { subject: `[سروا · مدیر] ${input.heading}`, html, text };
+}

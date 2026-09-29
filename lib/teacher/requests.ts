@@ -6,6 +6,7 @@ import { locationLabel } from "@/lib/geo";
 import { maskNationalId } from "@/lib/profile/national-id";
 import { maskPhone } from "@/lib/auth/phone";
 import { removeTeacherDocument } from "./documents";
+import { alertAdmins } from "@/lib/notify/admin-alerts";
 import { listMyVerificationHistory, recordVerification } from "./verification-log";
 import type { AuthUser } from "@/lib/auth/types";
 import type {
@@ -268,6 +269,8 @@ export async function submitTeacherRequest(params: SubmitParams): Promise<Submit
     teacher_request_id: id,
   });
 
+  alertTeacherRequest(user, school, false);
+
   const created = await getLatestTeacherRequest(user.id);
   if (!created) throw new Error("درخواست ثبت شد ولی خوانده نشد.");
   return { ok: true, request: created };
@@ -345,9 +348,32 @@ async function resubmit(
     teacher_request_id: open.id,
   });
 
+  alertTeacherRequest(user, school, true);
+
   const updated = await getLatestTeacherRequest(user.id);
   if (!updated) throw new Error("درخواست به‌روز شد ولی خوانده نشد.");
   return { ok: true, request: updated };
+}
+
+/** خبرِ درخواستِ دبیری برای مدیر.
+ *
+ *  ⚠️ کد ملی و نامِ فایلِ حکم **در ایمیل نمی‌آیند**: ایمیل از دستِ سایت
+ *  بیرون می‌رود و در صندوق‌ها و پشتیبان‌های دیگران می‌ماند. مدیر مدارک را
+ *  در خودِ پنل می‌بیند، جایی که دیدنشان در لاگ ثبت می‌شود. */
+function alertTeacherRequest(user: AuthUser, school: string, resubmitted: boolean): void {
+  alertAdmins("teacher_request", {
+    event: "teacher_request",
+    heading: resubmitted
+      ? `مدارکِ اصلاح‌شدهٔ دبیری — ${user.fullName ?? "بدون نام"}`
+      : `درخواستِ دبیریِ تازه — ${user.fullName ?? "بدون نام"}`,
+    rows: [
+      { label: "نام", value: user.fullName },
+      { label: "مدرسه", value: school },
+      { label: "ایمیل", value: user.email },
+      { label: "موبایل", value: user.phone },
+    ],
+    href: "/admin/teachers",
+  });
 }
 
 /** تاریخچهٔ درخواست‌های خودِ کاربر — برای نمایش در پنل. */

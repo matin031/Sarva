@@ -20,7 +20,7 @@
  */
 
 /** گروه‌های صفحهٔ تنظیمات. `SettingSpec.group` از همین می‌آید. */
-export type SettingGroup = "site" | "mail" | "sms" | "notify" | "home" | "plus" | "seo";
+export type SettingGroup = "site" | "mail" | "sms" | "notify" | "alerts" | "home" | "plus" | "seo";
 
 /** برچسب فارسی هر گروه، برای عنوان بخش‌ها در صفحهٔ تنظیمات. */
 export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: string }> = {
@@ -42,6 +42,11 @@ export const SETTING_GROUPS: Record<SettingGroup, { title: string; description: 
     title: "اطلاع‌رسانی",
     description:
       "پیامک و ایمیلِ رویدادهای حساب و اشتراک: خوش‌آمدِ ثبت‌نام، فعال‌سازی و تمدید، و یادآوریِ پایان. ⚠️ پیامکِ هر رویداد تا وقتی شناسهٔ قالبش ثبت نشده فرستاده نمی‌شود — خطِ خدماتی متنِ آزاد نمی‌پذیرد.",
+  },
+  alerts: {
+    title: "خبر برای مدیر",
+    description:
+      "ایمیلی که با هر ثبت‌نام، خرید، درخواستِ دبیری، گزارش، تیکت، سرودهٔ تازه یا خطای سرور به شما می‌رسد. هر رویداد جدا خاموش می‌شود و هرکدام سقفِ ساعتی دارد تا صندوقتان پر نشود.",
   },
   plus: {
     title: "سروا پلاس",

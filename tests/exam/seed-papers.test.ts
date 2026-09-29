@@ -31,10 +31,15 @@ describe("seed papers", () => {
     });
   }
 
-  test("examSession ها یکتا و همه پایهٔ دوازدهم‌اند", () => {
+  // subject نامِ کتاب است (farsi2، olum-fonoon3) و صفحهٔ /exam با پایه دسته‌بندی
+  // می‌کند؛ اگر این دو نخوانند، برگه زیرِ پایهٔ اشتباه نمایش داده می‌شود.
+  test("examSession ها یکتا و پایه با شمارهٔ کتاب می‌خواند", () => {
     const keys = seedExams.map((e) => e.examSession);
     assert.equal(new Set(keys).size, keys.length);
-    for (const e of seedExams) assert.equal(e.grade, 12, e.examSession);
+    for (const e of seedExams) {
+      const book = Number(e.subject.match(/(\d)$/)?.[1]);
+      assert.equal(e.grade, book + 9, `${e.examSession}: ${e.subject} / پایهٔ ${e.grade}`);
+    }
   });
 
   test("کلیدهای آزمون‌های قدیمی عوض نشده‌اند (آدرس و کارنامه به آن‌ها بسته است)", () => {

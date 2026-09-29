@@ -14,6 +14,8 @@ import { mailAdapter, sendMail } from "@/lib/mail";
 import { smsStatus } from "@/lib/sms";
 import { storageAdapter } from "@/lib/storage";
 import { recordAudit } from "@/lib/admin/audit";
+import { deliverAdminAlert } from "@/lib/notify/admin-alerts";
+import { MAX_ALERT_RECIPIENTS, parseAlertRecipients } from "@/lib/notify/admin-alert-events";
 
 export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; errors: string[] };
 
@@ -110,6 +112,14 @@ export async function adminSetSetting(key: SettingKey, value: string): Promise<A
     const address = trimmed.match(/<([^>]+)>/)?.[1] ?? trimmed;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim())) {
       return { ok: false, errors: ["آدرس ایمیل معتبر نیست. مثال: سروا <noreply@example.com>"] };
+    }
+  }
+
+  if (key === "alerts.recipients") {
+    const { valid, invalid } = parseAlertRecipients(trimmed);
+    if (invalid.length) return { ok: false, errors: [`این‌ها ایمیلِ معتبر نیستند: ${invalid.join("، ")}`] };
+    if (valid.length > MAX_ALERT_RECIPIENTS) {
+      return { ok: false, errors: [`حداکثر ${MAX_ALERT_RECIPIENTS.toLocaleString("fa-IR")} گیرنده.`] };
     }
   }
 
@@ -263,6 +273,55 @@ export async function adminSendTestEmail(to: string): Promise<ActionResult> {
     // صفحه با بستن پنجره می‌رود، ولی مشکلِ تنظیمات ایمیل سر جایش می‌ماند.
     const { recordError } = await import("@/lib/admin/audit");
     await recordError("mail", err, "ارسال ایمیل آزمایشی از پنل");
+    return { ok: false, errors: [(err as Error).message] };
+  }
+}
+
+/**
+ * یک «خبرِ آزمایشی» به همان گیرنده‌هایی که خبرهای واقعی می‌گیرند.
+ *
+ * ⚠️ از همان `deliverAdminAlert` می‌رود و نه یک `sendMail` جدا — آزمونی
+ * که مسیرِ دیگری را بسنجد، دربارهٔ خبرهای واقعی هیچ نمی‌گوید. فقط کلیدهای
+ * روشن/خاموش و سقفِ ساعتی دور زده می‌شوند (`force`)، تا مدیر بتواند پیش از
+ * روشن کردن هم امتحان کند.
+ */
+export async function adminSendTestAlert(): Promise<ActionResult<{ sent: number }>> {
+  const admin = await requireAdmin();
+
+  try {
+    const sent = await deliverAdminAlert(
+      {
+        event: "signup",
+        heading: "خبرِ آزمایشی از پنل مدیریت",
+        rows: [
+          { label: "فرستنده", value: admin.email ?? admin.phone ?? admin.id },
+          { label: "توضیح", value: "اگر این را می‌بینید، خبرهای ثبت‌نام، خرید و بقیه هم به همین‌جا می‌رسند." },
+        ],
+        href: "/admin/settings",
+      },
+      { force: true },
+    );
+
+    if (sent === 0) {
+      return {
+        ok: false,
+        errors: [
+          "هیچ ایمیلی فرستاده نشد. یا گیرنده‌ای نیست (نه در «گیرنده‌ها» و نه مدیری با ایمیل)، یا سرویسِ ایمیل خطا داد — لاگِ خطا را ببینید.",
+        ],
+      };
+    }
+
+    await recordAudit({
+      actor: admin,
+      action: "setting.test_email",
+      targetType: "setting",
+      targetId: "alerts.recipients",
+      summary: `خبرِ آزمایشی برای ${sent} گیرنده فرستاده شد`,
+    });
+    return { ok: true, data: { sent } };
+  } catch (err) {
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("mail", err, "ارسال خبرِ آزمایشیِ مدیر از پنل");
     return { ok: false, errors: [(err as Error).message] };
   }
 }

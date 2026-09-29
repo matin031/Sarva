@@ -7,6 +7,7 @@ import { getClubViewer } from "@/lib/club/queries";
 import { rateLimit } from "@/lib/api/rate-limit";
 import { isUuid } from "@/lib/api/action-input";
 import { logger } from "@/lib/observability";
+import { alertAdmins } from "@/lib/notify/admin-alerts";
 import {
   DAILY_COMMENT_LIMIT,
   DAILY_POST_LIMIT,
@@ -203,6 +204,17 @@ export async function createClubPost(input: PostInput): Promise<ActionResult<{ i
         valid.meter,
       ],
     );
+
+    alertAdmins("club_post", {
+      event: "club_post",
+      heading: `سرودهٔ تازه برای بررسی — ${valid.title ?? "بی‌عنوان"}`,
+      rows: [
+        { label: "عنوان", value: valid.title },
+        { label: "سراینده", value: valid.is_anonymous ? `${valid.author_name} (ناشناس)` : valid.author_name },
+        { label: "آغازِ سروده", value: valid.body.length > 300 ? `${valid.body.slice(0, 300)}…` : valid.body },
+      ],
+      href: "/admin/club",
+    });
 
     revalidateClub();
     return { ok: true, data: { id: postId } };

@@ -4536,3 +4536,16 @@ html[data-quality="low"] [class*="backdrop-blur"] {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------- ستاره‌های شبِ امتحان */
+/* فقط `opacity` — روی compositor، بدونِ رنگ‌آمیزیِ دوباره. */
+@keyframes examNightTwinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.25; }
+}
+.exam-night-twinkle {
+  animation: examNightTwinkle 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .exam-night-twinkle { animation: none; opacity: 0.7; }
+}

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import type { AdminUserRow } from "@/lib/admin/user-actions";
 import type { QuizAttemptRow } from "@/lib/admin/quiz-stats-actions";
 import type { ExamAttemptRow } from "@/lib/admin/exam-stats-actions";
 
@@ -30,12 +28,17 @@ const PART_STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 type Props = {
-  user: AdminUserRow;
   quizAttempts: QuizAttemptRow[];
   examAttempts: ExamAttemptRow[];
 };
 
-export default function UserDetailPanel({ user, quizAttempts, examAttempts }: Props) {
+/**
+ * کارنامهٔ کاربر — آزمون‌ها و بازی‌ها.
+ *
+ * سرِ صفحه (نام، کنترل‌ها، دستگاه‌ها) حالا در `UserControls` است؛ این
+ * کامپوننت فقط بخشِ «چه کرده» را نشان می‌دهد.
+ */
+export default function UserDetailPanel({ quizAttempts, examAttempts }: Props) {
   const [openExam, setOpenExam] = useState<string | null>(null);
   const [openQuiz, setOpenQuiz] = useState<string | null>(null);
 
@@ -48,17 +51,8 @@ export default function UserDetailPanel({ user, quizAttempts, examAttempts }: Pr
   const examAccuracy = examTotal > 0 ? Math.round((examScored / examTotal) * 100) : null;
 
   return (
-    <div dir="rtl" className="flex max-w-3xl flex-col gap-6 p-4 xs:p-6">
-      <div>
-        <Link href="/admin/users" className="text-xs text-muted-foreground hover:text-foreground">
-          ← بازگشت به کاربران
-        </Link>
-        <h1 className="mt-1 text-xl font-bold">{user.fullName || user.email || user.id}</h1>
-        <p className="text-sm text-muted-foreground" dir="ltr">
-          {user.email}
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-6">
+      <h2 className="text-sm font-semibold text-muted-foreground">کارنامه</h2>
       <div className="grid grid-cols-2 gap-3 xs:grid-cols-4">
         <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
           <span className="text-2xl font-bold">{quizAttempts.length}</span>

@@ -51,6 +51,8 @@ export type AuditFilter = {
   action?: string;
   /** فقط عملیات برگشت‌ناپذیر */
   destructiveOnly?: boolean;
+  /** فقط کارهایی که روی این هدف انجام شده — مثلاً تاریخچهٔ یک کاربر. */
+  target?: { type: string; id: string };
   limit?: number;
   offset?: number;
 };
@@ -86,6 +88,11 @@ export async function adminListAudit(
     const actions = [...DESTRUCTIVE_ACTIONS];
     values.push(...actions);
     conditions.push(`action in (${placeholders(actions.length)})`);
+  }
+  if (filter.target) {
+    // ایندکسِ `admin_audit_target_idx` دقیقاً همین دو ستون است.
+    values.push(String(filter.target.type).slice(0, 64), String(filter.target.id).slice(0, 191));
+    conditions.push("target_type = ? and target_id = ?");
   }
 
   const where = conditions.length ? `where ${conditions.join(" and ")}` : "";

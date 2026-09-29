@@ -3,6 +3,7 @@ import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { AdminAccessDenied, loadAdminData } from "@/components/admin/AdminGate";
 import AdminShell from "@/components/admin/AdminShell";
 import MaintenanceBanner from "@/components/admin/MaintenanceBanner";
+import { adminNavBadges } from "@/lib/admin/overview-actions";
 
 /**
  * گاردِ دفاع‌در-عمقِ کلِ `/admin`.
@@ -38,9 +39,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const gate = await loadAdminData(() => requireAdmin());
   if (!gate.ok) return <AdminAccessDenied title={gate.title} message={gate.message} />;
 
+  // نشان‌های منو. ⚠️ شکستش نباید کلِ پنل را بیندازد — منوی بی‌عدد از
+  // پنلِ بسته بهتر است؛ خودِ منو بعداً دوباره تلاش می‌کند.
+  const badges = await adminNavBadges().catch(() => ({}));
+
   return (
     <AdminToastProvider>
-      <AdminShell>
+      <AdminShell initialBadges={badges}>
         {/* وقتی سایت بسته نیست، چیزی رندر نمی‌کند. چراییِ جایش در خودِ فایل. */}
         <MaintenanceBanner />
         {children}

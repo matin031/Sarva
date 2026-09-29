@@ -42,6 +42,7 @@
     "check:contrast": "node scripts/check-contrast.mjs",
     "seo:check": "node scripts/check-seo.mjs",
     "seo:og": "node --conditions=react-server scripts/seo/build-og-image.mjs",
+    "seo:icons": "node scripts/seo/build-icons.mjs",
     "seo:render": "node scripts/check-render.mjs",
     "seo:perf": "node scripts/check-perf.mjs",
     "db:unseed-aruz": "tsx --conditions=react-server scripts/unseed-aruz.ts",

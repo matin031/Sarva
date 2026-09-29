@@ -21,7 +21,8 @@ import { maintenanceState, RETRY_AFTER_SECONDS } from "@/lib/site/maintenance";
  *    HTML، بدونِ JS، بدونِ فونتِ بیرونی.
  *
  * ⚠️ فونت و نشان: فایل‌های ثابتِ `public/` — `maintenance-assets/` (مربّع برای
- * عنوان، وزیرمتن برای متن؛ همان دو قلمِ سایت) و `favicon.svg` (نشانِ سروا).
+ * عنوان، وزیرمتن برای متن؛ همان دو قلمِ سایت) و `favicon.svg` (نشانِ سروا؛
+ * آیکونِ تب نسخهٔ مربعِ آن است، `icon.svg`).
  * از `next/font` نمی‌آیند چون این صفحه layout ندارد. matcherِ proxy فایل‌های
  * svg و woff2 را رد می‌کند، پس در حالتِ بروزرسانی هم بار می‌شوند.
  *
@@ -49,7 +50,7 @@ function html(message: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>سروا | در حال بروزرسانی</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="preload" href="/maintenance-assets/Morabba-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/maintenance-assets/Vazirmatn-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>

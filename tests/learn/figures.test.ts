@@ -18,6 +18,8 @@ test("استعاره: every textbook claim matches the textbook", async () => {
     "پنهان / تشخیص": hidden,
     "اضافهٔ تشبیهی": labels => /اضاف.{1,2}\s*تشبیهی/.test(labels),
     "اضافهٔ استعاری": labels => /اضاف.{1,2}\s*استعاری|مکنیه/.test(labels),
+    // کتاب هیچ اضافهٔ اقترانی‌ای را برچسب نزده؛ این سبد فقط مثال‌های ساختهٔ درس را می‌گیرد.
+    "اضافهٔ اقترانی": () => false,
   });
   assert.ok(count >= 25, `only ${count} textbook claims`);
   assert.deepEqual(failures, []);

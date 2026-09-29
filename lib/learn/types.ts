@@ -12,7 +12,7 @@ export type Mood = "cool" | "happy" | "wow" | "think";
 
 /** شخصیتِ میزبانِ درس. چهره، نشانِ جواب و لحنِ بازخوردهای پیش‌فرض از همین
  *  می‌آید (components/learn/persona.tsx). */
-export type CharacterId = "motammam" | "iham" | "tashbih";
+export type CharacterId = "motammam" | "iham" | "tashbih" | "nahad";
 
 export type Beat =
   /** فصل تازه؛ در نوار پیشرفت هم دیده می‌شود. */

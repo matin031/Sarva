@@ -404,3 +404,21 @@ button.word:not(:disabled):hover { background: color-mix(in oklch, var(--primary
   .pillarSlot { font-size: 12.5px; padding: 3px 9px; }
   .roleTag { font-size: 10.5px; padding: 0 6px; }
 }
+
+/* ───────── خانهٔ نهاد ─────────
+   پالتِ صحنه: سبزِ روشن زیرِ نورِ زرد، که نه فیروزه‌ایِ متمم است، نه
+   بنفشِ ایهام و نه صورتیِ تشبیه. */
+.page[data-lesson="nahad"] {
+  --lx-host: #a8d98a;
+  --lx-tick: #f2b263;
+  --lx-ink: color-mix(in oklch, #3f8f3a 62%, var(--foreground));
+}
+:global(.dark) .page[data-lesson="nahad"] {
+  --lx-host: #6fa65a;
+  --lx-tick: #b9833f;
+  --lx-ink: color-mix(in oklch, #9edb8a 62%, var(--foreground));
+}
+.spotlit { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.spotlit svg { width: 44px; overflow: visible; }
+.spotlit b { font-size: 18px; font-weight: 800; line-height: 1.6; }
+.catchItem[data-state="got"] .spotlit b { color: var(--lx-ink); }

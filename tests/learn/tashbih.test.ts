@@ -123,8 +123,10 @@ test("each interactive beat is answerable", () => {
       assert.equal(new Set(beat.rows.map(row => row.hidden)).size, beat.rows.length, `${beat.prompt}: two rows share a hidden meaning`);
       assert.equal(new Set(beat.rows.map(row => row.word)).size, beat.rows.length, `${beat.prompt}: a word repeats`);
     }
+    // داوری فقط کلمهٔ `|…|` را رنگی می‌کند؛ `[…]` آنجا هیچ نشانی نمی‌گیرد و
+    // شاگرد می‌ماند که «کلمهٔ رنگی» کدام است.
     if (beat.kind === "judge") for (const item of beat.items)
-      assert.ok(parseLine(item.line).some(token => token.focus || token.target !== undefined), `«${item.line}» marks nothing`);
+      assert.equal(parseLine(item.line).filter(token => token.focus).length, 1, `«${item.line}» must mark exactly one word with |…|`);
     if (beat.kind === "list") assert.equal(new Set(beat.rows.map(row => row.word)).size, beat.rows.length, "the glossary repeats a word");
     if (beat.kind === "cards") assert.ok(beat.need <= beat.cards.length, `${beat.prompt}: needs more cards than it has`);
   }

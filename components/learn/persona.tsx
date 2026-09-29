@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactElement } from "react";
 import type { CharacterId, Mood } from "@/lib/learn/types";
-import { Iham, Likeness, Masked, Motammam, Tashbih, Tick } from "./Characters";
+import { Iham, Likeness, Masked, Motammam, Nahad, Spotlit, Tashbih, Tick } from "./Characters";
 
 /** آنچه از یک شخصیت به شکلِ قدم‌ها می‌رسد: چهره‌اش، نشانی که روی جواب درست
  *  می‌گذارد، و لحنِ جمله‌های آماده‌ای که کدِ مشترک می‌سازد. جمله‌ها رشته‌اند
@@ -59,6 +59,15 @@ export const PERSONAS: Record<CharacterId, Persona> = {
     judge: ["تشبیهه", "تشبیه نیست"],
     glow: 4,
     finish: "آینه‌دار شدی! 👥",
+  },
+  nahad: {
+    Face: Nahad,
+    Chip: Spotlit,
+    mark: "⭐",
+    miss: "«%کلمه%» نهاد نیست. اول ==فعل== رو پیدا کن، بعد بپرس «چه کسی؟ / چه چیزی؟».",
+    judge: ["نهاده", "نهاد نیست"],
+    glow: 3,
+    finish: "نهادیاب شدی! ⭐",
   },
 };
 

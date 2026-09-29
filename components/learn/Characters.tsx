@@ -160,3 +160,48 @@ export function Likeness({ label, className = "" }: { label: string; className?:
     <b>{label}</b>
   </span>;
 }
+
+/** «نهاد»: کاشیِ کلمه زیرِ نورِ صحنه، با ستاره‌ای بالای سرش — همان کسی که
+ *  جمله درباره‌اش خبر می‌دهد. دستِ چپش به خودش اشاره می‌کند: «منم!». */
+export function Nahad({ mood = "happy", className = "" }: { mood?: Mood; className?: string }) {
+  return <svg className={`${s.host} ${className}`} viewBox="0 0 100 110" aria-hidden="true" focusable="false">
+    <g className={s.hostBody}>
+      {/* نورِ صحنه */}
+      <path d="M36 4h28l14 90H22Z" fill="#fff6c8" opacity=".38" />
+      {/* ستاره، که آرام تاب می‌خورد */}
+      <path className={s.hostCrown} d="m50 3 5 10 11 1.6-8 7.8 1.9 11L50 28.2l-9.9 5.2 1.9-11-8-7.8L45 13Z" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="2.4" strokeLinejoin="round" />
+      {/* دست‌ها: یکی به خودش اشاره می‌کند */}
+      <path d="M17 66c-6 2-7 8-3 11 3 2 9 1 14-3" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <path className={mood === "wow" ? s.hostWave : undefined} d="M83 66c7-2 11-8 11-15" fill="none" stroke="var(--lx-outline)" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="14" y="34" width="72" height="62" rx="20" fill="var(--lx-host)" stroke="var(--lx-outline)" strokeWidth="2.8" />
+      <path d="M22 44c2-4 6-6 10-6" fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      {/* صورت */}
+      {mood === "cool" ? <g>
+        <path d="M27 55h46" stroke="var(--lx-outline)" strokeWidth="2.6" />
+        <rect x="27" y="52" width="19" height="12" rx="5" fill="#241c33" />
+        <rect x="54" y="52" width="19" height="12" rx="5" fill="#241c33" />
+        <path d="M31 55h6M58 55h6" stroke="#fff" strokeOpacity=".55" strokeWidth="2" strokeLinecap="round" />
+      </g> : <g className={s.hostEyes}>
+        {mood === "happy" && <path d="M31 60q5-7 10 0M59 60q5-7 10 0" fill="none" stroke="#241c33" strokeWidth="3" strokeLinecap="round" />}
+        {mood === "wow" && <><circle cx="36" cy="58" r="6" fill="#fff" stroke="#241c33" strokeWidth="2" /><circle cx="64" cy="58" r="6" fill="#fff" stroke="#241c33" strokeWidth="2" /><circle cx="36" cy="58" r="2.8" fill="#241c33" /><circle cx="64" cy="58" r="2.8" fill="#241c33" /></>}
+        {mood === "think" && <><circle cx="38" cy="57" r="3.6" fill="#241c33" /><circle cx="66" cy="57" r="3.6" fill="#241c33" /><path d="M31 49l9-2M59 47l9 2" stroke="#241c33" strokeWidth="2.4" strokeLinecap="round" /></>}
+      </g>}
+      <ellipse cx="28" cy="71" rx="5" ry="3" fill="#f49a9a" opacity=".7" />
+      <ellipse cx="72" cy="71" rx="5" ry="3" fill="#f49a9a" opacity=".7" />
+      {mood === "wow" ? <ellipse cx="50" cy="79" rx="5" ry="6" fill="#241c33" />
+        : mood === "think" ? <path d="M43 80h13" stroke="#241c33" strokeWidth="2.6" strokeLinecap="round" />
+          : <path d={mood === "cool" ? "M42 76q10 6 17-2" : "M40 75q10 10 20 0"} fill="none" stroke="#241c33" strokeWidth="2.8" strokeLinecap="round" />}
+    </g>
+  </svg>;
+}
+
+/** روی کارت‌های خانهٔ نهاد: کلمه زیرِ یک ستاره — «جمله دربارهٔ این است». */
+export function Spotlit({ label, className = "" }: { label: string; className?: string }) {
+  return <span className={`${s.spotlit} ${className}`}>
+    <svg viewBox="0 0 64 26" aria-hidden="true" focusable="false">
+      <path d="M22 25 28 4h8l6 21Z" fill="#fff6c8" opacity=".6" />
+      <path d="m32 1 3 6 6.6 1-4.8 4.6 1.1 6.6L32 16l-5.9 3.2 1.1-6.6L22.4 8l6.6-1Z" fill="#f5c542" stroke="var(--lx-outline)" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+    <b>{label}</b>
+  </span>;
+}
